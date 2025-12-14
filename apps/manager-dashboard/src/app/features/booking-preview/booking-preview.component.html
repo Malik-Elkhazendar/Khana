@@ -1,0 +1,211 @@
+<div class="booking-preview">
+  <h1>Booking Preview</h1>
+  <p class="subtitle">Check availability and pricing before creating a booking</p>
+
+  <!-- Booking Form -->
+  <form class="booking-form" (ngSubmit)="onSubmit()">
+    <!-- Facility Selection -->
+    <div class="form-group">
+      <label for="facility">Facility</label>
+      <select
+        id="facility"
+        [ngModel]="selectedFacilityId()"
+        (ngModelChange)="selectedFacilityId.set($event)"
+        name="facility"
+        required
+      >
+        @for (facility of facilities(); track facility.id) {
+          <option [value]="facility.id">
+            {{ facility.name }} - {{ formatPrice(facility.basePrice, facility.currency) }}/hour
+          </option>
+        }
+      </select>
+    </div>
+
+    <!-- Date Selection -->
+    <div class="form-group">
+      <label for="date">Date</label>
+      <input
+        type="date"
+        id="date"
+        [ngModel]="selectedDate()"
+        (ngModelChange)="selectedDate.set($event)"
+        name="date"
+        required
+      />
+    </div>
+
+    <!-- Time Selection -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="startTime">Start Time</label>
+        <input
+          type="time"
+          id="startTime"
+          [ngModel]="startTime()"
+          (ngModelChange)="startTime.set($event)"
+          name="startTime"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label for="endTime">End Time</label>
+        <input
+          type="time"
+          id="endTime"
+          [ngModel]="endTime()"
+          (ngModelChange)="endTime.set($event)"
+          name="endTime"
+          required
+        />
+      </div>
+    </div>
+
+    <!-- Promo Code -->
+    <div class="form-group">
+      <label for="promoCode">Promo Code (Optional)</label>
+      <input
+        type="text"
+        id="promoCode"
+        [ngModel]="promoCode()"
+        (ngModelChange)="promoCode.set($event)"
+        name="promoCode"
+        placeholder="Enter promo code"
+      />
+    </div>
+
+    <!-- Submit Button -->
+    <button
+      type="submit"
+      class="btn-primary"
+      [disabled]="!canSubmit()"
+    >
+      @if (loading()) {
+        Checking...
+      } @else {
+        Check Availability
+      }
+    </button>
+  </form>
+
+  <!-- Error Message -->
+  @if (error()) {
+    <div class="error-message">
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Preview Result -->
+  @if (previewResult(); as result) {
+    <div class="preview-result" [class.success]="result.canBook" [class.conflict]="!result.canBook">
+      <!-- Status Header -->
+      <div class="result-header">
+        @if (result.canBook) {
+          <span class="status-icon success">✓</span>
+          <h2>Available!</h2>
+        } @else {
+          <span class="status-icon conflict">✗</span>
+          <h2>Not Available</h2>
+        }
+      </div>
+
+      <!-- Validation Errors -->
+      @if (result.validationErrors && result.validationErrors.length > 0) {
+        <div class="validation-errors">
+          <h3>Validation Issues:</h3>
+          <ul>
+            @for (error of result.validationErrors; track error) {
+              <li>{{ error }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      <!-- Conflict Info -->
+      @if (result.conflict) {
+        <div class="conflict-info">
+          <p class="conflict-message">{{ result.conflict.message }}</p>
+          @if (result.conflict.conflictingSlots.length > 0) {
+            <div class="conflicting-slots">
+              <h4>Conflicting Slots:</h4>
+              @for (slot of result.conflict.conflictingSlots; track slot.startTime) {
+                <div class="slot">
+                  {{ formatTime(slot.startTime) }} - {{ formatTime(slot.endTime) }}
+                  <span class="status">{{ slot.status }}</span>
+                  @if (slot.bookingReference) {
+                    <span class="ref">({{ slot.bookingReference }})</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Price Breakdown -->
+      <div class="price-breakdown">
+        <h3>Price Breakdown</h3>
+        <table>
+          <tr>
+            <td>Base Price</td>
+            <td>{{ formatPrice(result.priceBreakdown.basePrice, result.priceBreakdown.currency) }}</td>
+          </tr>
+          @if (result.priceBreakdown.timeMultiplier !== 1) {
+            <tr>
+              <td>Peak Hours ({{ result.priceBreakdown.timeMultiplier }}x)</td>
+              <td class="modifier">Applied</td>
+            </tr>
+          }
+          @if (result.priceBreakdown.dayMultiplier !== 1) {
+            <tr>
+              <td>Weekend Rate ({{ result.priceBreakdown.dayMultiplier }}x)</td>
+              <td class="modifier">Applied</td>
+            </tr>
+          }
+          <tr>
+            <td>Subtotal</td>
+            <td>{{ formatPrice(result.priceBreakdown.subtotal, result.priceBreakdown.currency) }}</td>
+          </tr>
+          @if (result.priceBreakdown.discountAmount > 0) {
+            <tr class="discount">
+              <td>Discount</td>
+              <td>-{{ formatPrice(result.priceBreakdown.discountAmount, result.priceBreakdown.currency) }}</td>
+            </tr>
+          }
+          @if (result.priceBreakdown.promoCode) {
+            <tr class="promo">
+              <td>Promo ({{ result.priceBreakdown.promoCode }})</td>
+              <td>-{{ formatPrice(result.priceBreakdown.promoDiscount || 0, result.priceBreakdown.currency) }}</td>
+            </tr>
+          }
+          <tr class="total">
+            <td><strong>Total</strong></td>
+            <td><strong>{{ formatPrice(result.priceBreakdown.total, result.priceBreakdown.currency) }}</strong></td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Suggested Alternatives -->
+      @if (result.suggestedAlternatives && result.suggestedAlternatives.length > 0) {
+        <div class="alternatives">
+          <h3>Available Alternatives</h3>
+          <div class="alternatives-grid">
+            @for (alt of result.suggestedAlternatives; track alt.startTime) {
+              <button class="alt-slot" (click)="selectAlternative(alt)">
+                <span class="time">{{ formatTime(alt.startTime) }} - {{ formatTime(alt.endTime) }}</span>
+                <span class="price">{{ formatPrice(alt.price, alt.currency) }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Book Now Button (only if available) -->
+      @if (result.canBook) {
+        <button class="btn-book" disabled title="Coming soon - booking creation not yet implemented">
+          Book Now (Coming Soon)
+        </button>
+      }
+    </div>
+  }
+</div>

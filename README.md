@@ -1,77 +1,45 @@
-# Khana
+﻿# Khana (خانة)
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+**"The Operating System for Local Booking-Based Businesses."**
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is almost ready ✨.
+Khana is a specialized B2B SaaS platform designed to digitize the operations of sports facilities (Padel, Football) and short-term rental properties (Chalets, Resorts) in the MENA region.
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+Instead of relying on chaotic WhatsApp messages, paper notebooks, and bank transfers, Khana provides facility owners with a centralized digital command center. It automates inventory management, prevents double-booking conflicts via complex algorithms, manages customer data (CRM), and eventually handles financial reconciliation.
 
-## Finish your CI setup
+## Core Value Proposition
 
-[Click here to finish setting up your workspace!](https://cloud.nx.app/connect/DLj0LOuGco)
+*   **For Owners:** Zero operational headaches, higher revenue (no empty slots due to slow replies), and theft prevention.
+*   **For Customers:** Instant gratification (real-time availability) and seamless booking experience.
 
+## Scaling Strategy ("Land and Expand")
 
-## Run tasks
+Khana is built as a flexible "Inventory Engine" that scales to serve different clients over time:
 
-To run tasks with Nx use:
+### Phase 1: The Wedge (Sports Facilities)
+*   **Target:** Padel & Football courts.
+*   **Why:** High frequency, high pain point, recurring customers.
+*   **Product:** "Manager Dashboard" only (focus on scheduling).
+*   **Scalability:** Logic handles "Time Slots" (e.g., 60 mins, 90 mins).
 
-```sh
-npx nx <target> <project-name>
-```
+### Phase 2: The Layering (Financials & Automation)
+*   **Target:** Existing clients + larger sports complexes.
+*   **Expansion:** Integrate "Khana Pay" (Payment Gateway).
+*   **Scalability:** Transition from tool to financial intermediary (taking a % of transactions).
 
-For example:
+### Phase 3: Horizontal Expansion (Pivot to Chalets)
+*   **Target:** Chalets, Camps (Istirahats), Private Resorts.
+*   **Shift:** Change "Unit of Inventory" from Hours to Days.
+*   **Scalability:** Polymorphic Booking Logic (NestJS) allows adding `InventoryType: DAILY` to capture a new market with the same codebase.
 
-```sh
-npx nx build myproject
-```
+### Phase 4: The Network Effect (B2B -> B2B2C)
+*   **Target:** End Users (Players/Renters).
+*   **Expansion:** Launch "Khana Marketplace App" once 50+ venues are onboarded.
+*   **Scalability:** Controlling real-time inventory creates a competitive moat.
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+## Technical Scalability
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Built with **NestJS + Angular + PostgreSQL + Nx**:
 
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
-```sh
-npx nx add @nx/react
-```
-
-Use the plugin's generator to create new projects. For example, to create a new React app or library:
-
-```sh
-# Generate an app
-npx nx g @nx/react:app demo
-
-# Generate a library
-npx nx g @nx/react:lib some-lib
-```
-
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
-
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+*   **Multi-Tenancy:** Database schema supports 1 to 10,000 tenants seamlessly.
+*   **Modular Logic:** Nx allows sharing "Booking Validation Logic" between the Web Dashboard and future Mobile App.
+*   **Performance:** PostgreSQL handles high traffic volumes (e.g., seasonal spikes) efficiently.

@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude:*)",
+      "Bash(npm install:*)",
+      "Bash(where claude:*)",
+      "Bash(npx nx g:*)",
+      "Bash(mkdir:*)",
+      "Bash(npx nx lint shared-utils)",
+      "Bash(cat:*)",
+      "Bash(npm run lint:all:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx nx build:*)",
+      "Bash(npx nx lint:*)",
+      "Bash(npx nx test booking-engine)",
+      "Bash(npm run test:all:*)",
+      "Bash(npx nx run-many:*)",
+      "Bash(npx nx serve:*)",
+      "Bash(curl:*)",
+      "Bash(npx nx run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
