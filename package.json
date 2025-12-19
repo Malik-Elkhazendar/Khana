@@ -4,6 +4,11 @@
   "license": "MIT",
   "scripts": {
     "start": "nx serve",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f postgres",
+    "docker:reset": "docker compose down -v && docker compose up -d",
+    "db:connect": "docker exec -it khana-postgres psql -U khana -d khana_dev",
     "build": "nx run-many -t build",
     "build:all": "nx run-many -t build --all",
     "test": "nx run-many -t test",

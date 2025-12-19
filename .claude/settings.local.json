@@ -17,7 +17,8 @@
       "Bash(npx nx run-many:*)",
       "Bash(npx nx serve:*)",
       "Bash(curl:*)",
-      "Bash(npx nx run:*)"
+      "Bash(npx nx run:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

@@ -45,3 +45,17 @@ Thumbs.db
 
 .angular
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Docker volumes (if local)
+docker/postgres/data/
+
+# Database backups
+*.sql.backup
+*.dump
+
+# Error logs
+error.log

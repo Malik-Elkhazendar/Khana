@@ -6,13 +6,19 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
+import { HttpAdapterHost } from '@nestjs/core';
+import { HttpExceptionFilter } from '@khana/shared-utils';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const httpAdapterHost = app.get(HttpAdapterHost);
 
   // Global prefix for all routes
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
+
+  // Global HTTP exception filter (sanitizes 5xx responses)
+  app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
 
   // Enable CORS for frontend
   app.enableCors({
