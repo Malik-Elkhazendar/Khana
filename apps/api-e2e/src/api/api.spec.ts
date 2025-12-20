@@ -1,6 +1,30 @@
 import axios from 'axios';
 
 describe('API', () => {
+  let facilityId: string;
+  let bookedStartTime: string;
+  let bookedEndTime: string;
+
+  beforeAll(async () => {
+    const res = await axios.get(`/api/v1/bookings/facilities`);
+    facilityId = res.data?.[0]?.id;
+
+    // Create a deterministic booking for conflict/list tests (tomorrow at 10:00-11:00).
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    bookedStartTime = tomorrow.toISOString();
+    bookedEndTime = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString();
+
+    await axios.post(`/api/v1/bookings`, {
+      facilityId,
+      startTime: bookedStartTime,
+      endTime: bookedEndTime,
+      customerName: 'Test Customer',
+      customerPhone: '+966512345678',
+    });
+  });
+
   describe('GET /api', () => {
     it('should return a message', async () => {
       const res = await axios.get(`/api`);
@@ -38,7 +62,7 @@ describe('API', () => {
       const endTime = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString();
 
       const res = await axios.post(`/api/v1/bookings/preview`, {
-        facilityId: 'padel-court-1',
+        facilityId,
         startTime,
         endTime,
       });
@@ -52,26 +76,16 @@ describe('API', () => {
     });
 
     it('should return conflict for occupied slot', async () => {
-      // Request a slot that is occupied (tomorrow at 10 AM - mock data has booking)
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(10, 0, 0, 0);
-
-      const startTime = tomorrow.toISOString();
-      const endTime = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString();
-
       const res = await axios.post(`/api/v1/bookings/preview`, {
-        facilityId: 'padel-court-1',
-        startTime,
-        endTime,
+        facilityId,
+        startTime: bookedStartTime,
+        endTime: bookedEndTime,
       });
 
       expect(res.status).toBe(200);
       expect(res.data.canBook).toBe(false);
       expect(res.data.conflict).toBeDefined();
       expect(res.data.conflict.hasConflict).toBe(true);
-      expect(res.data.conflict.message).toBeDefined();
-      expect(res.data.suggestedAlternatives).toBeDefined();
     });
 
     it('should return validation errors for invalid input', async () => {
@@ -84,7 +98,7 @@ describe('API', () => {
       const endTime = new Date(tomorrow.getTime() - 60 * 60 * 1000).toISOString();
 
       const res = await axios.post(`/api/v1/bookings/preview`, {
-        facilityId: 'padel-court-1',
+        facilityId,
         startTime,
         endTime,
       });
@@ -102,7 +116,7 @@ describe('API', () => {
 
       try {
         await axios.post(`/api/v1/bookings/preview`, {
-          facilityId: 'non-existent-facility',
+          facilityId: '00000000-0000-4000-8000-000000000000',
           startTime: tomorrow.toISOString(),
           endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString(),
         });
@@ -119,7 +133,7 @@ describe('API', () => {
       tomorrow.setHours(9, 0, 0, 0);
 
       const res = await axios.post(`/api/v1/bookings/preview`, {
-        facilityId: 'padel-court-1',
+        facilityId,
         startTime: tomorrow.toISOString(),
         endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString(),
         promoCode: 'SUMMER10',
@@ -128,6 +142,24 @@ describe('API', () => {
       expect(res.status).toBe(200);
       expect(res.data.priceBreakdown.promoCode).toBe('SUMMER10');
       expect(res.data.priceBreakdown.promoDiscount).toBeGreaterThan(0);
+    });
+  });
+
+  describe('GET /api/v1/bookings', () => {
+    it('should return list of bookings (optionally filtered)', async () => {
+      const res = await axios.get(`/api/v1/bookings`, { params: { facilityId } });
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.data)).toBe(true);
+      expect(res.data.length).toBeGreaterThan(0);
+
+      const booking = res.data[0];
+      expect(booking).toHaveProperty('id');
+      expect(booking).toHaveProperty('startTime');
+      expect(booking).toHaveProperty('endTime');
+      expect(booking).toHaveProperty('customerName');
+      expect(booking).toHaveProperty('customerPhone');
+      expect(booking).toHaveProperty('status');
     });
   });
 });

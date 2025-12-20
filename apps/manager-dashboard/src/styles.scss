@@ -112,6 +112,61 @@ body {
 }
 
 // ============================================
+// Arabic/RTL Support
+// ============================================
+// Arabic script appears ~10-15% smaller at identical pixel sizes
+// due to vertical height of diacritics and descending letters
+:lang(ar) {
+  font-size: 110%;
+  line-height: 1.7;
+  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', var(--font-body);
+}
+
+// RTL-specific adjustments
+[dir="rtl"] {
+  text-align: start; // Logical alignment
+
+  // Ensure icons and directional elements flip
+  .icon-directional {
+    transform: scaleX(-1);
+  }
+}
+
+// ============================================
+// Touch Target Standards (Mobile-First)
+// Saudi Arabia has one of highest mobile usage rates
+// ============================================
+// Minimum 48px touch targets for accessibility (WCAG 2.1)
+$touch-target-min: 48px;
+
+button,
+[type="button"],
+[type="submit"],
+[type="reset"],
+.btn,
+[role="button"] {
+  min-height: $touch-target-min;
+  min-width: $touch-target-min;
+}
+
+input,
+select,
+textarea {
+  min-height: $touch-target-min;
+}
+
+// Clickable elements should have adequate touch area
+a,
+label {
+  // Inline elements - use padding to achieve touch target
+  &.touch-target {
+    display: inline-block;
+    min-height: $touch-target-min;
+    min-width: $touch-target-min;
+  }
+}
+
+// ============================================
 // Typography
 // ============================================
 h1, h2, h3, h4, h5, h6 {

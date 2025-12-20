@@ -3,7 +3,7 @@
  */
 export enum PaymentStatus {
   /** No payment received yet */
-  UNPAID = 'UNPAID',
+  PENDING = 'PENDING',
 
   /** Partial payment received (deposit) */
   PARTIALLY_PAID = 'PARTIALLY_PAID',

@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, HttpCode, HttpStatus, Query, Patch, Param } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
-import { BookingPreviewRequestDto, BookingPreviewResponseDto } from './dto';
+import { BookingPreviewRequestDto, BookingPreviewResponseDto, CreateBookingDto, UpdateBookingStatusDto } from './dto';
 
 /**
  * Bookings Controller
@@ -13,6 +13,41 @@ export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
   /**
+   * GET /api/v1/bookings?facilityId=...
+   *
+   * List bookings, optionally filtered by facility.
+   */
+  @Get()
+  findAll(@Query('facilityId') facilityId?: string) {
+    return this.bookingsService.findAll(facilityId);
+  }
+
+  /**
+   * POST /api/v1/bookings
+   *
+   * Create a new booking.
+   * Validates availability and persists the booking to the database.
+   */
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  createBooking(@Body() dto: CreateBookingDto) {
+    return this.bookingsService.createBooking(dto);
+  }
+
+  /**
+   * PATCH /api/v1/bookings/:id/status
+   *
+   * Update booking status (e.g., Cancel, Mark as Paid).
+   */
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateBookingStatusDto
+  ) {
+    return this.bookingsService.updateStatus(id, dto);
+  }
+
+  /**
    * POST /api/v1/bookings/preview
    *
    * Preview a booking without persisting it.
@@ -20,7 +55,7 @@ export class BookingsController {
    */
   @Post('preview')
   @HttpCode(HttpStatus.OK)
-  previewBooking(@Body() dto: BookingPreviewRequestDto): BookingPreviewResponseDto {
+  previewBooking(@Body() dto: BookingPreviewRequestDto): Promise<BookingPreviewResponseDto> {
     return this.bookingsService.previewBooking(dto);
   }
 

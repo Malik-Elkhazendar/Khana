@@ -3,6 +3,7 @@ export * from './tenant.dto';
 export * from './facility.dto';
 export * from './inventory-slot.dto';
 export * from './booking.dto';
+export * from './booking-api.dto';
 export * from './customer.dto';
 export * from './user.dto';
 export * from './availability.dto';

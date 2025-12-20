@@ -1,12 +1,12 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ApiService } from '../../shared/services/api.service';
 import {
-  BookingPreviewService,
-  FacilityDto,
-  BookingPreviewResponse,
-  AlternativeSlot,
-} from './booking-preview.service';
+  FacilityListItemDto,
+  BookingPreviewResponseDto,
+  AlternativeSlotDto,
+} from '@khana/shared-dtos';
 
 @Component({
   selector: 'app-booking-preview',
@@ -16,10 +16,10 @@ import {
   styleUrl: './booking-preview.component.scss',
 })
 export class BookingPreviewComponent implements OnInit {
-  private readonly bookingService = inject(BookingPreviewService);
+  private readonly api = inject(ApiService);
 
   // Form state
-  facilities = signal<FacilityDto[]>([]);
+  facilities = signal<FacilityListItemDto[]>([]);
   selectedFacilityId = signal<string>('');
   selectedDate = signal<string>(this.getDefaultDate());
   startTime = signal<string>('10:00');
@@ -27,9 +27,15 @@ export class BookingPreviewComponent implements OnInit {
   promoCode = signal<string>('');
 
   // Result state
-  previewResult = signal<BookingPreviewResponse | null>(null);
+  previewResult = signal<BookingPreviewResponseDto | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
+
+  // Customer details (shown when booking is available)
+  customerName = signal<string>('');
+  customerPhone = signal<string>('');
+  bookingInProgress = signal<boolean>(false);
+  bookingSuccess = signal<boolean>(false);
 
   // Computed values
   selectedFacility = computed(() => {
@@ -46,12 +52,22 @@ export class BookingPreviewComponent implements OnInit {
     );
   });
 
+  canBook = computed(() => {
+    const result = this.previewResult();
+    return (
+      result?.canBook &&
+      this.customerName().trim() !== '' &&
+      this.customerPhone().trim() !== '' &&
+      !this.bookingInProgress()
+    );
+  });
+
   ngOnInit(): void {
     this.loadFacilities();
   }
 
   private loadFacilities(): void {
-    this.bookingService.getFacilities().subscribe({
+    this.api.getFacilities().subscribe({
       next: (facilities) => {
         this.facilities.set(facilities);
         if (facilities.length > 0) {
@@ -81,7 +97,7 @@ export class BookingPreviewComponent implements OnInit {
     const startDateTime = new Date(`${this.selectedDate()}T${this.startTime()}`);
     const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
 
-    this.bookingService
+    this.api
       .previewBooking({
         facilityId: this.selectedFacilityId(),
         startTime: startDateTime.toISOString(),
@@ -105,7 +121,7 @@ export class BookingPreviewComponent implements OnInit {
       });
   }
 
-  selectAlternative(alt: AlternativeSlot): void {
+  selectAlternative(alt: AlternativeSlotDto): void {
     const startDate = new Date(alt.startTime);
     const endDate = new Date(alt.endTime);
 
@@ -129,5 +145,46 @@ export class BookingPreviewComponent implements OnInit {
       style: 'currency',
       currency: currency,
     }).format(amount);
+  }
+
+  onBook(): void {
+    if (!this.canBook()) return;
+
+    this.bookingInProgress.set(true);
+    this.error.set(null);
+
+    const startDateTime = new Date(`${this.selectedDate()}T${this.startTime()}`);
+    const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
+
+    this.api
+      .createBooking({
+        facilityId: this.selectedFacilityId(),
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        customerName: this.customerName().trim(),
+        customerPhone: this.customerPhone().trim(),
+      })
+      .subscribe({
+        next: () => {
+          this.bookingInProgress.set(false);
+          this.bookingSuccess.set(true);
+          // Reset form for next booking
+          this.customerName.set('');
+          this.customerPhone.set('');
+          this.previewResult.set(null);
+        },
+        error: (err) => {
+          this.bookingInProgress.set(false);
+          const message = err.error?.message || 'Failed to create booking. Please try again.';
+          this.error.set(message);
+          console.error('Error creating booking:', err);
+        },
+      });
+  }
+
+  resetBooking(): void {
+    this.bookingSuccess.set(false);
+    this.customerName.set('');
+    this.customerPhone.set('');
   }
 }

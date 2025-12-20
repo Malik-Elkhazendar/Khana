@@ -3,10 +3,11 @@
  * B2B SaaS Booking Platform for MENA Region
  */
 
+import 'dotenv/config';
+import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { AppModule } from './app/app.module';
-import { HttpAdapterHost } from '@nestjs/core';
 import { HttpExceptionFilter } from '@khana/shared-utils';
 
 async function bootstrap() {
@@ -38,12 +39,11 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
+  Logger.log(`Khana API is running on: http://localhost:${port}/${globalPrefix}`);
   Logger.log(
-    `🚀 Khana API is running on: http://localhost:${port}/${globalPrefix}`
-  );
-  Logger.log(
-    `📖 Preview endpoint: POST http://localhost:${port}/${globalPrefix}/v1/bookings/preview`
+    `Preview endpoint: POST http://localhost:${port}/${globalPrefix}/v1/bookings/preview`
   );
 }
 
 bootstrap();
+

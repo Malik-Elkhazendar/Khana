@@ -1,4 +1,381 @@
-﻿# Khana Technical Architecture
+# Khana Technical Architecture
+
+---
+
+# Part I: Golden Path Development Standards
+
+> **The Golden Path**: Strict conventions for a scalable, maintainable Nx monorepo.
+> All developers MUST follow these rules. Violations will be flagged in code review.
+
+---
+
+## Quick Reference: What Goes Where?
+
+| What | Where | Example |
+|------|-------|---------|
+| HTTP Controllers | `apps/api/src/app/[feature]/` | `bookings.controller.ts` |
+| Backend Services | `apps/api/src/app/[feature]/` | `bookings.service.ts` |
+| Backend DTOs (with validators) | `apps/api/src/app/[feature]/dto/` | `create-booking.dto.ts` |
+| TypeORM Entities | `libs/data-access/src/lib/entities/` | `booking.entity.ts` |
+| Pure Domain Logic | `libs/booking-engine/src/lib/` | `conflict-detector.ts` |
+| Shared DTOs/Interfaces | `libs/shared-dtos/src/lib/dtos/` | `booking.dto.ts` |
+| Shared Enums | `libs/shared-dtos/src/lib/enums/` | `booking-status.enum.ts` |
+| Angular Feature Components | `apps/manager-dashboard/src/app/features/[feature]/` | `booking-list.component.ts` |
+| Global State (SignalStore) | `apps/manager-dashboard/src/app/state/[domain]/` | `booking.store.ts` |
+| Shared UI Components | `apps/manager-dashboard/src/app/shared/components/` | `status-badge/` |
+| Centralized API Service | `apps/manager-dashboard/src/app/shared/services/` | `api.service.ts` |
+
+---
+
+## Backend Pattern (NestJS)
+
+### Layer Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CONTROLLER (Thin Layer)                                    │
+│  ✓ Parse HTTP requests                                      │
+│  ✓ Validate input (via DTOs + class-validator)              │
+│  ✓ Return HTTP responses                                    │
+│  ✗ NO business logic                                        │
+│  ✗ NO direct repository access                              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  SERVICE (Orchestration Layer)                              │
+│  ✓ Orchestrate domain logic                                 │
+│  ✓ Call repositories                                        │
+│  ✓ Transform data between layers                            │
+│  ✗ NO HTTP-specific code                                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  DOMAIN ENGINE (@khana/booking-engine)                      │
+│  ✓ Pure business logic functions                            │
+│  ✓ Framework-agnostic, deterministic                        │
+│  ✗ NO side effects, NO I/O                                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  DATA-ACCESS (@khana/data-access)                           │
+│  ✓ TypeORM entities only                                    │
+│  ✗ NEVER import in frontend                                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Controller Rules
+
+```typescript
+// ✅ CORRECT: Thin controller - delegates everything
+@Controller('v1/bookings')
+export class BookingsController {
+  constructor(private readonly bookingsService: BookingsService) {}
+
+  @Post()
+  createBooking(@Body() dto: CreateBookingDto) {
+    return this.bookingsService.createBooking(dto);
+  }
+}
+
+// ❌ WRONG: Business logic in controller
+@Post()
+createBooking(@Body() dto: CreateBookingDto) {
+  const price = dto.hours * RATE;  // ← VIOLATION: Logic belongs in service
+  if (price > MAX) throw new BadRequestException();
+}
+```
+
+### Backend DTO Pattern
+
+Backend DTOs use `class-validator` decorators and live in feature folders:
+
+```typescript
+// apps/api/src/app/bookings/dto/create-booking.dto.ts
+import { IsDateString, IsNotEmpty, IsUUID } from 'class-validator';
+import { BookingStatus } from '@khana/shared-dtos';  // ✅ Import enums from shared
+
+export class CreateBookingDto {
+  @IsUUID()
+  @IsNotEmpty()
+  facilityId!: string;
+
+  @IsDateString()
+  startTime!: string;
+}
+```
+
+---
+
+## Frontend Pattern (Angular)
+
+### Feature Structure
+
+```
+apps/manager-dashboard/src/app/
+├── features/                   # Feature modules
+│   ├── booking-list/           # Smart component (page)
+│   │   ├── booking-list.component.ts
+│   │   ├── booking-list.component.html
+│   │   └── booking-list.component.scss
+│   │
+│   ├── booking-preview/        # Smart component (page)
+│   │   └── ...
+│   │
+│   └── calendar/               # Future feature
+│       └── ...
+│
+├── shared/                     # Shared across features
+│   ├── components/             # Dumb/presentational components
+│   │   └── status-badge/
+│   └── services/               # Centralized services
+│       └── api.service.ts      # Single API client
+│
+└── state/                      # Global state (cross-feature)
+    └── bookings/
+        └── booking.store.ts    # NgRx SignalStore
+```
+
+### Smart vs Dumb Components
+
+| Smart Components (Pages) | Dumb Components (UI) |
+|--------------------------|----------------------|
+| Location: `features/[feature]/` | Location: `shared/components/` |
+| Inject services and stores | Receive data via `@Input()` |
+| Handle user interactions | Emit events via `@Output()` |
+| Connect to routes | Pure rendering only |
+| Orchestrate child components | NO service injection |
+
+### State Management Pattern (NgRx SignalStore)
+
+```typescript
+// state/bookings/booking.store.ts
+import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
+import { BookingDto } from '@khana/shared-dtos';  // ✅ Use shared types
+
+export const BookingStore = signalStore(
+  { providedIn: 'root' },
+  withState({ bookings: [] as BookingDto[], loading: false }),
+  withMethods((store, api = inject(ApiService)) => ({
+    loadBookings: rxMethod<void>(
+      pipe(
+        tap(() => patchState(store, { loading: true })),
+        switchMap(() => api.getBookings()),
+        tap((bookings) => patchState(store, { bookings, loading: false })),
+      )
+    ),
+  }))
+);
+```
+
+### Store Placement Rules
+
+| Scope | Location |
+|-------|----------|
+| **Global** (cross-feature) | `state/[domain]/` |
+| **Feature-local** | `features/[feature]/[feature].store.ts` |
+
+---
+
+## Shared Kernel (@khana/shared-dtos)
+
+### Library Structure
+
+```
+libs/shared-dtos/src/lib/
+├── dtos/                       # API contract interfaces
+│   ├── booking.dto.ts
+│   └── index.ts
+├── enums/                      # Shared enumerations
+│   ├── booking-status.enum.ts
+│   └── index.ts
+├── interfaces/                 # Domain interfaces
+│   ├── price-breakdown.interface.ts
+│   └── index.ts
+└── shared-dtos.ts              # Barrel export
+```
+
+### When to Add to shared-dtos
+
+| Add to shared-dtos ✅ | Keep local ❌ |
+|-----------------------|---------------|
+| Used by BOTH frontend AND backend | Backend-only validation DTOs |
+| API response/request shapes | Local component state types |
+| Domain enums (BookingStatus) | UI-only types (ButtonVariant) |
+| Business interfaces (PriceBreakdown) | Framework-specific types |
+
+---
+
+## Naming Conventions
+
+### Files (kebab-case)
+
+```
+booking-preview.component.ts
+booking-preview.service.ts
+create-booking.dto.ts
+booking-status.enum.ts
+price-breakdown.interface.ts
+```
+
+### Classes (PascalCase)
+
+```typescript
+export class BookingPreviewComponent {}
+export class BookingsService {}
+export class CreateBookingDto {}
+export enum BookingStatus {}
+```
+
+### Signals (camelCase)
+
+```typescript
+selectedFacilityId = signal<string>('');
+bookings = signal<BookingDto[]>([]);
+loading = signal<boolean>(false);
+
+// Computed
+selectedFacility = computed(() => ...);
+canSubmit = computed(() => ...);
+```
+
+### Methods
+
+```typescript
+// Event handlers: on[Event]
+onSubmit(): void {}
+onFacilityChange(): void {}
+
+// Data operations: [verb][Noun]
+loadBookings(): void {}
+createBooking(dto: CreateBookingDto): Promise<Booking> {}
+
+// Formatting: format[Type]
+formatDate(isoString: string): string {}
+formatPrice(amount: number, currency: string): string {}
+```
+
+---
+
+## Dependency Rules
+
+### Import Hierarchy
+
+```
+                    ┌─────────────┐
+                    │   apps/     │
+                    └─────────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          ▼               ▼               ▼
+    ┌──────────┐   ┌──────────────┐   ┌──────────────┐
+    │   api    │   │  dashboard   │   │   api-e2e    │
+    └──────────┘   └──────────────┘   └──────────────┘
+          │               │
+          │    ┌──────────┴──────────┐
+          │    │                     │
+          ▼    ▼                     ▼
+    ┌──────────────┐           ┌──────────────┐
+    │ data-access  │           │ shared-dtos  │
+    └──────────────┘           └──────────────┘
+          │                          ▲
+          │                          │
+          ▼                          │
+    ┌──────────────┐                 │
+    │booking-engine│─────────────────┘
+    └──────────────┘
+```
+
+### Allowed Imports
+
+| From | Can Import |
+|------|-----------|
+| `apps/api` | `@khana/booking-engine`, `@khana/data-access`, `@khana/shared-dtos` |
+| `apps/manager-dashboard` | `@khana/shared-dtos` |
+| `libs/booking-engine` | `@khana/shared-dtos` |
+| `libs/data-access` | `@khana/shared-dtos` |
+| `libs/shared-dtos` | Nothing (leaf node) |
+
+### Forbidden Imports ❌
+
+```typescript
+// Frontend MUST NOT import data-access (entities)
+import { Booking } from '@khana/data-access';  // FORBIDDEN in Angular
+
+// Libs MUST NOT import from apps
+import { BookingsService } from 'apps/api/...';  // FORBIDDEN
+```
+
+---
+
+## Design System: Desert Night Theme
+
+### CSS Custom Properties
+
+```scss
+:root {
+  // Core palette
+  --color-sand: #c2b280;
+  --color-terracotta: #e07a5f;
+  --color-night: #1a1a2e;
+  --color-dusk: #16213e;
+  --color-twilight: #0f3460;
+
+  // Semantic tokens
+  --color-primary: var(--color-terracotta);
+  --color-background: var(--color-night);
+  --color-surface: var(--color-dusk);
+  --color-text: var(--color-sand);
+
+  // Status colors
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  // Spacing & radius
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+```
+
+### Usage Rule
+
+```scss
+// ✅ CORRECT: Use CSS custom properties
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+// ❌ WRONG: Hardcoded values
+.card {
+  background: #16213e;  // Should use var(--color-surface)
+}
+```
+
+---
+
+## Pre-Commit Checklist
+
+Before creating a new feature, verify:
+
+- [ ] Domain logic is pure? → `@khana/booking-engine`
+- [ ] Database entity? → `@khana/data-access`
+- [ ] Shared type/enum? → `@khana/shared-dtos`
+- [ ] HTTP handling? → `apps/api/[feature]/`
+- [ ] UI component? → `apps/manager-dashboard/features/[feature]/`
+- [ ] State crosses features? → Global store in `state/`
+- [ ] Using CSS tokens? → Check `var(--color-*)` usage
+
+---
+
+# Part II: Technical Architecture Details
 
 ## 🏗️ System Architecture Overview
 

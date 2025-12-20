@@ -1,22 +1,24 @@
 /* Booking Preview - Desert Night Theme */
+/* Using CSS Logical Properties for bulletproof RTL support */
 
 .booking-preview {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: var(--space-10) var(--space-6);
+  max-inline-size: 640px;
+  margin-inline: auto;
+  padding-block: var(--space-10);
+  padding-inline: var(--space-6);
 
   h1 {
     font-family: var(--font-display);
     font-size: var(--text-3xl);
     font-weight: var(--font-bold);
     color: var(--color-primary);
-    margin-bottom: var(--space-2);
+    margin-block-end: var(--space-2);
   }
 
   .subtitle {
     font-size: var(--text-lg);
     color: var(--color-text-secondary);
-    margin-bottom: var(--space-10);
+    margin-block-end: var(--space-10);
   }
 }
 
@@ -27,12 +29,12 @@
   background: var(--color-surface-elevated);
   border-radius: var(--radius-lg);
   padding: var(--space-8);
-  margin-bottom: var(--space-8);
+  margin-block-end: var(--space-8);
   box-shadow: var(--shadow-md);
 }
 
 .form-group {
-  margin-bottom: var(--space-6);
+  margin-block-end: var(--space-6);
 
   label {
     display: block;
@@ -40,7 +42,7 @@
     font-size: var(--text-sm);
     font-weight: var(--font-semibold);
     color: var(--color-text-secondary);
-    margin-bottom: var(--space-2);
+    margin-block-end: var(--space-2);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -92,8 +94,14 @@ select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a6a7a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right var(--space-4) center;
-  padding-right: var(--space-10);
+  // Logical property: flips icon position in RTL
+  background-position: calc(100% - var(--space-4)) center;
+  padding-inline-end: var(--space-10);
+
+  // RTL: Flip dropdown arrow position
+  [dir="rtl"] & {
+    background-position: var(--space-4) center;
+  }
 
   option {
     background: var(--color-surface-elevated);
@@ -140,13 +148,14 @@ select {
    ERROR MESSAGE
    ================================ */
 .error-message {
-  padding: var(--space-4) var(--space-5);
+  padding-block: var(--space-4);
+  padding-inline: var(--space-5);
   background: var(--color-error-light);
-  border-left: 3px solid var(--color-error);
+  border-inline-start: 3px solid var(--color-error);
   border-radius: var(--radius-md);
   color: var(--color-error);
   font-weight: var(--font-medium);
-  margin-bottom: var(--space-6);
+  margin-block-end: var(--space-6);
 }
 
 /* ================================
@@ -159,11 +168,11 @@ select {
   box-shadow: var(--shadow-lg);
 
   &.success {
-    border-top: 3px solid var(--color-success);
+    border-block-start: 3px solid var(--color-success);
   }
 
   &.conflict {
-    border-top: 3px solid var(--color-error);
+    border-block-start: 3px solid var(--color-error);
   }
 }
 
@@ -173,7 +182,7 @@ select {
   gap: var(--space-4);
   padding: var(--space-6);
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-surface-muted);
+  border-block-end: 1px solid var(--color-surface-muted);
 
   h2 {
     font-family: var(--font-display);
@@ -183,8 +192,8 @@ select {
   }
 
   .status-icon {
-    width: 44px;
-    height: 44px;
+    inline-size: 44px;
+    block-size: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -208,9 +217,10 @@ select {
    ================================ */
 .validation-errors,
 .conflict-info {
-  padding: var(--space-5) var(--space-6);
+  padding-block: var(--space-5);
+  padding-inline: var(--space-6);
   background: var(--color-error-light);
-  border-bottom: 1px solid rgba(196, 69, 54, 0.1);
+  border-block-end: 1px solid rgba(196, 69, 54, 0.1);
 
   h3, h4 {
     font-family: var(--font-display);
@@ -219,22 +229,23 @@ select {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--color-error);
-    margin-bottom: var(--space-3);
+    margin-block-end: var(--space-3);
   }
 
   ul {
     margin: 0;
-    padding-left: var(--space-5);
+    padding-inline-start: var(--space-5);
     color: var(--color-error);
     font-size: var(--text-sm);
 
     li {
-      margin-bottom: var(--space-1);
+      margin-block-end: var(--space-1);
     }
   }
 
   .conflict-message {
-    margin: 0 0 var(--space-4);
+    margin: 0;
+    margin-block-end: var(--space-4);
     font-weight: var(--font-medium);
     color: var(--color-error);
   }
@@ -245,13 +256,14 @@ select {
       align-items: center;
       gap: var(--space-3);
       padding: var(--space-3);
-      margin-top: var(--space-2);
+      margin-block-start: var(--space-2);
       background: var(--color-surface-elevated);
       border-radius: var(--radius-sm);
       font-size: var(--text-sm);
 
       .status {
-        padding: var(--space-1) var(--space-2);
+        padding-block: var(--space-1);
+        padding-inline: var(--space-2);
         background: var(--color-error);
         color: var(--color-text-inverse);
         border-radius: var(--radius-sm);
@@ -263,7 +275,7 @@ select {
       .ref {
         color: var(--color-text-muted);
         font-size: var(--text-xs);
-        margin-left: auto;
+        margin-inline-start: auto;
         font-family: var(--font-mono);
       }
     }
@@ -283,13 +295,13 @@ select {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-text-secondary);
-    margin-bottom: var(--space-5);
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid var(--color-surface-muted);
+    margin-block-end: var(--space-5);
+    padding-block-end: var(--space-3);
+    border-block-end: 1px solid var(--color-surface-muted);
   }
 
   table {
-    width: 100%;
+    inline-size: 100%;
     border-collapse: collapse;
 
     tr {
@@ -300,22 +312,22 @@ select {
 
       &.total {
         td {
-          padding-top: var(--space-4);
+          padding-block-start: var(--space-4);
           font-size: var(--text-lg);
           font-weight: var(--font-bold);
-          border-top: 2px solid var(--color-primary);
+          border-block-start: 2px solid var(--color-primary);
           color: var(--color-primary);
         }
       }
     }
 
     td {
-      padding: var(--space-3) 0;
+      padding-block: var(--space-3);
       color: var(--color-text-secondary);
-      border-bottom: 1px solid var(--color-surface-muted);
+      border-block-end: 1px solid var(--color-surface-muted);
 
       &:last-child {
-        text-align: right;
+        text-align: end; // Logical: flips in RTL
         font-family: var(--font-mono);
         font-weight: var(--font-medium);
         color: var(--color-text-primary);
@@ -328,7 +340,7 @@ select {
     }
 
     tr:last-child td {
-      border-bottom: none;
+      border-block-end: none;
     }
   }
 }
@@ -339,7 +351,7 @@ select {
 .alternatives {
   padding: var(--space-6);
   background: var(--color-success-light);
-  border-top: 1px solid rgba(45, 125, 111, 0.15);
+  border-block-start: 1px solid rgba(45, 125, 111, 0.15);
 
   h3 {
     font-family: var(--font-display);
@@ -348,7 +360,7 @@ select {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-success);
-    margin-bottom: var(--space-5);
+    margin-block-end: var(--space-5);
   }
 
   .alternatives-grid {
@@ -387,7 +399,7 @@ select {
       font-size: var(--text-base);
       font-weight: var(--font-semibold);
       color: var(--color-success);
-      margin-top: var(--space-1);
+      margin-block-start: var(--space-1);
     }
   }
 }
@@ -424,11 +436,107 @@ select {
 }
 
 /* ================================
+   CUSTOMER DETAILS
+   ================================ */
+.customer-details {
+  margin: var(--space-6);
+  padding-block-start: var(--space-6);
+  border-block-start: 1px solid var(--color-surface-muted);
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+    margin-block-end: var(--space-4);
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+
+    @media (max-width: 500px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .form-group {
+    margin-block-end: 0;
+  }
+}
+
+/* ================================
+   SUCCESS MESSAGE
+   ================================ */
+.success-message {
+  text-align: center;
+  padding: var(--space-10);
+  background: var(--color-surface-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border-block-start: 3px solid var(--color-success);
+
+  .success-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 64px;
+    block-size: 64px;
+    background: var(--color-success);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-full);
+    font-size: var(--text-3xl);
+    margin-block-end: var(--space-6);
+  }
+
+  p {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    color: var(--color-success);
+    margin: 0;
+    margin-block-end: var(--space-2);
+  }
+
+  .success-subtitle {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    font-weight: var(--font-normal);
+    color: var(--color-text-secondary);
+    margin-block-end: var(--space-8);
+  }
+
+  .btn-secondary {
+    display: inline-block;
+    padding-block: var(--space-3);
+    padding-inline: var(--space-8);
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--color-primary);
+    background: transparent;
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-base);
+    transition-property: background, color, transform;
+
+    &:hover {
+      background: var(--color-primary);
+      color: var(--color-text-inverse);
+      transform: translateY(-1px);
+    }
+  }
+}
+
+/* ================================
    RESPONSIVE
    ================================ */
 @media (max-width: 600px) {
   .booking-preview {
-    padding: var(--space-6) var(--space-4);
+    padding-block: var(--space-6);
+    padding-inline: var(--space-4);
 
     h1 {
       font-size: var(--text-2xl);
@@ -446,7 +554,19 @@ select {
   }
 
   .btn-book {
-    width: calc(100% - var(--space-5) * 2);
+    inline-size: calc(100% - var(--space-5) * 2);
     margin: var(--space-5);
+  }
+}
+
+/* ================================
+   RTL-SPECIFIC OVERRIDES
+   ================================ */
+[dir="rtl"] {
+  // Icons that should flip in RTL
+  .icon-arrow,
+  .icon-chevron,
+  .icon-directional {
+    transform: scaleX(-1);
   }
 }

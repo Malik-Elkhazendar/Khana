@@ -200,12 +200,63 @@
         </div>
       }
 
-      <!-- Book Now Button (only if available) -->
+      <!-- Customer Details (show when available) -->
       @if (result.canBook) {
-        <button class="btn-book" disabled title="Coming soon - booking creation not yet implemented">
-          Book Now (Coming Soon)
+        <div class="customer-details">
+          <h3>Customer Details</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="customerName">Your Name</label>
+              <input
+                type="text"
+                id="customerName"
+                [ngModel]="customerName()"
+                (ngModelChange)="customerName.set($event)"
+                name="customerName"
+                placeholder="Enter your full name"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="customerPhone">Phone Number</label>
+              <input
+                type="tel"
+                id="customerPhone"
+                [ngModel]="customerPhone()"
+                (ngModelChange)="customerPhone.set($event)"
+                name="customerPhone"
+                placeholder="+966 5XX XXX XXXX"
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirm Booking Button -->
+        <button
+          class="btn-book"
+          [disabled]="!canBook()"
+          (click)="onBook()"
+        >
+          @if (bookingInProgress()) {
+            Confirming...
+          } @else {
+            Confirm Booking
+          }
         </button>
       }
+    </div>
+  }
+
+  <!-- Booking Success Message -->
+  @if (bookingSuccess()) {
+    <div class="success-message">
+      <span class="success-icon">✓</span>
+      <p>Booking Confirmed!</p>
+      <p class="success-subtitle">You will receive a confirmation shortly.</p>
+      <button class="btn-secondary" (click)="resetBooking()">
+        Make Another Booking
+      </button>
     </div>
   }
 </div>
