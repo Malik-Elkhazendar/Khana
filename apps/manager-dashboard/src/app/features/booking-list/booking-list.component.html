@@ -49,12 +49,22 @@
             <tr>
               <td>{{ formatDate(booking.startTime) }}</td>
               <td>{{ formatTimeRange(booking.startTime, booking.endTime) }}</td>
-              <td class="cell-strong">{{ booking.customerName }}</td>
+              <td class="cell-strong">
+                {{ booking.customerName }}
+                @if (booking.bookingReference) {
+                  <div class="cell-meta">{{ booking.bookingReference }}</div>
+                }
+              </td>
               <td class="cell-mono">{{ booking.customerPhone }}</td>
               <td>
                 <span class="badge" [class]="'badge--' + statusTone(booking.status)">
                   {{ statusLabel(booking.status) }}
                 </span>
+                @if (isHoldActive(booking)) {
+                  <div class="cell-meta">
+                    Reserved until {{ formatTime(booking.holdUntil) }}
+                  </div>
+                }
               </td>
               <td class="col-price cell-mono">
                 @if (bookingPrice(booking).amount > 0) {
@@ -94,4 +104,3 @@
     }
   </div>
 </section>
-

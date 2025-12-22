@@ -1,10 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThanOrEqual, MoreThan, Repository } from 'typeorm';
 import { previewBooking, BookingPreviewResult, detectConflicts, calculatePrice } from '@khana/booking-engine';
 import { Booking, Facility } from '@khana/data-access';
 import { BookingStatus, PaymentStatus, SlotStatus } from '@khana/shared-dtos';
+import { addMinutes, generateBookingReference } from '@khana/shared-utils';
 import { BookingPreviewRequestDto, BookingPreviewResponseDto, CreateBookingDto, UpdateBookingStatusDto } from './dto';
+
+const PENDING_HOLD_MINUTES = 15;
 
 /**
  * Bookings Service
@@ -22,6 +25,12 @@ export class BookingsService {
   ) {}
 
   async findAll(facilityId?: string): Promise<Booking[]> {
+    const now = new Date();
+    await this.bookingRepository.update(
+      { status: BookingStatus.PENDING, holdUntil: LessThanOrEqual(now) },
+      { status: BookingStatus.CANCELLED, holdUntil: null }
+    );
+
     return this.bookingRepository.find({
       where: facilityId ? { facility: { id: facilityId } } : {},
       relations: { facility: true },
@@ -35,6 +44,7 @@ export class BookingsService {
    * Validates input, calls domain logic, and returns formatted response.
    */
   async previewBooking(dto: BookingPreviewRequestDto): Promise<BookingPreviewResponseDto> {
+    const now = new Date();
     const facility = await this.facilityRepository.findOne({
       where: { id: dto.facilityId },
       relations: { tenant: true },
@@ -58,10 +68,14 @@ export class BookingsService {
 
     // Load actual bookings for this facility
     const existingBookings = await this.bookingRepository.find({
-      where: {
-        facility: { id: dto.facilityId },
-        status: BookingStatus.CONFIRMED,
-      },
+      where: [
+        { facility: { id: dto.facilityId }, status: BookingStatus.CONFIRMED },
+        {
+          facility: { id: dto.facilityId },
+          status: BookingStatus.PENDING,
+          holdUntil: MoreThan(now),
+        },
+      ],
     });
 
     const occupiedSlots = existingBookings.map((booking) => ({
@@ -70,7 +84,7 @@ export class BookingsService {
       startTime: booking.startTime,
       endTime: booking.endTime,
       status: SlotStatus.BOOKED,
-      bookingReference: booking.id,
+      bookingReference: booking.bookingReference ?? booking.id,
     }));
 
     // Call domain logic
@@ -117,6 +131,7 @@ export class BookingsService {
    * 3. Save booking to DB if available
    */
   async createBooking(dto: CreateBookingDto): Promise<Booking> {
+    const now = new Date();
     // 1. Fetch facility with config
     const facility = await this.facilityRepository.findOne({
       where: { id: dto.facilityId },
@@ -129,10 +144,14 @@ export class BookingsService {
 
     // 2. Fetch all confirmed bookings for this facility
     const existingBookings = await this.bookingRepository.find({
-      where: {
-        facility: { id: dto.facilityId },
-        status: BookingStatus.CONFIRMED,
-      },
+      where: [
+        { facility: { id: dto.facilityId }, status: BookingStatus.CONFIRMED },
+        {
+          facility: { id: dto.facilityId },
+          status: BookingStatus.PENDING,
+          holdUntil: MoreThan(now),
+        },
+      ],
     });
 
     const occupiedSlots = existingBookings.map((booking) => ({
@@ -141,7 +160,7 @@ export class BookingsService {
       startTime: booking.startTime,
       endTime: booking.endTime,
       status: SlotStatus.BOOKED,
-      bookingReference: booking.id,
+      bookingReference: booking.bookingReference ?? booking.id,
     }));
 
     // 3. Guard: Check availability using domain engine
@@ -179,6 +198,14 @@ export class BookingsService {
       pricingConfig: facilityConfig.pricing,
     });
 
+    const bookingSequence = (await this.bookingRepository.count()) + 1;
+    const bookingReference = generateBookingReference(bookingSequence);
+    const status = dto.status ?? BookingStatus.CONFIRMED;
+    const holdUntil =
+      status === BookingStatus.PENDING
+        ? addMinutes(now, PENDING_HOLD_MINUTES)
+        : null;
+
     // 5. Map & Save: Create booking entity
     const booking = this.bookingRepository.create({
       facility,
@@ -186,8 +213,13 @@ export class BookingsService {
       endTime: new Date(dto.endTime),
       customerName: dto.customerName,
       customerPhone: dto.customerPhone,
-      status: dto.status ?? BookingStatus.CONFIRMED,
+      status,
       paymentStatus: dto.paymentStatus ?? PaymentStatus.PENDING,
+      bookingReference,
+      totalAmount: priceBreakdown.total,
+      currency: priceBreakdown.currency,
+      priceBreakdown,
+      holdUntil,
     });
 
     // 6. Return saved booking
@@ -198,19 +230,28 @@ export class BookingsService {
    * Update booking status
    */
   async updateStatus(id: string, dto: UpdateBookingStatusDto): Promise<Booking> {
-    const booking = await this.bookingRepository.findOneBy({ id });
+    const booking = await this.bookingRepository.findOne({
+      where: { id },
+      relations: { facility: true },
+    });
     if (!booking) {
       throw new NotFoundException(`Booking ${id} not found`);
     }
 
     if (dto.status) {
       booking.status = dto.status;
+      if (dto.status === BookingStatus.PENDING) {
+        booking.holdUntil = addMinutes(new Date(), PENDING_HOLD_MINUTES);
+      } else {
+        booking.holdUntil = null;
+      }
     }
     if (dto.paymentStatus) {
       booking.paymentStatus = dto.paymentStatus;
     }
 
-    return this.bookingRepository.save(booking);
+    await this.bookingRepository.save(booking);
+    return booking;
   }
 
   /**

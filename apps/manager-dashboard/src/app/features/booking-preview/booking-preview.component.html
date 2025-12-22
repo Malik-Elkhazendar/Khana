@@ -230,6 +230,18 @@
               />
             </div>
           </div>
+          <div class="hold-toggle">
+            <label>
+              <input
+                type="checkbox"
+                [ngModel]="holdAsPending()"
+                (ngModelChange)="holdAsPending.set($event)"
+                name="holdAsPending"
+              />
+              Reserve as hold (pending)
+            </label>
+            <p class="hold-hint">Temporarily reserve this slot until confirmation.</p>
+          </div>
         </div>
 
         <!-- Confirm Booking Button -->

@@ -36,11 +36,11 @@ export class BookingListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadFacilities();
-    this.store.loadBookings(this.selectedFacilityId);
+    this.store.loadBookings(this.getFacilityFilter());
   }
 
   onFacilityChange(): void {
-    // Trigger handled by signal connection in ngOnInit
+    this.store.loadBookings(this.getFacilityFilter());
   }
 
   private loadFacilities(): void {
@@ -55,6 +55,11 @@ export class BookingListComponent implements OnInit {
     });
   }
 
+  private getFacilityFilter(): string | null {
+    const facilityId = this.selectedFacilityId().trim();
+    return facilityId.length > 0 ? facilityId : null;
+  }
+
   formatDate(isoString: string): string {
     const date = new Date(isoString);
     return date.toLocaleDateString('en-SA', {
@@ -64,7 +69,8 @@ export class BookingListComponent implements OnInit {
     });
   }
 
-  formatTime(isoString: string): string {
+  formatTime(isoString: string | null | undefined): string {
+    if (!isoString) return '';
     return new Date(isoString).toLocaleTimeString('en-SA', {
       hour: '2-digit',
       minute: '2-digit',
@@ -105,13 +111,32 @@ export class BookingListComponent implements OnInit {
     }
   }
 
+  isHoldActive(booking: BookingListItemDto): boolean {
+    if (booking.status !== BookingStatus.PENDING || !booking.holdUntil) {
+      return false;
+    }
+    return new Date(booking.holdUntil).getTime() > Date.now();
+  }
+
   bookingPrice(booking: BookingListItemDto): { amount: number; currency: string } {
+    const currency = booking.currency || 'SAR';
+    const totalAmount = booking.totalAmount;
+    if (typeof totalAmount === 'number' && !Number.isNaN(totalAmount)) {
+      return { amount: totalAmount, currency };
+    }
+    if (typeof totalAmount === 'string' && totalAmount.trim().length > 0) {
+      const parsed = Number(totalAmount);
+      if (!Number.isNaN(parsed)) {
+        return { amount: parsed, currency };
+      }
+    }
+
     const pricePerHour = booking.facility?.config?.pricePerHour ?? 0;
     const start = new Date(booking.startTime).getTime();
     const end = new Date(booking.endTime).getTime();
     const hours = Math.max(0, (end - start) / (60 * 60 * 1000));
     const amount = Math.round(pricePerHour * hours);
-    return { amount, currency: 'SAR' };
+    return { amount, currency };
   }
 
   formatPrice(amount: number, currency: string): string {
@@ -142,4 +167,3 @@ export class BookingListComponent implements OnInit {
   readonly BookingStatus = BookingStatus;
   readonly PaymentStatus = PaymentStatus;
 }
-

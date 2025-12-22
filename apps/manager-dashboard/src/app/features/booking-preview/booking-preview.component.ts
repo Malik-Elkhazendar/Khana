@@ -6,6 +6,7 @@ import {
   FacilityListItemDto,
   BookingPreviewResponseDto,
   AlternativeSlotDto,
+  BookingStatus,
 } from '@khana/shared-dtos';
 
 @Component({
@@ -34,6 +35,7 @@ export class BookingPreviewComponent implements OnInit {
   // Customer details (shown when booking is available)
   customerName = signal<string>('');
   customerPhone = signal<string>('');
+  holdAsPending = signal<boolean>(false);
   bookingInProgress = signal<boolean>(false);
   bookingSuccess = signal<boolean>(false);
 
@@ -163,6 +165,7 @@ export class BookingPreviewComponent implements OnInit {
         endTime: endDateTime.toISOString(),
         customerName: this.customerName().trim(),
         customerPhone: this.customerPhone().trim(),
+        status: this.holdAsPending() ? BookingStatus.PENDING : undefined,
       })
       .subscribe({
         next: () => {
@@ -171,6 +174,7 @@ export class BookingPreviewComponent implements OnInit {
           // Reset form for next booking
           this.customerName.set('');
           this.customerPhone.set('');
+          this.holdAsPending.set(false);
           this.previewResult.set(null);
         },
         error: (err) => {
@@ -186,5 +190,6 @@ export class BookingPreviewComponent implements OnInit {
     this.bookingSuccess.set(false);
     this.customerName.set('');
     this.customerPhone.set('');
+    this.holdAsPending.set(false);
   }
 }

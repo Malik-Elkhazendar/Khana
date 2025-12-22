@@ -1,4 +1,5 @@
 import { SlotStatus, ConflictType } from '@khana/shared-dtos';
+import { diffInMinutes } from '@khana/shared-utils';
 import {
   previewBooking,
   validateBookingInput,
@@ -215,10 +216,12 @@ describe('BookingPreview', () => {
   describe('findAlternativeSlots', () => {
     it('should find available slots near requested time', () => {
       const requestedStart = futureDate(14);
+      const requestedEnd = futureDate(15);
       const occupiedSlots = [createOccupiedSlot(14, 15)];
 
       const alternatives = findAlternativeSlots(
         requestedStart,
+        requestedEnd,
         occupiedSlots,
         baseFacilityConfig,
         3
@@ -235,10 +238,12 @@ describe('BookingPreview', () => {
 
     it('should include pricing information in alternatives', () => {
       const requestedStart = futureDate(14);
+      const requestedEnd = futureDate(15);
       const occupiedSlots = [createOccupiedSlot(14, 15)];
 
       const alternatives = findAlternativeSlots(
         requestedStart,
+        requestedEnd,
         occupiedSlots,
         baseFacilityConfig
       );
@@ -251,10 +256,12 @@ describe('BookingPreview', () => {
 
     it('should not suggest slots in the past', () => {
       const requestedStart = futureDate(10);
+      const requestedEnd = futureDate(11);
       const occupiedSlots = [createOccupiedSlot(10, 11)];
 
       const alternatives = findAlternativeSlots(
         requestedStart,
+        requestedEnd,
         occupiedSlots,
         baseFacilityConfig
       );
@@ -262,6 +269,23 @@ describe('BookingPreview', () => {
       const now = new Date();
       for (const alt of alternatives) {
         expect(alt.startTime.getTime()).toBeGreaterThan(now.getTime());
+      }
+    });
+
+    it('should preserve requested duration in alternatives', () => {
+      const requestedStart = futureDate(14);
+      const requestedEnd = futureDate(16);
+      const occupiedSlots = [createOccupiedSlot(14, 16)];
+
+      const alternatives = findAlternativeSlots(
+        requestedStart,
+        requestedEnd,
+        occupiedSlots,
+        baseFacilityConfig
+      );
+
+      for (const alt of alternatives) {
+        expect(diffInMinutes(alt.startTime, alt.endTime)).toBe(120);
       }
     });
   });

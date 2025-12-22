@@ -4,7 +4,7 @@
  */
 
 import { PricedTimeSlot } from '@khana/shared-dtos';
-import { addMinutes, diffInMinutes } from '@khana/shared-utils';
+import { addMinutes, diffInMinutes, setTimeFromString } from '@khana/shared-utils';
 import { detectConflicts } from './conflict-detector';
 import { calculatePrice } from './price-calculator';
 import {
@@ -59,6 +59,15 @@ export function validateBookingInput(
     );
   }
 
+  // Validate booking is within operating hours
+  const dayOpen = setTimeFromString(input.startTime, facilityConfig.openTime);
+  const dayClose = setTimeFromString(input.startTime, facilityConfig.closeTime);
+  if (input.startTime < dayOpen || input.endTime > dayClose) {
+    errors.push(
+      `Booking must be within operating hours (${facilityConfig.openTime}-${facilityConfig.closeTime}).`
+    );
+  }
+
   return errors;
 }
 
@@ -73,26 +82,32 @@ export function validateBookingInput(
  */
 export function findAlternativeSlots(
   requestedStart: Date,
+  requestedEnd: Date,
   occupiedSlots: OccupiedSlot[],
   facilityConfig: FacilityConfig,
   maxAlternatives = 3
 ): PricedTimeSlot[] {
   const alternatives: PricedTimeSlot[] = [];
   const slotDuration = facilityConfig.slotDurationMinutes;
+  const requestedDurationMinutes = diffInMinutes(requestedStart, requestedEnd);
   const facilitySlots = occupiedSlots.filter(s => s.facilityId === facilityConfig.id);
 
   // Check slots before and after the requested time
   const searchRangeHours = 4; // Search 4 hours before and after
-  const slotsToCheck = (searchRangeHours * 60 * 2) / slotDuration;
+  const slotsToCheck = Math.ceil((searchRangeHours * 60 * 2) / slotDuration);
 
   for (let i = -slotsToCheck / 2; i <= slotsToCheck / 2; i++) {
     if (alternatives.length >= maxAlternatives) break;
 
     const candidateStart = addMinutes(requestedStart, i * slotDuration);
-    const candidateEnd = addMinutes(candidateStart, slotDuration);
+    const candidateEnd = addMinutes(candidateStart, requestedDurationMinutes);
 
     // Skip if candidate is in the past
     if (candidateStart < new Date()) continue;
+
+    const dayOpen = setTimeFromString(candidateStart, facilityConfig.openTime);
+    const dayClose = setTimeFromString(candidateStart, facilityConfig.closeTime);
+    if (candidateStart < dayOpen || candidateEnd > dayClose) continue;
 
     // Check if this slot conflicts with any occupied slot
     const hasConflict = facilitySlots.some(occupied => {
@@ -178,6 +193,7 @@ export function previewBooking(
   if (conflictResult.hasConflict) {
     suggestedAlternatives = findAlternativeSlots(
       input.startTime,
+      input.endTime,
       occupiedSlots,
       facilityConfig
     );

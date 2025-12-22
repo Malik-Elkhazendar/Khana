@@ -2,14 +2,14 @@
 /* Using CSS Logical Properties for bulletproof RTL support */
 
 .booking-preview {
-  max-inline-size: 640px;
+  max-inline-size: 40rem;
   margin-inline: auto;
-  padding-block: var(--space-10);
-  padding-inline: var(--space-6);
+  padding-block: var(--space-6);
+  padding-inline: var(--space-4);
 
   h1 {
     font-family: var(--font-display);
-    font-size: var(--text-3xl);
+    font-size: var(--text-2xl);
     font-weight: var(--font-bold);
     color: var(--color-primary);
     margin-block-end: var(--space-2);
@@ -18,7 +18,20 @@
   .subtitle {
     font-size: var(--text-lg);
     color: var(--color-text-secondary);
-    margin-block-end: var(--space-10);
+    margin-block-end: var(--space-8);
+  }
+
+  @media (min-width: 48rem) {
+    padding-block: var(--space-10);
+    padding-inline: var(--space-6);
+
+    h1 {
+      font-size: var(--text-3xl);
+    }
+
+    .subtitle {
+      margin-block-end: var(--space-10);
+    }
   }
 }
 
@@ -28,9 +41,13 @@
 .booking-form {
   background: var(--color-surface-elevated);
   border-radius: var(--radius-lg);
-  padding: var(--space-8);
+  padding: var(--space-6);
   margin-block-end: var(--space-8);
   box-shadow: var(--shadow-md);
+
+  @media (min-width: 48rem) {
+    padding: var(--space-8);
+  }
 }
 
 .form-group {
@@ -50,11 +67,11 @@
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: var(--space-6);
 
-  @media (max-width: 500px) {
-    grid-template-columns: 1fr;
+  @media (min-width: 40rem) {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -180,7 +197,7 @@ select {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-6);
+  padding: var(--space-5);
   background: var(--color-surface);
   border-block-end: 1px solid var(--color-surface-muted);
 
@@ -218,7 +235,7 @@ select {
 .validation-errors,
 .conflict-info {
   padding-block: var(--space-5);
-  padding-inline: var(--space-6);
+  padding-inline: var(--space-5);
   background: var(--color-error-light);
   border-block-end: 1px solid rgba(196, 69, 54, 0.1);
 
@@ -286,7 +303,7 @@ select {
    PRICE BREAKDOWN
    ================================ */
 .price-breakdown {
-  padding: var(--space-6);
+  padding: var(--space-5);
 
   h3 {
     font-family: var(--font-display);
@@ -349,7 +366,7 @@ select {
    ALTERNATIVES
    ================================ */
 .alternatives {
-  padding: var(--space-6);
+  padding: var(--space-5);
   background: var(--color-success-light);
   border-block-start: 1px solid rgba(45, 125, 111, 0.15);
 
@@ -409,8 +426,8 @@ select {
    ================================ */
 .btn-book {
   display: block;
-  width: calc(100% - var(--space-6) * 2);
-  margin: var(--space-6);
+  width: calc(100% - var(--space-5) * 2);
+  margin: var(--space-5);
   padding: var(--space-4) var(--space-8);
   font-family: var(--font-display);
   font-size: var(--text-base);
@@ -439,7 +456,7 @@ select {
    CUSTOMER DETAILS
    ================================ */
 .customer-details {
-  margin: var(--space-6);
+  margin: var(--space-5);
   padding-block-start: var(--space-6);
   border-block-start: 1px solid var(--color-surface-muted);
 
@@ -453,17 +470,43 @@ select {
 
   .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: var(--space-4);
 
-    @media (max-width: 500px) {
-      grid-template-columns: 1fr;
+    @media (min-width: 40rem) {
+      grid-template-columns: 1fr 1fr;
     }
   }
 
   .form-group {
     margin-block-end: 0;
   }
+}
+
+.hold-toggle {
+  margin-block-start: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+  }
+
+  input {
+    inline-size: 18px;
+    block-size: 18px;
+  }
+}
+
+.hold-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 /* ================================
@@ -530,32 +573,20 @@ select {
   }
 }
 
-/* ================================
-   RESPONSIVE
-   ================================ */
-@media (max-width: 600px) {
-  .booking-preview {
-    padding-block: var(--space-6);
-    padding-inline: var(--space-4);
-
-    h1 {
-      font-size: var(--text-2xl);
-    }
-  }
-
-  .booking-form {
-    padding: var(--space-6);
-  }
-
+@media (min-width: 48rem) {
   .result-header,
   .price-breakdown,
   .alternatives {
-    padding: var(--space-5);
+    padding: var(--space-6);
   }
 
   .btn-book {
-    inline-size: calc(100% - var(--space-5) * 2);
-    margin: var(--space-5);
+    width: calc(100% - var(--space-6) * 2);
+    margin: var(--space-6);
+  }
+
+  .customer-details {
+    margin: var(--space-6);
   }
 }
 

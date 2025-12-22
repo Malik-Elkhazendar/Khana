@@ -88,6 +88,35 @@ describe('API', () => {
       expect(res.data.conflict.hasConflict).toBe(true);
     });
 
+    it('should block conflicts for active pending holds', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(12, 0, 0, 0);
+
+      const startTime = tomorrow.toISOString();
+      const endTime = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString();
+
+      await axios.post(`/api/v1/bookings`, {
+        facilityId,
+        startTime,
+        endTime,
+        customerName: 'Pending Hold',
+        customerPhone: '+966512345679',
+        status: 'PENDING',
+      });
+
+      const res = await axios.post(`/api/v1/bookings/preview`, {
+        facilityId,
+        startTime,
+        endTime,
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.data.canBook).toBe(false);
+      expect(res.data.conflict).toBeDefined();
+      expect(res.data.conflict.hasConflict).toBe(true);
+    });
+
     it('should return validation errors for invalid input', async () => {
       // Invalid: end time before start time
       const tomorrow = new Date();

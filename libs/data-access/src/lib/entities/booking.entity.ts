@@ -6,13 +6,16 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { BookingStatus, PaymentStatus } from '@khana/shared-dtos';
+import { BookingStatus, PaymentStatus, PriceBreakdown } from '@khana/shared-dtos';
 import { Facility } from './facility.entity';
 
 @Entity({ name: 'bookings' })
 export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({ type: 'text', unique: true, nullable: true })
+  bookingReference?: string;
 
   @ManyToOne(() => Facility, { nullable: false, onDelete: 'CASCADE' })
   facility!: Facility;
@@ -42,6 +45,18 @@ export class Booking {
     default: PaymentStatus.PENDING,
   })
   paymentStatus!: PaymentStatus;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  totalAmount!: number;
+
+  @Column({ type: 'text', default: 'SAR' })
+  currency!: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  priceBreakdown?: PriceBreakdown;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  holdUntil?: Date | null;
 
   @CreateDateColumn()
   createdAt!: Date;

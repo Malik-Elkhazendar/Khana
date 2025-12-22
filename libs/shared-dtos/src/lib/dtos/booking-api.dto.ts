@@ -70,6 +70,7 @@ export interface CreateBookingRequestDto {
   endTime: string;
   customerName: string;
   customerPhone: string;
+  status?: BookingStatus;
 }
 
 /**
@@ -77,6 +78,7 @@ export interface CreateBookingRequestDto {
  */
 export interface BookingListItemDto {
   id: string;
+  bookingReference?: string;
   facility: {
     id: string;
     name: string;
@@ -88,6 +90,10 @@ export interface BookingListItemDto {
   endTime: string;
   customerName: string;
   customerPhone: string;
+  totalAmount?: number | string;
+  currency?: string;
+  priceBreakdown?: PriceBreakdown;
+  holdUntil?: string | null;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   createdAt: string;
