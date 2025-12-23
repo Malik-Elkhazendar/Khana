@@ -3,9 +3,14 @@
     <a class="brand" routerLink="/bookings">Khana</a>
 
     <nav class="nav-links" aria-label="Primary navigation">
-      <a routerLink="/bookings" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <a
+        routerLink="/bookings"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
         Dashboard
       </a>
+      <a routerLink="/calendar" routerLinkActive="active">Calendar</a>
       <a routerLink="/new" routerLinkActive="active">New Booking</a>
     </nav>
   </div>

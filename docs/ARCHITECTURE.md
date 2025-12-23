@@ -4,26 +4,47 @@
 
 # Part I: Golden Path Development Standards
 
-> **The Golden Path**: Strict conventions for a scalable, maintainable Nx monorepo.
-> All developers MUST follow these rules. Violations will be flagged in code review.
+> **📚 NEW: Skill-Based Documentation System**
+>
+> For token-efficient learning, use our **focused skill files** instead of reading this entire document:
+>
+> - **Master Index:** [docs/skills/INDEX.md](docs/skills/INDEX.md)
+> - **Common tasks:** See "I need to..." quick reference in INDEX.md
+> - **Token savings:** 90%+ reduction (read ~480 tokens instead of ~8,500)
+
+---
+
+## Quick Navigation to Development Skills
+
+| Need to...              | Read This Skill                                                                                               | Tokens |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- | ------ |
+| Implement a new feature | [PATTERNS.md](docs/skills/development/PATTERNS.md) + [CONVENTIONS.md](docs/skills/development/CONVENTIONS.md) | ~1,000 |
+| Fix naming issues       | [CONVENTIONS.md](docs/skills/development/CONVENTIONS.md)                                                      | ~400   |
+| Pre-commit verification | [CHECKLIST.md](docs/skills/development/CHECKLIST.md)                                                          | ~320   |
+| Write tests             | [TESTING.md](docs/skills/development/TESTING.md)                                                              | ~480   |
+| Onboard new developer   | [ONBOARDING.md](docs/skills/development/ONBOARDING.md)                                                        | ~560   |
+
+**vs. Reading this full file:** ~8,500 tokens
 
 ---
 
 ## Quick Reference: What Goes Where?
 
-| What | Where | Example |
-|------|-------|---------|
-| HTTP Controllers | `apps/api/src/app/[feature]/` | `bookings.controller.ts` |
-| Backend Services | `apps/api/src/app/[feature]/` | `bookings.service.ts` |
-| Backend DTOs (with validators) | `apps/api/src/app/[feature]/dto/` | `create-booking.dto.ts` |
-| TypeORM Entities | `libs/data-access/src/lib/entities/` | `booking.entity.ts` |
-| Pure Domain Logic | `libs/booking-engine/src/lib/` | `conflict-detector.ts` |
-| Shared DTOs/Interfaces | `libs/shared-dtos/src/lib/dtos/` | `booking.dto.ts` |
-| Shared Enums | `libs/shared-dtos/src/lib/enums/` | `booking-status.enum.ts` |
-| Angular Feature Components | `apps/manager-dashboard/src/app/features/[feature]/` | `booking-list.component.ts` |
-| Global State (SignalStore) | `apps/manager-dashboard/src/app/state/[domain]/` | `booking.store.ts` |
-| Shared UI Components | `apps/manager-dashboard/src/app/shared/components/` | `status-badge/` |
-| Centralized API Service | `apps/manager-dashboard/src/app/shared/services/` | `api.service.ts` |
+_This quick reference is also available in [PATTERNS.md](docs/skills/development/PATTERNS.md)_
+
+| What                           | Where                                                | Example                     |
+| ------------------------------ | ---------------------------------------------------- | --------------------------- |
+| HTTP Controllers               | `apps/api/src/app/[feature]/`                        | `bookings.controller.ts`    |
+| Backend Services               | `apps/api/src/app/[feature]/`                        | `bookings.service.ts`       |
+| Backend DTOs (with validators) | `apps/api/src/app/[feature]/dto/`                    | `create-booking.dto.ts`     |
+| TypeORM Entities               | `libs/data-access/src/lib/entities/`                 | `booking.entity.ts`         |
+| Pure Domain Logic              | `libs/booking-engine/src/lib/`                       | `conflict-detector.ts`      |
+| Shared DTOs/Interfaces         | `libs/shared-dtos/src/lib/dtos/`                     | `booking.dto.ts`            |
+| Shared Enums                   | `libs/shared-dtos/src/lib/enums/`                    | `booking-status.enum.ts`    |
+| Angular Feature Components     | `apps/manager-dashboard/src/app/features/[feature]/` | `booking-list.component.ts` |
+| Global State (SignalStore)     | `apps/manager-dashboard/src/app/state/[domain]/`     | `booking.store.ts`          |
+| Shared UI Components           | `apps/manager-dashboard/src/app/shared/components/`  | `status-badge/`             |
+| Centralized API Service        | `apps/manager-dashboard/src/app/shared/services/`    | `api.service.ts`            |
 
 ---
 
@@ -95,7 +116,7 @@ Backend DTOs use `class-validator` decorators and live in feature folders:
 ```typescript
 // apps/api/src/app/bookings/dto/create-booking.dto.ts
 import { IsDateString, IsNotEmpty, IsUUID } from 'class-validator';
-import { BookingStatus } from '@khana/shared-dtos';  // ✅ Import enums from shared
+import { BookingStatus } from '@khana/shared-dtos'; // ✅ Import enums from shared
 
 export class CreateBookingDto {
   @IsUUID()
@@ -140,20 +161,20 @@ apps/manager-dashboard/src/app/
 
 ### Smart vs Dumb Components
 
-| Smart Components (Pages) | Dumb Components (UI) |
-|--------------------------|----------------------|
+| Smart Components (Pages)        | Dumb Components (UI)           |
+| ------------------------------- | ------------------------------ |
 | Location: `features/[feature]/` | Location: `shared/components/` |
-| Inject services and stores | Receive data via `@Input()` |
-| Handle user interactions | Emit events via `@Output()` |
-| Connect to routes | Pure rendering only |
-| Orchestrate child components | NO service injection |
+| Inject services and stores      | Receive data via `@Input()`    |
+| Handle user interactions        | Emit events via `@Output()`    |
+| Connect to routes               | Pure rendering only            |
+| Orchestrate child components    | NO service injection           |
 
 ### State Management Pattern (NgRx SignalStore)
 
 ```typescript
 // state/bookings/booking.store.ts
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { BookingDto } from '@khana/shared-dtos';  // ✅ Use shared types
+import { BookingDto } from '@khana/shared-dtos'; // ✅ Use shared types
 
 export const BookingStore = signalStore(
   { providedIn: 'root' },
@@ -163,7 +184,7 @@ export const BookingStore = signalStore(
       pipe(
         tap(() => patchState(store, { loading: true })),
         switchMap(() => api.getBookings()),
-        tap((bookings) => patchState(store, { bookings, loading: false })),
+        tap((bookings) => patchState(store, { bookings, loading: false }))
       )
     ),
   }))
@@ -172,10 +193,10 @@ export const BookingStore = signalStore(
 
 ### Store Placement Rules
 
-| Scope | Location |
-|-------|----------|
-| **Global** (cross-feature) | `state/[domain]/` |
-| **Feature-local** | `features/[feature]/[feature].store.ts` |
+| Scope                      | Location                                |
+| -------------------------- | --------------------------------------- |
+| **Global** (cross-feature) | `state/[domain]/`                       |
+| **Feature-local**          | `features/[feature]/[feature].store.ts` |
 
 ---
 
@@ -199,12 +220,12 @@ libs/shared-dtos/src/lib/
 
 ### When to Add to shared-dtos
 
-| Add to shared-dtos ✅ | Keep local ❌ |
-|-----------------------|---------------|
-| Used by BOTH frontend AND backend | Backend-only validation DTOs |
-| API response/request shapes | Local component state types |
-| Domain enums (BookingStatus) | UI-only types (ButtonVariant) |
-| Business interfaces (PriceBreakdown) | Framework-specific types |
+| Add to shared-dtos ✅                | Keep local ❌                 |
+| ------------------------------------ | ----------------------------- |
+| Used by BOTH frontend AND backend    | Backend-only validation DTOs  |
+| API response/request shapes          | Local component state types   |
+| Domain enums (BookingStatus)         | UI-only types (ButtonVariant) |
+| Business interfaces (PriceBreakdown) | Framework-specific types      |
 
 ---
 
@@ -290,22 +311,22 @@ formatPrice(amount: number, currency: string): string {}
 
 ### Allowed Imports
 
-| From | Can Import |
-|------|-----------|
-| `apps/api` | `@khana/booking-engine`, `@khana/data-access`, `@khana/shared-dtos` |
-| `apps/manager-dashboard` | `@khana/shared-dtos` |
-| `libs/booking-engine` | `@khana/shared-dtos` |
-| `libs/data-access` | `@khana/shared-dtos` |
-| `libs/shared-dtos` | Nothing (leaf node) |
+| From                     | Can Import                                                          |
+| ------------------------ | ------------------------------------------------------------------- |
+| `apps/api`               | `@khana/booking-engine`, `@khana/data-access`, `@khana/shared-dtos` |
+| `apps/manager-dashboard` | `@khana/shared-dtos`                                                |
+| `libs/booking-engine`    | `@khana/shared-dtos`                                                |
+| `libs/data-access`       | `@khana/shared-dtos`                                                |
+| `libs/shared-dtos`       | Nothing (leaf node)                                                 |
 
 ### Forbidden Imports ❌
 
 ```typescript
 // Frontend MUST NOT import data-access (entities)
-import { Booking } from '@khana/data-access';  // FORBIDDEN in Angular
+import { Booking } from '@khana/data-access'; // FORBIDDEN in Angular
 
 // Libs MUST NOT import from apps
-import { BookingsService } from 'apps/api/...';  // FORBIDDEN
+import { BookingsService } from 'apps/api/...'; // FORBIDDEN
 ```
 
 ---
@@ -355,9 +376,308 @@ import { BookingsService } from 'apps/api/...';  // FORBIDDEN
 
 // ❌ WRONG: Hardcoded values
 .card {
-  background: #16213e;  // Should use var(--color-surface)
+  background: #16213e; // Should use var(--color-surface)
 }
 ```
+
+---
+
+## Responsive Design & Layout Rules
+
+### ⚠️ CRITICAL: Mobile-First Responsive Design
+
+**ALL pages and components MUST be responsive and mobile-optimized.**
+
+### Core Principles
+
+1. **Mobile-First Approach**: Design for mobile (320px+) first, then enhance for larger screens
+2. **Fluid Layouts**: Use flexible units (%, rem, vh, vw) instead of fixed pixels
+3. **Touch-Friendly**: Minimum 44×44px tap targets for interactive elements
+4. **CSS Logical Properties**: Use logical properties for RTL support (see below)
+
+### Breakpoint System
+
+```scss
+// Standard breakpoints (align with Tailwind conventions)
+$breakpoint-sm: 640px; // Small devices (landscape phones)
+$breakpoint-md: 768px; // Tablets
+$breakpoint-lg: 1024px; // Laptops
+$breakpoint-xl: 1280px; // Desktops
+$breakpoint-2xl: 1536px; // Large screens
+
+// Usage
+@media (min-width: $breakpoint-md) {
+  // Tablet and above styles
+}
+```
+
+### Sizing Rules
+
+#### ✅ DO: Use CSS Custom Properties & Relative Units
+
+```scss
+// Spacing tokens (already defined)
+--space-1: 0.25rem; // 4px
+--space-2: 0.5rem; // 8px
+--space-3: 0.75rem; // 12px
+--space-4: 1rem; // 16px
+--space-5: 1.25rem; // 20px
+--space-6: 1.5rem; // 24px
+--space-8: 2rem; // 32px
+--space-10: 2.5rem; // 40px
+--space-12: 3rem; // 48px
+
+// Font sizes (use existing tokens)
+--text-xs: 0.75rem; // 12px
+--text-sm: 0.875rem; // 14px
+--text-base: 1rem; // 16px
+--text-lg: 1.125rem; // 18px
+--text-xl: 1.25rem; // 20px
+--text-2xl: 1.5rem; // 24px
+--text-3xl: 1.875rem; // 30px
+
+// Example usage
+.component {
+  padding: var(--space-4);
+  font-size: var(--text-base);
+  gap: var(--space-2);
+}
+```
+
+#### ❌ DON'T: Hardcode Pixel Values
+
+```scss
+// ❌ WRONG
+.component {
+  padding: 16px;
+  font-size: 14px;
+  gap: 8px;
+}
+
+// ❌ WRONG: Hardcoded breakpoint values
+@media (max-width: 768px) {
+  font-size: 0.65rem; // Use var(--text-xs)
+}
+```
+
+### Alignment & Layout Rules
+
+#### Flexbox & Grid (Preferred for Layouts)
+
+```scss
+// ✅ CORRECT: Flexible layouts
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+
+  @media (min-width: $breakpoint-md) {
+    flex-direction: row;
+  }
+}
+
+// ✅ CORRECT: CSS Grid for complex layouts
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  gap: 1px;
+}
+```
+
+#### CSS Logical Properties (RTL Support)
+
+**MANDATORY for all directional properties:**
+
+| Physical Property   | Logical Property       | Use Case       |
+| ------------------- | ---------------------- | -------------- |
+| `margin-left`       | `margin-inline-start`  | Start margin   |
+| `margin-right`      | `margin-inline-end`    | End margin     |
+| `padding-left`      | `padding-inline-start` | Start padding  |
+| `padding-right`     | `padding-inline-end`   | End padding    |
+| `border-left`       | `border-inline-start`  | Start border   |
+| `border-right`      | `border-inline-end`    | End border     |
+| `left`              | `inset-inline-start`   | Positioning    |
+| `right`             | `inset-inline-end`     | Positioning    |
+| `top`               | `inset-block-start`    | Positioning    |
+| `bottom`            | `inset-block-end`      | Positioning    |
+| `text-align: left`  | `text-align: start`    | Text alignment |
+| `text-align: right` | `text-align: end`      | Text alignment |
+
+```scss
+// ✅ CORRECT: RTL-compatible
+.card {
+  padding-inline: var(--space-4);
+  padding-block: var(--space-3);
+  border-inline-start: 3px solid var(--color-primary);
+  text-align: start;
+}
+
+// ❌ WRONG: Not RTL-compatible
+.card {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-left: 3px solid var(--color-primary);
+  text-align: left;
+}
+```
+
+### Responsive Typography
+
+```scss
+// ✅ CORRECT: Fluid typography
+.heading {
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  line-height: 1.2;
+}
+
+// ✅ CORRECT: Breakpoint-based scaling
+.title {
+  font-size: var(--text-xl);
+
+  @media (min-width: $breakpoint-md) {
+    font-size: var(--text-2xl);
+  }
+
+  @media (min-width: $breakpoint-lg) {
+    font-size: var(--text-3xl);
+  }
+}
+```
+
+### Touch Target Sizes
+
+```scss
+// ✅ CORRECT: Minimum 44×44px for interactive elements
+.button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+}
+
+// ✅ CORRECT: Mobile navigation
+.nav-item {
+  padding-block: var(--space-4);
+  min-height: 48px;
+}
+```
+
+### Mobile-Specific Patterns
+
+#### Bottom Sheets & Modals
+
+```scss
+// ✅ CORRECT: Mobile-first modal
+.modal {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  max-height: 90vh;
+  border-start-start-radius: var(--radius-xl);
+  border-start-end-radius: var(--radius-xl);
+
+  @media (min-width: $breakpoint-md) {
+    inset-inline: auto;
+    inset-block: auto;
+    max-inline-size: 480px;
+    margin: auto;
+  }
+}
+```
+
+#### Responsive Grid Columns
+
+```scss
+// ✅ CORRECT: Auto-responsive grid
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+// ✅ CORRECT: Breakpoint-based columns
+.calendar-grid {
+  grid-template-columns: 60px repeat(3, 1fr); // Mobile: 3 days
+
+  @media (min-width: $breakpoint-md) {
+    grid-template-columns: 80px repeat(7, 1fr); // Desktop: 7 days
+  }
+}
+```
+
+### Viewport Units & Container Queries
+
+```scss
+// ✅ CORRECT: Viewport-based spacing
+.hero {
+  min-height: 100vh;
+  padding-block: 10vh;
+}
+
+// ✅ CORRECT: Container queries (future-ready)
+@container (min-width: 400px) {
+  .card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+}
+```
+
+### Color Opacity & Transparency
+
+```scss
+// ✅ CORRECT: Use color-mix for alpha transparency
+.overlay {
+  background: color-mix(in srgb, var(--color-background) 80%, transparent);
+}
+
+// ✅ CORRECT: CSS variable with alpha (if supported)
+:root {
+  --color-accent-rgb: 212, 168, 85;
+}
+
+.highlight {
+  background: rgba(var(--color-accent-rgb), 0.1);
+}
+
+// ❌ WRONG: Hardcoded rgba
+.overlay {
+  background: rgba(20, 28, 39, 0.45); // Should use theme color
+}
+```
+
+### Accessibility & Performance
+
+```scss
+// ✅ CORRECT: Prefers-reduced-motion
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// ✅ CORRECT: High contrast mode
+@media (prefers-contrast: high) {
+  .button {
+    border: 2px solid currentColor;
+  }
+}
+```
+
+### Responsive Checklist
+
+Before marking a component complete:
+
+- [ ] **Mobile tested** at 375px, 414px (iPhone), 360px (Android)
+- [ ] **Tablet tested** at 768px, 1024px (iPad)
+- [ ] **Desktop tested** at 1280px, 1920px
+- [ ] **No horizontal scroll** on mobile viewports
+- [ ] **Touch targets** ≥ 44×44px for all interactive elements
+- [ ] **CSS logical properties** used for all directional styles
+- [ ] **CSS custom properties** used for colors, spacing, sizing
+- [ ] **No hardcoded pixel values** (except specific cases like borders)
+- [ ] **Fluid typography** using clamp() or breakpoints
+- [ ] **RTL tested** by adding `dir="rtl"` to `<html>`
 
 ---
 
@@ -372,6 +692,10 @@ Before creating a new feature, verify:
 - [ ] UI component? → `apps/manager-dashboard/features/[feature]/`
 - [ ] State crosses features? → Global store in `state/`
 - [ ] Using CSS tokens? → Check `var(--color-*)` usage
+- [ ] **Mobile responsive?** → Test at 375px, 768px, 1280px
+- [ ] **CSS logical properties?** → Check for RTL support
+- [ ] **No hardcoded colors/sizes?** → Use design tokens only
+- [ ] **Touch targets ≥44px?** → Verify all interactive elements
 
 ---
 
@@ -513,6 +837,7 @@ khana-workspace/
 ### Core Entities
 
 #### 1. Tenant Entity
+
 ```typescript
 @Entity('tenants')
 export class Tenant {
@@ -534,7 +859,7 @@ export class Tenant {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @OneToMany(() => Facility, facility => facility.tenant)
+  @OneToMany(() => Facility, (facility) => facility.tenant)
   facilities: Facility[];
 
   @CreateDateColumn()
@@ -546,13 +871,14 @@ export class Tenant {
 ```
 
 #### 2. Facility Entity
+
 ```typescript
 @Entity('facilities')
 export class Facility {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Tenant, tenant => tenant.facilities)
+  @ManyToOne(() => Tenant, (tenant) => tenant.facilities)
   tenant: Tenant;
 
   @Column()
@@ -564,7 +890,7 @@ export class Facility {
   @Column({ type: 'jsonb' })
   metadata: FacilityMetadata; // capacity, amenities, etc.
 
-  @OneToMany(() => InventorySlot, slot => slot.facility)
+  @OneToMany(() => InventorySlot, (slot) => slot.facility)
   inventory: InventorySlot[];
 
   @Column({ type: 'boolean', default: true })
@@ -579,6 +905,7 @@ This entity represents **ONLY occupied time slots** (BOOKED, BLOCKED, MAINTENANC
 **AVAILABLE slots are NEVER stored** in the database to prevent millions of unnecessary rows.
 
 Availability is calculated in-memory by:
+
 1. Generating possible slots from Facility operating hours
 2. Subtracting existing InventorySlot records (occupied time)
 3. Returning the difference as available time
@@ -623,6 +950,7 @@ export class InventorySlot {
 
 **Why No Price Field?**
 Pricing is calculated dynamically by the PricingEngine based on:
+
 - Facility base price (stored in `facility.metadata`)
 - Time of day multipliers
 - Day of week multipliers
@@ -631,6 +959,7 @@ Pricing is calculated dynamically by the PricingEngine based on:
 This allows flexible pricing without database updates.
 
 #### 4. Booking Entity
+
 ```typescript
 @Entity('bookings')
 export class Booking {
@@ -683,6 +1012,7 @@ export class Booking {
 ```
 
 **Design Notes:**
+
 - Booking stores its own `startTime` and `endTime` for direct queries
 - When a Booking is created, an InventorySlot with `status: BOOKED` is also created
 - This denormalization improves query performance and simplifies availability checks
@@ -700,10 +1030,7 @@ No AVAILABLE slots are ever stored or queried, preventing database bloat.
 // libs/booking-engine/src/lib/conflict-detector.ts
 
 export class ConflictDetector {
-  constructor(
-    private readonly inventorySlotRepository: Repository<InventorySlot>,
-    private readonly availabilityCalculator: AvailabilityCalculator
-  ) {}
+  constructor(private readonly inventorySlotRepository: Repository<InventorySlot>, private readonly availabilityCalculator: AvailabilityCalculator) {}
 
   /**
    * Detects if a booking request conflicts with existing occupied slots
@@ -714,65 +1041,41 @@ export class ConflictDetector {
    *
    * @returns ConflictResult with conflicts and alternative suggestions
    */
-  async detectConflicts(
-    facilityId: string,
-    requestedStart: Date,
-    requestedEnd: Date
-  ): Promise<ConflictResult> {
-
+  async detectConflicts(facilityId: string, requestedStart: Date, requestedEnd: Date): Promise<ConflictResult> {
     // Query ONLY occupied slots (BOOKED, BLOCKED, MAINTENANCE)
     // Since we never store AVAILABLE slots, all returned rows are conflicts
-    const occupiedSlots = await this.inventorySlotRepository
-      .createQueryBuilder('slot')
-      .where('slot.facilityId = :facilityId', { facilityId })
-      .andWhere('slot.startTime < :requestedEnd', { requestedEnd })
-      .andWhere('slot.endTime > :requestedStart', { requestedStart })
-      .getMany();
+    const occupiedSlots = await this.inventorySlotRepository.createQueryBuilder('slot').where('slot.facilityId = :facilityId', { facilityId }).andWhere('slot.startTime < :requestedEnd', { requestedEnd }).andWhere('slot.endTime > :requestedStart', { requestedStart }).getMany();
 
     if (occupiedSlots.length > 0) {
       return {
         hasConflict: true,
         conflictType: this.classifyConflict(occupiedSlots[0], requestedStart, requestedEnd),
-        conflicts: occupiedSlots.map(slot => ({
+        conflicts: occupiedSlots.map((slot) => ({
           slotId: slot.id,
           startTime: slot.startTime,
           endTime: slot.endTime,
           status: slot.status,
-          notes: slot.notes
+          notes: slot.notes,
         })),
-        suggestedAlternatives: await this.findAlternatives(
-          facilityId,
-          requestedStart,
-          requestedEnd
-        )
+        suggestedAlternatives: await this.findAlternatives(facilityId, requestedStart, requestedEnd),
       };
     }
 
     return {
       hasConflict: false,
-      message: 'Slot is available for booking'
+      message: 'Slot is available for booking',
     };
   }
 
   /**
    * Classifies the type of conflict for better error messages
    */
-  private classifyConflict(
-    existingSlot: InventorySlot,
-    requestedStart: Date,
-    requestedEnd: Date
-  ): ConflictType {
-    if (
-      requestedStart.getTime() === existingSlot.startTime.getTime() &&
-      requestedEnd.getTime() === existingSlot.endTime.getTime()
-    ) {
+  private classifyConflict(existingSlot: InventorySlot, requestedStart: Date, requestedEnd: Date): ConflictType {
+    if (requestedStart.getTime() === existingSlot.startTime.getTime() && requestedEnd.getTime() === existingSlot.endTime.getTime()) {
       return ConflictType.EXACT_OVERLAP;
     }
 
-    if (
-      requestedStart >= existingSlot.startTime &&
-      requestedEnd <= existingSlot.endTime
-    ) {
+    if (requestedStart >= existingSlot.startTime && requestedEnd <= existingSlot.endTime) {
       return ConflictType.CONTAINED_WITHIN;
     }
 
@@ -793,12 +1096,7 @@ export class ConflictDetector {
    * 4. Sort by proximity to requested time
    * 5. Return top N suggestions
    */
-  private async findAlternatives(
-    facilityId: string,
-    requestedStart: Date,
-    requestedEnd: Date,
-    maxSuggestions: number = 5
-  ): Promise<TimeSlot[]> {
+  private async findAlternatives(facilityId: string, requestedStart: Date, requestedEnd: Date, maxSuggestions: number = 5): Promise<TimeSlot[]> {
     const requestedDuration = requestedEnd.getTime() - requestedStart.getTime();
 
     // Search window: ±3 hours from requested time
@@ -815,14 +1113,12 @@ export class ConflictDetector {
 
     // Find slots matching requested duration
     const alternatives = availabilityMap.availableSlots
-      .filter(slot =>
-        (slot.endTime.getTime() - slot.startTime.getTime()) >= requestedDuration
-      )
-      .map(slot => ({
+      .filter((slot) => slot.endTime.getTime() - slot.startTime.getTime() >= requestedDuration)
+      .map((slot) => ({
         startTime: slot.startTime,
         endTime: new Date(slot.startTime.getTime() + requestedDuration),
         price: slot.price,
-        proximity: Math.abs(slot.startTime.getTime() - requestedStart.getTime())
+        proximity: Math.abs(slot.startTime.getTime() - requestedStart.getTime()),
       }))
       .sort((a, b) => a.proximity - b.proximity)
       .slice(0, maxSuggestions);
@@ -835,16 +1131,17 @@ export class ConflictDetector {
  * Enum for conflict classification
  */
 export enum ConflictType {
-  EXACT_OVERLAP = 'exact_overlap',          // Requested time exactly matches existing
-  CONTAINED_WITHIN = 'contained_within',    // Requested time fully inside existing
-  PARTIAL_START_OVERLAP = 'partial_start',  // Requested start overlaps existing
-  PARTIAL_END_OVERLAP = 'partial_end'       // Requested end overlaps existing
+  EXACT_OVERLAP = 'exact_overlap', // Requested time exactly matches existing
+  CONTAINED_WITHIN = 'contained_within', // Requested time fully inside existing
+  PARTIAL_START_OVERLAP = 'partial_start', // Requested start overlaps existing
+  PARTIAL_END_OVERLAP = 'partial_end', // Requested end overlaps existing
 }
 ```
 
 ### 2. Availability Calculator
 
 **⚠️ ARCHITECTURAL PRINCIPLE:** This calculator generates availability **in-memory** by:
+
 1. Creating all possible time slots from Facility operating hours (NOT from database)
 2. Fetching ONLY occupied slots (BOOKED, BLOCKED, MAINTENANCE) from database
 3. Subtracting occupied slots from generated slots
@@ -857,11 +1154,7 @@ only ~50 database rows per year (actual bookings), NOT 5,475 rows (365 days × 1
 // libs/booking-engine/src/lib/availability-calculator.ts
 
 export class AvailabilityCalculator {
-  constructor(
-    private readonly facilityRepository: Repository<Facility>,
-    private readonly inventorySlotRepository: Repository<InventorySlot>,
-    private readonly pricingEngine: PricingEngine
-  ) {}
+  constructor(private readonly facilityRepository: Repository<Facility>, private readonly inventorySlotRepository: Repository<InventorySlot>, private readonly pricingEngine: PricingEngine) {}
 
   /**
    * Calculates real-time availability for a facility using in-memory generation
@@ -872,15 +1165,9 @@ export class AvailabilityCalculator {
    * @param inventoryType - HOURLY (sports) or DAILY (chalets)
    * @returns AvailabilityMap with available and occupied slots
    */
-  async calculateAvailability(
-    facilityId: string,
-    startDate: Date,
-    endDate: Date,
-    inventoryType: InventoryType
-  ): Promise<AvailabilityMap> {
-
+  async calculateAvailability(facilityId: string, startDate: Date, endDate: Date, inventoryType: InventoryType): Promise<AvailabilityMap> {
     const facility = await this.facilityRepository.findOne({
-      where: { id: facilityId }
+      where: { id: facilityId },
     });
 
     if (!facility) {
@@ -909,46 +1196,24 @@ export class AvailabilityCalculator {
    * 4. Calculate dynamic pricing for each available slot
    * 5. Return availability matrix
    */
-  private async calculateHourlyAvailability(
-    facility: Facility,
-    startDate: Date,
-    endDate: Date
-  ): Promise<AvailabilityMap> {
-
+  private async calculateHourlyAvailability(facility: Facility, startDate: Date, endDate: Date): Promise<AvailabilityMap> {
     // Extract facility configuration
     const operatingHours = facility.metadata.operatingHours; // { open: '08:00', close: '23:00' }
     const slotDuration = facility.metadata.slotDuration || 60; // minutes
 
     // Step 1: Generate ALL possible slots in-memory (no DB query!)
-    const allPossibleSlots = this.generateHourlySlots(
-      startDate,
-      endDate,
-      operatingHours,
-      slotDuration
-    );
+    const allPossibleSlots = this.generateHourlySlots(startDate, endDate, operatingHours, slotDuration);
 
     // Step 2: Fetch ONLY occupied slots from database
-    const occupiedSlots = await this.inventorySlotRepository
-      .createQueryBuilder('slot')
-      .where('slot.facilityId = :facilityId', { facilityId: facility.id })
-      .andWhere('slot.startTime >= :startDate', { startDate })
-      .andWhere('slot.startTime < :endDate', { endDate })
-      .getMany();
+    const occupiedSlots = await this.inventorySlotRepository.createQueryBuilder('slot').where('slot.facilityId = :facilityId', { facilityId: facility.id }).andWhere('slot.startTime >= :startDate', { startDate }).andWhere('slot.startTime < :endDate', { endDate }).getMany();
 
     // Step 3: Subtract occupied slots from possible slots
-    const availableSlots = this.subtractOccupiedSlots(
-      allPossibleSlots,
-      occupiedSlots
-    );
+    const availableSlots = this.subtractOccupiedSlots(allPossibleSlots, occupiedSlots);
 
     // Step 4: Calculate dynamic pricing for available slots
-    const slotsWithPricing = availableSlots.map(slot => ({
+    const slotsWithPricing = availableSlots.map((slot) => ({
       ...slot,
-      price: this.pricingEngine.calculatePrice(
-        facility,
-        slot.startTime,
-        slot.endTime
-      ).total
+      price: this.pricingEngine.calculatePrice(facility, slot.startTime, slot.endTime).total,
     }));
 
     return {
@@ -957,13 +1222,13 @@ export class AvailabilityCalculator {
       dateRange: { start: startDate, end: endDate },
       totalSlots: allPossibleSlots.length,
       availableSlots: slotsWithPricing,
-      occupiedSlots: occupiedSlots.map(slot => ({
+      occupiedSlots: occupiedSlots.map((slot) => ({
         startTime: slot.startTime,
         endTime: slot.endTime,
         status: slot.status,
-        notes: slot.notes
+        notes: slot.notes,
       })),
-      occupancyRate: (occupiedSlots.length / allPossibleSlots.length) * 100
+      occupancyRate: (occupiedSlots.length / allPossibleSlots.length) * 100,
     };
   }
 
@@ -977,12 +1242,7 @@ export class AvailabilityCalculator {
    * - Slot Duration: 60 minutes
    * - Result: 15 slots [08:00-09:00, 09:00-10:00, ..., 22:00-23:00]
    */
-  private generateHourlySlots(
-    startDate: Date,
-    endDate: Date,
-    operatingHours: { open: string; close: string },
-    slotDuration: number
-  ): TimeSlot[] {
+  private generateHourlySlots(startDate: Date, endDate: Date, operatingHours: { open: string; close: string }, slotDuration: number): TimeSlot[] {
     const slots: TimeSlot[] = [];
     const [openHour, openMinute] = operatingHours.open.split(':').map(Number);
     const [closeHour, closeMinute] = operatingHours.close.split(':').map(Number);
@@ -1006,7 +1266,7 @@ export class AvailabilityCalculator {
         if (slotEnd <= dayEnd) {
           slots.push({
             startTime: new Date(slotStart),
-            endTime: new Date(slotEnd)
+            endTime: new Date(slotEnd),
           });
         }
 
@@ -1024,16 +1284,10 @@ export class AvailabilityCalculator {
    * Subtracts occupied slots from possible slots
    * Pure in-memory operation using time range overlap logic
    */
-  private subtractOccupiedSlots(
-    possibleSlots: TimeSlot[],
-    occupiedSlots: InventorySlot[]
-  ): TimeSlot[] {
-    return possibleSlots.filter(possible => {
+  private subtractOccupiedSlots(possibleSlots: TimeSlot[], occupiedSlots: InventorySlot[]): TimeSlot[] {
+    return possibleSlots.filter((possible) => {
       // Check if this possible slot overlaps with ANY occupied slot
-      const hasConflict = occupiedSlots.some(occupied =>
-        possible.startTime < occupied.endTime &&
-        possible.endTime > occupied.startTime
-      );
+      const hasConflict = occupiedSlots.some((occupied) => possible.startTime < occupied.endTime && possible.endTime > occupied.startTime);
 
       return !hasConflict; // Keep only non-conflicting slots
     });
@@ -1050,42 +1304,24 @@ export class AvailabilityCalculator {
    * 4. Apply minimum stay requirements
    * 5. Calculate dynamic pricing
    */
-  private async calculateDailyAvailability(
-    facility: Facility,
-    startDate: Date,
-    endDate: Date
-  ): Promise<AvailabilityMap> {
-
+  private async calculateDailyAvailability(facility: Facility, startDate: Date, endDate: Date): Promise<AvailabilityMap> {
     // Generate all possible days (in-memory)
     const allPossibleDays = this.generateDailySlots(startDate, endDate);
 
     // Fetch occupied days (database query)
-    const occupiedDays = await this.inventorySlotRepository
-      .createQueryBuilder('slot')
-      .where('slot.facilityId = :facilityId', { facilityId: facility.id })
-      .andWhere('slot.startTime >= :startDate', { startDate })
-      .andWhere('slot.startTime < :endDate', { endDate })
-      .andWhere('slot.type = :type', { type: InventoryType.DAILY })
-      .getMany();
+    const occupiedDays = await this.inventorySlotRepository.createQueryBuilder('slot').where('slot.facilityId = :facilityId', { facilityId: facility.id }).andWhere('slot.startTime >= :startDate', { startDate }).andWhere('slot.startTime < :endDate', { endDate }).andWhere('slot.type = :type', { type: InventoryType.DAILY }).getMany();
 
     // Subtract occupied from possible
-    const availableDays = this.subtractOccupiedSlots(
-      allPossibleDays,
-      occupiedDays
-    );
+    const availableDays = this.subtractOccupiedSlots(allPossibleDays, occupiedDays);
 
     // Apply minimum stay requirements (e.g., 2-night minimum)
     const minStay = facility.metadata.minimumStay || 1;
     const availableStays = this.findAvailableStayRanges(availableDays, minStay);
 
     // Calculate pricing
-    const staysWithPricing = availableStays.map(stay => ({
+    const staysWithPricing = availableStays.map((stay) => ({
       ...stay,
-      price: this.pricingEngine.calculatePrice(
-        facility,
-        stay.startTime,
-        stay.endTime
-      ).total
+      price: this.pricingEngine.calculatePrice(facility, stay.startTime, stay.endTime).total,
     }));
 
     return {
@@ -1094,13 +1330,13 @@ export class AvailabilityCalculator {
       dateRange: { start: startDate, end: endDate },
       totalSlots: allPossibleDays.length,
       availableSlots: staysWithPricing,
-      occupiedSlots: occupiedDays.map(slot => ({
+      occupiedSlots: occupiedDays.map((slot) => ({
         startTime: slot.startTime,
         endTime: slot.endTime,
         status: slot.status,
-        notes: slot.notes
+        notes: slot.notes,
       })),
-      occupancyRate: (occupiedDays.length / allPossibleDays.length) * 100
+      occupancyRate: (occupiedDays.length / allPossibleDays.length) * 100,
     };
   }
 
@@ -1120,7 +1356,7 @@ export class AvailabilityCalculator {
 
       slots.push({
         startTime: dayStart,
-        endTime: dayEnd
+        endTime: dayEnd,
       });
 
       currentDate.setDate(currentDate.getDate() + 1);
@@ -1132,10 +1368,7 @@ export class AvailabilityCalculator {
   /**
    * Finds consecutive available days that meet minimum stay requirements
    */
-  private findAvailableStayRanges(
-    availableDays: TimeSlot[],
-    minStay: number
-  ): TimeSlot[] {
+  private findAvailableStayRanges(availableDays: TimeSlot[], minStay: number): TimeSlot[] {
     // Group consecutive days into stay ranges
     // Filter ranges that meet minimum stay requirement
     // Implementation details omitted for brevity
@@ -1181,12 +1414,7 @@ export class PricingEngine {
    * - Seasonal adjustments
    * - Duration discounts
    */
-  calculatePrice(
-    facility: Facility,
-    bookingStart: Date,
-    bookingEnd: Date
-  ): PriceBreakdown {
-
+  calculatePrice(facility: Facility, bookingStart: Date, bookingEnd: Date): PriceBreakdown {
     let basePrice = facility.metadata.basePrice;
     const duration = this.calculateDuration(bookingStart, bookingEnd);
 
@@ -1211,7 +1439,7 @@ export class PricingEngine {
       subtotal,
       discount,
       total,
-      currency: 'SAR'
+      currency: 'SAR',
     };
   }
 
@@ -1279,7 +1507,7 @@ export class TenantContextService {
   applyTenantFilter(queryBuilder: SelectQueryBuilder<any>): void {
     if (this.currentTenant) {
       queryBuilder.andWhere('entity.tenantId = :tenantId', {
-        tenantId: this.currentTenant.id
+        tenantId: this.currentTenant.id,
       });
     }
   }
@@ -1345,6 +1573,7 @@ CREATE INDEX idx_bookings_customer
 ```
 
 **Performance Characteristics:**
+
 - Conflict detection: <10ms for facilities with 1000+ bookings
 - Availability calculation: <50ms (in-memory generation + single DB query)
 - Booking creation: <100ms (conflict check + insert + slot creation)
@@ -1532,7 +1761,7 @@ export class LoggerService {
       facilityId: booking.inventorySlot.facility.id,
       bookingReference: booking.bookingReference,
       amount: booking.totalAmount,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
@@ -1541,7 +1770,7 @@ export class LoggerService {
       event: 'booking.conflict_detected',
       facilityId,
       requestedTime,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 }
@@ -1591,15 +1820,18 @@ Tech Stack:
 ### Phase 3+ Technical Roadmap
 
 1. **GraphQL API** (2026 Q2)
+
    - Replace REST with GraphQL for mobile app
    - Real-time subscriptions for availability updates
 
 2. **Event-Driven Architecture** (2026 Q3)
+
    - Implement event sourcing for bookings
    - Apache Kafka for event streaming
    - CQRS pattern for read/write separation
 
 3. **AI-Powered Recommendations** (2027)
+
    - Machine learning for pricing optimization
    - Predictive availability forecasting
    - Personalized booking recommendations
@@ -1614,6 +1846,7 @@ Tech Stack:
 ## 📚 Technical References
 
 ### Design Patterns Used
+
 - **Repository Pattern**: Data access abstraction
 - **Service Layer Pattern**: Business logic encapsulation
 - **Factory Pattern**: Entity creation
@@ -1621,6 +1854,7 @@ Tech Stack:
 - **Observer Pattern**: Event notifications
 
 ### SOLID Principles Application
+
 - **Single Responsibility**: Each service has one clear purpose
 - **Open/Closed**: Extensible through interfaces (InventoryType)
 - **Liskov Substitution**: Polymorphic inventory engine
@@ -1652,6 +1886,7 @@ Tech Stack:
 **Problem:** Initial design suggested pre-generating InventorySlot rows for every available time (e.g., all hours in a day).
 
 **Why This is Wrong:**
+
 - **Database Bloat:** A single court with 15 operating hours/day would generate 5,475 rows per year (365 × 15)
 - **10 courts:** 54,750 rows/year of mostly empty data
 - **Write Overhead:** Every slot update requires database writes
@@ -1659,12 +1894,14 @@ Tech Stack:
 - **Scaling Failure:** 100 facilities × 5,475 = 547,500 rows/year of noise
 
 **Correct Solution:**
+
 - **Store ONLY occupied slots** (BOOKED, BLOCKED, MAINTENANCE)
 - **Generate availability in-memory** from Facility operating hours
 - **Subtract occupied slots** using overlap logic
 - **Result:** 10 courts with 80% occupancy = ~4,380 rows/year (actual bookings only)
 
 **Performance Gains:**
+
 - 92% reduction in database size
 - <50ms availability queries (in-memory generation + single DB query)
 - <10ms conflict detection (querying only occupied slots)
@@ -1677,6 +1914,7 @@ Tech Stack:
 **Problem:** Initial monorepo structure had Frontend importing Backend entities with ORM decorators.
 
 **Why This is Wrong:**
+
 - **Build Errors:** TypeORM decorators (`@Entity`, `@Column`) require Node.js dependencies
 - **Angular Browser Target:** Cannot bundle Node.js-only dependencies
 - **Coupling:** Frontend tightly coupled to backend ORM implementation
@@ -1684,6 +1922,7 @@ Tech Stack:
 - **Refactoring Hell:** Changing ORM requires frontend changes
 
 **Correct Solution:**
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │                  BACKEND (NestJS)                   │
@@ -1714,6 +1953,7 @@ Tech Stack:
 ```
 
 **Implementation Pattern:**
+
 ```typescript
 // ❌ WRONG: libs/data-access/entities/booking.entity.ts
 @Entity('bookings')
@@ -1747,6 +1987,7 @@ export class BookingsController {
 ```
 
 **Benefits:**
+
 - ✅ Clean separation of concerns
 - ✅ Frontend independent of ORM implementation
 - ✅ No build errors from decorator dependencies
@@ -1760,6 +2001,7 @@ export class BookingsController {
 **Problem:** Original design had Booking → InventorySlot → Facility hierarchy, requiring joins for simple queries.
 
 **Why We Denormalized:**
+
 ```typescript
 // Before: 3-table join for availability check
 SELECT * FROM bookings
@@ -1773,6 +2015,7 @@ WHERE facility_id = ? AND start_time < ? AND end_time > ?
 ```
 
 **Trade-offs:**
+
 - **Pro:** 3x faster queries (single table, no joins)
 - **Pro:** Simpler conflict detection logic
 - **Pro:** Better index utilization
@@ -1788,19 +2031,21 @@ WHERE facility_id = ? AND start_time < ? AND end_time > ?
 **Design Goal:** Support both hourly (sports) and daily (chalets) bookings with the same codebase.
 
 **Implementation:**
+
 ```typescript
 enum InventoryType {
-  HOURLY,  // Sports facilities (60-min slots)
-  DAILY,   // Chalets (24-hour slots)
-  CUSTOM   // Future: Flexible durations
+  HOURLY, // Sports facilities (60-min slots)
+  DAILY, // Chalets (24-hour slots)
+  CUSTOM, // Future: Flexible durations
 }
 
 // Same availability calculator, different time units
-calculateAvailability(facilityId, start, end, InventoryType.HOURLY)
-calculateAvailability(facilityId, start, end, InventoryType.DAILY)
+calculateAvailability(facilityId, start, end, InventoryType.HOURLY);
+calculateAvailability(facilityId, start, end, InventoryType.DAILY);
 ```
 
 **Why This Works:**
+
 - **Abstraction:** Time slots are just `{ startTime, endTime }` pairs
 - **Overlap Logic:** Same algorithm for hourly and daily conflicts
 - **Pricing:** Dynamic calculation works for any duration
@@ -1813,22 +2058,26 @@ calculateAvailability(facilityId, start, end, InventoryType.DAILY)
 ## 📐 Architectural Principles Applied
 
 ### 1. **Sparse Data Structures**
+
 - Store only what exists (occupied slots), not what's possible (all slots)
 - Generate computed data on-demand in-memory
 - Result: 92% reduction in database rows
 
 ### 2. **Separation of Concerns**
+
 - Backend entities (ORM) ≠ Frontend DTOs (interfaces)
 - Database layer isolated from API consumers
 - Result: Zero coupling, independent evolution
 
 ### 3. **Performance-First Design**
+
 - Denormalize for read performance (bookings table)
 - Optimize for most common queries (conflict detection)
 - Cache computed results (availability maps)
 - Result: <100ms booking creation, <50ms availability queries
 
 ### 4. **Scalable Abstractions**
+
 - Polymorphic inventory types (HOURLY, DAILY, CUSTOM)
 - Shared booking engine logic across all facility types
 - Result: New verticals require zero core logic changes
@@ -1839,4 +2088,4 @@ calculateAvailability(facilityId, start, end, InventoryType.DAILY)
 **Version:** 0.2.0-alpha (Architecture Refactor)
 **Maintainer:** Technical Team
 
-*"Engineered for scale, built for MENA."*
+_"Engineered for scale, built for MENA."_
