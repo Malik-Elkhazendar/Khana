@@ -1,13 +1,28 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, MoreThan, Repository } from 'typeorm';
-import { previewBooking, BookingPreviewResult, detectConflicts, calculatePrice } from '@khana/booking-engine';
+import {
+  previewBooking,
+  BookingPreviewResult,
+  detectConflicts,
+  calculatePrice,
+} from '@khana/booking-engine';
 import { Booking, Facility } from '@khana/data-access';
 import { BookingStatus, PaymentStatus, SlotStatus } from '@khana/shared-dtos';
 import { addMinutes, generateBookingReference } from '@khana/shared-utils';
-import { BookingPreviewRequestDto, BookingPreviewResponseDto, CreateBookingDto, UpdateBookingStatusDto } from './dto';
+import {
+  BookingPreviewRequestDto,
+  BookingPreviewResponseDto,
+  CreateBookingDto,
+  UpdateBookingStatusDto,
+} from './dto';
 
 const PENDING_HOLD_MINUTES = 15;
+const AUTO_CANCEL_REASON = 'Auto-cancelled: hold expired';
 
 /**
  * Bookings Service
@@ -28,7 +43,11 @@ export class BookingsService {
     const now = new Date();
     await this.bookingRepository.update(
       { status: BookingStatus.PENDING, holdUntil: LessThanOrEqual(now) },
-      { status: BookingStatus.CANCELLED, holdUntil: null }
+      {
+        status: BookingStatus.CANCELLED,
+        holdUntil: null,
+        cancellationReason: AUTO_CANCEL_REASON,
+      }
     );
 
     return this.bookingRepository.find({
@@ -43,7 +62,9 @@ export class BookingsService {
    *
    * Validates input, calls domain logic, and returns formatted response.
    */
-  async previewBooking(dto: BookingPreviewRequestDto): Promise<BookingPreviewResponseDto> {
+  async previewBooking(
+    dto: BookingPreviewRequestDto
+  ): Promise<BookingPreviewResponseDto> {
     const now = new Date();
     const facility = await this.facilityRepository.findOne({
       where: { id: dto.facilityId },
@@ -229,13 +250,27 @@ export class BookingsService {
   /**
    * Update booking status
    */
-  async updateStatus(id: string, dto: UpdateBookingStatusDto): Promise<Booking> {
+  async updateStatus(
+    id: string,
+    dto: UpdateBookingStatusDto
+  ): Promise<Booking> {
     const booking = await this.bookingRepository.findOne({
       where: { id },
       relations: { facility: true },
     });
     if (!booking) {
       throw new NotFoundException(`Booking ${id} not found`);
+    }
+
+    const effectiveStatus = dto.status ?? booking.status;
+    const trimmedReason = dto.cancellationReason?.trim();
+    if (dto.status === BookingStatus.CANCELLED && !trimmedReason) {
+      throw new BadRequestException('Cancellation reason is required.');
+    }
+    if (trimmedReason && effectiveStatus !== BookingStatus.CANCELLED) {
+      throw new BadRequestException(
+        'Cancellation reason is only allowed when cancelling a booking.'
+      );
     }
 
     if (dto.status) {
@@ -249,6 +284,12 @@ export class BookingsService {
     if (dto.paymentStatus) {
       booking.paymentStatus = dto.paymentStatus;
     }
+    if (effectiveStatus === BookingStatus.CANCELLED) {
+      booking.cancellationReason =
+        trimmedReason ?? booking.cancellationReason ?? null;
+    } else if (dto.status && dto.status !== BookingStatus.CANCELLED) {
+      booking.cancellationReason = null;
+    }
 
     await this.bookingRepository.save(booking);
     return booking;
@@ -257,7 +298,9 @@ export class BookingsService {
   /**
    * Transform domain result to API response DTO
    */
-  private transformToResponseDto(result: BookingPreviewResult): BookingPreviewResponseDto {
+  private transformToResponseDto(
+    result: BookingPreviewResult
+  ): BookingPreviewResponseDto {
     const response: BookingPreviewResponseDto = {
       canBook: result.canBook,
       priceBreakdown: result.priceBreakdown,
@@ -272,7 +315,7 @@ export class BookingsService {
         hasConflict: result.conflict.hasConflict,
         conflictType: result.conflict.conflictType,
         message: result.conflict.message,
-        conflictingSlots: result.conflict.conflictingSlots.map(slot => ({
+        conflictingSlots: result.conflict.conflictingSlots.map((slot) => ({
           startTime: slot.startTime.toISOString(),
           endTime: slot.endTime.toISOString(),
           status: slot.status,
@@ -281,13 +324,18 @@ export class BookingsService {
       };
     }
 
-    if (result.suggestedAlternatives && result.suggestedAlternatives.length > 0) {
-      response.suggestedAlternatives = result.suggestedAlternatives.map(alt => ({
-        startTime: alt.startTime.toISOString(),
-        endTime: alt.endTime.toISOString(),
-        price: alt.price,
-        currency: alt.currency,
-      }));
+    if (
+      result.suggestedAlternatives &&
+      result.suggestedAlternatives.length > 0
+    ) {
+      response.suggestedAlternatives = result.suggestedAlternatives.map(
+        (alt) => ({
+          startTime: alt.startTime.toISOString(),
+          endTime: alt.endTime.toISOString(),
+          price: alt.price,
+          currency: alt.currency,
+        })
+      );
     }
 
     return response;

@@ -9,15 +9,15 @@
         aria-label="Previous week"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+          <path
+            fill-rule="evenodd"
+            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+            clip-rule="evenodd"
+          />
         </svg>
       </button>
 
-      <button
-        type="button"
-        class="calendar__today-btn"
-        (click)="goToToday()"
-      >
+      <button type="button" class="calendar__today-btn" (click)="goToToday()">
         Today
       </button>
 
@@ -28,7 +28,11 @@
         aria-label="Next week"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+          <path
+            fill-rule="evenodd"
+            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+            clip-rule="evenodd"
+          />
         </svg>
       </button>
     </div>
@@ -38,166 +42,215 @@
 
   <!-- Loading State -->
   @if (loading()) {
-    <div class="calendar__loading">
-      <div class="calendar__spinner"></div>
-      <span>Loading bookings...</span>
-    </div>
+  <div class="calendar__loading">
+    <div class="calendar__spinner"></div>
+    <span>Loading bookings...</span>
+  </div>
   }
 
   <!-- Error State -->
   @if (error()) {
-    <div class="calendar__error">
-      <span>{{ error() }}</span>
-      <button type="button" class="calendar__retry-btn" (click)="store.loadBookings(null)">
-        Retry
-      </button>
-    </div>
+  <div class="calendar__error">
+    <span>{{ error() }}</span>
+    <button
+      type="button"
+      class="calendar__retry-btn"
+      (click)="store.loadBookings(null)"
+    >
+      Retry
+    </button>
+  </div>
   }
 
   <!-- Calendar Grid -->
   @if (!loading() && !error()) {
-    <div class="calendar__grid">
-      <!-- Header Row -->
-      <div class="calendar__corner"></div>
-      @for (day of weekDays(); track trackByDay($index, day)) {
-        <div
-          class="calendar__day-header"
-          [class.calendar__day-header--today]="isToday(day)"
-        >
-          <span class="calendar__day-name">{{ dayNames[day.getDay()] }}</span>
-          <span class="calendar__day-number">{{ formatDayNumber(day) }}</span>
-        </div>
-      }
+  <div class="calendar__grid">
+    <!-- Header Row -->
+    <div class="calendar__corner"></div>
+    @for (day of weekDays(); track trackByDay($index, day)) {
+    <div
+      class="calendar__day-header"
+      [class.calendar__day-header--today]="isToday(day)"
+    >
+      <span class="calendar__day-name">{{ dayNames[day.getDay()] }}</span>
+      <span class="calendar__day-number">{{ formatDayNumber(day) }}</span>
+    </div>
+    }
 
-      <!-- Time Rows -->
-      @for (hour of hours; track trackByHour($index, hour)) {
-        <!-- Time Label -->
-        <div class="calendar__time-label">
-          {{ formatHour(hour) }}
-        </div>
+    <!-- Time Rows -->
+    @for (hour of hours; track trackByHour($index, hour)) {
+    <!-- Time Label -->
+    <div class="calendar__time-label">
+      {{ formatHour(hour) }}
+    </div>
 
-        <!-- Day Slots -->
-        @for (day of weekDays(); track trackByDay($index, day)) {
-          @let slotBookings = getBookingsForSlot(day, hour);
-          <div
-            class="calendar__slot"
-            [class.calendar__slot--today]="isToday(day)"
-          >
-            @for (booking of slotBookings; track trackByBooking($index, booking)) {
-              @let layout = getBookingLayout(booking);
-              <button
-                type="button"
-                class="calendar__booking {{ getStatusClass(booking.status) }}"
-                [class.calendar__booking--hold]="isHoldActive(booking)"
-                [ngStyle]="getBookingStyle(booking, layout.column, layout.columns)"
-                [attr.aria-label]="'Booking: ' + booking.customerName"
-                [attr.title]="isHoldActive(booking) ? 'Reserved until ' + formatTime(booking.holdUntil) : null"
-                (click)="openBooking(booking, $event)"
-              >
-                <span class="calendar__booking-name">{{ booking.customerName }}</span>
-                <span class="calendar__booking-facility">{{ booking.facility.name }}</span>
-                @if (isHoldActive(booking)) {
-                  <span class="calendar__booking-hold">Hold</span>
-                }
-              </button>
-            }
-          </div>
+    <!-- Day Slots -->
+    @for (day of weekDays(); track trackByDay($index, day)) { @let slotBookings
+    = getBookingsForSlot(day, hour);
+    <div class="calendar__slot" [class.calendar__slot--today]="isToday(day)">
+      @for (booking of slotBookings; track trackByBooking($index, booking)) {
+      @let layout = getBookingLayout(booking);
+      <button
+        type="button"
+        class="calendar__booking {{ getStatusClass(booking.status) }}"
+        [class.calendar__booking--hold]="isHoldActive(booking)"
+        [ngStyle]="getBookingStyle(booking, layout.column, layout.columns)"
+        [attr.aria-label]="'Booking: ' + booking.customerName"
+        [attr.title]="
+          isHoldActive(booking)
+            ? 'Reserved until ' + formatTime(booking.holdUntil)
+            : null
+        "
+        (click)="openBooking(booking, $event)"
+      >
+        <span class="calendar__booking-name">{{ booking.customerName }}</span>
+        <span class="calendar__booking-facility">{{
+          booking.facility.name
+        }}</span>
+        @if (isHoldActive(booking)) {
+        <span class="calendar__booking-hold">Hold</span>
         }
+      </button>
       }
     </div>
+    } }
+  </div>
   }
 </section>
 
 @if (selectedBookingLive(); as booking) {
-  <button
-    type="button"
-    class="sheet-backdrop"
-    (click)="closePanel()"
-    aria-label="Close booking actions"
-    tabindex="-1"
-  ></button>
+<button
+  type="button"
+  class="sheet-backdrop"
+  (click)="closePanel()"
+  aria-label="Close booking actions"
+  tabindex="-1"
+></button>
 
-  <section
-    class="action-sheet"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="booking-actions-title"
-    (keydown)="onPanelKeydown($event)"
-    tabindex="-1"
-    #actionPanel
-  >
-    <header class="action-sheet__header">
-      <div>
-        <h3 id="booking-actions-title">Booking Actions</h3>
-        <p class="action-sheet__meta">
-          {{ booking.customerName }} - {{ booking.facility.name }}
-        </p>
-      </div>
-      <button
-        #closeButton
-        type="button"
-        class="action-sheet__close"
-        (click)="closePanel()"
+<section
+  class="action-sheet"
+  role="dialog"
+  [attr.aria-modal]="actionDialog() !== null ? 'false' : 'true'"
+  aria-labelledby="booking-actions-title"
+  [attr.aria-hidden]="actionDialog() !== null ? 'true' : null"
+  (keydown)="onPanelKeydown($event)"
+  tabindex="-1"
+  #actionPanel
+>
+  <header class="action-sheet__header">
+    <div>
+      <h3 id="booking-actions-title">Booking Actions</h3>
+      <p class="action-sheet__meta">
+        {{ booking.customerName }} - {{ booking.facility.name }}
+      </p>
+    </div>
+    <button
+      #closeButton
+      type="button"
+      class="action-sheet__close"
+      (click)="closePanel()"
+    >
+      Close
+    </button>
+  </header>
+
+  <div class="action-sheet__body">
+    <div class="action-sheet__row">
+      <span class="label">Date</span>
+      <span class="value">{{ formatDate(booking.startTime) }}</span>
+    </div>
+    <div class="action-sheet__row">
+      <span class="label">Time</span>
+      <span class="value"
+        >{{ formatTime(booking.startTime) }} -
+        {{ formatTime(booking.endTime) }}</span
       >
-        Close
-      </button>
-    </header>
-
-    <div class="action-sheet__body">
-      <div class="action-sheet__row">
-        <span class="label">Date</span>
-        <span class="value">{{ formatDate(booking.startTime) }}</span>
-      </div>
-      <div class="action-sheet__row">
-        <span class="label">Time</span>
-        <span class="value">{{ formatTime(booking.startTime) }} - {{ formatTime(booking.endTime) }}</span>
-      </div>
-      <div class="action-sheet__row">
-        <span class="label">Customer Phone</span>
-        <a class="value link" [href]="'tel:' + booking.customerPhone">
-          {{ booking.customerPhone }}
-        </a>
-      </div>
-      <div class="action-sheet__row">
-        <span class="label">Status</span>
-        <span class="value">
-          <span class="status-pill status-pill--{{ statusTone(booking.status) }}">
-            {{ statusLabel(booking.status) }}
-          </span>
-        </span>
-      </div>
-      <div class="action-sheet__row">
-        <span class="label">Payment</span>
-        <span class="value">
-          <span class="status-pill status-pill--{{ paymentTone(booking.paymentStatus) }}">
-            {{ paymentLabel(booking.paymentStatus) }}
-          </span>
-        </span>
-      </div>
-      @if (booking.status === BookingStatus.PENDING && booking.holdUntil) {
-        <div class="action-sheet__row">
-          <span class="label">Hold Until</span>
-          <span class="value">{{ formatTime(booking.holdUntil) }}</span>
-        </div>
-      }
     </div>
-
-    <div class="action-sheet__actions">
-      <button type="button" class="btn primary" (click)="confirmBooking()" [disabled]="actionInProgress()">
-        Confirm
-      </button>
-      <button type="button" class="btn secondary" (click)="markPaid()" [disabled]="actionInProgress()">
-        Mark Paid
-      </button>
-      <button type="button" class="btn danger" (click)="cancelBooking()" [disabled]="actionInProgress()">
-        Cancel
-      </button>
+    <div class="action-sheet__row">
+      <span class="label">Customer Phone</span>
+      <a class="value link" [href]="'tel:' + booking.customerPhone">
+        {{ booking.customerPhone }}
+      </a>
     </div>
-  </section>
-}
-
-@if (toast(); as notice) {
-  <div class="toast toast--{{ notice.tone }}" role="status" aria-live="polite">
-    {{ notice.message }}
+    <div class="action-sheet__row">
+      <span class="label">Status</span>
+      <span class="value">
+        <span class="status-pill status-pill--{{ statusTone(booking.status) }}">
+          {{ statusLabel(booking.status) }}
+        </span>
+      </span>
+    </div>
+    <div class="action-sheet__row">
+      <span class="label">Payment</span>
+      <span class="value">
+        <span
+          class="status-pill status-pill--{{
+            paymentTone(booking.paymentStatus)
+          }}"
+        >
+          {{ paymentLabel(booking.paymentStatus) }}
+        </span>
+      </span>
+    </div>
+    @if (booking.status === BookingStatus.PENDING && booking.holdUntil) {
+    <div class="action-sheet__row action-sheet__row--hold">
+      <span class="label">Hold</span>
+      <span class="value">
+        <app-hold-timer [holdUntil]="booking.holdUntil"></app-hold-timer>
+        <span class="hold-time">{{ formatTime(booking.holdUntil) }}</span>
+      </span>
+    </div>
+    }
   </div>
+
+  <div class="action-sheet__actions">
+    <button
+      type="button"
+      class="btn primary"
+      (click)="openConfirmDialog()"
+      [disabled]="actionInProgress() || actionDialog() !== null"
+    >
+      Confirm
+    </button>
+    <button
+      type="button"
+      class="btn secondary"
+      (click)="openPayDialog()"
+      [disabled]="actionInProgress() || actionDialog() !== null"
+    >
+      Mark Paid
+    </button>
+    <button
+      type="button"
+      class="btn danger"
+      (click)="openCancelDialog()"
+      [disabled]="actionInProgress() || actionDialog() !== null"
+    >
+      Cancel
+    </button>
+  </div>
+</section>
+} @if (actionDialog(); as dialog) { @let copy = dialogCopy();
+<app-confirmation-dialog
+  [title]="copy?.title ?? 'Confirm action'"
+  [message]="copy?.message ?? ''"
+  [confirmLabel]="copy?.confirmLabel ?? 'Confirm'"
+  [confirmTone]="copy?.confirmTone ?? 'primary'"
+  [confirmDisabled]="dialog.type === 'cancel' && !cancelReasonValid()"
+  [busy]="actionInProgress()"
+  (confirm)="submitDialogAction()"
+  (cancel)="closeDialog()"
+>
+  @if (dialog.type === 'cancel') {
+  <app-cancellation-form
+    [reason]="cancelReason()"
+    [minLength]="cancelReasonMinLength"
+    (reasonChange)="cancelReason.set($event)"
+  ></app-cancellation-form>
+  }
+</app-confirmation-dialog>
+} @if (toast(); as notice) {
+<div class="toast toast--{{ notice.tone }}" role="status" aria-live="polite">
+  {{ notice.message }}
+</div>
 }

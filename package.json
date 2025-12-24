@@ -30,6 +30,7 @@
     "gen:lib": "nx g @nx/js:lib",
     "gen:nest-app": "nx g @nx/nest:app",
     "gen:angular-app": "nx g @nx/angular:app",
+    "staff-engineer": "node -r @swc-node/register src/agents/run-analysis.ts next-feature",
     "prepare": "husky"
   },
   "lint-staged": {

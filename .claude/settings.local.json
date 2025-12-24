@@ -30,7 +30,9 @@
       "Bash(wc:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(git revert:*)",
+      "Bash(npm run staff-engineer)"
     ],
     "deny": [],
     "ask": []

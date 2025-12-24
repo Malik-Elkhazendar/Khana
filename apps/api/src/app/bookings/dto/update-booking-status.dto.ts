@@ -1,5 +1,5 @@
 import { BookingStatus, PaymentStatus } from '@khana/shared-dtos';
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpdateBookingStatusDto {
   @IsOptional()
@@ -9,4 +9,9 @@ export class UpdateBookingStatusDto {
   @IsOptional()
   @IsEnum(PaymentStatus)
   paymentStatus?: PaymentStatus;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  cancellationReason?: string;
 }
