@@ -1,4 +1,9 @@
-import { IsString, IsDateString, IsOptional, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsDateString,
+  IsOptional,
+  IsNotEmpty,
+} from 'class-validator';
 
 /**
  * Request DTO for booking preview

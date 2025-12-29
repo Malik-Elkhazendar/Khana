@@ -1,4 +1,5 @@
 import { BookingStatus } from '../enums/booking-status.enum';
+import { ConflictType } from '../enums/conflict-type.enum';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PriceBreakdown } from '../interfaces/price-breakdown.interface';
 
@@ -30,7 +31,7 @@ export interface BookingPreviewRequestDto {
  */
 export interface BookingConflictDto {
   hasConflict: boolean;
-  conflictType?: string;
+  conflictType?: ConflictType;
   message: string;
   conflictingSlots: Array<{
     startTime: string;

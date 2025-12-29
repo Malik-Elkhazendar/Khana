@@ -1,6 +1,6 @@
 import { Agent, run, tool } from '@openai/agents';
 import { z } from 'zod';
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 /**
@@ -61,8 +61,10 @@ const codeAnalyzer = tool({
 
       return JSON.stringify({
         status: 'success',
+        focus,
         findings,
         analysis: `
+Requested Focus: ${focus}
 Found Components:
 ${findings.components.map((c) => `- ${c}`).join('\n')}
 

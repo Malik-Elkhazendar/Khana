@@ -50,7 +50,10 @@ export function calculateDurationDiscount(
   durationMinutes: number,
   pricingConfig: PricingConfig
 ): number {
-  if (!pricingConfig.durationDiscounts || pricingConfig.durationDiscounts.length === 0) {
+  if (
+    !pricingConfig.durationDiscounts ||
+    pricingConfig.durationDiscounts.length === 0
+  ) {
     return 0;
   }
 
@@ -95,7 +98,10 @@ export function calculatePrice(input: PriceCalculationInput): PriceBreakdown {
 
   const timeMultiplier = calculateTimeMultiplier(startTime, pricingConfig);
   const dayMultiplier = calculateDayMultiplier(startTime, pricingConfig);
-  const durationDiscount = calculateDurationDiscount(durationMinutes, pricingConfig);
+  const durationDiscount = calculateDurationDiscount(
+    durationMinutes,
+    pricingConfig
+  );
 
   // Calculate subtotal: basePrice * units * timeMultiplier * dayMultiplier
   const subtotal = basePrice * pricingUnits * timeMultiplier * dayMultiplier;

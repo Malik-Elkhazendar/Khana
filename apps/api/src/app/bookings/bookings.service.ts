@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -263,6 +264,16 @@ export class BookingsService {
     }
 
     const effectiveStatus = dto.status ?? booking.status;
+    if (
+      dto.status === BookingStatus.CANCELLED &&
+      (booking.paymentStatus === PaymentStatus.PAID ||
+        booking.paymentStatus === PaymentStatus.PARTIALLY_PAID)
+    ) {
+      // TODO: Replace this hard block with refund flow once payment gateway is integrated.
+      throw new ConflictException(
+        'Paid bookings require a refund flow; payment gateway integration pending.'
+      );
+    }
     const trimmedReason = dto.cancellationReason?.trim();
     if (dto.status === BookingStatus.CANCELLED && !trimmedReason) {
       throw new BadRequestException('Cancellation reason is required.');

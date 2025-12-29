@@ -30,8 +30,8 @@ export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
   @Input() confirmDisabled = false;
   @Input() busy = false;
 
-  @Output() confirm = new EventEmitter<void>();
-  @Output() cancel = new EventEmitter<void>();
+  @Output() confirmed = new EventEmitter<void>();
+  @Output() dismissed = new EventEmitter<void>();
 
   @ViewChild('dialogPanel') dialogPanel?: ElementRef<HTMLElement>;
   @ViewChild('cancelButton') cancelButton?: ElementRef<HTMLButtonElement>;
@@ -44,7 +44,8 @@ export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.lastFocusedElement = document.activeElement as HTMLElement | null;
     setTimeout(() => {
-      const target = this.cancelButton?.nativeElement ?? this.dialogPanel?.nativeElement;
+      const target =
+        this.cancelButton?.nativeElement ?? this.dialogPanel?.nativeElement;
       target?.focus();
     }, 0);
   }
@@ -55,17 +56,17 @@ export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
 
   onBackdropClick(): void {
     if (this.busy) return;
-    this.cancel.emit();
+    this.dismissed.emit();
   }
 
   onCancelClick(): void {
     if (this.busy) return;
-    this.cancel.emit();
+    this.dismissed.emit();
   }
 
   onConfirmClick(): void {
     if (this.busy || this.confirmDisabled) return;
-    this.confirm.emit();
+    this.confirmed.emit();
   }
 
   onPanelKeydown(event: KeyboardEvent): void {
@@ -73,7 +74,7 @@ export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
       event.preventDefault();
       event.stopPropagation();
       if (!this.busy) {
-        this.cancel.emit();
+        this.dismissed.emit();
       }
       return;
     }
@@ -86,7 +87,7 @@ export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
       if (this.busy || this.confirmDisabled) return;
       event.preventDefault();
       event.stopPropagation();
-      this.confirm.emit();
+      this.confirmed.emit();
       return;
     }
 
@@ -126,6 +127,8 @@ export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
       'textarea:not([disabled])',
       '[tabindex]:not([tabindex="-1"])',
     ];
-    return Array.from(container.querySelectorAll<HTMLElement>(selectors.join(',')));
+    return Array.from(
+      container.querySelectorAll<HTMLElement>(selectors.join(','))
+    );
   }
 }

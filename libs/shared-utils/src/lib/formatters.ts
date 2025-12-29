@@ -52,7 +52,10 @@ export function formatPhoneDisplay(phone: string): string {
 
   if (cleaned.startsWith('+966') && cleaned.length === 13) {
     // Saudi format: +966 5X XXX XXXX
-    return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 6)} ${cleaned.slice(6, 9)} ${cleaned.slice(9)}`;
+    return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 6)} ${cleaned.slice(
+      6,
+      9
+    )} ${cleaned.slice(9)}`;
   }
 
   // Return as-is if not Saudi format
@@ -98,17 +101,16 @@ export function formatDurationShort(minutes: number): string {
 /**
  * Format percentage
  */
-export function formatPercentage(
-  value: number,
-  decimals = 0
-): string {
+export function formatPercentage(value: number, decimals = 0): string {
   return `${value.toFixed(decimals)}%`;
 }
 
 /**
  * Format occupancy rate with color indicator
  */
-export function getOccupancyLevel(rate: number): 'low' | 'medium' | 'high' | 'full' {
+export function getOccupancyLevel(
+  rate: number
+): 'low' | 'medium' | 'high' | 'full' {
   if (rate >= 100) return 'full';
   if (rate >= 75) return 'high';
   if (rate >= 50) return 'medium';
@@ -201,7 +203,13 @@ export function getBookingStatusDisplay(status: string): {
   label: string;
   color: 'success' | 'warning' | 'danger' | 'info' | 'default';
 } {
-  const statusMap: Record<string, { label: string; color: 'success' | 'warning' | 'danger' | 'info' | 'default' }> = {
+  const statusMap: Record<
+    string,
+    {
+      label: string;
+      color: 'success' | 'warning' | 'danger' | 'info' | 'default';
+    }
+  > = {
     PENDING: { label: 'Pending', color: 'warning' },
     CONFIRMED: { label: 'Confirmed', color: 'success' },
     CANCELLED: { label: 'Cancelled', color: 'danger' },
@@ -209,7 +217,9 @@ export function getBookingStatusDisplay(status: string): {
     NO_SHOW: { label: 'No Show', color: 'danger' },
   };
 
-  return statusMap[status] || { label: enumToDisplay(status), color: 'default' };
+  return (
+    statusMap[status] || { label: enumToDisplay(status), color: 'default' }
+  );
 }
 
 /**
@@ -219,7 +229,13 @@ export function getPaymentStatusDisplay(status: string): {
   label: string;
   color: 'success' | 'warning' | 'danger' | 'info' | 'default';
 } {
-  const statusMap: Record<string, { label: string; color: 'success' | 'warning' | 'danger' | 'info' | 'default' }> = {
+  const statusMap: Record<
+    string,
+    {
+      label: string;
+      color: 'success' | 'warning' | 'danger' | 'info' | 'default';
+    }
+  > = {
     UNPAID: { label: 'Unpaid', color: 'danger' },
     PARTIALLY_PAID: { label: 'Partial', color: 'warning' },
     PAID: { label: 'Paid', color: 'success' },
@@ -227,5 +243,7 @@ export function getPaymentStatusDisplay(status: string): {
     PARTIALLY_REFUNDED: { label: 'Partial Refund', color: 'info' },
   };
 
-  return statusMap[status] || { label: enumToDisplay(status), color: 'default' };
+  return (
+    statusMap[status] || { label: enumToDisplay(status), color: 'default' }
+  );
 }

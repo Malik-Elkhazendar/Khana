@@ -6,7 +6,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { BookingStatus, PaymentStatus, PriceBreakdown } from '@khana/shared-dtos';
+import {
+  BookingStatus,
+  PaymentStatus,
+  PriceBreakdown,
+} from '@khana/shared-dtos';
 import { Facility } from './facility.entity';
 
 @Entity({ name: 'bookings' })

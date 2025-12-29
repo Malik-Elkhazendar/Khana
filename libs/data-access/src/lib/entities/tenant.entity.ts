@@ -25,4 +25,3 @@ export class Tenant {
   @UpdateDateColumn()
   updatedAt!: Date;
 }
-

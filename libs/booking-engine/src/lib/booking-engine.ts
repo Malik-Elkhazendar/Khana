@@ -14,7 +14,11 @@
 export * from './types';
 
 // Re-export conflict detection
-export { detectConflicts, determineConflictType, generateConflictMessage } from './conflict-detector';
+export {
+  detectConflicts,
+  determineConflictType,
+  generateConflictMessage,
+} from './conflict-detector';
 
 // Re-export price calculation
 export {

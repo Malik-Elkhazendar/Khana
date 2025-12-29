@@ -198,6 +198,13 @@ export const BookingStore = signalStore(
 | **Global** (cross-feature) | `state/[domain]/`                       |
 | **Feature-local**          | `features/[feature]/[feature].store.ts` |
 
+### Dialog State Ownership
+
+- This section defines dialog state ownership for UI flows.
+- Dialog state that is only used within a single feature should stay in the feature component.
+- BookingStore owns domain state (bookings, loading, errors) and should not store transient UI state.
+- If a dialog state must be shared across features or persisted across navigation, move it into a store.
+
 ---
 
 ## Shared Kernel (@khana/shared-dtos)

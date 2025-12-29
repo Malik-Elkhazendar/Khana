@@ -32,7 +32,9 @@ export class ApiService {
    * Get all facilities available for booking
    */
   getFacilities(): Observable<FacilityListItemDto[]> {
-    return this.http.get<FacilityListItemDto[]>(`${this.baseUrl}/v1/bookings/facilities`);
+    return this.http.get<FacilityListItemDto[]>(
+      `${this.baseUrl}/v1/bookings/facilities`
+    );
   }
 
   // ============================================================
@@ -47,22 +49,34 @@ export class ApiService {
     if (facilityId) {
       params['facilityId'] = facilityId;
     }
-    return this.http.get<BookingListItemDto[]>(`${this.baseUrl}/v1/bookings`, { params });
+    return this.http.get<BookingListItemDto[]>(`${this.baseUrl}/v1/bookings`, {
+      params,
+    });
   }
 
   /**
    * Preview a booking without persisting it
    * Returns price calculation, conflict status, and suggested alternatives
    */
-  previewBooking(request: BookingPreviewRequestDto): Observable<BookingPreviewResponseDto> {
-    return this.http.post<BookingPreviewResponseDto>(`${this.baseUrl}/v1/bookings/preview`, request);
+  previewBooking(
+    request: BookingPreviewRequestDto
+  ): Observable<BookingPreviewResponseDto> {
+    return this.http.post<BookingPreviewResponseDto>(
+      `${this.baseUrl}/v1/bookings/preview`,
+      request
+    );
   }
 
   /**
    * Create a new booking
    */
-  createBooking(request: CreateBookingRequestDto): Observable<BookingListItemDto> {
-    return this.http.post<BookingListItemDto>(`${this.baseUrl}/v1/bookings`, request);
+  createBooking(
+    request: CreateBookingRequestDto
+  ): Observable<BookingListItemDto> {
+    return this.http.post<BookingListItemDto>(
+      `${this.baseUrl}/v1/bookings`,
+      request
+    );
   }
 
   /**
@@ -74,10 +88,13 @@ export class ApiService {
     paymentStatus?: PaymentStatus,
     cancellationReason?: string
   ): Observable<BookingListItemDto> {
-    return this.http.patch<BookingListItemDto>(`${this.baseUrl}/v1/bookings/${id}/status`, {
-      status,
-      paymentStatus,
-      cancellationReason,
-    });
+    return this.http.patch<BookingListItemDto>(
+      `${this.baseUrl}/v1/bookings/${id}/status`,
+      {
+        status,
+        paymentStatus,
+        cancellationReason,
+      }
+    );
   }
 }

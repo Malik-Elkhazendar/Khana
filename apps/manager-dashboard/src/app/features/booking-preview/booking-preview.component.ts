@@ -7,7 +7,10 @@ import {
   BookingPreviewResponseDto,
   AlternativeSlotDto,
   BookingStatus,
+  ConflictType,
 } from '@khana/shared-dtos';
+
+const PREVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 
 @Component({
   selector: 'app-booking-preview',
@@ -18,6 +21,11 @@ import {
 })
 export class BookingPreviewComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly previewCache = new Map<
+    string,
+    { result: BookingPreviewResponseDto; expiresAt: number }
+  >();
+  readonly timezoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Form state
   facilities = signal<FacilityListItemDto[]>([]);
@@ -38,10 +46,11 @@ export class BookingPreviewComponent implements OnInit {
   holdAsPending = signal<boolean>(false);
   bookingInProgress = signal<boolean>(false);
   bookingSuccess = signal<boolean>(false);
+  bookingReference = signal<string | null>(null);
 
   // Computed values
   selectedFacility = computed(() => {
-    return this.facilities().find(f => f.id === this.selectedFacilityId());
+    return this.facilities().find((f) => f.id === this.selectedFacilityId());
   });
 
   canSubmit = computed(() => {
@@ -95,9 +104,21 @@ export class BookingPreviewComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     this.previewResult.set(null);
+    this.bookingSuccess.set(false);
+    this.bookingReference.set(null);
 
-    const startDateTime = new Date(`${this.selectedDate()}T${this.startTime()}`);
+    const startDateTime = new Date(
+      `${this.selectedDate()}T${this.startTime()}`
+    );
     const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
+    const cacheKey = this.buildCacheKey(startDateTime, endDateTime);
+    const cached = this.previewCache.get(cacheKey);
+
+    if (cached && cached.expiresAt > Date.now()) {
+      this.previewResult.set(cached.result);
+      this.loading.set(false);
+      return;
+    }
 
     this.api
       .previewBooking({
@@ -110,6 +131,10 @@ export class BookingPreviewComponent implements OnInit {
         next: (result) => {
           this.previewResult.set(result);
           this.loading.set(false);
+          this.previewCache.set(cacheKey, {
+            result,
+            expiresAt: Date.now() + PREVIEW_CACHE_TTL_MS,
+          });
         },
         error: (err) => {
           this.loading.set(false);
@@ -155,7 +180,9 @@ export class BookingPreviewComponent implements OnInit {
     this.bookingInProgress.set(true);
     this.error.set(null);
 
-    const startDateTime = new Date(`${this.selectedDate()}T${this.startTime()}`);
+    const startDateTime = new Date(
+      `${this.selectedDate()}T${this.startTime()}`
+    );
     const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
 
     this.api
@@ -168,9 +195,10 @@ export class BookingPreviewComponent implements OnInit {
         status: this.holdAsPending() ? BookingStatus.PENDING : undefined,
       })
       .subscribe({
-        next: () => {
+        next: (createdBooking) => {
           this.bookingInProgress.set(false);
           this.bookingSuccess.set(true);
+          this.bookingReference.set(createdBooking.bookingReference ?? null);
           // Reset form for next booking
           this.customerName.set('');
           this.customerPhone.set('');
@@ -179,7 +207,8 @@ export class BookingPreviewComponent implements OnInit {
         },
         error: (err) => {
           this.bookingInProgress.set(false);
-          const message = err.error?.message || 'Failed to create booking. Please try again.';
+          const message =
+            err.error?.message || 'Failed to create booking. Please try again.';
           this.error.set(message);
           console.error('Error creating booking:', err);
         },
@@ -188,8 +217,36 @@ export class BookingPreviewComponent implements OnInit {
 
   resetBooking(): void {
     this.bookingSuccess.set(false);
+    this.bookingReference.set(null);
     this.customerName.set('');
     this.customerPhone.set('');
     this.holdAsPending.set(false);
+  }
+
+  formatConflictType(type: ConflictType | undefined): string {
+    switch (type) {
+      case ConflictType.EXACT_OVERLAP:
+        return 'Exact overlap with an existing booking';
+      case ConflictType.CONTAINED_WITHIN:
+        return 'Requested time falls within an existing booking';
+      case ConflictType.PARTIAL_START_OVERLAP:
+        return 'Requested start overlaps an existing booking';
+      case ConflictType.PARTIAL_END_OVERLAP:
+        return 'Requested end overlaps an existing booking';
+      case ConflictType.CONTAINS_EXISTING:
+        return 'Requested time contains an existing booking';
+      default:
+        return 'Conflict detected';
+    }
+  }
+
+  private buildCacheKey(startDateTime: Date, endDateTime: Date): string {
+    const promo = this.promoCode().trim().toUpperCase();
+    return [
+      this.selectedFacilityId(),
+      startDateTime.toISOString(),
+      endDateTime.toISOString(),
+      promo,
+    ].join('|');
   }
 }

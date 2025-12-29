@@ -54,7 +54,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Hide internal details for 5xx errors.
     const message =
-      statusCode >= 500 ? 'Internal server error' : (rawMessage || 'Error');
+      statusCode >= 500 ? 'Internal server error' : rawMessage || 'Error';
 
     const body: ErrorResponseBody = {
       statusCode,
@@ -66,4 +66,3 @@ export class HttpExceptionFilter implements ExceptionFilter {
     httpAdapter.reply(response as never, body, statusCode);
   }
 }
-

@@ -32,7 +32,12 @@
       "Bash(git commit:*)",
       "Bash(git rm:*)",
       "Bash(git revert:*)",
-      "Bash(npm run staff-engineer)"
+      "Bash(npm run staff-engineer)",
+      "Bash(npm run test:manager-dashboard:*)",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "Bash(npm run:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx nx test:*)"
     ],
     "deny": [],
     "ask": []

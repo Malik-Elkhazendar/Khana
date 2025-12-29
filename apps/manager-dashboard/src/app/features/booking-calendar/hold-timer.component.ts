@@ -1,13 +1,18 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   Input,
-  OnDestroy,
   OnInit,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { interval, share, startWith } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
+const holdTimerTick$ = interval(1000).pipe(startWith(0), share());
 
 type HoldTimerState = 'active' | 'expired' | 'none';
 
@@ -24,13 +29,13 @@ type HoldTimerView = {
   styleUrl: './hold-timer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HoldTimerComponent implements OnInit, OnDestroy {
+export class HoldTimerComponent implements OnInit {
   @Input() prefix = 'Expires in';
   @Input() expiredLabel = 'Expired';
   @Input() emptyLabel = 'Unavailable';
 
+  private readonly destroyRef = inject(DestroyRef);
   private readonly holdUntilValue = signal<string | null>(null);
-  private intervalId: number | null = null;
   readonly now = signal(Date.now());
 
   readonly view = computed<HoldTimerView>(() => {
@@ -57,16 +62,9 @@ export class HoldTimerComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.intervalId = window.setInterval(() => {
-      this.now.set(Date.now());
-    }, 1000);
-  }
-
-  ngOnDestroy(): void {
-    if (this.intervalId) {
-      window.clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
+    holdTimerTick$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.now.set(Date.now()));
   }
 
   private formatDuration(ms: number): string {

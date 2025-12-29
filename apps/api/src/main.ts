@@ -39,11 +39,12 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
-  Logger.log(`Khana API is running on: http://localhost:${port}/${globalPrefix}`);
+  Logger.log(
+    `Khana API is running on: http://localhost:${port}/${globalPrefix}`
+  );
   Logger.log(
     `Preview endpoint: POST http://localhost:${port}/${globalPrefix}/v1/bookings/preview`
   );
 }
 
 bootstrap();
-

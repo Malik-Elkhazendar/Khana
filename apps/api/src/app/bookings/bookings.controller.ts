@@ -1,6 +1,21 @@
-import { Controller, Post, Get, Body, HttpCode, HttpStatus, Query, Patch, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Query,
+  Patch,
+  Param,
+} from '@nestjs/common';
 import { BookingsService } from './bookings.service';
-import { BookingPreviewRequestDto, BookingPreviewResponseDto, CreateBookingDto, UpdateBookingStatusDto } from './dto';
+import {
+  BookingPreviewRequestDto,
+  BookingPreviewResponseDto,
+  CreateBookingDto,
+  UpdateBookingStatusDto,
+} from './dto';
 
 /**
  * Bookings Controller
@@ -40,10 +55,7 @@ export class BookingsController {
    * Update booking status (e.g., Cancel, Mark as Paid).
    */
   @Patch(':id/status')
-  updateStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateBookingStatusDto
-  ) {
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateBookingStatusDto) {
     return this.bookingsService.updateStatus(id, dto);
   }
 
@@ -55,7 +67,9 @@ export class BookingsController {
    */
   @Post('preview')
   @HttpCode(HttpStatus.OK)
-  previewBooking(@Body() dto: BookingPreviewRequestDto): Promise<BookingPreviewResponseDto> {
+  previewBooking(
+    @Body() dto: BookingPreviewRequestDto
+  ): Promise<BookingPreviewResponseDto> {
     return this.bookingsService.previewBooking(dto);
   }
 

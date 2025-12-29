@@ -133,7 +133,12 @@ export interface CustomerSearchDto {
   limit?: number;
 
   /** Sort field */
-  sortBy?: 'name' | 'totalBookings' | 'totalSpend' | 'lastBookingDate' | 'createdAt';
+  sortBy?:
+    | 'name'
+    | 'totalBookings'
+    | 'totalSpend'
+    | 'lastBookingDate'
+    | 'createdAt';
 
   /** Sort direction */
   sortOrder?: 'asc' | 'desc';

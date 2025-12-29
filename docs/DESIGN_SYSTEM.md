@@ -7,15 +7,15 @@
 ## Project Context
 
 **Khana** (خانة - Arabic for "place/room")
-*"The Operating System for Local Booking-Based Businesses"*
+_"The Operating System for Local Booking-Based Businesses"_
 
-| Attribute | Value |
-|-----------|-------|
-| Region | MENA (Saudi Arabia primary) |
-| Business Model | B2B → B2B2C |
-| Facilities | Sports (Padel, Football, Tennis) + Accommodations (Chalets, Resorts) |
-| Brand Tone | Professional & Trustworthy |
-| Cultural Influence | Subtle MENA hints |
+| Attribute          | Value                                                                |
+| ------------------ | -------------------------------------------------------------------- |
+| Region             | MENA (Saudi Arabia primary)                                          |
+| Business Model     | B2B → B2B2C                                                          |
+| Facilities         | Sports (Padel, Football, Tennis) + Accommodations (Chalets, Resorts) |
+| Brand Tone         | Professional & Trustworthy                                           |
+| Cultural Influence | Subtle MENA hints                                                    |
 
 ---
 
@@ -48,6 +48,7 @@
 ```
 
 **Usage:**
+
 - Primary: Main buttons, headers, navigation
 - Surface: Page backgrounds, card backgrounds
 
@@ -68,6 +69,7 @@
 ```
 
 **Usage:**
+
 - Accent: Hover states, success indicators, premium features
 - Secondary: Primary CTAs (Book Now), important actions
 
@@ -94,6 +96,7 @@
 ```
 
 **Usage:**
+
 - Success: Available bookings, confirmations
 - Error: Conflicts, validation errors
 - Warning: Peak hours, capacity warnings
@@ -104,10 +107,10 @@
 ### Text Colors
 
 ```scss
---color-text-primary: #1e2a3a;      // Navy on light backgrounds
---color-text-secondary: #5a6a7a;    // Muted for secondary text
---color-text-muted: #8a9aaa;        // Hints, placeholders
---color-text-inverse: #faf8f5;      // Light text on dark backgrounds
+--color-text-primary: #1e2a3a; // Navy on light backgrounds
+--color-text-secondary: #5a6a7a; // Muted for secondary text
+--color-text-muted: #8a9aaa; // Hints, placeholders
+--color-text-inverse: #faf8f5; // Light text on dark backgrounds
 ```
 
 ---
@@ -128,11 +131,10 @@
 ```
 
 **Font Sources:**
+
 ```html
 <!-- Google Fonts -->
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap'); @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap'); @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 ```
 
 ---
@@ -140,14 +142,14 @@
 ### Type Scale
 
 ```scss
---text-xs: 0.75rem;     // 12px - Labels, hints
---text-sm: 0.875rem;    // 14px - Secondary text
---text-base: 1rem;      // 16px - Body
---text-lg: 1.125rem;    // 18px - Lead text
---text-xl: 1.25rem;     // 20px - Section headers
---text-2xl: 1.5rem;     // 24px - Card titles
---text-3xl: 2rem;       // 32px - Page titles
---text-4xl: 2.5rem;     // 40px - Hero text
+--text-xs: 0.75rem; // 12px - Labels, hints
+--text-sm: 0.875rem; // 14px - Secondary text
+--text-base: 1rem; // 16px - Body
+--text-lg: 1.125rem; // 18px - Lead text
+--text-xl: 1.25rem; // 20px - Section headers
+--text-2xl: 1.5rem; // 24px - Card titles
+--text-3xl: 2rem; // 32px - Page titles
+--text-4xl: 2.5rem; // 40px - Hero text
 ```
 
 ---
@@ -168,19 +170,20 @@
 ### Spacing Scale (8px grid)
 
 ```scss
---space-1: 0.25rem;   // 4px
---space-2: 0.5rem;    // 8px
---space-3: 0.75rem;   // 12px
---space-4: 1rem;      // 16px
---space-5: 1.25rem;   // 20px
---space-6: 1.5rem;    // 24px
---space-8: 2rem;      // 32px
---space-10: 2.5rem;   // 40px
---space-12: 3rem;     // 48px
---space-16: 4rem;     // 64px
+--space-1: 0.25rem; // 4px
+--space-2: 0.5rem; // 8px
+--space-3: 0.75rem; // 12px
+--space-4: 1rem; // 16px
+--space-5: 1.25rem; // 20px
+--space-6: 1.5rem; // 24px
+--space-8: 2rem; // 32px
+--space-10: 2.5rem; // 40px
+--space-12: 3rem; // 48px
+--space-16: 4rem; // 64px
 ```
 
 **Usage Guidelines:**
+
 - Minimum spacing: `--space-2` (8px)
 - Standard padding: `--space-4` to `--space-6`
 - Section gaps: `--space-8` minimum
@@ -191,10 +194,10 @@
 ### Border Radius
 
 ```scss
---radius-sm: 4px;     // Subtle rounding
---radius-md: 8px;     // Buttons, inputs
---radius-lg: 12px;    // Cards
---radius-xl: 16px;    // Modals, large cards
+--radius-sm: 4px; // Subtle rounding
+--radius-md: 8px; // Buttons, inputs
+--radius-lg: 12px; // Cards
+--radius-xl: 16px; // Modals, large cards
 --radius-full: 9999px; // Pills, avatars
 ```
 
@@ -209,7 +212,7 @@ Use as subtle background texture or section dividers:
 ```scss
 // SVG pattern for backgrounds (very subtle, 3-5% opacity)
 .pattern-geometric {
-  background-image: url("data:image/svg+xml,..."); // 8-point star grid
+  background-image: url('data:image/svg+xml,...'); // 8-point star grid
   background-size: 40px 40px;
   opacity: 0.03;
 }
@@ -222,6 +225,7 @@ Arabic calligraphy uses golden proportions - apply to key layouts.
 ### 3. Generous Breathing Room
 
 MENA design tends to use more whitespace than Western minimalism:
+
 - Card padding: 24px (not typical 16px)
 - Section gaps: 48px minimum
 - Line height: 1.6-1.7 (accommodates Arabic script future)
@@ -229,12 +233,14 @@ MENA design tends to use more whitespace than Western minimalism:
 ### 4. Warm Corners
 
 Slightly more rounded than typical SaaS (8-12px vs 4px):
+
 - Feels hospitable, welcoming
 - Aligns with curved Arabic letterforms
 
 ### 5. Gold Accents
 
 Used sparingly for:
+
 - Success states
 - Premium indicators
 - Active/selected states
@@ -247,6 +253,7 @@ Used sparingly for:
 ### Buttons
 
 **Primary Button** - Navy with gold hover
+
 ```scss
 .btn-primary {
   background: var(--color-primary);
@@ -272,6 +279,7 @@ Used sparingly for:
 ```
 
 **Secondary Button** - Outlined
+
 ```scss
 .btn-secondary {
   background: transparent;
@@ -291,6 +299,7 @@ Used sparingly for:
 ```
 
 **CTA Button** - Terracotta (Book Now)
+
 ```scss
 .btn-book {
   background: var(--color-secondary);
@@ -316,6 +325,7 @@ Used sparingly for:
 ### Inputs & Forms
 
 **Text Input**
+
 ```scss
 .input {
   background: var(--color-surface);
@@ -341,10 +351,11 @@ Used sparingly for:
 ```
 
 **Select Dropdown**
+
 ```scss
 select.input {
   appearance: none;
-  background-image: url("data:image/svg+xml,..."); // Custom arrow
+  background-image: url('data:image/svg+xml,...'); // Custom arrow
   background-repeat: no-repeat;
   background-position: right var(--space-3) center;
   padding-right: var(--space-8);
@@ -356,30 +367,29 @@ select.input {
 ### Cards
 
 **Standard Card**
+
 ```scss
 .card {
   background: var(--color-surface-elevated);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
-  box-shadow: 0 1px 3px rgba(30, 42, 58, 0.08),
-              0 4px 12px rgba(30, 42, 58, 0.04);
+  box-shadow: 0 1px 3px rgba(30, 42, 58, 0.08), 0 4px 12px rgba(30, 42, 58, 0.04);
   transition: all 0.2s ease;
 
   &:hover {
-    box-shadow: 0 4px 8px rgba(30, 42, 58, 0.12),
-                0 8px 20px rgba(30, 42, 58, 0.08);
+    box-shadow: 0 4px 8px rgba(30, 42, 58, 0.12), 0 8px 20px rgba(30, 42, 58, 0.08);
   }
 }
 ```
 
 **Elevated Card** (Modals, Popovers)
+
 ```scss
 .card-elevated {
   background: var(--color-surface-elevated);
   border-radius: var(--radius-xl);
   padding: var(--space-8);
-  box-shadow: 0 8px 16px rgba(30, 42, 58, 0.12),
-              0 16px 48px rgba(30, 42, 58, 0.08);
+  box-shadow: 0 8px 16px rgba(30, 42, 58, 0.12), 0 16px 48px rgba(30, 42, 58, 0.08);
 }
 ```
 
@@ -388,6 +398,7 @@ select.input {
 ### Status Indicators
 
 **Success Badge**
+
 ```scss
 .status-success {
   background: var(--color-success-light);
@@ -400,6 +411,7 @@ select.input {
 ```
 
 **Error Badge**
+
 ```scss
 .status-error {
   background: var(--color-error-light);
@@ -437,16 +449,16 @@ border-inline-start: 2px solid;
 
 **Property Mapping Reference:**
 
-| Physical | Logical |
-|----------|---------|
-| `left` / `right` | `inline-start` / `inline-end` |
-| `top` / `bottom` | `block-start` / `block-end` |
-| `width` / `height` | `inline-size` / `block-size` |
-| `margin-left` | `margin-inline-start` |
-| `padding-right` | `padding-inline-end` |
-| `border-left` | `border-inline-start` |
-| `text-align: left` | `text-align: start` |
-| `text-align: right` | `text-align: end` |
+| Physical            | Logical                       |
+| ------------------- | ----------------------------- |
+| `left` / `right`    | `inline-start` / `inline-end` |
+| `top` / `bottom`    | `block-start` / `block-end`   |
+| `width` / `height`  | `inline-size` / `block-size`  |
+| `margin-left`       | `margin-inline-start`         |
+| `padding-right`     | `padding-inline-end`          |
+| `border-left`       | `border-inline-start`         |
+| `text-align: left`  | `text-align: start`           |
+| `text-align: right` | `text-align: end`             |
 
 ### Arabic Font Scaling
 
@@ -465,14 +477,15 @@ Arabic script appears ~10-15% smaller at identical pixel sizes due to diacritics
 ```html
 <!-- Language-aware RTL -->
 <html lang="ar" dir="rtl">
-
-<!-- Component-level RTL -->
-<div class="booking-preview" dir="rtl">
-  <!-- Content automatically flips via logical properties -->
-</div>
+  <!-- Component-level RTL -->
+  <div class="booking-preview" dir="rtl">
+    <!-- Content automatically flips via logical properties -->
+  </div>
+</html>
 ```
 
 **Implementation Notes:**
+
 - Generous line height (1.6-1.7) accommodates Arabic script
 - Font family includes Arabic variants (IBM Plex Sans Arabic, Noto Sans Arabic)
 - All spacing uses logical properties - no separate RTL stylesheet needed
@@ -499,16 +512,17 @@ textarea {
 
 ### Touch Target Guidelines
 
-| Element | Minimum Size | Notes |
-|---------|--------------|-------|
-| Buttons | 48px height | Full width on mobile recommended |
-| Form Inputs | 48px height | Adequate padding for tap accuracy |
+| Element        | Minimum Size     | Notes                              |
+| -------------- | ---------------- | ---------------------------------- |
+| Buttons        | 48px height      | Full width on mobile recommended   |
+| Form Inputs    | 48px height      | Adequate padding for tap accuracy  |
 | Links (inline) | 24px line-height | Add `.touch-target` class for 48px |
-| Icon Buttons | 48x48px | Visible + invisible tap area |
+| Icon Buttons   | 48x48px          | Visible + invisible tap area       |
 
 ### Mobile Booking Flow
 
 For high-conversion booking flows, consider:
+
 - **Sticky Bottom Bar**: Position "Book Now" CTA at thumb-friendly zone
 - **Large Touch Targets**: 56px for primary CTAs on mobile
 - **Adequate Spacing**: 8px minimum between tappable elements
@@ -533,17 +547,20 @@ For high-conversion booking flows, consider:
 ### WCAG 2.1 AA Compliance
 
 **Color Contrast Ratios:**
+
 - Primary text on surface: 12.5:1 (AAA)
 - Secondary text on surface: 6.8:1 (AA+)
 - Accent on surface: 4.8:1 (AA)
 - Navy button text: 10.2:1 (AAA)
 
 **Focus States:**
+
 - All interactive elements have visible focus rings
 - Focus ring color: Amber Gold with 15% opacity glow
 - Focus ring width: 3px
 
 **Keyboard Navigation:**
+
 - All buttons and inputs keyboard accessible
 - Logical tab order
 - Skip links for main content
@@ -552,21 +569,23 @@ For high-conversion booking flows, consider:
 
 ## Implementation Files
 
-| File | Purpose |
-|------|---------|
-| `apps/manager-dashboard/src/styles.scss` | Global design tokens and base styles |
-| `apps/manager-dashboard/src/app/features/booking-preview/booking-preview.component.scss` | Component-specific styles |
+| File                                                                                     | Purpose                              |
+| ---------------------------------------------------------------------------------------- | ------------------------------------ |
+| `apps/manager-dashboard/src/styles.scss`                                                 | Global design tokens and base styles |
+| `apps/manager-dashboard/src/app/features/booking-preview/booking-preview.component.scss` | Component-specific styles            |
 
 ---
 
 ## Future Considerations
 
 ### Phase 1 (B2B - Current)
+
 - Professional appearance
 - Trustworthy color palette
 - Efficient workflows
 
 ### Phase 2 (B2B2C - Future)
+
 - More vibrant accent colors for end-users
 - Playful micro-interactions
 - Customer-facing booking flow
@@ -606,6 +625,7 @@ For high-conversion booking flows, consider:
 ## Changelog
 
 **2025-12-19** - RTL & Mobile-First Enhancements
+
 - Converted all physical CSS properties to logical properties (bulletproof RTL)
 - Added 48px minimum touch targets for mobile accessibility
 - Implemented Arabic font scaling (110% size, 1.7 line-height)
@@ -613,6 +633,7 @@ For high-conversion booking flows, consider:
 - Added mobile-first touch target guidelines
 
 **2025-12-19** - Initial Desert Night theme implementation
+
 - Created design system documentation
 - Implemented global styles
 - Applied theme to booking-preview component

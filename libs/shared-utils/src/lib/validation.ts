@@ -27,7 +27,8 @@ const BOOKING_REFERENCE_REGEX = /^KH-\d{4}-\d{6}$/;
 /**
  * UUID v4 regex
  */
-const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Validation result
@@ -99,7 +100,10 @@ export function isValidEmail(email: string): boolean {
 /**
  * Validate email with result
  */
-export function validateEmail(email: string, required = false): ValidationResult {
+export function validateEmail(
+  email: string,
+  required = false
+): ValidationResult {
   if (!email || email.trim().length === 0) {
     if (required) {
       return { isValid: false, error: 'Email is required' };
@@ -140,7 +144,8 @@ export function validateSubdomain(subdomain: string): ValidationResult {
   if (!isValidSubdomain(subdomain)) {
     return {
       isValid: false,
-      error: 'Subdomain must contain only lowercase letters, numbers, and hyphens',
+      error:
+        'Subdomain must contain only lowercase letters, numbers, and hyphens',
     };
   }
 
@@ -182,16 +187,23 @@ export function validateTimeRange(
     return { isValid: false, error: 'End time must be after start time' };
   }
 
-  const durationMinutes = (endTime.getTime() - startTime.getTime()) / (60 * 1000);
+  const durationMinutes =
+    (endTime.getTime() - startTime.getTime()) / (60 * 1000);
 
-  if (minDurationMinutes !== undefined && durationMinutes < minDurationMinutes) {
+  if (
+    minDurationMinutes !== undefined &&
+    durationMinutes < minDurationMinutes
+  ) {
     return {
       isValid: false,
       error: `Duration must be at least ${minDurationMinutes} minutes`,
     };
   }
 
-  if (maxDurationMinutes !== undefined && durationMinutes > maxDurationMinutes) {
+  if (
+    maxDurationMinutes !== undefined &&
+    durationMinutes > maxDurationMinutes
+  ) {
     return {
       isValid: false,
       error: `Duration must be at most ${maxDurationMinutes} minutes`,

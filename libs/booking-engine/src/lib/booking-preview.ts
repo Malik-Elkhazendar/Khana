@@ -4,7 +4,11 @@
  */
 
 import { PricedTimeSlot } from '@khana/shared-dtos';
-import { addMinutes, diffInMinutes, setTimeFromString } from '@khana/shared-utils';
+import {
+  addMinutes,
+  diffInMinutes,
+  setTimeFromString,
+} from '@khana/shared-utils';
 import { detectConflicts } from './conflict-detector';
 import { calculatePrice } from './price-calculator';
 import {
@@ -90,7 +94,9 @@ export function findAlternativeSlots(
   const alternatives: PricedTimeSlot[] = [];
   const slotDuration = facilityConfig.slotDurationMinutes;
   const requestedDurationMinutes = diffInMinutes(requestedStart, requestedEnd);
-  const facilitySlots = occupiedSlots.filter(s => s.facilityId === facilityConfig.id);
+  const facilitySlots = occupiedSlots.filter(
+    (s) => s.facilityId === facilityConfig.id
+  );
 
   // Check slots before and after the requested time
   const searchRangeHours = 4; // Search 4 hours before and after
@@ -106,12 +112,17 @@ export function findAlternativeSlots(
     if (candidateStart < new Date()) continue;
 
     const dayOpen = setTimeFromString(candidateStart, facilityConfig.openTime);
-    const dayClose = setTimeFromString(candidateStart, facilityConfig.closeTime);
+    const dayClose = setTimeFromString(
+      candidateStart,
+      facilityConfig.closeTime
+    );
     if (candidateStart < dayOpen || candidateEnd > dayClose) continue;
 
     // Check if this slot conflicts with any occupied slot
-    const hasConflict = facilitySlots.some(occupied => {
-      return candidateStart < occupied.endTime && candidateEnd > occupied.startTime;
+    const hasConflict = facilitySlots.some((occupied) => {
+      return (
+        candidateStart < occupied.endTime && candidateEnd > occupied.startTime
+      );
     });
 
     if (!hasConflict) {
@@ -208,7 +219,7 @@ export function previewBooking(
           hasConflict: true,
           conflictType: conflictResult.conflictType,
           message: conflictResult.message,
-          conflictingSlots: conflictResult.conflictingSlots.map(slot => ({
+          conflictingSlots: conflictResult.conflictingSlots.map((slot) => ({
             startTime: slot.startTime,
             endTime: slot.endTime,
             status: slot.status,

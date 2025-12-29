@@ -1,4 +1,5 @@
-<section class="calendar">
+<a class="skip-link" href="#booking-calendar-main">Skip to calendar</a>
+<main class="calendar" id="booking-calendar-main" role="main">
   <!-- Header -->
   <header class="calendar__header">
     <div class="calendar__nav">
@@ -42,7 +43,7 @@
 
   <!-- Loading State -->
   @if (loading()) {
-  <div class="calendar__loading">
+  <div class="calendar__loading" role="status" aria-live="polite">
     <div class="calendar__spinner"></div>
     <span>Loading bookings...</span>
   </div>
@@ -50,7 +51,7 @@
 
   <!-- Error State -->
   @if (error()) {
-  <div class="calendar__error">
+  <div class="calendar__error" role="alert" aria-live="assertive">
     <span>{{ error() }}</span>
     <button
       type="button"
@@ -116,7 +117,7 @@
     } }
   </div>
   }
-</section>
+</main>
 
 @if (selectedBookingLive(); as booking) {
 <button
@@ -224,10 +225,22 @@
       type="button"
       class="btn danger"
       (click)="openCancelDialog()"
-      [disabled]="actionInProgress() || actionDialog() !== null"
+      [disabled]="
+        actionInProgress() ||
+        actionDialog() !== null ||
+        booking.paymentStatus === PaymentStatus.PAID ||
+        booking.paymentStatus === PaymentStatus.PARTIALLY_PAID
+      "
     >
       Cancel
     </button>
+    @if ( booking.paymentStatus === PaymentStatus.PAID || booking.paymentStatus
+    === PaymentStatus.PARTIALLY_PAID ) {
+    <p class="action-sheet__note">
+      Paid booking - cancellation will require refund once payment gateway is
+      integrated.
+    </p>
+    }
   </div>
 </section>
 } @if (actionDialog(); as dialog) { @let copy = dialogCopy();
@@ -238,8 +251,8 @@
   [confirmTone]="copy?.confirmTone ?? 'primary'"
   [confirmDisabled]="dialog.type === 'cancel' && !cancelReasonValid()"
   [busy]="actionInProgress()"
-  (confirm)="submitDialogAction()"
-  (cancel)="closeDialog()"
+  (confirmed)="submitDialogAction()"
+  (dismissed)="closeDialog()"
 >
   @if (dialog.type === 'cancel') {
   <app-cancellation-form

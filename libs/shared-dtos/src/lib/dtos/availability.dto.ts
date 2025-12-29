@@ -1,6 +1,9 @@
 import { InventoryType } from '../enums/inventory-type.enum';
 import { SlotStatus } from '../enums/slot-status.enum';
-import { AvailableSlot, PricedTimeSlot } from '../interfaces/time-slot.interface';
+import {
+  AvailableSlot,
+  PricedTimeSlot,
+} from '../interfaces/time-slot.interface';
 
 /**
  * Request DTO for availability query
@@ -81,7 +84,6 @@ export interface OccupiedSlotDto {
 
   /** Notes (if any) */
   notes?: string;
-
 }
 
 /**

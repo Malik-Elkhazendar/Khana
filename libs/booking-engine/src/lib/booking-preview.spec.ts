@@ -54,7 +54,8 @@ describe('BookingPreview', () => {
       startTime,
       endTime,
       status,
-      bookingReference: status === SlotStatus.BOOKED ? 'KH-2025-001' : undefined,
+      bookingReference:
+        status === SlotStatus.BOOKED ? 'KH-2025-001' : undefined,
     };
   };
 
@@ -93,7 +94,7 @@ describe('BookingPreview', () => {
       };
 
       const errors = validateBookingInput(input, baseFacilityConfig);
-      expect(errors.some(e => e.includes('past'))).toBe(true);
+      expect(errors.some((e) => e.includes('past'))).toBe(true);
     });
 
     it('should reject duration shorter than minimum slot', () => {
@@ -104,7 +105,9 @@ describe('BookingPreview', () => {
       };
 
       const errors = validateBookingInput(input, baseFacilityConfig);
-      expect(errors.some(e => e.includes('Minimum booking duration'))).toBe(true);
+      expect(errors.some((e) => e.includes('Minimum booking duration'))).toBe(
+        true
+      );
     });
 
     it('should reject duration not multiple of slot duration', () => {
@@ -115,7 +118,7 @@ describe('BookingPreview', () => {
       };
 
       const errors = validateBookingInput(input, baseFacilityConfig);
-      expect(errors.some(e => e.includes('multiple of'))).toBe(true);
+      expect(errors.some((e) => e.includes('multiple of'))).toBe(true);
     });
   });
 

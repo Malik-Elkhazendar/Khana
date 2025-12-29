@@ -10,6 +10,29 @@
   padding: var(--space-4);
   background: var(--color-surface);
   min-height: 100%;
+  max-inline-size: var(--page-max-width);
+  margin-inline: auto;
+}
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: var(--space-4);
+  inset-block-start: var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding-block: var(--space-2);
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform var(--transition-fast);
+  z-index: 1000;
+
+  &:focus {
+    transform: translateY(0);
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 }
 
 // ============================================
@@ -55,7 +78,7 @@
   }
 
   // RTL: Flip arrow icons
-  [dir="rtl"] & {
+  [dir='rtl'] & {
     svg {
       transform: scaleX(-1);
     }
@@ -87,7 +110,7 @@
 
 .calendar__title {
   font-family: var(--font-display);
-  font-size: var(--text-xl);
+  font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
 }
@@ -270,8 +293,9 @@
   font-family: var(--font-body);
   cursor: pointer;
   appearance: none;
+  touch-action: manipulation;
   // Ensure background covers grid lines
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
 
   &:hover {
     // Bring to front on hover and lift slightly
@@ -321,7 +345,11 @@
   font-weight: var(--font-bold);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: color-mix(in srgb, var(--color-surface-elevated) 80%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-surface-elevated) 80%,
+    transparent
+  );
   color: currentColor;
 }
 
@@ -395,9 +423,40 @@
   }
 }
 
+@media (max-width: 36rem) {
+  .calendar__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .calendar__nav {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .calendar__title {
+    font-size: var(--text-xl);
+  }
+
+  .calendar__grid {
+    min-inline-size: max(100%, 36rem);
+  }
+}
+
 @media (min-width: 48rem) {
   .calendar {
     padding: var(--space-6);
+  }
+}
+
+@media (pointer: coarse) {
+  .calendar__nav-btn {
+    inline-size: 3rem;
+    block-size: 3rem;
+  }
+
+  .calendar__today-btn {
+    min-block-size: 3rem;
   }
 }
 
@@ -561,6 +620,12 @@
   gap: var(--space-3);
 }
 
+.action-sheet__note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
 .btn {
   border: none;
   border-radius: var(--radius-md);
@@ -570,7 +635,9 @@
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+  touch-action: manipulation;
 
   &:disabled {
     opacity: 0.6;

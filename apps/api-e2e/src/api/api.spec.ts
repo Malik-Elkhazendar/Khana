@@ -59,7 +59,9 @@ describe('API', () => {
       tomorrow.setHours(9, 0, 0, 0);
 
       const startTime = tomorrow.toISOString();
-      const endTime = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString();
+      const endTime = new Date(
+        tomorrow.getTime() + 60 * 60 * 1000
+      ).toISOString();
 
       const res = await axios.post(`/api/v1/bookings/preview`, {
         facilityId,
@@ -94,7 +96,9 @@ describe('API', () => {
       tomorrow.setHours(12, 0, 0, 0);
 
       const startTime = tomorrow.toISOString();
-      const endTime = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString();
+      const endTime = new Date(
+        tomorrow.getTime() + 60 * 60 * 1000
+      ).toISOString();
 
       await axios.post(`/api/v1/bookings`, {
         facilityId,
@@ -124,7 +128,9 @@ describe('API', () => {
       tomorrow.setHours(15, 0, 0, 0);
 
       const startTime = tomorrow.toISOString();
-      const endTime = new Date(tomorrow.getTime() - 60 * 60 * 1000).toISOString();
+      const endTime = new Date(
+        tomorrow.getTime() - 60 * 60 * 1000
+      ).toISOString();
 
       const res = await axios.post(`/api/v1/bookings/preview`, {
         facilityId,
@@ -176,7 +182,9 @@ describe('API', () => {
 
   describe('GET /api/v1/bookings', () => {
     it('should return list of bookings (optionally filtered)', async () => {
-      const res = await axios.get(`/api/v1/bookings`, { params: { facilityId } });
+      const res = await axios.get(`/api/v1/bookings`, {
+        params: { facilityId },
+      });
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.data)).toBe(true);

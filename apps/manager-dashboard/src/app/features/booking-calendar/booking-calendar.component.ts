@@ -80,6 +80,7 @@ const DIALOG_COPY: Record<ActionDialogType, DialogCopy> = {
 export class BookingCalendarComponent implements OnInit {
   readonly store = inject(BookingStore);
   readonly BookingStatus = BookingStatus;
+  readonly PaymentStatus = PaymentStatus;
 
   // State from store
   readonly bookings = this.store.bookings;
@@ -102,8 +103,9 @@ export class BookingCalendarComponent implements OnInit {
   private toastTimer: number | null = null;
 
   // Operating hours (00:00 - 23:00)
-  readonly hours: string[] = Array.from({ length: 24 }, (_, i) =>
-    `${i.toString().padStart(2, '0')}:00`
+  readonly hours: string[] = Array.from(
+    { length: 24 },
+    (_, i) => `${i.toString().padStart(2, '0')}:00`
   );
 
   // Day names for header
@@ -167,7 +169,9 @@ export class BookingCalendarComponent implements OnInit {
       day: 'numeric',
     });
 
-    return `${formatter.format(start)} - ${formatter.format(end)}, ${end.getFullYear()}`;
+    return `${formatter.format(start)} - ${formatter.format(
+      end
+    )}, ${end.getFullYear()}`;
   });
 
   /**
@@ -209,7 +213,8 @@ export class BookingCalendarComponent implements OnInit {
 
     for (const dayBookings of bookingsByDay.values()) {
       const sorted = [...dayBookings].sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       );
 
       let cluster: BookingListItemDto[] = [];
@@ -247,7 +252,8 @@ export class BookingCalendarComponent implements OnInit {
    */
   openBooking(booking: BookingListItemDto, event?: Event): void {
     this.lastFocusedElement =
-      (event?.currentTarget as HTMLElement) ?? (document.activeElement as HTMLElement);
+      (event?.currentTarget as HTMLElement) ??
+      (document.activeElement as HTMLElement);
     this.selectedBooking.set(booking);
 
     setTimeout(() => {
@@ -323,7 +329,10 @@ export class BookingCalendarComponent implements OnInit {
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
       if (!booking) return false;
-      return await this.store.cancelBooking(booking.id, this.cancelReason().trim());
+      return await this.store.cancelBooking(
+        booking.id,
+        this.cancelReason().trim()
+      );
     }, 'Booking cancelled');
   }
 
@@ -425,7 +434,9 @@ export class BookingCalendarComponent implements OnInit {
       'textarea:not([disabled])',
       '[tabindex]:not([tabindex="-1"])',
     ];
-    return Array.from(container.querySelectorAll<HTMLElement>(selectors.join(',')));
+    return Array.from(
+      container.querySelectorAll<HTMLElement>(selectors.join(','))
+    );
   }
 
   /**
@@ -437,7 +448,10 @@ export class BookingCalendarComponent implements OnInit {
     return this.bookingsMap().get(key) ?? [];
   }
 
-  getBookingLayout(booking: BookingListItemDto): { column: number; columns: number } {
+  getBookingLayout(booking: BookingListItemDto): {
+    column: number;
+    columns: number;
+  } {
     return this.bookingLayout().get(booking.id) ?? this.defaultLayout;
   }
 
@@ -517,7 +531,10 @@ export class BookingCalendarComponent implements OnInit {
     }
   }
 
-  private bookingsOverlap(a: BookingListItemDto, b: BookingListItemDto): boolean {
+  private bookingsOverlap(
+    a: BookingListItemDto,
+    b: BookingListItemDto
+  ): boolean {
     const startA = new Date(a.startTime).getTime();
     const endA = new Date(a.endTime).getTime();
     const startB = new Date(b.startTime).getTime();
@@ -584,7 +601,9 @@ export class BookingCalendarComponent implements OnInit {
     }
   }
 
-  statusTone(status: BookingStatus): 'success' | 'warning' | 'danger' | 'neutral' {
+  statusTone(
+    status: BookingStatus
+  ): 'success' | 'warning' | 'danger' | 'neutral' {
     switch (status) {
       case BookingStatus.CONFIRMED:
       case BookingStatus.COMPLETED:

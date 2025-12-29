@@ -27,11 +27,7 @@ export function isMenaWeekend(date: Date): boolean {
  * Check if a time is within peak hours
  * Default peak hours: 17:00 - 22:00
  */
-export function isPeakHour(
-  date: Date,
-  peakStart = 17,
-  peakEnd = 22
-): boolean {
+export function isPeakHour(date: Date, peakStart = 17, peakEnd = 22): boolean {
   const hour = date.getHours();
   return hour >= peakStart && hour < peakEnd;
 }
@@ -39,7 +35,10 @@ export function isPeakHour(
 /**
  * Parse time string (HH:mm) to hours and minutes
  */
-export function parseTimeString(time: string): { hours: number; minutes: number } {
+export function parseTimeString(time: string): {
+  hours: number;
+  minutes: number;
+} {
   const [hours, minutes] = time.split(':').map(Number);
   return { hours, minutes };
 }
@@ -245,10 +244,7 @@ export function formatTime(
 /**
  * Format date and time for display
  */
-export function formatDateTime(
-  date: Date,
-  locale = 'en-SA'
-): string {
+export function formatDateTime(date: Date, locale = 'en-SA'): string {
   return `${formatDate(date, locale)} ${formatTime(date, locale)}`;
 }
 

@@ -23,7 +23,13 @@ export interface BookingMetadata {
   }[];
 
   /** Source of the booking */
-  source?: 'DASHBOARD' | 'WEBSITE' | 'MOBILE_APP' | 'PHONE' | 'WALK_IN' | 'WHATSAPP';
+  source?:
+    | 'DASHBOARD'
+    | 'WEBSITE'
+    | 'MOBILE_APP'
+    | 'PHONE'
+    | 'WALK_IN'
+    | 'WHATSAPP';
 
   /** Referral code used */
   referralCode?: string;

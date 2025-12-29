@@ -1,4 +1,7 @@
-import { SimpleOperatingHours, WeeklyOperatingHours } from './operating-hours.interface';
+import {
+  SimpleOperatingHours,
+  WeeklyOperatingHours,
+} from './operating-hours.interface';
 import { PricingConfig } from './price-breakdown.interface';
 
 /**

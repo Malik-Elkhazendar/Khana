@@ -255,7 +255,9 @@ describe('PriceCalculator', () => {
       // 15% duration discount + 10% promo discount
       const durationDiscountAmount = 585 * 0.15; // 87.75
       const promoDiscountAmount = 585 * 0.1; // 58.5
-      expect(result.discountAmount).toBeCloseTo(durationDiscountAmount + promoDiscountAmount);
+      expect(result.discountAmount).toBeCloseTo(
+        durationDiscountAmount + promoDiscountAmount
+      );
       expect(result.total).toBeCloseTo(585 - 87.75 - 58.5);
     });
 

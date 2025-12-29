@@ -43,4 +43,3 @@ export class Facility {
   @UpdateDateColumn()
   updatedAt!: Date;
 }
-

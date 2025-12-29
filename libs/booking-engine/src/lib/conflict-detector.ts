@@ -22,7 +22,14 @@ export function determineConflictType(
   existingEnd: Date
 ): ConflictType | undefined {
   // No overlap - early exit
-  if (!doTimeRangesOverlap(requestedStart, requestedEnd, existingStart, existingEnd)) {
+  if (
+    !doTimeRangesOverlap(
+      requestedStart,
+      requestedEnd,
+      existingStart,
+      existingEnd
+    )
+  ) {
     return undefined;
   }
 
@@ -32,27 +39,42 @@ export function determineConflictType(
   const existingEndTime = existingEnd.getTime();
 
   // Exact overlap
-  if (requestedStartTime === existingStartTime && requestedEndTime === existingEndTime) {
+  if (
+    requestedStartTime === existingStartTime &&
+    requestedEndTime === existingEndTime
+  ) {
     return ConflictType.EXACT_OVERLAP;
   }
 
   // Requested is fully contained within existing
-  if (requestedStartTime >= existingStartTime && requestedEndTime <= existingEndTime) {
+  if (
+    requestedStartTime >= existingStartTime &&
+    requestedEndTime <= existingEndTime
+  ) {
     return ConflictType.CONTAINED_WITHIN;
   }
 
   // Existing is fully contained within requested
-  if (existingStartTime >= requestedStartTime && existingEndTime <= requestedEndTime) {
+  if (
+    existingStartTime >= requestedStartTime &&
+    existingEndTime <= requestedEndTime
+  ) {
     return ConflictType.CONTAINS_EXISTING;
   }
 
   // Partial start overlap (requested starts before existing ends)
-  if (requestedStartTime < existingStartTime && requestedEndTime > existingStartTime) {
+  if (
+    requestedStartTime < existingStartTime &&
+    requestedEndTime > existingStartTime
+  ) {
     return ConflictType.PARTIAL_END_OVERLAP;
   }
 
   // Partial end overlap (requested ends after existing starts)
-  if (requestedStartTime < existingEndTime && requestedEndTime > existingEndTime) {
+  if (
+    requestedStartTime < existingEndTime &&
+    requestedEndTime > existingEndTime
+  ) {
     return ConflictType.PARTIAL_START_OVERLAP;
   }
 
@@ -94,11 +116,15 @@ export function generateConflictMessage(
  * @param input - The conflict detection input
  * @returns Conflict detection result
  */
-export function detectConflicts(input: ConflictDetectionInput): ConflictDetectionResult {
+export function detectConflicts(
+  input: ConflictDetectionInput
+): ConflictDetectionResult {
   const { requestedStart, requestedEnd, occupiedSlots, facilityId } = input;
 
   // Filter to only slots for this facility
-  const relevantSlots = occupiedSlots.filter(slot => slot.facilityId === facilityId);
+  const relevantSlots = occupiedSlots.filter(
+    (slot) => slot.facilityId === facilityId
+  );
 
   // Find all conflicting slots
   const conflictingSlots: OccupiedSlot[] = [];
@@ -132,7 +158,10 @@ export function detectConflicts(input: ConflictDetectionInput): ConflictDetectio
   return {
     hasConflict: true,
     conflictType: primaryConflictType,
-    message: generateConflictMessage(primaryConflictType as ConflictType, conflictingSlots),
+    message: generateConflictMessage(
+      primaryConflictType as ConflictType,
+      conflictingSlots
+    ),
     conflictingSlots,
   };
 }

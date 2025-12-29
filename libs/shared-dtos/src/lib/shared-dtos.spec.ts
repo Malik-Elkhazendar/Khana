@@ -42,7 +42,9 @@ describe('shared-dtos', () => {
       expect(SlotStatus.BLOCKED).toBe('BLOCKED');
       expect(SlotStatus.MAINTENANCE).toBe('MAINTENANCE');
       // AVAILABLE should not exist (critical design decision)
-      expect((SlotStatus as Record<string, string>)['AVAILABLE']).toBeUndefined();
+      expect(
+        (SlotStatus as Record<string, string>)['AVAILABLE']
+      ).toBeUndefined();
     });
 
     it('should export BookingStatus enum', () => {
@@ -52,9 +54,12 @@ describe('shared-dtos', () => {
     });
 
     it('should export PaymentStatus enum', () => {
-      expect(PaymentStatus.UNPAID).toBe('UNPAID');
+      expect(PaymentStatus.PENDING).toBe('PENDING');
       expect(PaymentStatus.PAID).toBe('PAID');
       expect(PaymentStatus.REFUNDED).toBe('REFUNDED');
+      expect(
+        (PaymentStatus as Record<string, string>)['UNPAID']
+      ).toBeUndefined();
     });
 
     it('should export ConflictType enum', () => {
