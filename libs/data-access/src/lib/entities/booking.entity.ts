@@ -58,6 +58,9 @@ export class Booking {
   @Column({ type: 'timestamptz', nullable: true })
   holdUntil?: Date | null;
 
+  @Column({ type: 'text', nullable: true })
+  cancellationReason?: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

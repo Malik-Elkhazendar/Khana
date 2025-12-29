@@ -3,6 +3,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../shared/services/api.service';
 import { BookingStore } from '../../state/bookings/booking.store';
+import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
+import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
 import {
   BookingStatus,
   PaymentStatus,
@@ -12,10 +14,22 @@ import {
 
 type BookingStatusTone = 'success' | 'warning' | 'danger' | 'default';
 
+const CANCEL_DIALOG_COPY = {
+  title: 'Cancel booking',
+  message: 'This action is permanent and cannot be undone.',
+  confirmLabel: 'Cancel booking',
+};
+const CANCEL_FAILURE_MESSAGE = 'Cancellation failed. Please try again.';
+
 @Component({
   selector: 'app-booking-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ConfirmationDialogComponent,
+    CancellationFormComponent,
+  ],
   templateUrl: './booking-list.component.html',
   styleUrl: './booking-list.component.scss',
 })
@@ -29,6 +43,16 @@ export class BookingListComponent implements OnInit {
   bookings = this.store.bookings;
   loading = this.store.loading;
   error = this.store.error;
+
+  readonly cancelDialogBooking = signal<BookingListItemDto | null>(null);
+  readonly cancelReason = signal('');
+  readonly cancelReasonMinLength = 5;
+  readonly cancelError = signal<string | null>(null);
+  readonly cancelReasonValid = computed(
+    () => this.cancelReason().trim().length >= this.cancelReasonMinLength
+  );
+  readonly actionInProgress = signal(false);
+  readonly cancelDialogCopy = CANCEL_DIALOG_COPY;
 
   selectedFacility = computed(() =>
     this.facilities().find((f) => f.id === this.selectedFacilityId()) ?? null
@@ -143,25 +167,43 @@ export class BookingListComponent implements OnInit {
     return new Intl.NumberFormat('en-SA', { style: 'currency', currency }).format(amount);
   }
 
-  cancelBooking(booking: BookingListItemDto) {
+  openCancelDialog(booking: BookingListItemDto): void {
     if (booking.status === BookingStatus.CANCELLED) return;
-    if (confirm('Are you sure you want to cancel this booking?')) {
-        this.store.updateStatus({
-            id: booking.id,
-            status: BookingStatus.CANCELLED,
-            previousBooking: booking
-        });
+    this.cancelDialogBooking.set(booking);
+    this.cancelReason.set('');
+    this.cancelError.set(null);
+  }
+
+  closeCancelDialog(): void {
+    this.cancelDialogBooking.set(null);
+    this.cancelReason.set('');
+    this.cancelError.set(null);
+    this.actionInProgress.set(false);
+  }
+
+  async submitCancelDialog(): Promise<void> {
+    if (this.actionInProgress()) return;
+    const booking = this.cancelDialogBooking();
+    if (!booking) return;
+    if (!this.cancelReasonValid()) return;
+
+    this.actionInProgress.set(true);
+    const success = await this.store.cancelBooking(
+      booking.id,
+      this.cancelReason().trim()
+    );
+    this.actionInProgress.set(false);
+
+    if (success) {
+      this.closeCancelDialog();
+    } else {
+      this.cancelError.set(CANCEL_FAILURE_MESSAGE);
     }
   }
 
-  markAsPaid(booking: BookingListItemDto) {
-      if (booking.paymentStatus === PaymentStatus.PAID) return;
-      this.store.updateStatus({
-          id: booking.id,
-          status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.PAID,
-          previousBooking: booking
-      });
+  async markAsPaid(booking: BookingListItemDto): Promise<void> {
+    if (booking.paymentStatus === PaymentStatus.PAID) return;
+    await this.store.markBookingPaid(booking.id);
   }
 
   readonly BookingStatus = BookingStatus;

@@ -10,9 +10,53 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BookingStore } from '../../state/bookings/booking.store';
-import { BookingListItemDto, BookingStatus, PaymentStatus } from '@khana/shared-dtos';
+import {
+  BookingListItemDto,
+  BookingStatus,
+  PaymentStatus,
+} from '@khana/shared-dtos';
+import { HoldTimerComponent } from './hold-timer.component';
+import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
+import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
 
 type ToastNotice = { message: string; tone: 'success' | 'error' };
+
+type ActionDialogType = 'confirm' | 'cancel' | 'pay';
+type ActionDialogState = { type: ActionDialogType; bookingId: string };
+type DialogCopy = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  confirmTone: 'primary' | 'secondary' | 'danger';
+};
+
+const CANCEL_REASON_MIN_LENGTH = 5;
+const ACTION_TOASTS: Record<ActionDialogType, string> = {
+  confirm: 'Booking confirmed',
+  pay: 'Payment marked as paid',
+  cancel: 'Booking cancelled',
+};
+const ACTION_FAILURE_MESSAGE = 'Action failed. Please try again.';
+const DIALOG_COPY: Record<ActionDialogType, DialogCopy> = {
+  confirm: {
+    title: 'Confirm booking',
+    message: 'This will confirm the booking and notify the customer.',
+    confirmLabel: 'Confirm booking',
+    confirmTone: 'primary',
+  },
+  pay: {
+    title: 'Mark as paid',
+    message: 'This will mark the booking as paid.',
+    confirmLabel: 'Mark paid',
+    confirmTone: 'secondary',
+  },
+  cancel: {
+    title: 'Cancel booking',
+    message: 'This action is permanent and cannot be undone.',
+    confirmLabel: 'Cancel booking',
+    confirmTone: 'danger',
+  },
+};
 
 /**
  * Weekly Calendar View Component
@@ -23,7 +67,12 @@ type ToastNotice = { message: string; tone: 'success' | 'error' };
 @Component({
   selector: 'app-booking-calendar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [
+    CommonModule,
+    HoldTimerComponent,
+    ConfirmationDialogComponent,
+    CancellationFormComponent,
+  ],
   templateUrl: './booking-calendar.component.html',
   styleUrl: './booking-calendar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,6 +91,9 @@ export class BookingCalendarComponent implements OnInit {
   readonly selectedBooking = signal<BookingListItemDto | null>(null);
   readonly actionInProgress = signal(false);
   readonly toast = signal<ToastNotice | null>(null);
+  readonly actionDialog = signal<ActionDialogState | null>(null);
+  readonly cancelReason = signal('');
+  readonly cancelReasonMinLength = CANCEL_REASON_MIN_LENGTH;
 
   @ViewChild('actionPanel') actionPanel?: ElementRef<HTMLElement>;
   @ViewChild('closeButton') closeButton?: ElementRef<HTMLButtonElement>;
@@ -67,6 +119,16 @@ export class BookingCalendarComponent implements OnInit {
       ...live,
       facility: live.facility ?? selected.facility,
     };
+  });
+
+  readonly dialogCopy = computed<DialogCopy | null>(() => {
+    const dialog = this.actionDialog();
+    if (!dialog) return null;
+    return DIALOG_COPY[dialog.type];
+  });
+
+  readonly cancelReasonValid = computed(() => {
+    return this.cancelReason().trim().length >= this.cancelReasonMinLength;
   });
 
   private readonly defaultLayout = { column: 0, columns: 1 };
@@ -203,6 +265,8 @@ export class BookingCalendarComponent implements OnInit {
   closePanel(): void {
     this.selectedBooking.set(null);
     this.actionInProgress.set(false);
+    this.actionDialog.set(null);
+    this.cancelReason.set('');
     if (this.lastFocusedElement) {
       this.lastFocusedElement.focus();
       this.lastFocusedElement = null;
@@ -259,13 +323,70 @@ export class BookingCalendarComponent implements OnInit {
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
       if (!booking) return false;
-      return await this.store.cancelBooking(booking.id);
+      return await this.store.cancelBooking(booking.id, this.cancelReason().trim());
     }, 'Booking cancelled');
+  }
+
+  openConfirmDialog(): void {
+    const booking = this.selectedBookingLive();
+    if (!booking) return;
+    this.actionDialog.set({ type: 'confirm', bookingId: booking.id });
+  }
+
+  openPayDialog(): void {
+    const booking = this.selectedBookingLive();
+    if (!booking) return;
+    this.actionDialog.set({ type: 'pay', bookingId: booking.id });
+  }
+
+  openCancelDialog(): void {
+    const booking = this.selectedBookingLive();
+    if (!booking) return;
+    this.cancelReason.set('');
+    this.actionDialog.set({ type: 'cancel', bookingId: booking.id });
+  }
+
+  closeDialog(): void {
+    this.actionDialog.set(null);
+    this.cancelReason.set('');
+  }
+
+  async submitDialogAction(): Promise<void> {
+    const dialog = this.actionDialog();
+    if (!dialog) return;
+
+    if (dialog.type === 'cancel' && !this.cancelReasonValid()) {
+      return;
+    }
+
+    const booking = this.selectedBookingLive();
+    if (!booking) return;
+
+    const action = async (): Promise<boolean> => {
+      switch (dialog.type) {
+        case 'confirm':
+          return await this.store.confirmBooking(booking.id);
+        case 'pay':
+          return await this.store.markBookingPaid(booking.id);
+        case 'cancel':
+          return await this.store.cancelBooking(
+            booking.id,
+            this.cancelReason().trim()
+          );
+        default:
+          return false;
+      }
+    };
+
+    await this.runAction(action, ACTION_TOASTS[dialog.type], () => {
+      this.closeDialog();
+    });
   }
 
   private async runAction(
     action: () => Promise<boolean>,
-    successMessage: string
+    successMessage: string,
+    onSuccess?: () => void
   ): Promise<void> {
     if (this.actionInProgress()) return;
     this.actionInProgress.set(true);
@@ -274,10 +395,13 @@ export class BookingCalendarComponent implements OnInit {
     this.actionInProgress.set(false);
 
     if (success) {
+      if (onSuccess) {
+        onSuccess();
+      }
       this.showToast(successMessage, 'success');
       setTimeout(() => this.closePanel(), 650);
     } else {
-      this.showToast('Action failed. Please try again.', 'error');
+      this.showToast(ACTION_FAILURE_MESSAGE, 'error');
     }
   }
 

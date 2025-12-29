@@ -29,7 +29,11 @@ export const BookingStore = signalStore(
   withMethods((store, api = inject(ApiService)) => {
     const runStatusAction = async (
       id: string,
-      updates: { status?: BookingStatus; paymentStatus?: PaymentStatus }
+      updates: {
+        status?: BookingStatus;
+        paymentStatus?: PaymentStatus;
+        cancellationReason?: string | null;
+      }
     ): Promise<boolean> => {
       const booking = store.bookings().find((b) => b.id === id);
 
@@ -39,10 +43,26 @@ export const BookingStore = signalStore(
       }
 
       const previousBooking = { ...booking };
+      const trimmedReason = updates.cancellationReason?.trim();
+      if (updates.status === BookingStatus.CANCELLED && !trimmedReason) {
+        patchState(store, { error: 'Cancellation reason is required' });
+        return false;
+      }
+      if (trimmedReason && updates.status !== BookingStatus.CANCELLED) {
+        patchState(store, { error: 'Cancellation reason is only allowed when cancelling' });
+        return false;
+      }
+
       const optimistic = {
         ...booking,
         status: updates.status ?? booking.status,
         paymentStatus: updates.paymentStatus ?? booking.paymentStatus,
+        cancellationReason:
+          updates.status === BookingStatus.CANCELLED
+            ? trimmedReason ?? booking.cancellationReason ?? null
+            : updates.status
+              ? null
+              : booking.cancellationReason ?? null,
       };
 
       patchState(store, (state) => ({
@@ -52,7 +72,12 @@ export const BookingStore = signalStore(
 
       try {
         const updated = await firstValueFrom(
-          api.updateBookingStatus(id, updates.status, updates.paymentStatus)
+          api.updateBookingStatus(
+            id,
+            updates.status,
+            updates.paymentStatus,
+            trimmedReason ?? undefined
+          )
         );
 
         patchState(store, (state) => ({
@@ -62,6 +87,8 @@ export const BookingStore = signalStore(
                   ...b,
                   status: updated?.status ?? b.status,
                   paymentStatus: updated?.paymentStatus ?? b.paymentStatus,
+                  cancellationReason:
+                    updated?.cancellationReason ?? b.cancellationReason ?? null,
                   updatedAt: updated?.updatedAt ?? b.updatedAt,
                 }
               : b
@@ -87,8 +114,11 @@ export const BookingStore = signalStore(
       markBookingPaid: async (id: string): Promise<boolean> => {
         return await runStatusAction(id, { paymentStatus: PaymentStatus.PAID });
       },
-      cancelBooking: async (id: string): Promise<boolean> => {
-        return await runStatusAction(id, { status: BookingStatus.CANCELLED });
+      cancelBooking: async (id: string, reason: string): Promise<boolean> => {
+        return await runStatusAction(id, {
+          status: BookingStatus.CANCELLED,
+          cancellationReason: reason,
+        });
       },
       setFacilityFilter: (facilityId: string | null) => {
         patchState(store, { filter: { facilityId } });
@@ -117,10 +147,11 @@ export const BookingStore = signalStore(
         id: string;
         status?: BookingStatus;
         paymentStatus?: PaymentStatus;
+        cancellationReason?: string | null;
         previousBooking: BookingListItemDto;
       }>(
         pipe(
-          tap(({ id, status, paymentStatus }) => {
+          tap(({ id, status, paymentStatus, cancellationReason }) => {
             patchState(store, (state) => ({
               bookings: state.bookings.map((b) =>
                 b.id === id
@@ -128,13 +159,19 @@ export const BookingStore = signalStore(
                       ...b,
                       status: status ?? b.status,
                       paymentStatus: paymentStatus ?? b.paymentStatus,
+                      cancellationReason:
+                        status === BookingStatus.CANCELLED
+                          ? cancellationReason ?? b.cancellationReason ?? null
+                          : status
+                            ? null
+                            : b.cancellationReason ?? null,
                     }
                   : b
               ),
             }));
           }),
-          switchMap(({ id, status, paymentStatus, previousBooking }) =>
-            api.updateBookingStatus(id, status, paymentStatus).pipe(
+          switchMap(({ id, status, paymentStatus, cancellationReason, previousBooking }) =>
+            api.updateBookingStatus(id, status, paymentStatus, cancellationReason ?? undefined).pipe(
               tap((updatedBooking) => {
                 patchState(store, (state) => ({
                   bookings: state.bookings.map((b) =>

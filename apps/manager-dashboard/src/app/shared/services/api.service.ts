@@ -71,11 +71,13 @@ export class ApiService {
   updateBookingStatus(
     id: string,
     status?: BookingStatus,
-    paymentStatus?: PaymentStatus
+    paymentStatus?: PaymentStatus,
+    cancellationReason?: string
   ): Observable<BookingListItemDto> {
     return this.http.patch<BookingListItemDto>(`${this.baseUrl}/v1/bookings/${id}/status`, {
       status,
       paymentStatus,
+      cancellationReason,
     });
   }
 }

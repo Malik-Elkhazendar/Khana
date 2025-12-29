@@ -94,6 +94,7 @@ export interface BookingListItemDto {
   currency?: string;
   priceBreakdown?: PriceBreakdown;
   holdUntil?: string | null;
+  cancellationReason?: string | null;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   createdAt: string;
@@ -106,4 +107,5 @@ export interface BookingListItemDto {
 export interface UpdateBookingStatusRequestDto {
   status?: BookingStatus;
   paymentStatus?: PaymentStatus;
+  cancellationReason?: string;
 }
