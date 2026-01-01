@@ -103,14 +103,14 @@
   }
 
   <!-- Error Message -->
-  @if (error()) {
+  @if (error(); as err) {
   <div
     class="error-message"
     id="booking-preview-error"
     role="alert"
     aria-live="assertive"
   >
-    <span>{{ error() }}</span>
+    <span>{{ err.message }}</span>
     <button type="button" class="btn-secondary" (click)="retry()">
       Try Again
     </button>
@@ -332,11 +332,62 @@
     </div>
 
     <!-- Confirm Booking Button -->
-    <button class="btn-book" [disabled]="!canBook()" (click)="onBook()">
+    <button
+      class="btn-book"
+      [disabled]="!canBook()"
+      (click)="openConfirmDialog()"
+    >
       @if (bookingInProgress()) { Confirming... } @else { Confirm Booking }
     </button>
     }
   </div>
+  } @if (confirmDialogOpen() && previewResult(); as result) { @let facility =
+  selectedFacility();
+  <app-confirmation-dialog
+    [title]="confirmCopy.title"
+    [message]="confirmCopy.message"
+    [confirmLabel]="confirmCopy.confirmLabel"
+    [cancelLabel]="confirmCopy.cancelLabel"
+    [confirmTone]="'primary'"
+    [confirmDisabled]="!canBook()"
+    [busy]="bookingInProgress()"
+    (confirmed)="onBook()"
+    (dismissed)="closeConfirmDialog()"
+  >
+    <div class="confirm-summary">
+      <div class="confirm-row">
+        <span class="label">Facility</span>
+        <span class="value">{{ facility?.name ?? 'Selected facility' }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="label">Date</span>
+        <span class="value">{{ selectedDate() }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="label">Time</span>
+        <span class="value">
+          {{ formatTime(selectedDate() + 'T' + startTime()) }} -
+          {{ formatTime(selectedDate() + 'T' + endTime()) }}
+        </span>
+      </div>
+      <div class="confirm-row">
+        <span class="label">Total</span>
+        <span class="value">{{
+          formatPrice(
+            result.priceBreakdown.total,
+            result.priceBreakdown.currency
+          )
+        }}</span>
+      </div>
+      @if (holdAsPending()) {
+      <div class="confirm-row">
+        <span class="label">Hold</span>
+        <span class="value">Reserve as pending</span>
+      </div>
+      }
+    </div>
+    <p class="policy-note">{{ cancellationPolicyNote }}</p>
+  </app-confirmation-dialog>
   }
 
   <!-- Booking Success Message -->

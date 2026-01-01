@@ -1,5 +1,11 @@
 <a class="skip-link" href="#booking-calendar-main">Skip to calendar</a>
-<main class="calendar" id="booking-calendar-main" role="main">
+<main
+  class="calendar"
+  id="booking-calendar-main"
+  role="main"
+  [attr.aria-busy]="loading() ? 'true' : null"
+  [attr.aria-describedby]="error() ? errorDescriptionId : null"
+>
   <!-- Header -->
   <header class="calendar__header">
     <div class="calendar__nav">
@@ -8,6 +14,8 @@
         class="calendar__nav-btn"
         (click)="previousWeek()"
         aria-label="Previous week"
+        [disabled]="!canNavigate()"
+        [attr.aria-disabled]="!canNavigate()"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
           <path
@@ -18,7 +26,13 @@
         </svg>
       </button>
 
-      <button type="button" class="calendar__today-btn" (click)="goToToday()">
+      <button
+        type="button"
+        class="calendar__today-btn"
+        (click)="goToToday()"
+        [disabled]="!canNavigate()"
+        [attr.aria-disabled]="!canNavigate()"
+      >
         Today
       </button>
 
@@ -27,6 +41,8 @@
         class="calendar__nav-btn"
         (click)="nextWeek()"
         aria-label="Next week"
+        [disabled]="!canNavigate()"
+        [attr.aria-disabled]="!canNavigate()"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
           <path
@@ -43,7 +59,12 @@
 
   <!-- Loading State -->
   @if (loading()) {
-  <div class="calendar__loading" role="status" aria-live="polite">
+  <div
+    class="calendar__loading"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  >
     <div class="calendar__spinner"></div>
     <span>Loading bookings...</span>
   </div>
@@ -51,34 +72,74 @@
 
   <!-- Error State -->
   @if (error(); as err) {
-  <div class="calendar__error" role="alert" aria-live="assertive">
-    <span>{{ err.message }}</span>
-    <button
-      type="button"
-      class="calendar__retry-btn"
-      (click)="store.loadBookings(null)"
-    >
-      Retry
-    </button>
+  <div
+    class="calendar__error"
+    role="alert"
+    aria-live="assertive"
+    [attr.id]="errorDescriptionId"
+  >
+    <div class="calendar__error-content">
+      <p class="calendar__error-message">{{ err.message }}</p>
+      @if (errorCategoryLabel()) {
+      <p class="calendar__error-meta">{{ errorCategoryLabel() }}</p>
+      } @if (autoRetryEligible()) {
+      <p class="calendar__error-meta">Auto-retrying with backoff.</p>
+      } @if (retryScheduledAt()) {
+      <p class="calendar__error-meta">
+        Next retry at {{ formatLastUpdated(retryScheduledAt()) }}
+      </p>
+      } @if (lastSuccessfulAt()) {
+      <p class="calendar__error-meta">
+        Showing last updated {{ formatLastUpdated(lastSuccessfulAt()) }}
+      </p>
+      }
+    </div>
+    <div class="calendar__error-actions">
+      @for (option of errorRecoveryOptions(); track option.action) {
+      <div class="calendar__error-option">
+        <button
+          type="button"
+          class="calendar__retry-btn"
+          (click)="handleErrorRecovery(option.action)"
+          [attr.aria-describedby]="'calendar-error-option-' + option.action"
+        >
+          {{ option.label }}
+        </button>
+        <span
+          class="calendar__error-option-meta"
+          [attr.id]="'calendar-error-option-' + option.action"
+        >
+          {{ option.description }}
+        </span>
+      </div>
+      }
+    </div>
   </div>
   }
 
   <!-- Empty State -->
-  @if (!loading() && !error() && bookings().length === 0) {
+  @if (showEmptyState()) {
   <div class="empty-state calendar__empty" role="status">
     <p>No bookings found for this week.</p>
   </div>
   }
 
   <!-- Calendar Grid -->
-  @if (!loading() && !error()) {
-  <div class="calendar__grid">
+  @if (showGrid()) {
+  <div
+    class="calendar__grid"
+    role="grid"
+    aria-label="Weekly booking calendar"
+    [attr.aria-rowcount]="hours.length"
+    [attr.aria-colcount]="weekDays().length"
+  >
     <!-- Header Row -->
     <div class="calendar__corner"></div>
     @for (day of weekDays(); track trackByDay($index, day)) {
     <div
       class="calendar__day-header"
       [class.calendar__day-header--today]="isToday(day)"
+      role="columnheader"
     >
       <span class="calendar__day-name">{{ dayNames[day.getDay()] }}</span>
       <span class="calendar__day-number">{{ formatDayNumber(day) }}</span>
@@ -86,23 +147,33 @@
     }
 
     <!-- Time Rows -->
-    @for (hour of hours; track trackByHour($index, hour)) {
+    @for (hour of hours; track trackByHour($index, hour); let hourIndex =
+    $index) {
     <!-- Time Label -->
-    <div class="calendar__time-label">
+    <div class="calendar__time-label" role="rowheader">
       {{ formatHour(hour) }}
     </div>
 
     <!-- Day Slots -->
-    @for (day of weekDays(); track trackByDay($index, day)) { @let slotBookings
-    = getBookingsForSlot(day, hour);
-    <div class="calendar__slot" [class.calendar__slot--today]="isToday(day)">
-      @for (booking of slotBookings; track trackByBooking($index, booking)) {
-      @let layout = getBookingLayout(booking);
+    @for (day of weekDays(); track trackByDay($index, day); let dayIndex =
+    $index) { @let slotBookings = getBookingsForSlot(day, hour);
+    <div
+      class="calendar__slot"
+      [class.calendar__slot--today]="isToday(day)"
+      [attr.tabindex]="slotTabIndex(dayIndex, hourIndex)"
+      [attr.aria-label]="slotAriaLabel(day, hour, slotBookings.length)"
+      role="gridcell"
+      (focus)="onSlotFocus(dayIndex, hourIndex)"
+      (keydown)="onSlotKeydown($event, dayIndex, hourIndex, slotBookings)"
+      #slotCell
+    >
+      @for (segment of slotBookings; track trackByBooking($index, segment)) {
+      @let booking = segment.booking; @let layout = getBookingLayout(segment);
       <button
         type="button"
         class="calendar__booking {{ getStatusClass(booking.status) }}"
         [class.calendar__booking--hold]="isHoldActive(booking)"
-        [ngStyle]="getBookingStyle(booking, layout.column, layout.columns)"
+        [ngStyle]="getBookingStyle(segment, layout.column, layout.columns)"
         [attr.aria-label]="'Booking: ' + booking.customerName"
         [attr.title]="
           isHoldActive(booking)
@@ -216,7 +287,7 @@
       type="button"
       class="btn primary"
       (click)="openConfirmDialog()"
-      [disabled]="actionInProgress() || actionDialog() !== null"
+      [disabled]="!dialogAvailable()"
     >
       Confirm
     </button>
@@ -224,7 +295,7 @@
       type="button"
       class="btn secondary"
       (click)="openPayDialog()"
-      [disabled]="actionInProgress() || actionDialog() !== null"
+      [disabled]="!dialogAvailable()"
     >
       Mark Paid
     </button>
@@ -233,8 +304,7 @@
       class="btn danger"
       (click)="openCancelDialog()"
       [disabled]="
-        actionInProgress() ||
-        actionDialog() !== null ||
+        !dialogAvailable() ||
         booking.paymentStatus === PaymentStatus.PAID ||
         booking.paymentStatus === PaymentStatus.PARTIALLY_PAID
       "

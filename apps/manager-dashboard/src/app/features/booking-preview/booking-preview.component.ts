@@ -1,6 +1,15 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { catchError, throwError } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiService } from '../../shared/services/api.service';
 import {
   FacilityListItemDto,
@@ -9,23 +18,50 @@ import {
   BookingStatus,
   ConflictType,
 } from '@khana/shared-dtos';
+import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
+
+type PreviewAction = 'facilities' | 'preview' | 'booking';
+type PreviewErrorCategory = 'network' | 'validation' | 'server' | 'unknown';
+
+type PreviewError = {
+  action: PreviewAction;
+  category: PreviewErrorCategory;
+  message: string;
+  status?: number;
+};
 
 const PREVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
+const PREVIEW_ERROR_MESSAGES: Record<PreviewAction, string> = {
+  facilities: 'Failed to load facilities. Please try again.',
+  preview: 'Failed to preview booking. Please try again.',
+  booking: 'Failed to create booking. Please try again.',
+};
+const CONFIRM_COPY = {
+  title: 'Confirm booking',
+  message: 'Review the details before creating this booking.',
+  confirmLabel: 'Confirm booking',
+  cancelLabel: 'Go back',
+};
+const CANCELLATION_POLICY_NOTE =
+  'Cancellations follow the facility policy. Please review before confirming.';
 
 @Component({
   selector: 'app-booking-preview',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmationDialogComponent],
   templateUrl: './booking-preview.component.html',
   styleUrl: './booking-preview.component.scss',
 })
 export class BookingPreviewComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly previewCache = new Map<
     string,
     { result: BookingPreviewResponseDto; expiresAt: number }
   >();
   readonly timezoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  readonly confirmCopy = CONFIRM_COPY;
+  readonly cancellationPolicyNote = CANCELLATION_POLICY_NOTE;
 
   // Form state
   facilities = signal<FacilityListItemDto[]>([]);
@@ -38,8 +74,9 @@ export class BookingPreviewComponent implements OnInit {
   // Result state
   previewResult = signal<BookingPreviewResponseDto | null>(null);
   loading = signal<boolean>(false);
-  error = signal<string | null>(null);
+  error = signal<PreviewError | null>(null);
   lastAction = signal<'facilities' | 'preview' | 'booking' | null>(null);
+  confirmDialogOpen = signal<boolean>(false);
 
   // Customer details (shown when booking is available)
   customerName = signal<string>('');
@@ -80,19 +117,28 @@ export class BookingPreviewComponent implements OnInit {
 
   private loadFacilities(): void {
     this.lastAction.set('facilities');
-    this.api.getFacilities().subscribe({
-      next: (facilities) => {
-        this.facilities.set(facilities);
-        if (facilities.length > 0) {
-          this.selectedFacilityId.set(facilities[0].id);
-        }
-        this.lastAction.set(null);
-      },
-      error: (err) => {
-        this.error.set('Failed to load facilities. Please try again.');
-        console.error('Error loading facilities:', err);
-      },
-    });
+    this.error.set(null);
+    this.api
+      .getFacilities()
+      .pipe(
+        catchError((err) =>
+          throwError(() => this.resolveError('facilities', err))
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (facilities) => {
+          this.facilities.set(facilities);
+          if (facilities.length > 0) {
+            this.selectedFacilityId.set(facilities[0].id);
+          }
+          this.lastAction.set(null);
+        },
+        error: (err: PreviewError) => {
+          this.applyError(err);
+          console.error('Error loading facilities:', err);
+        },
+      });
   }
 
   private getDefaultDate(): string {
@@ -110,6 +156,7 @@ export class BookingPreviewComponent implements OnInit {
     this.previewResult.set(null);
     this.bookingSuccess.set(false);
     this.bookingReference.set(null);
+    this.confirmDialogOpen.set(false);
 
     const startDateTime = new Date(
       `${this.selectedDate()}T${this.startTime()}`
@@ -132,6 +179,12 @@ export class BookingPreviewComponent implements OnInit {
         endTime: endDateTime.toISOString(),
         promoCode: this.promoCode() || undefined,
       })
+      .pipe(
+        catchError((err) =>
+          throwError(() => this.resolveError('preview', err))
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe({
         next: (result) => {
           this.previewResult.set(result);
@@ -142,13 +195,9 @@ export class BookingPreviewComponent implements OnInit {
           });
           this.lastAction.set(null);
         },
-        error: (err) => {
+        error: (err: PreviewError) => {
           this.loading.set(false);
-          if (err.status === 404) {
-            this.error.set('Facility not found.');
-          } else {
-            this.error.set('Failed to preview booking. Please try again.');
-          }
+          this.applyError(err);
           console.error('Error previewing booking:', err);
         },
       });
@@ -181,6 +230,16 @@ export class BookingPreviewComponent implements OnInit {
     }).format(amount);
   }
 
+  openConfirmDialog(): void {
+    if (!this.canBook() || this.confirmDialogOpen()) return;
+    this.confirmDialogOpen.set(true);
+  }
+
+  closeConfirmDialog(): void {
+    if (this.bookingInProgress()) return;
+    this.confirmDialogOpen.set(false);
+  }
+
   onBook(): void {
     if (!this.canBook()) return;
 
@@ -202,11 +261,18 @@ export class BookingPreviewComponent implements OnInit {
         customerPhone: this.customerPhone().trim(),
         status: this.holdAsPending() ? BookingStatus.PENDING : undefined,
       })
+      .pipe(
+        catchError((err) =>
+          throwError(() => this.resolveError('booking', err))
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe({
         next: (createdBooking) => {
           this.bookingInProgress.set(false);
           this.bookingSuccess.set(true);
           this.bookingReference.set(createdBooking.bookingReference ?? null);
+          this.confirmDialogOpen.set(false);
           // Reset form for next booking
           this.customerName.set('');
           this.customerPhone.set('');
@@ -214,18 +280,17 @@ export class BookingPreviewComponent implements OnInit {
           this.previewResult.set(null);
           this.lastAction.set(null);
         },
-        error: (err) => {
+        error: (err: PreviewError) => {
           this.bookingInProgress.set(false);
-          const message =
-            err.error?.message || 'Failed to create booking. Please try again.';
-          this.error.set(message);
+          this.confirmDialogOpen.set(false);
+          this.applyError(err);
           console.error('Error creating booking:', err);
         },
       });
   }
 
   retry(): void {
-    const action = this.lastAction();
+    const action = this.lastAction() ?? this.error()?.action ?? null;
     this.error.set(null);
     if (action === 'facilities') {
       this.loadFacilities();
@@ -236,7 +301,7 @@ export class BookingPreviewComponent implements OnInit {
       return;
     }
     if (action === 'booking') {
-      this.onBook();
+      this.openConfirmDialog();
     }
   }
 
@@ -273,5 +338,54 @@ export class BookingPreviewComponent implements OnInit {
       endDateTime.toISOString(),
       promo,
     ].join('|');
+  }
+
+  private resolveError(action: PreviewAction, err: unknown): PreviewError {
+    const status = this.extractStatus(err);
+    const category = this.resolveCategory(status);
+
+    let message = PREVIEW_ERROR_MESSAGES[action];
+    if (action === 'preview' && status === 404) {
+      message = 'Facility not found.';
+    }
+    if (action === 'booking') {
+      const apiMessage = this.extractApiMessage(err);
+      if (apiMessage) {
+        message = apiMessage;
+      }
+    }
+
+    return {
+      action,
+      category,
+      message,
+      status,
+    };
+  }
+
+  private applyError(error: PreviewError): void {
+    this.error.set(error);
+  }
+
+  private resolveCategory(status?: number): PreviewErrorCategory {
+    if (status === 0) return 'network';
+    if (typeof status === 'number' && status >= 500) return 'server';
+    if (typeof status === 'number' && status >= 400) return 'validation';
+    return 'unknown';
+  }
+
+  private extractStatus(err: unknown): number | undefined {
+    if (!err || typeof err !== 'object') return undefined;
+    const status = Number((err as { status?: number }).status);
+    return Number.isFinite(status) ? status : undefined;
+  }
+
+  private extractApiMessage(err: unknown): string | null {
+    if (!err || typeof err !== 'object') return null;
+    const error = (err as { error?: { message?: string } }).error;
+    if (typeof error?.message === 'string' && error.message.trim() !== '') {
+      return error.message;
+    }
+    return null;
   }
 }

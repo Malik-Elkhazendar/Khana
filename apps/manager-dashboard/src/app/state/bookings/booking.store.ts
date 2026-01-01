@@ -228,6 +228,9 @@ export const BookingStore = signalStore(
       setFacilityFilter: (facilityId: string | null) => {
         patchState(store, { filter: { facilityId } });
       },
+      clearError: () => {
+        patchState(store, { error: null, errorCode: null });
+      },
       loadBookings: rxMethod<string | null>(
         pipe(
           tap(() =>

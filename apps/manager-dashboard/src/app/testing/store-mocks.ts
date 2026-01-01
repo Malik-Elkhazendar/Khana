@@ -29,6 +29,7 @@ export const createStoreMock = (options: StoreMockOptions = {}) => {
     actionErrorsById: signal<Record<string, string | null>>(actionErrorsById),
     loadBookings: jest.fn(),
     setFacilityFilter: jest.fn(),
+    clearError: jest.fn(),
     confirmBooking: jest.fn(() => Promise.resolve(true)),
     markBookingPaid: jest.fn(() => Promise.resolve(true)),
     cancelBooking: jest.fn(() => Promise.resolve(true)),

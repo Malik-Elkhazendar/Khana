@@ -66,6 +66,64 @@ describe('BookingCalendarComponent', () => {
     expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
   });
 
+  it('categorizes errors and exposes recovery options', () => {
+    storeMock.error.set(new Error('Network error'));
+    storeMock.errorCode.set('NETWORK');
+    const { component } = setupComponent();
+
+    expect(component.errorCategory()).toBe('network');
+    expect(
+      component.errorRecoveryOptions().map((option) => option.action)
+    ).toContain('retry');
+  });
+
+  it('auto-retries failed loads with backoff for network errors', () => {
+    storeMock.error.set(new Error('Network error'));
+    storeMock.errorCode.set('NETWORK');
+    setupComponent();
+
+    storeMock.loadBookings.mockClear();
+    jest.runOnlyPendingTimers();
+
+    expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
+  });
+
+  it('does not auto-retry validation errors', () => {
+    storeMock.error.set(new Error('Validation error'));
+    storeMock.errorCode.set('VALIDATION');
+    setupComponent();
+
+    storeMock.loadBookings.mockClear();
+    jest.runOnlyPendingTimers();
+
+    expect(storeMock.loadBookings).not.toHaveBeenCalled();
+  });
+
+  it('retains the last successful bookings when errors occur', () => {
+    const booking = createTimedBooking();
+    const { component } = setupComponent([booking]);
+
+    storeMock.error.set(new Error('Load failed'));
+    storeMock.errorCode.set('SERVER_ERROR');
+
+    expect(component.displayBookings()).toEqual([booking]);
+  });
+
+  it('marks the calendar as busy while loading', () => {
+    storeMock.loading.set(true);
+    const { fixture } = setupComponent();
+
+    const main = fixture.nativeElement.querySelector(
+      'main.calendar'
+    ) as HTMLElement | null;
+    const loading = fixture.nativeElement.querySelector(
+      '.calendar__loading'
+    ) as HTMLElement | null;
+
+    expect(main?.getAttribute('aria-busy')).toBe('true');
+    expect(loading?.getAttribute('aria-live')).toBe('polite');
+  });
+
   it('builds a week starting on Sunday', () => {
     const { component } = setupComponent();
 
@@ -99,6 +157,24 @@ describe('BookingCalendarComponent', () => {
 
     const updated = component.currentDate().getTime();
     expect(updated).toBe(current + 7 * 24 * 60 * 60 * 1000);
+  });
+
+  it('throttles rapid navigation', () => {
+    const { component } = setupComponent();
+    const current = component.currentDate().getTime();
+
+    component.nextWeek();
+    const afterFirst = component.currentDate().getTime();
+    component.nextWeek();
+
+    expect(component.currentDate().getTime()).toBe(afterFirst);
+
+    jest.runOnlyPendingTimers();
+    component.nextWeek();
+
+    expect(component.currentDate().getTime()).toBe(
+      current + 14 * 24 * 60 * 60 * 1000
+    );
   });
 
   it('returns to the current week when requested', () => {
@@ -135,7 +211,7 @@ describe('BookingCalendarComponent', () => {
 
     const result = component.getBookingsForSlot(day, hour);
 
-    expect(result).toEqual([booking]);
+    expect(result.map((segment) => segment.booking)).toEqual([booking]);
   });
 
   it('returns empty array for empty slots', () => {
@@ -143,6 +219,24 @@ describe('BookingCalendarComponent', () => {
     const day = new Date('2025-03-05T00:00:00Z');
 
     expect(component.getBookingsForSlot(day, '10:00')).toEqual([]);
+  });
+
+  it('splits bookings that span multiple days into day segments', () => {
+    const booking = createTimedBooking({
+      startTime: '2025-03-05T23:00:00',
+      endTime: '2025-03-06T02:00:00',
+    });
+    const { component } = setupComponent([booking]);
+
+    const segments = component.bookingSegments();
+    const dayKeys = new Set(segments.map((segment) => segment.dayKey));
+
+    expect(segments.length).toBe(2);
+    expect(dayKeys.size).toBe(2);
+    expect(
+      component.getBookingsForSlot(new Date('2025-03-06T00:00:00'), '00:00')
+        .length
+    ).toBe(1);
   });
 
   it('assigns columns for overlapping bookings', () => {
@@ -159,10 +253,18 @@ describe('BookingCalendarComponent', () => {
     const { component } = setupComponent([first, second]);
 
     const layout = component.bookingLayout();
+    const firstSegment = component
+      .bookingSegments()
+      .find((segment) => segment.booking.id === 'booking-1');
+    const secondSegment = component
+      .bookingSegments()
+      .find((segment) => segment.booking.id === 'booking-2');
 
-    expect(layout.get('booking-1')?.column).toBe(0);
-    expect(layout.get('booking-2')?.column).toBe(1);
-    expect(layout.get('booking-1')?.columns).toBe(2);
+    expect(firstSegment).toBeDefined();
+    expect(secondSegment).toBeDefined();
+    expect(layout.get(firstSegment?.id ?? '')?.column).toBe(0);
+    expect(layout.get(secondSegment?.id ?? '')?.column).toBe(1);
+    expect(layout.get(firstSegment?.id ?? '')?.columns).toBe(2);
   });
 
   it('assigns a single column for non-overlapping bookings', () => {
@@ -179,9 +281,17 @@ describe('BookingCalendarComponent', () => {
     const { component } = setupComponent([first, second]);
 
     const layout = component.bookingLayout();
+    const firstSegment = component
+      .bookingSegments()
+      .find((segment) => segment.booking.id === 'booking-1');
+    const secondSegment = component
+      .bookingSegments()
+      .find((segment) => segment.booking.id === 'booking-2');
 
-    expect(layout.get('booking-1')?.columns).toBe(1);
-    expect(layout.get('booking-2')?.columns).toBe(1);
+    expect(firstSegment).toBeDefined();
+    expect(secondSegment).toBeDefined();
+    expect(layout.get(firstSegment?.id ?? '')?.columns).toBe(1);
+    expect(layout.get(secondSegment?.id ?? '')?.columns).toBe(1);
   });
 
   it('handles clusters of three overlapping bookings', () => {
@@ -203,10 +313,22 @@ describe('BookingCalendarComponent', () => {
     const { component } = setupComponent([first, second, third]);
 
     const layout = component.bookingLayout();
+    const firstSegment = component
+      .bookingSegments()
+      .find((segment) => segment.booking.id === 'booking-1');
+    const secondSegment = component
+      .bookingSegments()
+      .find((segment) => segment.booking.id === 'booking-2');
+    const thirdSegment = component
+      .bookingSegments()
+      .find((segment) => segment.booking.id === 'booking-3');
 
-    expect(layout.get('booking-1')?.columns).toBe(3);
-    expect(layout.get('booking-2')?.columns).toBe(3);
-    expect(layout.get('booking-3')?.columns).toBe(3);
+    expect(firstSegment).toBeDefined();
+    expect(secondSegment).toBeDefined();
+    expect(thirdSegment).toBeDefined();
+    expect(layout.get(firstSegment?.id ?? '')?.columns).toBe(3);
+    expect(layout.get(secondSegment?.id ?? '')?.columns).toBe(3);
+    expect(layout.get(thirdSegment?.id ?? '')?.columns).toBe(3);
   });
 
   it('calculates booking styles based on time and columns', () => {
@@ -215,8 +337,12 @@ describe('BookingCalendarComponent', () => {
       endTime: '2025-03-05T11:45:00Z',
     });
     const { component } = setupComponent([booking]);
+    const segment = component
+      .bookingSegments()
+      .find((item) => item.booking.id === booking.id);
 
-    const style = component.getBookingStyle(booking, 1, 2);
+    expect(segment).toBeDefined();
+    const style = component.getBookingStyle(segment!, 1, 2);
 
     expect(style.top).toBe('25%');
     expect(style.height).toBe('calc(150% - var(--space-1))');
@@ -224,11 +350,29 @@ describe('BookingCalendarComponent', () => {
     expect(style.left).toBe('50%');
   });
 
+  it('tracks layout calculation duration', () => {
+    const booking = createTimedBooking();
+    const { component } = setupComponent([booking]);
+
+    expect(component.layoutDurationMs()).toBeGreaterThanOrEqual(0);
+  });
+
   it('provides a default layout for unknown bookings', () => {
     const { component } = setupComponent();
     const booking = createTimedBooking({ id: 'unknown' });
 
-    expect(component.getBookingLayout(booking)).toEqual({
+    const segment = {
+      id: 'unknown-0',
+      booking,
+      startMs: 0,
+      endMs: 0,
+      startHour: 0,
+      startMinutes: 0,
+      durationMs: 0,
+      dayKey: '2025-03-05',
+    };
+
+    expect(component.getBookingLayout(segment)).toEqual({
       column: 0,
       columns: 1,
     });
@@ -393,6 +537,55 @@ describe('BookingCalendarComponent', () => {
     expect(document.activeElement).toBe(last);
     expect(event.preventDefault).toHaveBeenCalled();
     document.body.removeChild(panel);
+  });
+
+  it('moves slot focus with arrow keys', () => {
+    const { component } = setupComponent();
+    component.focusedSlot.set({ dayIndex: 0, hourIndex: 0 });
+    const preventDefault = jest.fn();
+
+    component.onSlotKeydown(
+      { key: 'ArrowRight', preventDefault } as unknown as KeyboardEvent,
+      0,
+      0,
+      []
+    );
+
+    expect(component.focusedSlot()).toEqual({ dayIndex: 1, hourIndex: 0 });
+    expect(preventDefault).toHaveBeenCalled();
+  });
+
+  it('opens the first booking in a slot when pressing Enter', () => {
+    const booking = createTimedBooking();
+    const { component } = setupComponent([booking]);
+    const start = new Date(booking.startTime);
+    const day = new Date(start);
+    day.setHours(0, 0, 0, 0);
+    const dayIndex = component
+      .weekDays()
+      .findIndex(
+        (candidate) =>
+          candidate.getFullYear() === day.getFullYear() &&
+          candidate.getMonth() === day.getMonth() &&
+          candidate.getDate() === day.getDate()
+      );
+    const hourIndex = start.getHours();
+    const slotBookings = component.getBookingsForSlot(
+      day,
+      `${start.getHours().toString().padStart(2, '0')}:00`
+    );
+    const openSpy = jest.spyOn(component, 'openBooking');
+    const preventDefault = jest.fn();
+
+    component.onSlotKeydown(
+      { key: 'Enter', preventDefault } as unknown as KeyboardEvent,
+      dayIndex,
+      hourIndex,
+      slotBookings
+    );
+
+    expect(openSpy).toHaveBeenCalledWith(booking, expect.any(Object));
+    expect(preventDefault).toHaveBeenCalled();
   });
 
   it('opens the confirm dialog', () => {
@@ -686,6 +879,17 @@ describe('BookingCalendarComponent', () => {
     const { component } = setupComponent();
     const booking = createTimedBooking({ id: 'booking-99' });
 
-    expect(component.trackByBooking(0, booking)).toBe('booking-99');
+    const segment = {
+      id: 'booking-99-0',
+      booking,
+      startMs: 0,
+      endMs: 0,
+      startHour: 0,
+      startMinutes: 0,
+      durationMs: 0,
+      dayKey: '2025-03-05',
+    };
+
+    expect(component.trackByBooking(0, segment)).toBe('booking-99-0');
   });
 });

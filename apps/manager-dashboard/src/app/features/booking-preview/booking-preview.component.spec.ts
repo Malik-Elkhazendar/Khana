@@ -60,7 +60,7 @@ describe('BookingPreviewComponent', () => {
 
     const { component } = setupComponent();
 
-    expect(component.error()).toBe(
+    expect(component.error()?.message).toBe(
       'Failed to load facilities. Please try again.'
     );
   });
@@ -120,7 +120,11 @@ describe('BookingPreviewComponent', () => {
   it('clears error and booking success before previewing', () => {
     const { component } = setupComponent();
 
-    component.error.set('Old error');
+    component.error.set({
+      action: 'preview',
+      category: 'unknown',
+      message: 'Old error',
+    });
     component.bookingSuccess.set(true);
     component.bookingReference.set('REF-1');
     component.onSubmit();
@@ -194,7 +198,7 @@ describe('BookingPreviewComponent', () => {
 
     component.onSubmit();
 
-    expect(component.error()).toBe('Facility not found.');
+    expect(component.error()?.message).toBe('Facility not found.');
     expect(component.loading()).toBe(false);
   });
 
@@ -208,7 +212,7 @@ describe('BookingPreviewComponent', () => {
 
     component.onSubmit();
 
-    expect(component.error()).toBe(
+    expect(component.error()?.message).toBe(
       'Failed to preview booking. Please try again.'
     );
   });
@@ -226,6 +230,19 @@ describe('BookingPreviewComponent', () => {
 
     component.retry();
     expect(apiMock.previewBooking).toHaveBeenCalledTimes(2);
+  });
+
+  it('categorizes network errors during preview', () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    apiMock.previewBooking.mockReturnValueOnce(
+      throwError(() => ({ status: 0 }))
+    );
+
+    const { component } = setupComponent();
+
+    component.onSubmit();
+
+    expect(component.error()?.category).toBe('network');
   });
 
   it('updates form values when selecting an alternative slot', () => {
@@ -338,6 +355,30 @@ describe('BookingPreviewComponent', () => {
     expect(component.canBook()).toBe(true);
   });
 
+  it('opens a confirmation dialog before booking', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+
+    component.openConfirmDialog();
+
+    expect(component.confirmDialogOpen()).toBe(true);
+  });
+
+  it('does not open confirmation dialog when booking is invalid', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('');
+    component.customerPhone.set('0555555555');
+
+    component.openConfirmDialog();
+
+    expect(component.confirmDialogOpen()).toBe(false);
+  });
+
   it('does not create a booking when canBook is false', () => {
     const { component } = setupComponent();
 
@@ -417,6 +458,19 @@ describe('BookingPreviewComponent', () => {
     expect(component.bookingReference()).toBe('REF-1');
   });
 
+  it('closes the confirmation dialog after booking success', () => {
+    const { component } = setupComponent();
+    apiMock.createBooking.mockReturnValueOnce(of(createBooking()));
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+    component.confirmDialogOpen.set(true);
+    component.onBook();
+
+    expect(component.confirmDialogOpen()).toBe(false);
+  });
+
   it('resets customer details after booking success', () => {
     const { component } = setupComponent();
     apiMock.createBooking.mockReturnValueOnce(of(createBooking()));
@@ -457,7 +511,7 @@ describe('BookingPreviewComponent', () => {
     component.customerPhone.set('0555555555');
     component.onBook();
 
-    expect(component.error()).toBe('Slot unavailable');
+    expect(component.error()?.message).toBe('Slot unavailable');
     expect(component.bookingInProgress()).toBe(false);
   });
 
@@ -474,9 +528,28 @@ describe('BookingPreviewComponent', () => {
     component.customerPhone.set('0555555555');
     component.onBook();
 
-    expect(component.error()).toBe(
+    expect(component.error()?.message).toBe(
       'Failed to create booking. Please try again.'
     );
+  });
+
+  it('reopens the confirmation dialog when retrying a booking error', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+    component.lastAction.set('booking');
+    component.error.set({
+      action: 'booking',
+      category: 'server',
+      message: 'Failed to create booking. Please try again.',
+      status: 500,
+    });
+
+    component.retry();
+
+    expect(component.confirmDialogOpen()).toBe(true);
   });
 
   it('resets booking success state when requested', () => {
