@@ -80,9 +80,12 @@
     </div>
   </header>
 
-  @if (error()) {
+  @if (error(); as err) {
   <div class="error-message" role="alert" aria-live="assertive">
-    {{ error() }}
+    <div><strong>Error:</strong> {{ err.message }}</div>
+    <button type="button" class="btn-ghost" (click)="retryLoad()">
+      Try Again
+    </button>
   </div>
   }
 
@@ -122,6 +125,11 @@
     @if (loading()) {
     <div class="table-loading" role="status" aria-live="polite">
       Loading bookings…
+    </div>
+    } @else if (bookings().length === 0) {
+    <div class="table-empty" role="status" aria-live="polite">
+      <p>No bookings yet.</p>
+      <a class="btn-ghost" href="/new">Create your first booking</a>
     </div>
     } @else if (totalFilteredCount() === 0) {
     <div class="table-empty" role="status" aria-live="polite">

@@ -187,7 +187,28 @@ select {
 /* ================================
    ERROR MESSAGE
    ================================ */
+.preview-empty {
+  padding-block: var(--space-5);
+  padding-inline: var(--space-6);
+  margin-block-end: var(--space-6);
+  background: var(--color-surface-elevated);
+  border: 1px dashed var(--color-surface-muted);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  text-align: center;
+
+  p {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+}
+
 .error-message {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   padding-block: var(--space-4);
   padding-inline: var(--space-5);
   background: var(--color-error-light);
@@ -196,6 +217,27 @@ select {
   color: var(--color-error);
   font-weight: var(--font-medium);
   margin-block-end: var(--space-6);
+
+  .btn-secondary {
+    padding-block: var(--space-2);
+    padding-inline: var(--space-4);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-error);
+    background: transparent;
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    transition-property: background, color, transform;
+
+    &:hover {
+      background: var(--color-error);
+      color: var(--color-text-inverse);
+      transform: translateY(-1px);
+    }
+  }
 }
 
 /* ================================

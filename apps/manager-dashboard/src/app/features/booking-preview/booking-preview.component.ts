@@ -39,6 +39,7 @@ export class BookingPreviewComponent implements OnInit {
   previewResult = signal<BookingPreviewResponseDto | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
+  lastAction = signal<'facilities' | 'preview' | 'booking' | null>(null);
 
   // Customer details (shown when booking is available)
   customerName = signal<string>('');
@@ -55,10 +56,10 @@ export class BookingPreviewComponent implements OnInit {
 
   canSubmit = computed(() => {
     return (
-      this.selectedFacilityId() &&
-      this.selectedDate() &&
-      this.startTime() &&
-      this.endTime() &&
+      this.selectedFacilityId().trim().length > 0 &&
+      this.selectedDate().trim().length > 0 &&
+      this.startTime().trim().length > 0 &&
+      this.endTime().trim().length > 0 &&
       !this.loading()
     );
   });
@@ -66,7 +67,7 @@ export class BookingPreviewComponent implements OnInit {
   canBook = computed(() => {
     const result = this.previewResult();
     return (
-      result?.canBook &&
+      Boolean(result?.canBook) &&
       this.customerName().trim() !== '' &&
       this.customerPhone().trim() !== '' &&
       !this.bookingInProgress()
@@ -78,12 +79,14 @@ export class BookingPreviewComponent implements OnInit {
   }
 
   private loadFacilities(): void {
+    this.lastAction.set('facilities');
     this.api.getFacilities().subscribe({
       next: (facilities) => {
         this.facilities.set(facilities);
         if (facilities.length > 0) {
           this.selectedFacilityId.set(facilities[0].id);
         }
+        this.lastAction.set(null);
       },
       error: (err) => {
         this.error.set('Failed to load facilities. Please try again.');
@@ -101,6 +104,7 @@ export class BookingPreviewComponent implements OnInit {
   onSubmit(): void {
     if (!this.canSubmit()) return;
 
+    this.lastAction.set('preview');
     this.loading.set(true);
     this.error.set(null);
     this.previewResult.set(null);
@@ -117,6 +121,7 @@ export class BookingPreviewComponent implements OnInit {
     if (cached && cached.expiresAt > Date.now()) {
       this.previewResult.set(cached.result);
       this.loading.set(false);
+      this.lastAction.set(null);
       return;
     }
 
@@ -135,6 +140,7 @@ export class BookingPreviewComponent implements OnInit {
             result,
             expiresAt: Date.now() + PREVIEW_CACHE_TTL_MS,
           });
+          this.lastAction.set(null);
         },
         error: (err) => {
           this.loading.set(false);
@@ -159,7 +165,8 @@ export class BookingPreviewComponent implements OnInit {
     this.onSubmit();
   }
 
-  formatTime(isoString: string): string {
+  formatTime(isoString: string | null | undefined): string {
+    if (!isoString) return '';
     return new Date(isoString).toLocaleTimeString('en-SA', {
       hour: '2-digit',
       minute: '2-digit',
@@ -177,6 +184,7 @@ export class BookingPreviewComponent implements OnInit {
   onBook(): void {
     if (!this.canBook()) return;
 
+    this.lastAction.set('booking');
     this.bookingInProgress.set(true);
     this.error.set(null);
 
@@ -204,6 +212,7 @@ export class BookingPreviewComponent implements OnInit {
           this.customerPhone.set('');
           this.holdAsPending.set(false);
           this.previewResult.set(null);
+          this.lastAction.set(null);
         },
         error: (err) => {
           this.bookingInProgress.set(false);
@@ -213,6 +222,22 @@ export class BookingPreviewComponent implements OnInit {
           console.error('Error creating booking:', err);
         },
       });
+  }
+
+  retry(): void {
+    const action = this.lastAction();
+    this.error.set(null);
+    if (action === 'facilities') {
+      this.loadFacilities();
+      return;
+    }
+    if (action === 'preview') {
+      this.onSubmit();
+      return;
+    }
+    if (action === 'booking') {
+      this.onBook();
+    }
   }
 
   resetBooking(): void {

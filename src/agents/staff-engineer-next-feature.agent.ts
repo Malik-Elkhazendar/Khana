@@ -1,7 +1,7 @@
 import { Agent, run, tool } from '@openai/agents';
 import { z } from 'zod';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
-import { basename, join, sep } from 'path';
+import { basename, join, relative, sep } from 'path';
 import { execSync } from 'child_process';
 
 type CalendarSignals = {
@@ -24,6 +24,10 @@ type ComponentFile = {
   hasHtml: boolean;
   hasScss: boolean;
   hasSpec: boolean;
+  // SCALABLE: Added content properties for pattern matching
+  tsContent: string;
+  htmlContent: string;
+  scssContent: string;
 };
 
 type FeatureScan = {
@@ -57,6 +61,61 @@ type SecurityFinding = {
   pattern: string;
   count: number;
   locations: Array<{ path: string; line: number; excerpt: string }>;
+};
+
+/**
+ * Risk domains for automatic detection of high-risk code patterns.
+ * Used to flag features that need extra scrutiny (payments, timers, etc.)
+ */
+type RiskDomain =
+  | 'payments'
+  | 'cancellation'
+  | 'timers'
+  | 'async-flows'
+  | 'authentication'
+  | 'data-mutation'
+  | 'external-api'
+  | 'user-data';
+
+/**
+ * Dynamically discovered feature with all metadata.
+ * Auto-populated by scanning the features directory.
+ */
+type DiscoveredFeature = {
+  name: string;
+  rootPath: string;
+  files: string[];
+  components: ComponentFile[];
+  tests: string[];
+  stores: string[];
+  services: string[];
+  riskDomains: RiskDomain[];
+};
+
+/**
+ * Enhanced Evidence Pack V2 with per-feature metrics.
+ * STRATEGY A: QUICK_WIN - All data is per-feature for granular analysis.
+ */
+type EvidencePackV2 = {
+  // Per-feature evidence
+  todosByFeature: Map<
+    string,
+    Array<{ path: string; line: number; text: string }>
+  >;
+  clickHandlersByFeature: Map<string, number>;
+  testFilesByFeature: Map<string, string[]>;
+  storeUsageByFeature: Map<string, string[]>;
+  riskFlagsByFeature: Map<string, RiskDomain[]>;
+  // Global signals
+  recentGitChanges: Array<{
+    hash: string;
+    message: string;
+    files: string[];
+    features: string[];
+  }>;
+  gitDataAvailable: boolean;
+  // Discovered features
+  discoveredFeatures: DiscoveredFeature[];
 };
 
 type ProjectScan = {
@@ -149,6 +208,16 @@ type ProjectScan = {
   architectureMentionsDialogState: boolean;
   featureScans: FeatureScan[];
   featureIndex: Record<string, FeatureScan>;
+  // SCALABLE: Dynamic feature discovery properties
+  discoveredFeatures: DiscoveredFeature[];
+  featurePaths: Record<
+    string,
+    { dir: string; mainTs: string; mainHtml: string }
+  >;
+  featureTestSignals: Record<
+    string,
+    { path: string; exists: boolean; testCount: number }
+  >;
 };
 
 // Confidence levels for scoring transparency
@@ -639,6 +708,10 @@ const collectComponentFiles = (rootPath: string): ComponentFile[] => {
       hasHtml: existsSync(htmlPath),
       hasScss: existsSync(scssPath),
       hasSpec: existsSync(specPath),
+      // SCALABLE: Read content for pattern matching
+      tsContent: safeRead(path),
+      htmlContent: safeRead(htmlPath),
+      scssContent: safeRead(scssPath),
     };
   });
 };
@@ -672,6 +745,577 @@ const collectFeatureScans = (
       mainComponent,
     };
   });
+};
+
+/**
+ * Risk domain detection patterns.
+ * Used to automatically flag features with high-risk code patterns.
+ */
+const RISK_DOMAIN_PATTERNS: Record<RiskDomain, RegExp[]> = {
+  payments: [
+    /payment|pay\b|invoice|billing|transaction|checkout|price|cost|amount|fee/i,
+    /stripe|paypal|mada|stcpay|credit.?card|debit/i,
+    /refund|charge|wallet|balance/i,
+    /PaymentService|PaymentStore|PaymentStatus/i,
+  ],
+  cancellation: [
+    /cancel|cancellation|refund|void|undo/i,
+    /CancellationForm|cancellation-form|CancellationReason/i,
+    /cancelBooking|cancelOrder|cancelReservation/i,
+    /cancellationPolicy|cancellationFee/i,
+  ],
+  timers: [
+    /timer|timeout|countdown|hold|expire|holdUntil|expiresAt/i,
+    /setTimeout|setInterval|clearTimeout|clearInterval/i,
+    /Observable\.timer|timer\(|interval\(/i,
+    /HoldTimer|hold-timer|CountdownTimer/i,
+    /takeUntilDestroyed|ngOnDestroy.*clear/i,
+  ],
+  'async-flows': [
+    /subscribe\s*\(|\.pipe\s*\(/i,
+    /Observable|Promise|async\s+|await\s+/i,
+    /forkJoin|combineLatest|switchMap|mergeMap|concatMap/i,
+    /effect\s*\(|computed\s*\(/i,
+    /loading\s*=\s*signal|isLoading|loading\$/i,
+    /withMethods|withComputed|signalStore/i,
+  ],
+  authentication: [
+    /auth|login|logout|session|token|jwt|bearer/i,
+    /password|credential|identity|oauth/i,
+    /AuthService|AuthGuard|AuthStore/i,
+  ],
+  'data-mutation': [
+    /update\w*\(|delete\w*\(|remove\w*\(|create\w*\(|insert|patch|put|post/i,
+    /store\.update|patchState|setState|\.next\(/i,
+    /save\w*\(|submit\w*\(/i,
+  ],
+  'external-api': [
+    /HttpClient|http\./i,
+    /fetch\s*\(|axios/i,
+    /api\/|\/api|endpoint|baseUrl/i,
+    /environment\.(api|baseUrl)/i,
+  ],
+  'user-data': [
+    /customer|user|profile|personal|email|phone|name|address/i,
+    /PII|sensitive|private|confidential/i,
+    /CustomerService|UserStore/i,
+  ],
+};
+
+/**
+ * Detect risk domains in a feature by scanning its content.
+ * Returns array of detected risk domains.
+ */
+const detectRiskDomains = (feature: FeatureScan): RiskDomain[] => {
+  const risks: Set<RiskDomain> = new Set();
+
+  // Collect all content from feature
+  let combinedContent = '';
+  for (const component of feature.componentFiles) {
+    const tsContent = safeRead(component.path);
+    if (tsContent) combinedContent += tsContent + '\n';
+    if (component.hasHtml) {
+      const htmlContent = safeRead(component.htmlPath);
+      if (htmlContent) combinedContent += htmlContent + '\n';
+    }
+  }
+  for (const htmlPath of feature.htmlFiles) {
+    const htmlContent = safeRead(htmlPath);
+    if (htmlContent) combinedContent += htmlContent + '\n';
+  }
+  for (const tsPath of feature.tsFiles) {
+    const tsContent = safeRead(tsPath);
+    if (tsContent) combinedContent += tsContent + '\n';
+  }
+
+  // Check each risk domain
+  for (const [domain, patterns] of Object.entries(RISK_DOMAIN_PATTERNS) as [
+    RiskDomain,
+    RegExp[]
+  ][]) {
+    const hasRisk = patterns.some((pattern) => pattern.test(combinedContent));
+    if (hasRisk) risks.add(domain);
+  }
+
+  return Array.from(risks);
+};
+
+/**
+ * Dynamically discover all features in the features directory.
+ * Returns DiscoveredFeature[] with full metadata including risk domains.
+ */
+const discoverFeatures = (featuresDir: string): DiscoveredFeature[] => {
+  if (!existsSync(featuresDir)) return [];
+
+  const featureNames = listDirs(featuresDir);
+  return featureNames.map((name) => {
+    const rootPath = join(featuresDir, name);
+    const componentFiles = collectComponentFiles(rootPath);
+    const allFiles = walkFiles(
+      rootPath,
+      ['.ts', '.html', '.scss', '.css'],
+      new Set(['node_modules', 'dist'])
+    );
+    const tests = allFiles.filter((f) => f.endsWith('.spec.ts'));
+    // Detect store IMPORTS instead of store FILES (features import from shared state)
+    const stores: string[] = [];
+    const tsFilesForStoreDetection = allFiles.filter(
+      (f) => f.endsWith('.ts') && !f.endsWith('.spec.ts')
+    );
+    for (const tsFile of tsFilesForStoreDetection) {
+      const content = safeRead(tsFile);
+      if (!content) continue;
+      // Match: import { BookingStore } from '...' or import { SomeStore, OtherStore }
+      const importMatches = content.match(
+        /import\s*\{[^}]*\b(\w+Store)\b[^}]*\}/g
+      );
+      if (importMatches) {
+        for (const match of importMatches) {
+          // Extract all *Store names from the import
+          const storeMatches = match.match(/\b(\w+Store)\b/g);
+          if (storeMatches) {
+            for (const storeName of storeMatches) {
+              if (!stores.includes(storeName)) {
+                stores.push(storeName);
+              }
+            }
+          }
+        }
+      }
+    }
+    const services = allFiles.filter((f) => /\.service\.ts$/i.test(f));
+
+    // Create a FeatureScan for risk detection
+    const featureScan: FeatureScan = {
+      name,
+      path: rootPath,
+      componentFiles,
+      htmlFiles: allFiles.filter((f) => f.endsWith('.html')),
+      tsFiles: allFiles.filter(
+        (f) => f.endsWith('.ts') && !f.endsWith('.spec.ts')
+      ),
+      specFiles: tests,
+      mdFiles: allFiles.filter((f) => f.endsWith('.md')),
+    };
+
+    const riskDomains = detectRiskDomains(featureScan);
+
+    return {
+      name,
+      rootPath,
+      files: allFiles,
+      components: componentFiles,
+      tests,
+      stores,
+      services,
+      riskDomains,
+    };
+  });
+};
+
+/**
+ * Collect enhanced Evidence Pack V2 with per-feature metrics.
+ * STRATEGY A: QUICK_WIN - All data is per-feature for granular analysis.
+ */
+const collectEvidencePackV2 = (
+  basePath: string,
+  discoveredFeatures: DiscoveredFeature[]
+): EvidencePackV2 => {
+  const evidence: EvidencePackV2 = {
+    todosByFeature: new Map(),
+    clickHandlersByFeature: new Map(),
+    testFilesByFeature: new Map(),
+    storeUsageByFeature: new Map(),
+    riskFlagsByFeature: new Map(),
+    recentGitChanges: [],
+    gitDataAvailable: false,
+    discoveredFeatures,
+  };
+
+  for (const feature of discoveredFeatures) {
+    // TODOs per feature
+    const todos: Array<{ path: string; line: number; text: string }> = [];
+    for (const file of feature.files) {
+      try {
+        const content = readFileSync(file, 'utf-8');
+        const lines = content.split('\n');
+        lines.forEach((line, idx) => {
+          if (/TODO|FIXME|HACK|XXX/.test(line)) {
+            todos.push({
+              path: file.replace(basePath + sep, '').replace(/\\/g, '/'),
+              line: idx + 1,
+              text: line.trim(),
+            });
+          }
+        });
+      } catch {
+        /* skip unreadable files */
+      }
+    }
+    evidence.todosByFeature.set(feature.name, todos);
+
+    // Click handlers count per feature
+    let handlerCount = 0;
+    for (const file of feature.files.filter((f) => f.endsWith('.html'))) {
+      try {
+        const content = readFileSync(file, 'utf-8');
+        const matches = content.match(/\(click\)="/g);
+        handlerCount += matches ? matches.length : 0;
+      } catch {
+        /* skip */
+      }
+    }
+    evidence.clickHandlersByFeature.set(feature.name, handlerCount);
+
+    // Test files per feature
+    evidence.testFilesByFeature.set(
+      feature.name,
+      feature.tests.map((t) =>
+        t.replace(basePath + sep, '').replace(/\\/g, '/')
+      )
+    );
+
+    // Store usage per feature
+    evidence.storeUsageByFeature.set(
+      feature.name,
+      feature.stores.map((s) => basename(s).replace('.store.ts', ''))
+    );
+
+    // Risk flags per feature
+    evidence.riskFlagsByFeature.set(feature.name, feature.riskDomains);
+  }
+
+  // Git changes with feature tagging
+  try {
+    const gitOutput = execSync(
+      'git log -n 20 --name-only --format=COMMIT:%h|%s',
+      {
+        cwd: basePath,
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }
+    ).trim();
+
+    evidence.gitDataAvailable = true;
+    let currentCommit: {
+      hash: string;
+      message: string;
+      files: string[];
+      features: string[];
+    } | null = null;
+
+    gitOutput.split('\n').forEach((line) => {
+      if (line.startsWith('COMMIT:')) {
+        if (currentCommit) evidence.recentGitChanges.push(currentCommit);
+        const parts = line.replace('COMMIT:', '').split('|');
+        currentCommit = {
+          hash: parts[0],
+          message: parts[1] || '',
+          files: [],
+          features: [],
+        };
+      } else if (line.trim() && currentCommit) {
+        currentCommit.files.push(line.trim());
+        // Tag which features were touched
+        for (const feature of discoveredFeatures) {
+          if (line.includes(`features/${feature.name}/`)) {
+            if (!currentCommit.features.includes(feature.name)) {
+              currentCommit.features.push(feature.name);
+            }
+          }
+        }
+      }
+    });
+    if (currentCommit) evidence.recentGitChanges.push(currentCommit);
+  } catch {
+    evidence.gitDataAvailable = false; // Mark UNKNOWN
+  }
+
+  return evidence;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VERIFICATION BEFORE IMPROVEMENT
+// Checks if improvements already exist via code search BEFORE proposing them.
+// Returns evidence of presence or absence.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ImprovementType =
+  | 'error-handling-transport'
+  | 'error-handling-ui'
+  | 'loading-state'
+  | 'empty-state'
+  | 'accessibility'
+  | 'tests'
+  | 'async-cleanup'
+  | 'form-validation'
+  | 'confirmation-dialogs';
+
+type VerificationResult = {
+  needed: boolean;
+  evidence: string;
+  existingPatterns: string[];
+  missingPatterns: string[];
+  searchedPatterns: Array<{
+    pattern: string;
+    description: string;
+    found: boolean;
+  }>;
+  searchedFiles: string;
+};
+
+const IMPROVEMENT_PATTERNS: Record<
+  ImprovementType,
+  { required: RegExp[]; descriptions: string[] }
+> = {
+  'error-handling-transport': {
+    required: [
+      /(catch\s*\(|\.catch\s*\(|catchError\s*\()/,
+      /(subscribe\s*\([^)]*error|\.pipe\s*\(\s*tap\s*\([^)]*error)/,
+    ],
+    descriptions: [
+      'Try-catch or catchError operator (transport layer)',
+      'Error handler in subscribe or tap operator',
+    ],
+  },
+  'error-handling-ui': {
+    required: [
+      /(\*ngIf\s*=\s*['"][^'"]*error|error\(\)|error\s*\?\s*\?|@if\s*\(error\(\)\))/,
+      /(role\s*=\s*['"]alert['"]|aria-live\s*=\s*['"]assertive['"])/,
+    ],
+    descriptions: [
+      'Error signal/state display (*ngIf or @if with error)',
+      'Error accessibility (role=alert or aria-live)',
+    ],
+  },
+  'loading-state': {
+    required: [
+      /(loading\(\)|isLoading\(\)|loading\s*=\s*signal)/,
+      /(@if\s*\(loading\(\)\)|ngIf\s*=\s*['"].*loading['"])/,
+      /(aria-busy\s*=|role\s*=\s*['"]status['"])/,
+    ],
+    descriptions: [
+      'Loading signal/state',
+      'Loading UI indicator',
+      'Loading accessibility (aria-busy or role=status)',
+    ],
+  },
+  'empty-state': {
+    required: [
+      /(\.\s*length\s*===?\s*0|isEmpty\(\)|empty-state)/,
+      /(\*ngIf\s*=\s*['"][^'"]*\.length\s*===?\s*0|@if\s*\([^)]*\.length\s*===?\s*0\)|@empty)/,
+    ],
+    descriptions: [
+      'Empty check logic',
+      'Empty state UI display (*ngIf or @if/@empty)',
+    ],
+  },
+  accessibility: {
+    required: [
+      /(aria-label|aria-labelledby|aria-describedby)/,
+      /role\s*=\s*['"](button|navigation|main|region|dialog|alert)['"]/,
+      /(<label\s|for\s*=\s*['"]|id\s*=\s*['"])/,
+    ],
+    descriptions: [
+      'ARIA labels',
+      'Semantic roles',
+      'Form labels and associations',
+    ],
+  },
+  tests: {
+    required: [
+      /(describe\s*\(|it\s*\(|test\s*\()/,
+      /(expect\s*\(|toBe|toEqual|toHaveBeenCalled)/,
+    ],
+    descriptions: ['Test suites (describe/it/test)', 'Assertions (expect)'],
+  },
+  'async-cleanup': {
+    required: [
+      /(takeUntilDestroyed|ngOnDestroy|unsubscribe)/,
+      /(DestroyRef|destroyRef)/,
+    ],
+    descriptions: [
+      'Subscription cleanup (takeUntilDestroyed/unsubscribe)',
+      'DestroyRef injection',
+    ],
+  },
+  'form-validation': {
+    required: [
+      /(Validators\.|required|minLength|maxLength|pattern)/,
+      /(formControl|ngModel|FormGroup|FormBuilder)/,
+      /(\.\s*invalid|\.\s*valid|\.\s*errors)/,
+    ],
+    descriptions: [
+      'Validation rules',
+      'Form control binding',
+      'Validation state checks',
+    ],
+  },
+  'confirmation-dialogs': {
+    required: [
+      /(confirm\(|ConfirmDialog|confirmation-dialog|MatDialog)/,
+      /(window\.confirm|modal|dialog)/i,
+    ],
+    descriptions: [
+      'Confirmation dialog usage',
+      'Modal/dialog for destructive actions',
+    ],
+  },
+};
+
+// Define which files to search for each improvement type (VERIFICATION SCOPE RULE)
+const IMPROVEMENT_SCOPE: Record<
+  ImprovementType,
+  'html-ts' | 'spec-only' | 'ts-service-store' | 'html-ts-all'
+> = {
+  'error-handling-transport': 'ts-service-store', // Search in .ts, .service.ts, .store.ts
+  'error-handling-ui': 'html-ts', // Search in .html and .ts
+  'loading-state': 'html-ts', // Search in .html and .ts
+  'empty-state': 'html-ts', // Search in .html and .ts
+  accessibility: 'html-ts', // Search in .html and .ts
+  tests: 'spec-only', // Search only in .spec.ts
+  'async-cleanup': 'ts-service-store', // Search in .ts, .service.ts, .store.ts
+  'form-validation': 'html-ts', // Search in .html and .ts
+  'confirmation-dialogs': 'html-ts-all', // Search in .html, .ts (all content)
+};
+
+const verifyImprovementNeeded = (
+  feature: FeatureScan,
+  type: ImprovementType
+): VerificationResult => {
+  const patterns = IMPROVEMENT_PATTERNS[type];
+  if (!patterns) {
+    return {
+      needed: false,
+      evidence: `Unknown improvement type: ${type}`,
+      existingPatterns: [],
+      missingPatterns: [],
+      searchedPatterns: [],
+    };
+  }
+
+  // Collect content based on verification scope (VERIFICATION SCOPE RULE)
+  const scope = IMPROVEMENT_SCOPE[type];
+  let combinedContent = '';
+  let searchedFiles = '';
+
+  if (scope === 'html-ts') {
+    // Search in .html and .ts component files
+    for (const comp of feature.componentFiles) {
+      combinedContent += comp.htmlContent + '\n';
+      combinedContent += comp.tsContent + '\n';
+    }
+    searchedFiles =
+      '<FEATURE_ROOT>/**/*.component.html, <FEATURE_ROOT>/**/*.component.ts';
+  } else if (scope === 'spec-only') {
+    // Search only in .spec.ts files
+    for (const specFile of feature.specFiles) {
+      const specContent = safeRead(specFile);
+      if (specContent) combinedContent += specContent + '\n';
+    }
+    searchedFiles = '<FEATURE_ROOT>/**/*.spec.ts';
+  } else if (scope === 'ts-service-store') {
+    // Search in .component.ts, .service.ts, and .store.ts
+    for (const comp of feature.componentFiles) {
+      combinedContent += comp.tsContent + '\n';
+    }
+    for (const tsFile of feature.tsFiles) {
+      const tsContent = safeRead(tsFile);
+      if (tsContent) combinedContent += tsContent + '\n';
+    }
+    searchedFiles =
+      '<FEATURE_ROOT>/**/*.component.ts, <FEATURE_ROOT>/**/*.service.ts, <FEATURE_ROOT>/**/*.store.ts';
+  } else if (scope === 'html-ts-all') {
+    // Search in all component files
+    for (const comp of feature.componentFiles) {
+      combinedContent += comp.tsContent + '\n';
+      combinedContent += comp.htmlContent + '\n';
+      combinedContent += comp.scssContent + '\n';
+    }
+    searchedFiles =
+      '<FEATURE_ROOT>/**/*.component.ts, <FEATURE_ROOT>/**/*.component.html';
+  }
+
+  const existingPatterns: string[] = [];
+  const missingPatterns: string[] = [];
+  const searchedPatterns: Array<{
+    pattern: string;
+    description: string;
+    found: boolean;
+  }> = [];
+
+  // Check each required pattern
+  patterns.required.forEach((pattern, index) => {
+    const description = patterns.descriptions[index] || pattern.toString();
+    const found = pattern.test(combinedContent);
+    // Store the pattern as string for evidence output
+    searchedPatterns.push({
+      pattern: pattern.toString(),
+      description,
+      found,
+    });
+    if (found) {
+      existingPatterns.push(description);
+    } else {
+      missingPatterns.push(description);
+    }
+  });
+
+  // Determine if improvement is needed
+  const needed = missingPatterns.length > 0;
+  const total = patterns.required.length;
+  const existing = existingPatterns.length;
+
+  let evidence: string;
+  if (!needed) {
+    evidence = `✅ All ${total} ${type} patterns found in ${searchedFiles}`;
+  } else if (existing === 0) {
+    evidence = `❌ No ${type} patterns found in ${searchedFiles}. Missing: ${missingPatterns.join(
+      ', '
+    )}`;
+  } else {
+    evidence = `⚠️ Partial ${type} coverage (${existing}/${total}) in ${searchedFiles}. Has: ${existingPatterns.join(
+      ', '
+    )}. Missing: ${missingPatterns.join(', ')}`;
+  }
+
+  return {
+    needed,
+    evidence,
+    existingPatterns,
+    missingPatterns,
+    searchedPatterns,
+    searchedFiles,
+  };
+};
+
+// Verify all improvement types for a feature and return summary
+const verifyAllImprovements = (
+  feature: FeatureScan
+): Record<ImprovementType, VerificationResult> => {
+  const results: Record<ImprovementType, VerificationResult> = {} as Record<
+    ImprovementType,
+    VerificationResult
+  >;
+
+  const types: ImprovementType[] = [
+    'error-handling-transport',
+    'error-handling-ui',
+    'loading-state',
+    'empty-state',
+    'accessibility',
+    'tests',
+    'async-cleanup',
+    'form-validation',
+    'confirmation-dialogs',
+  ];
+
+  for (const type of types) {
+    results[type] = verifyImprovementNeeded(feature, type);
+  }
+
+  return results;
 };
 
 const countLines = (text: string): number => {
@@ -1266,40 +1910,66 @@ const getValidationResults = (
 
 const scanProjectState = (): ProjectScan => {
   const basePath = process.cwd();
+  const featuresDir = join(basePath, 'apps/manager-dashboard/src/app/features');
+
+  // SCALABLE: Dynamically discover all features and generate paths
+  const discoveredFeatures = discoverFeatures(featuresDir);
+  const featurePaths: Record<
+    string,
+    { dir: string; mainTs: string; mainHtml: string }
+  > = {};
+  for (const feature of discoveredFeatures) {
+    featurePaths[feature.name] = {
+      dir: feature.rootPath,
+      mainTs: join(feature.rootPath, `${feature.name}.component.ts`),
+      mainHtml: join(feature.rootPath, `${feature.name}.component.html`),
+    };
+  }
+
   const paths = {
-    featuresDir: join(basePath, 'apps/manager-dashboard/src/app/features'),
+    featuresDir,
     sharedComponentsDir: join(
       basePath,
       'apps/manager-dashboard/src/app/shared/components'
     ),
-    bookingCalendarDir: join(
-      basePath,
-      'apps/manager-dashboard/src/app/features/booking-calendar'
-    ),
-    bookingListDir: join(
-      basePath,
-      'apps/manager-dashboard/src/app/features/booking-list'
-    ),
-    bookingPreviewDir: join(
-      basePath,
-      'apps/manager-dashboard/src/app/features/booking-preview'
-    ),
-    bookingCalendarHtml: join(
-      basePath,
-      'apps/manager-dashboard/src/app/features/booking-calendar/booking-calendar.component.html'
-    ),
-    bookingCalendarTs: join(
-      basePath,
-      'apps/manager-dashboard/src/app/features/booking-calendar/booking-calendar.component.ts'
-    ),
-    bookingListTs: join(
-      basePath,
-      'apps/manager-dashboard/src/app/features/booking-list/booking-list.component.ts'
-    ),
-    bookingPreviewTs: join(
-      basePath,
-      'apps/manager-dashboard/src/app/features/booking-preview/booking-preview.component.ts'
-    ),
+    // LEGACY: Keep hardcoded paths for backwards compatibility
+    bookingCalendarDir:
+      featurePaths['booking-calendar']?.dir ??
+      join(
+        basePath,
+        'apps/manager-dashboard/src/app/features/booking-calendar'
+      ),
+    bookingListDir:
+      featurePaths['booking-list']?.dir ??
+      join(basePath, 'apps/manager-dashboard/src/app/features/booking-list'),
+    bookingPreviewDir:
+      featurePaths['booking-preview']?.dir ??
+      join(basePath, 'apps/manager-dashboard/src/app/features/booking-preview'),
+    // LEGACY: Use dynamic paths when available
+    bookingCalendarHtml:
+      featurePaths['booking-calendar']?.mainHtml ??
+      join(
+        basePath,
+        'apps/manager-dashboard/src/app/features/booking-calendar/booking-calendar.component.html'
+      ),
+    bookingCalendarTs:
+      featurePaths['booking-calendar']?.mainTs ??
+      join(
+        basePath,
+        'apps/manager-dashboard/src/app/features/booking-calendar/booking-calendar.component.ts'
+      ),
+    bookingListTs:
+      featurePaths['booking-list']?.mainTs ??
+      join(
+        basePath,
+        'apps/manager-dashboard/src/app/features/booking-list/booking-list.component.ts'
+      ),
+    bookingPreviewTs:
+      featurePaths['booking-preview']?.mainTs ??
+      join(
+        basePath,
+        'apps/manager-dashboard/src/app/features/booking-preview/booking-preview.component.ts'
+      ),
     bookingStore: join(
       basePath,
       'apps/manager-dashboard/src/app/state/bookings/booking.store.ts'
@@ -1461,6 +2131,7 @@ const scanProjectState = (): ProjectScan => {
     markPaid: calendarTs.includes('markPaid('),
   };
 
+  // LEGACY: Keep hardcoded testSignals for backwards compatibility
   const testSignals = {
     bookingCalendar: {
       path: specPathFor(paths.bookingCalendarTs),
@@ -1487,6 +2158,23 @@ const scanProjectState = (): ProjectScan => {
       exists: existsSync(specPathFor(paths.cancellationFormComponent)),
     },
   };
+
+  // SCALABLE: Dynamic test signals for all discovered features
+  const featureTestSignals: Record<
+    string,
+    { path: string; exists: boolean; testCount: number }
+  > = {};
+  for (const feature of discoveredFeatures) {
+    const mainTsPath = featurePaths[feature.name]?.mainTs;
+    if (mainTsPath) {
+      const specPath = specPathFor(mainTsPath);
+      featureTestSignals[feature.name] = {
+        path: specPath,
+        exists: existsSync(specPath),
+        testCount: feature.tests.length,
+      };
+    }
+  }
 
   return {
     basePath,
@@ -1529,6 +2217,10 @@ const scanProjectState = (): ProjectScan => {
     },
     calendarComponents,
     testSignals,
+    // SCALABLE: Dynamic feature data
+    discoveredFeatures,
+    featurePaths,
+    featureTestSignals,
     qualitySignals: {
       bookingCalendarTsLines: countLines(calendarTs),
       bookingCalendarHtmlLines: countLines(calendarHtml),
@@ -1814,10 +2506,9 @@ const buildIntegrationGaps = (scan: ProjectScan): string[] => {
     );
   }
 
-  const featureNames = ['booking-calendar', 'booking-list', 'booking-preview'];
-  for (const featureName of featureNames) {
-    const feature = scan.featureIndex[featureName];
-    if (!feature) continue;
+  // SCALABLE: Iterate over ALL dynamically discovered features
+  for (const feature of scan.featureScans) {
+    const featureName = feature.name;
 
     const content = collectFeatureContent(feature);
     const combined = content.combined;
@@ -2005,97 +2696,6 @@ const buildMissingItems = (scan: ProjectScan): string[] => {
   }
 
   return missing;
-};
-
-const buildActionPanelTasks = (scan: ProjectScan): string[] => {
-  const tasks: string[] = [];
-  const gaps = buildIntegrationGaps(scan);
-  const structuralGaps = buildStructuralGaps(scan);
-  const architectureNotes = buildArchitectureNotes(scan);
-  const testGaps = buildTestGaps(scan);
-  const qualityNotes = buildQualityNotes(scan);
-  const hasWiringGaps = gaps.length > 0 || structuralGaps.length > 0;
-
-  if (hasWiringGaps) {
-    tasks.push(...gaps, ...structuralGaps);
-  }
-
-  if (
-    scan.calendar.actions.confirm ||
-    scan.calendar.actions.cancel ||
-    scan.calendar.actions.markPaid
-  ) {
-    tasks.push(
-      hasWiringGaps
-        ? 'Validate dialog flows, cancellation reason handling, and hold timer behavior, and add tests.'
-        : 'No wiring gaps detected. Validate dialog flows, cancellation reason handling, and hold timer behavior, and add tests.'
-    );
-    if (architectureNotes.length > 0) {
-      tasks.push(...architectureNotes);
-    }
-    if (testGaps.length > 0) {
-      tasks.push(...testGaps);
-    }
-    if (qualityNotes.length > 0) {
-      tasks.push(...qualityNotes);
-    }
-  } else if (tasks.length === 0) {
-    tasks.push(
-      'Action panel actions not detected; build or expose calendar action handling first.'
-    );
-  }
-
-  return tasks;
-};
-
-const isActionPanelFeature = (featureName: string): boolean => {
-  const lower = featureName.toLowerCase();
-  return lower.includes('action panel') || lower.includes('calendar');
-};
-
-const buildGeneralTasks = (scan: ProjectScan): string[] => {
-  const tasks: string[] = [];
-  const structuralGaps = buildStructuralGaps(scan);
-  const testGaps = buildTestGaps(scan);
-  const qualityNotes = buildQualityNotes(scan);
-
-  if (structuralGaps.length > 0) {
-    tasks.push(...structuralGaps);
-  }
-  if (testGaps.length > 0) {
-    tasks.push(...testGaps);
-  }
-  if (qualityNotes.length > 0) {
-    tasks.push(...qualityNotes);
-  }
-
-  if (scan.dependencyScan.unused.length > 0) {
-    const unusedSample = scan.dependencyScan.unused.slice(0, 8).join(', ');
-    tasks.push(
-      `Remove unused dependencies (heuristic scan): ${
-        unusedSample || 'see report'
-      }.`
-    );
-  }
-  if (scan.dependencyScan.missing.length > 0) {
-    const missingSample = scan.dependencyScan.missing.slice(0, 8).join(', ');
-    tasks.push(
-      `Add missing dependencies for non-workspace imports: ${
-        missingSample || 'see report'
-      }.`
-    );
-  }
-  if (scan.securityFindings.length > 0) {
-    tasks.push('Review security-sensitive patterns and confirm they are safe.');
-  }
-
-  if (tasks.length === 0) {
-    tasks.push(
-      'No scan gaps detected. Identify the next product feature based on roadmap.'
-    );
-  }
-
-  return tasks;
 };
 
 const clampScore = (value: number, min = 0, max = 100): number =>
@@ -3198,12 +3798,268 @@ const analyzeTechnicalHealth = (scan: ProjectScan): TechnicalHealthReport => {
   };
 };
 
+// =============================================================================
+// AI RUBRIC SCORING FUNCTIONS (Technical Evidence-Based)
+// =============================================================================
+
+/**
+ * Generate candidate features from technical evidence when business config is missing.
+ * Uses completeness scores, technical health, and feature scans to identify candidates.
+ */
+const generateCandidatesFromTechnicalEvidence = (
+  scan: ProjectScan,
+  completenessScores: FeatureCompletenessScore[],
+  technicalHealth: TechnicalHealthReport
+): string[] => {
+  const candidates = new Set<string>();
+
+  // Source 1: Features from scan
+  scan.features.forEach((f) => candidates.add(f));
+
+  // Source 2: Features with completeness scores
+  completenessScores.forEach((cs) => candidates.add(cs.feature));
+
+  // Source 3: Features from feature scans
+  scan.featureScans?.forEach((fs) => candidates.add(fs.name));
+
+  // Source 4: Features mentioned in integration gaps
+  technicalHealth.integrationGaps.forEach((gap) => {
+    const match = gap.match(/^(\w+[-\w]*)/);
+    if (match) candidates.add(match[1]);
+  });
+
+  return Array.from(candidates).filter((f) => f && f.length > 0);
+};
+
+// AI Rubric Helper Functions (STRATEGY A: QUICK WIN)
+// Pre-launch strategy: Prioritize nearly-complete features for fastest path to shippable baseline
+// All dimensions reward COMPLETENESS - higher scores mean "closer to shipping"
+// Each function returns a score from 1-5 with decimal precision for differentiation
+
+const calculateUserImpactScore = (
+  completeness: FeatureCompletenessScore | undefined,
+  technicalHealth: TechnicalHealthReport
+): number => {
+  if (!completeness) return 3;
+
+  // STRATEGY A: QUICK WIN - Reward features that can deliver user value NOW
+  // Higher implementation/accessibility = can ship to users sooner = higher score
+  const implementationRatio = completeness.implementation.score / 25;
+  const accessibilityRatio = completeness.accessibility.score / 25;
+
+  // Base score of 1, scale up based on completeness (max 5)
+  let score = 1 + implementationRatio * 2 + accessibilityRatio * 2;
+
+  // Penalty for integration issues (blocks shipping)
+  if (technicalHealth.integrationGaps.length > 5) score -= 0.5;
+  else if (technicalHealth.integrationGaps.length > 2) score -= 0.25;
+
+  // Bonus for features with excellent accessibility (ready for all users)
+  if (completeness.accessibility.score >= 23) score += 0.3;
+
+  return Math.min(5, Math.max(1, Math.round(score * 10) / 10));
+};
+
+const calculateRiskReductionScore = (
+  completeness: FeatureCompletenessScore | undefined,
+  technicalHealth: TechnicalHealthReport
+): number => {
+  if (!completeness) return 3;
+
+  // STRATEGY A: QUICK WIN - Reward features that are LOW RISK to ship
+  // Higher test coverage/quality = safer to deploy = higher score
+  const testRatio = completeness.testCoverage.score / 25;
+  const qualityRatio = completeness.codeQuality.score / 25;
+
+  // Base score of 1, scale up based on stability (max 5)
+  let score = 1 + testRatio * 2 + qualityRatio * 2;
+
+  // Penalty for security issues (risky to ship)
+  if (technicalHealth.securityNotes.length > 2) score -= 0.5;
+  else if (technicalHealth.securityNotes.length > 0) score -= 0.25;
+
+  // Penalty for technical debt (maintenance risk)
+  if (technicalHealth.debtItems.length > 5) score -= 0.4;
+  else if (technicalHealth.debtItems.length > 2) score -= 0.2;
+
+  // Bonus for excellent test coverage (confident shipping)
+  if (completeness.testCoverage.score >= 23) score += 0.3;
+
+  return Math.min(5, Math.max(1, Math.round(score * 10) / 10));
+};
+
+const estimateEffortRubricScore = (
+  completeness: FeatureCompletenessScore | undefined
+): number => {
+  if (!completeness) return 3;
+
+  // FINE-GRAINED: Use continuous scoring based on exact completeness
+  // Higher completeness = less effort = higher score
+  // Scale: 0-100 completeness maps to 1-5 score (linear interpolation)
+  const score = 1 + (completeness.total / 100) * 4;
+
+  return Math.round(score * 10) / 10; // Round to 1 decimal place
+};
+
+const calculateArchitecturalLeverageScore = (
+  feature: string,
+  scan: ProjectScan
+): number => {
+  let score = 2.5; // Start at mid-low
+
+  const featureScan = scan.featureScans?.find((f) => f.name === feature);
+  if (!featureScan) return score;
+
+  // Component complexity adds leverage (more components = more integration value)
+  const componentCount = featureScan.componentFiles.length;
+  if (componentCount >= 5) score += 1.0;
+  else if (componentCount >= 3) score += 0.6;
+  else if (componentCount >= 2) score += 0.3;
+
+  // Test presence adds leverage (testable = maintainable)
+  const specCount = featureScan.specFiles.length;
+  if (specCount >= 3) score += 0.8;
+  else if (specCount >= 2) score += 0.5;
+  else if (specCount >= 1) score += 0.3;
+
+  // HTML files indicate UI surface area
+  const htmlCount = featureScan.htmlFiles.length;
+  if (htmlCount >= 3) score += 0.4;
+  else if (htmlCount >= 1) score += 0.2;
+
+  // Cross-feature dependencies increase leverage
+  const sharedComponents = scan.sharedComponents.filter((sc) =>
+    featureScan.componentFiles.some((cf) => cf.path.includes(sc))
+  );
+  if (sharedComponents.length > 0) score += 0.3;
+
+  return Math.min(5, Math.max(1, Math.round(score * 10) / 10));
+};
+
+const estimateTimeToValueScore = (
+  completeness: FeatureCompletenessScore | undefined
+): number => {
+  if (!completeness) return 3;
+
+  // FINE-GRAINED: Higher completeness = faster time to value
+  // Use quadratic curve - features near completion are much faster
+  const completionRatio = completeness.total / 100;
+  // Quadratic: emphasizes high-completion features
+  const score = 1 + completionRatio * completionRatio * 4;
+
+  return Math.min(5, Math.max(1, Math.round(score * 10) / 10));
+};
+
+const estimateEffortHoursFromCompleteness = (
+  completeness: FeatureCompletenessScore | undefined
+): number => {
+  if (!completeness) return 24; // Default estimate
+  const remaining = 100 - completeness.total;
+  return Math.max(4, Math.ceil(remaining * 0.5));
+};
+
+/**
+ * Generate recommendation entry using only technical evidence.
+ * Used when business config is missing.
+ */
+const generateTechnicalRecommendation = (
+  feature: string,
+  completeness: FeatureCompletenessScore | undefined,
+  scan: ProjectScan,
+  technicalHealth: TechnicalHealthReport
+): RecommendationEntry => {
+  const completenessScore = completeness?.total ?? 0;
+
+  // AI Rubric Scoring (1-5 scale each, max 25 points)
+  const userImpact = calculateUserImpactScore(completeness, technicalHealth);
+  const riskReduction = calculateRiskReductionScore(
+    completeness,
+    technicalHealth
+  );
+  const effortScore = estimateEffortRubricScore(completeness);
+  const architecturalLeverage = calculateArchitecturalLeverageScore(
+    feature,
+    scan
+  );
+  const timeToValue = estimateTimeToValueScore(completeness);
+
+  const rubricTotal =
+    Math.round(
+      (userImpact +
+        riskReduction +
+        effortScore +
+        architecturalLeverage +
+        timeToValue) *
+        10
+    ) / 10;
+
+  // Determine category based on completeness
+  const category = 'feature' as const;
+  const subCategory = (completenessScore < 50 ? 'new' : 'polish') as const;
+
+  // Build rationale from technical evidence
+  const rationale: string[] = [];
+  rationale.push(
+    `AI Rubric Score: ${rubricTotal}/25 (User Impact: ${userImpact}, Risk Reduction: ${riskReduction}, Effort: ${effortScore}, Arch Leverage: ${architecturalLeverage}, Time-to-Value: ${timeToValue})`
+  );
+
+  if (completeness) {
+    if (completeness.testCoverage.score < 15) {
+      rationale.push(
+        `Low test coverage (${completeness.testCoverage.score}/25) - high risk reduction potential`
+      );
+    }
+    if (completeness.accessibility.score < 15) {
+      rationale.push(
+        `Accessibility gaps (${completeness.accessibility.score}/25) - user impact improvement needed`
+      );
+    }
+    if (completeness.implementation.score < 15) {
+      rationale.push(
+        `Implementation incomplete (${completeness.implementation.score}/25) - core functionality needed`
+      );
+    }
+    if (completeness.codeQuality.score < 15) {
+      rationale.push(
+        `Code quality issues (${completeness.codeQuality.score}/25) - technical debt`
+      );
+    }
+  }
+
+  if (technicalHealth.debtItems.length > 0) {
+    rationale.push(
+      `${technicalHealth.debtItems.length} technical debt item(s) identified`
+    );
+  }
+
+  return {
+    feature,
+    category,
+    subCategory,
+    score: rubricTotal * 4, // Normalize to 0-100 (max 25*4=100)
+    completenessScore,
+    userImpact: rubricTotal / 5,
+    businessValue: null, // UNKNOWN - no business config available
+    strategicAlignment: null, // UNKNOWN - no business config available
+    technicalBlocking: rubricTotal / 5,
+    effortHours: estimateEffortHoursFromCompleteness(completeness),
+    effortConfidence: 'LOW' as ConfidenceLevel,
+    effortSource: 'Technical evidence only - no business config',
+    rationale,
+  };
+};
+
+// =============================================================================
+// END AI RUBRIC SCORING FUNCTIONS
+// =============================================================================
+
 const buildRecommendationScores = (
   scan: ProjectScan,
   completenessScores: FeatureCompletenessScore[],
   businessScores: BusinessValueScore[],
   dependencyAnalysis: DependencyAnalysis,
-  weights: RecommendationWeights
+  weights: RecommendationWeights,
+  technicalHealth: TechnicalHealthReport
 ): RecommendationEntry[] => {
   const completenessMap = new Map(
     completenessScores.map((score) => [score.feature, score])
@@ -3212,12 +4068,33 @@ const buildRecommendationScores = (
     businessScores.map((score) => [score.feature, score])
   );
 
-  const candidateFeatures = Array.from(businessMap.keys());
+  // Get candidates from business config OR fallback to technical evidence
+  let candidateFeatures = Array.from(businessMap.keys());
+
+  // FALLBACK: Use technical evidence when no business config
+  if (candidateFeatures.length === 0) {
+    candidateFeatures = generateCandidatesFromTechnicalEvidence(
+      scan,
+      completenessScores,
+      technicalHealth
+    );
+  }
 
   return candidateFeatures.flatMap((feature) => {
     const completeness = completenessMap.get(feature);
     const business = businessMap.get(feature);
-    if (!business) return [];
+
+    // AI RUBRIC SCORING: Generate recommendation from technical evidence when no business config
+    if (!business) {
+      return [
+        generateTechnicalRecommendation(
+          feature,
+          completeness,
+          scan,
+          technicalHealth
+        ),
+      ];
+    }
     const completenessScore = completeness?.total ?? 0;
     const userImpact = business.userValue;
     const businessValue = business.businessImpact;
@@ -3352,6 +4229,161 @@ const buildRecommendationScores = (
   });
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PATTERN-BASED RULES (SCALABLE)
+// Dynamically applied based on feature characteristics - not hardcoded paths
+// ─────────────────────────────────────────────────────────────────────────────
+
+type PatternRule = {
+  name: string;
+  condition: (f: FeatureScan, df?: DiscoveredFeature) => boolean;
+  rules: string[];
+  acceptanceCriteria: string[];
+};
+
+const PATTERN_BASED_RULES: PatternRule[] = [
+  {
+    name: 'component',
+    condition: (f) => f.componentFiles.length > 0,
+    rules: [
+      'Enforce UI state contract: loading → data/empty → error states',
+      'Ensure idempotent user actions (prevent double-submit)',
+      'Add proper async feedback for all user interactions',
+    ],
+    acceptanceCriteria: [
+      '[ ] All async operations show loading feedback',
+      '[ ] Submit buttons disabled during pending operations',
+      '[ ] Empty states display when no data exists',
+    ],
+  },
+  {
+    name: 'dialogs',
+    condition: (f) => {
+      const combined = f.componentFiles
+        .map((c) => c.htmlContent + c.tsContent)
+        .join('');
+      return /dialog|modal|MatDialog|ConfirmDialog/i.test(combined);
+    },
+    rules: [
+      'Enforce accessibility: focus trapping, aria-labels, role=dialog',
+      'Safe submit behavior: prevent double-submit, disable during action',
+      'Handle Escape key to close dialog',
+    ],
+    acceptanceCriteria: [
+      '[ ] Dialog traps focus when open',
+      '[ ] Escape key closes dialog',
+      '[ ] Submit button disabled during action',
+    ],
+  },
+  {
+    name: 'timers',
+    condition: (f, df) =>
+      df?.riskDomains?.includes('timers') ||
+      f.componentFiles.some((c) =>
+        /timer|timeout|countdown|interval/i.test(c.tsContent)
+      ),
+    rules: [
+      'Enforce cleanup on destroy: use takeUntilDestroyed or ngOnDestroy',
+      'Deterministic behavior: no race conditions between timers',
+      'Clear timers before starting new ones',
+    ],
+    acceptanceCriteria: [
+      '[ ] All subscriptions use takeUntilDestroyed or are cleaned up',
+      '[ ] No memory leaks from timers on component destroy',
+    ],
+  },
+  {
+    name: 'stores',
+    condition: (f, df) => {
+      // Check if discovered feature has stores or if tsFiles contain store patterns
+      const hasStoreFiles = (df?.stores?.length ?? 0) > 0;
+      const hasStorePatterns = f.tsFiles.some((file) =>
+        /\.store\.ts$/i.test(file)
+      );
+      return hasStoreFiles || hasStorePatterns;
+    },
+    rules: [
+      'Single source of truth: no duplicate state management',
+      'Refresh data after mutations (optimistic UI with rollback)',
+      'Handle concurrent updates gracefully',
+    ],
+    acceptanceCriteria: [
+      '[ ] Store is single source of truth for this data',
+      '[ ] Data refreshed after successful mutations',
+      '[ ] Optimistic updates roll back on failure',
+    ],
+  },
+  {
+    name: 'forms',
+    condition: (f) =>
+      f.componentFiles.some((c) =>
+        /formControl|ngModel|FormGroup|FormBuilder/i.test(c.tsContent)
+      ),
+    rules: [
+      'Add validation for all form inputs (required, patterns)',
+      'Show validation errors inline and accessibly',
+      'Disable submit until form is valid',
+    ],
+    acceptanceCriteria: [
+      '[ ] All required fields have validation',
+      '[ ] Error messages displayed accessibly (aria-live or aria-describedby)',
+      '[ ] Submit disabled for invalid forms',
+    ],
+  },
+  {
+    name: 'payments',
+    condition: (f, df) => df?.riskDomains?.includes('payments') ?? false,
+    rules: [
+      'CRITICAL: Validate all amounts server-side',
+      'Show clear pricing breakdown before confirmation',
+      'Log all payment operations for audit trail',
+    ],
+    acceptanceCriteria: [
+      '[ ] Amounts validated server-side (no client-only validation)',
+      '[ ] User sees clear total before confirming',
+      '[ ] Payment operations logged with timestamps',
+    ],
+  },
+  {
+    name: 'cancellation',
+    condition: (f, df) => df?.riskDomains?.includes('cancellation') ?? false,
+    rules: [
+      'Require confirmation for all cancellation actions',
+      'Capture cancellation reason (required)',
+      'Show cancellation policy before action',
+    ],
+    acceptanceCriteria: [
+      '[ ] Confirmation dialog before cancellation',
+      '[ ] Cancellation reason is required and validated',
+      '[ ] Policy displayed before action',
+    ],
+  },
+  {
+    name: 'tests',
+    condition: (f) => f.specFiles.length > 0,
+    rules: [
+      'Test loading, empty, error, and happy path states',
+      'Include at least one edge case test',
+      'Mock external dependencies for unit tests',
+    ],
+    acceptanceCriteria: [
+      '[ ] Tests cover happy path',
+      '[ ] Tests cover error handling',
+      '[ ] Tests cover edge cases',
+    ],
+  },
+];
+
+const getApplicablePatternRules = (
+  featureScan: FeatureScan | undefined,
+  discoveredFeature: DiscoveredFeature | undefined
+): PatternRule[] => {
+  if (!featureScan) return [];
+  return PATTERN_BASED_RULES.filter((rule) =>
+    rule.condition(featureScan, discoveredFeature)
+  );
+};
+
 const buildImplementationPrompt = (
   featureName: string,
   scan: ProjectScan,
@@ -3362,20 +4394,43 @@ const buildImplementationPrompt = (
   );
   const feature = scan.featureIndex[featureName];
   const completeness = completenessMap.get(featureName);
+  const featureScan = scan.featureScans?.find((f) => f.name === featureName);
   const exists = Boolean(feature);
-  const integrationTasks = isActionPanelFeature(featureName)
-    ? buildActionPanelTasks(scan)
-    : buildGeneralTasks(scan);
+
+  // VERIFICATION BEFORE IMPROVEMENT: Check what actually needs work
+  const verificationResults = featureScan
+    ? verifyAllImprovements(featureScan)
+    : null;
+
+  // Build concrete file list for this feature (convert to relative paths)
+  const featureFiles: string[] = [];
+  if (featureScan) {
+    const toRelative = (p: string) =>
+      relative(scan.basePath, p).replace(/\\/g, '/');
+    // componentFiles are objects with .path property
+    featureScan.componentFiles.forEach(
+      (f) => f?.path && featureFiles.push(toRelative(f.path))
+    );
+    // specFiles and htmlFiles are already string arrays (direct paths)
+    featureScan.specFiles.forEach((f) => f && featureFiles.push(toRelative(f)));
+    featureScan.htmlFiles.forEach((f) => f && featureFiles.push(toRelative(f)));
+  }
 
   const designRules: string[] = [];
   if (scan.docs.designSystem) {
-    designRules.push(
-      `Use Desert Night tokens from \`${scan.paths.designSystemDoc}\`.`
-    );
+    const designDocRelative = relative(
+      scan.basePath,
+      scan.paths.designSystemDoc
+    ).replace(/\\/g, '/');
+    designRules.push(`Use Desert Night tokens from \`${designDocRelative}\`.`);
   }
   if (scan.docs.architecture) {
+    const archDocRelative = relative(
+      scan.basePath,
+      scan.paths.architectureDoc
+    ).replace(/\\/g, '/');
     designRules.push(
-      `Follow CSS logical properties guidance in \`${scan.paths.architectureDoc}\`.`
+      `Follow CSS logical properties guidance in \`${archDocRelative}\`.`
     );
   }
   if (designRules.length === 0) {
@@ -3384,7 +4439,9 @@ const buildImplementationPrompt = (
 
   const storeRules: string[] = [];
   if (scan.store.exists) {
-    storeRules.push(`Extend BookingStore at ${scan.paths.bookingStore}.`);
+    storeRules.push(
+      `Extend BookingStore pattern at \`apps/**/state/**/*.store.ts\` (located via imports, not concrete paths).`
+    );
   }
   if (scan.store.usesSignals) {
     storeRules.push(
@@ -3392,7 +4449,10 @@ const buildImplementationPrompt = (
     );
   }
 
+  // CONCRETE IMPLEMENTATION STEPS based on completeness gaps
   const steps: string[] = [];
+  const acceptanceCriteria: string[] = [];
+
   if (!exists) {
     const featureSlug = featureName
       .toLowerCase()
@@ -3400,59 +4460,267 @@ const buildImplementationPrompt = (
       .replace(/^-|-$/g, '');
     steps.push(`Define the full user flows for ${featureName}.`);
     steps.push(
-      `Create a new feature folder under apps/manager-dashboard/src/app/features/${featureSlug}.`
+      `Create a new feature folder under <FEATURES_ROOT>/${featureSlug}.`
     );
     steps.push('Add routes and navigation entry for the new feature.');
     steps.push(
       'Build the core UI and wire data via BookingStore or API services.'
     );
-  } else {
-    steps.push('Address the scan-based gaps and missing flows.');
+  } else if (completeness) {
+    // CONCRETE STEPS based on actual gaps (threshold < 23 to catch non-excellent scores)
+    if (completeness.implementation.score < 23) {
+      const gap = 25 - completeness.implementation.score;
+      steps.push(
+        `Verify + Fix if needed: implementation (+${gap} points to excellence):`
+      );
+      if (completeness.implementation.score < 18) {
+        steps.push(
+          '  - Verify transport-level error handling (try/catch, catchError, subscribe errors) + fix if missing + add tests'
+        );
+        steps.push(
+          '  - Verify UI-level error rendering (*ngIf/@if on error signal + visible message) + fix if missing + add tests'
+        );
+        steps.push(
+          '  - Verify loading states for async operations + fix if missing + add tests'
+        );
+      }
+      steps.push(
+        '  - Verify empty state handling when no data exists + fix if missing + add tests'
+      );
+      steps.push(
+        '  - Verify all user flows have proper feedback + fix if missing + add tests'
+      );
+      acceptanceCriteria.push(
+        '[ ] Transport-level error handling at service/store boundaries (try/catch or catchError)'
+      );
+      acceptanceCriteria.push(
+        '[ ] UI-level error messages displayed when operations fail'
+      );
+      acceptanceCriteria.push(
+        '[ ] Loading spinners shown during async operations'
+      );
+      acceptanceCriteria.push('[ ] Empty states display helpful messages');
+    }
+    if (completeness.testCoverage.score < 23) {
+      const gap = 25 - completeness.testCoverage.score;
+      // specFiles are strings, not objects
+      const specFile =
+        featureScan?.specFiles[0] || `${featureName}.component.spec.ts`;
+      steps.push(
+        `Verify + Fix if needed: test coverage (+${gap} points to excellence) in \`${specFile}\`:`
+      );
+      if (completeness.testCoverage.score < 18) {
+        steps.push(
+          '  - Verify tests for component initialization + add if missing'
+        );
+        steps.push(
+          '  - Verify tests for user interactions (clicks, form submissions) + add if missing'
+        );
+      }
+      steps.push(
+        '  - Verify tests for edge cases and error scenarios + add if missing'
+      );
+      steps.push(
+        '  - Verify test descriptions are clear and specific + update if needed'
+      );
+      acceptanceCriteria.push('[ ] Unit tests cover happy path');
+      acceptanceCriteria.push('[ ] Unit tests cover error scenarios');
+      acceptanceCriteria.push('[ ] Tests pass: npm run test');
+    }
+    if (completeness.codeQuality.score < 23) {
+      const gap = 25 - completeness.codeQuality.score;
+      steps.push(
+        `Verify + Fix if needed: code quality (+${gap} points to excellence):`
+      );
+      if (completeness.codeQuality.score < 18) {
+        steps.push(
+          '  - Verify repeated logic and extract into helpers if present'
+        );
+        steps.push(
+          '  - Verify TypeScript strict types (no `any`) + fix if found'
+        );
+      }
+      steps.push(
+        '  - Verify naming conventions for clarity + update if needed'
+      );
+      steps.push(
+        '  - Verify JSDoc comments for public methods + add if missing'
+      );
+      acceptanceCriteria.push('[ ] No TypeScript `any` types');
+      acceptanceCriteria.push('[ ] No duplicated code blocks');
+      acceptanceCriteria.push('[ ] Lint passes: npm run lint');
+    }
+    if (completeness.accessibility.score < 23) {
+      const gap = 25 - completeness.accessibility.score;
+      // htmlFiles are strings, not objects
+      const htmlFile =
+        featureScan?.htmlFiles[0] || `${featureName}.component.html`;
+      steps.push(
+        `Verify + Fix if needed: accessibility (+${gap} points to excellence) in \`${htmlFile}\`:`
+      );
+      if (completeness.accessibility.score < 18) {
+        steps.push(
+          '  - Verify aria-labels on interactive elements + add if missing'
+        );
+        steps.push(
+          '  - Verify keyboard navigation works (tabindex, focus management) + fix if broken'
+        );
+      }
+      steps.push(
+        '  - Verify screen reader announcements for dynamic content + add if missing'
+      );
+      steps.push(
+        '  - Verify focus management after modal/dialog interactions + fix if needed'
+      );
+      acceptanceCriteria.push('[ ] All buttons have aria-labels');
+      acceptanceCriteria.push('[ ] Tab navigation works through all controls');
+      acceptanceCriteria.push('[ ] Color contrast meets WCAG AA');
+    }
+
+    // If all dimensions are excellent (>= 23), provide final polish steps
+    if (steps.length === 0) {
+      steps.push('Feature is excellent. Final polish:');
+      steps.push('  - Review edge cases and error boundaries');
+      steps.push('  - Optimize re-renders and change detection');
+      steps.push('  - Add inline documentation for complex logic');
+      acceptanceCriteria.push('[ ] No console errors during usage');
+      acceptanceCriteria.push('[ ] Performance is acceptable (no jank)');
+    }
   }
-  steps.push(...integrationTasks);
-  if (completeness && completeness.testCoverage.score < 15) {
-    steps.push('Add unit/integration tests for critical user flows.');
+
+  // Add standard validation criteria
+  acceptanceCriteria.push('[ ] npm run lint passes');
+  acceptanceCriteria.push('[ ] npm run test passes');
+  acceptanceCriteria.push('[ ] npx tsc --noEmit passes');
+
+  // SCALABLE: Get pattern-based rules dynamically based on feature characteristics
+  const discoveredFeature = scan.discoveredFeatures?.find(
+    (df) => df.name === featureName
+  );
+  const applicablePatternRules = getApplicablePatternRules(
+    featureScan,
+    discoveredFeature
+  );
+  const patternRulesText =
+    applicablePatternRules.length > 0
+      ? applicablePatternRules
+          .map(
+            (rule) =>
+              `**${rule.name.toUpperCase()}**:\n${rule.rules
+                .map((r) => `  - ${r}`)
+                .join('\n')}`
+          )
+          .join('\n\n')
+      : '(No pattern-specific rules detected)';
+
+  // Add pattern-based acceptance criteria
+  for (const rule of applicablePatternRules) {
+    for (const criterion of rule.acceptanceCriteria) {
+      if (!acceptanceCriteria.includes(criterion)) {
+        acceptanceCriteria.push(criterion);
+      }
+    }
   }
-  if (completeness && completeness.accessibility.score < 15) {
-    steps.push(
-      'Fix accessibility gaps (ARIA, keyboard support, focus management).'
-    );
-  }
-  if (completeness && completeness.codeQuality.score < 15) {
-    steps.push('Refactor complex or duplicated code paths.');
-  }
+
+  // Get risk domains for the feature
+  const riskDomains = discoveredFeature?.riskDomains ?? [];
+  const riskDomainsText =
+    riskDomains.length > 0 ? riskDomains.join(', ') : '(none detected)';
+
+  // Build verification status text
+  const verificationStatusText = verificationResults
+    ? Object.entries(verificationResults)
+        .map(([type, result]) => {
+          const status = result.needed ? '❌ NEEDED' : '✅ PRESENT';
+          const existingCount = result.existingPatterns.length;
+          const missingCount = result.missingPatterns.length;
+          return `- ${type}: ${status} (${existingCount} present, ${missingCount} missing)`;
+        })
+        .join('\n')
+    : '- (verification not available for new features)';
+
+  // Summarize what actually needs work based on verification
+  const neededImprovements = verificationResults
+    ? Object.entries(verificationResults)
+        .filter(([, result]) => result.needed)
+        .map(([type, result]) => ({
+          type,
+          missing: result.missingPatterns,
+          searchedPatterns: result.searchedPatterns.filter((p) => !p.found),
+          searchedFiles: result.searchedFiles,
+        }))
+    : [];
+
+  const verifiedImprovementsText =
+    neededImprovements.length > 0
+      ? neededImprovements
+          .map((imp) => {
+            const missingDetails = imp.searchedPatterns
+              .map(
+                (p) =>
+                  `  - **${p.description}**\n    - Searched for: \`${p.pattern}\`\n    - Scope: ${imp.searchedFiles}`
+              )
+              .join('\n');
+            return `**${imp.type}** (VERIFY + FIX IF NEEDED):\n${missingDetails}`;
+          })
+          .join('\n\n')
+      : '✅ All improvement patterns already present';
+
+  // Define FEATURE_ROOT as relative path for use in output
+  const featureRootRelative = feature?.path
+    ? relative(scan.basePath, feature.path).replace(/\\/g, '/')
+    : '(new feature)';
 
   return `
 ## Task: ${featureName}
 
 ### Evidence Snapshot
-- Features found: ${scan.features.join(', ') || '(none)'}
-- Shared components found: ${scan.sharedComponents.join(', ') || '(none)'}
-- Feature exists in repo: ${yesNo(exists)}${
-    feature ? ` (${feature.path})` : ''
-  } (feature: ${featureName})
+- Feature root: \`<FEATURE_ROOT>\` = \`${featureRootRelative}\`
+- Completeness: ${completeness ? `${completeness.total}/100` : 'N/A'}
+  - Implementation: ${completeness?.implementation.score || 0}/25
+  - Test Coverage: ${completeness?.testCoverage.score || 0}/25
+  - Accessibility: ${completeness?.accessibility.score || 0}/25
+  - Code Quality: ${completeness?.codeQuality.score || 0}/25
+- Risk domains: ${riskDomainsText}
+- Files in scope (patterns):
+  - \`<FEATURE_ROOT>/**/*.component.ts\`
+  - \`<FEATURE_ROOT>/**/*.component.html\`
+  - \`<FEATURE_ROOT>/**/*.component.scss\`
+  - \`<FEATURE_ROOT>/**/*.spec.ts\`
+  - \`<FEATURE_ROOT>/**/*.service.ts\` (if present)
+  - \`<FEATURE_ROOT>/**/*.store.ts\` (if present)
 
-### Implementation Goals
-- Improve or deliver ${featureName} based on the analysis and scoring.
-- Balance business value with technical health and maintainability.
+### Verification Status (BEFORE proposing improvements)
+${verificationStatusText}
 
-### Integration Tasks (scan-based)
-${formatList(integrationTasks)}
+### Verified Improvements Needed
+${verifiedImprovementsText}
 
-### Design Rules (evidence-based)
+### Design Rules
 ${formatList(designRules)}
 
-### Store Rules (evidence-based)
+### Store Rules
 ${formatList(storeRules)}
 
-### Implementation Steps
-${steps.map((step, index) => `${index + 1}. ${step}`).join('\n')}
+### Pattern-Based Rules (SCALABLE)
+${patternRulesText}
 
-### Validation
-- npm run lint
-- npm run format
-- npx tsc --noEmit
-- npm run test
+### Implementation Steps
+${steps
+  .map((step, index) =>
+    step.startsWith('  -') ? step : `${index + 1}. ${step}`
+  )
+  .join('\n')}
+
+### Acceptance Criteria
+${acceptanceCriteria.join('\n')}
+
+### Validation Commands
+\`\`\`bash
+npm run lint
+npm run test
+npx tsc --noEmit
+\`\`\`
 `;
 };
 
@@ -3736,6 +5004,105 @@ function buildDecisionReport(
 }
 
 // ============================================================================
+// Technical Guidance Prompt (fallback when no business config)
+// ============================================================================
+
+/**
+ * Build guidance prompt when no specific recommendation is available.
+ * This ensures the agent NEVER returns "No recommendation available".
+ */
+const buildTechnicalGuidancePrompt = (
+  scan: ProjectScan,
+  completenessScores: FeatureCompletenessScore[],
+  technicalHealth: TechnicalHealthReport
+): string => {
+  const sections: string[] = [];
+
+  sections.push('# Technical Guidance (No Business Config Detected)\n\n');
+  sections.push(
+    '> ⚠️ No business-priority.json found. Using technical evidence to guide recommendations.\n\n'
+  );
+
+  // Find lowest completeness feature
+  const sortedByCompleteness = [...completenessScores].sort(
+    (a, b) => a.total - b.total
+  );
+  const lowestFeature = sortedByCompleteness[0];
+
+  if (lowestFeature) {
+    sections.push(
+      '## Recommended Focus: Improve Lowest Completeness Feature\n\n'
+    );
+    sections.push(`**Feature**: ${lowestFeature.feature}\n`);
+    sections.push(`**Completeness**: ${lowestFeature.total}/100\n\n`);
+
+    sections.push('### Gaps Identified:\n');
+    if (lowestFeature.testCoverage.score < 15) {
+      sections.push(
+        `- ❌ Test coverage: ${lowestFeature.testCoverage.score}/25\n`
+      );
+    }
+    if (lowestFeature.accessibility.score < 15) {
+      sections.push(
+        `- ❌ Accessibility: ${lowestFeature.accessibility.score}/25\n`
+      );
+    }
+    if (lowestFeature.implementation.score < 15) {
+      sections.push(
+        `- ❌ Implementation: ${lowestFeature.implementation.score}/25\n`
+      );
+    }
+    if (lowestFeature.codeQuality.score < 15) {
+      sections.push(
+        `- ❌ Code quality: ${lowestFeature.codeQuality.score}/25\n`
+      );
+    }
+    sections.push('\n');
+  }
+
+  // Technical health summary
+  if (technicalHealth.debtItems.length > 0) {
+    sections.push('## Technical Debt Items:\n\n');
+    technicalHealth.debtItems.slice(0, 5).forEach((item) => {
+      sections.push(`- ${item.issue} (Risk: ${item.risk}/10)\n`);
+    });
+    sections.push('\n');
+  }
+
+  // Integration gaps
+  if (technicalHealth.integrationGaps.length > 0) {
+    sections.push('## Integration Gaps:\n\n');
+    technicalHealth.integrationGaps.slice(0, 5).forEach((gap) => {
+      sections.push(`- ${gap}\n`);
+    });
+    sections.push('\n');
+  }
+
+  sections.push('---\n\n');
+  sections.push('## Next Steps:\n\n');
+  sections.push(
+    '1. Create `business-priority.json` for full prioritization capabilities\n'
+  );
+  sections.push('2. Or proceed with technical recommendations above\n\n');
+
+  sections.push('### How to create business-priority.json:\n\n');
+  sections.push('```json\n');
+  sections.push('{\n');
+  sections.push('  "features": [\n');
+  sections.push('    {\n');
+  sections.push('      "name": "booking-calendar",\n');
+  sections.push('      "userValue": 9,\n');
+  sections.push('      "businessImpact": 8,\n');
+  sections.push('      "strategicImportance": 7\n');
+  sections.push('    }\n');
+  sections.push('  ]\n');
+  sections.push('}\n');
+  sections.push('```\n');
+
+  return sections.join('');
+};
+
+// ============================================================================
 // Recommendation Report (tiered, evidence-based)
 // ============================================================================
 const buildRecommendationReport = (
@@ -3744,7 +5111,8 @@ const buildRecommendationReport = (
   businessScores: BusinessValueScore[],
   dependencyAnalysis: DependencyAnalysis,
   technicalHealth: TechnicalHealthReport,
-  weights: RecommendationWeights
+  weights: RecommendationWeights,
+  evidencePack?: EvidencePackV2
 ): string => {
   const businessScoresMissing = businessScores.length === 0;
   const anyBusinessUnavailable =
@@ -3757,7 +5125,8 @@ const buildRecommendationReport = (
     completenessScores,
     businessScores,
     dependencyAnalysis,
-    effectiveWeights
+    effectiveWeights,
+    technicalHealth
   ).sort((a, b) => b.score - a.score);
 
   const testCoverage = analyzeTestCoverage(scan);
@@ -3771,22 +5140,26 @@ const buildRecommendationReport = (
   }
 
   // Check for critically low test coverage (score <= 16 or very few tests)
+  // SCALABLE: Check if feature is in discovered features, not just booking- prefix
+  const discoveredFeatureNames = new Set(scan.featureScans.map((f) => f.name));
   const criticalTestGaps = testCoverage.filter((coverage) => {
-    if (!coverage.feature.startsWith('booking-')) return false;
+    // Only check features that are part of the scanned features
+    if (!discoveredFeatureNames.has(coverage.feature)) return false;
     // Flag if score is low OR if test count is very low (from buildTestGaps)
     const hasLowScore = coverage.score <= 16;
     return hasLowScore;
   });
 
   // Also check test gaps from buildTestGaps for specific low test counts
+  // SCALABLE: Use generic regex instead of booking- hardcoded prefix
   const testGapsFromScan = buildTestGaps(scan);
   const lowTestCountFeatures = testGapsFromScan
     .filter((gap) => gap.includes('Low test coverage'))
     .map((gap) => {
-      const match = gap.match(/in (booking-[^:]+):/);
+      const match = gap.match(/in ([^:]+):/);
       return match ? match[1] : null;
     })
-    .filter((f): f is string => f !== null);
+    .filter((f): f is string => f !== null && discoveredFeatureNames.has(f));
 
   // Combine both checks
   const allCriticalFeatures = new Set([
@@ -3800,7 +5173,7 @@ const buildRecommendationReport = (
       return `${feature} (${coverage?.score ?? '?'}/25)`;
     });
     criticalBlockers.push(
-      `Test coverage critically low on booking features: ${featureDetails.join(
+      `Test coverage critically low on features: ${featureDetails.join(
         ', '
       )}. Minimum 10+ tests required per feature.`
     );
@@ -3830,20 +5203,30 @@ const buildRecommendationReport = (
         scan,
         completenessScores
       )
-    : 'No recommendation available.';
+    : buildTechnicalGuidancePrompt(scan, completenessScores, technicalHealth);
+
+  // Convert doc paths to relative for output
+  const toRelPath = (p: string) =>
+    relative(scan.basePath, p).replace(/\\/g, '/');
 
   const codebaseSummaryLines = [
     `Features detected: ${scan.features.join(', ') || '(none)'}`,
     `Shared components: ${scan.sharedComponents.join(', ') || '(none)'}`,
-    `Design system doc: ${yesNo(scan.docs.designSystem)} (${
-      scan.paths.designSystemDoc
-    })`,
-    `Architecture doc: ${yesNo(scan.docs.architecture)} (${
-      scan.paths.architectureDoc
-    })`,
-    `Development guide: ${yesNo(scan.docs.developmentGuide)} (${
-      scan.paths.developmentGuideDoc
-    })`,
+    `Design system doc: ${yesNo(scan.docs.designSystem)}${
+      scan.docs.designSystem
+        ? ` (\`${toRelPath(scan.paths.designSystemDoc)}\`)`
+        : ''
+    }`,
+    `Architecture doc: ${yesNo(scan.docs.architecture)}${
+      scan.docs.architecture
+        ? ` (\`${toRelPath(scan.paths.architectureDoc)}\`)`
+        : ''
+    }`,
+    `Development guide: ${yesNo(scan.docs.developmentGuide)}${
+      scan.docs.developmentGuide
+        ? ` (\`${toRelPath(scan.paths.developmentGuideDoc)}\`)`
+        : ''
+    }`,
     `Integration gaps: ${summarizeIntegrationGaps(
       technicalHealth.integrationGaps
     )}`,
@@ -3985,10 +5368,14 @@ const buildRecommendationReport = (
               `${index + 1}. ${rec.feature} (Score: ${
                 rec.score
               }/100)\n   - User impact: ${
-                rec.userImpact
-              }/10\n   - Business value: ${
-                rec.businessValue
-              }/10\n   - Effort: ${
+                rec.userImpact !== null
+                  ? `${Math.round(rec.userImpact * 100) / 100}/10`
+                  : 'UNKNOWN'
+              }\n   - Business value: ${
+                rec.businessValue !== null
+                  ? `${rec.businessValue}/10`
+                  : 'UNKNOWN (no business config)'
+              }\n   - Effort: ${
                 rec.effortHours !== undefined
                   ? `${rec.effortHours} hours (${rec.effortConfidence}, ${rec.effortSource})`
                   : `UNKNOWN (${rec.effortSource})`
@@ -4007,10 +5394,14 @@ const buildRecommendationReport = (
               `${index + 1}. ${rec.feature} (Score: ${
                 rec.score
               }/100)\n   - User impact: ${
-                rec.userImpact
-              }/10\n   - Business value: ${
-                rec.businessValue
-              }/10\n   - Effort: ${
+                rec.userImpact !== null
+                  ? `${Math.round(rec.userImpact * 100) / 100}/10`
+                  : 'UNKNOWN'
+              }\n   - Business value: ${
+                rec.businessValue !== null
+                  ? `${rec.businessValue}/10`
+                  : 'UNKNOWN (no business config)'
+              }\n   - Effort: ${
                 rec.effortHours !== undefined
                   ? `${rec.effortHours} hours (${rec.effortConfidence}, ${rec.effortSource})`
                   : `UNKNOWN (${rec.effortSource})`
@@ -4044,7 +5435,76 @@ const buildRecommendationReport = (
       : 'Business value scores include measured inputs.',
   ];
 
-  return `## Codebase Analysis Summary
+  // Build Evidence Pack V2 section with per-feature metrics
+  const evidenceSection = evidencePack
+    ? `## Evidence Pack (STRATEGY A: QUICK_WIN)
+
+### Features Discovered: ${evidencePack.discoveredFeatures.length}
+${evidencePack.discoveredFeatures.map((f) => `- ${f.name}`).join('\n')}
+
+### TODOs/FIXMEs by Feature
+${Array.from(evidencePack.todosByFeature.entries())
+  .map(([feature, todos]) => `- ${feature}: ${todos.length} items`)
+  .join('\n')}
+
+### Click Handlers by Feature (complexity signal)
+${Array.from(evidencePack.clickHandlersByFeature.entries())
+  .map(([feature, count]) => `- ${feature}: ${count} handlers`)
+  .join('\n')}
+
+### Test Files by Feature
+${Array.from(evidencePack.testFilesByFeature.entries())
+  .map(([feature, files]) => `- ${feature}: ${files.length} spec files`)
+  .join('\n')}
+
+### Store Usage by Feature
+${Array.from(evidencePack.storeUsageByFeature.entries())
+  .map(([feature, stores]) => `- ${feature}: ${stores.join(', ') || '(none)'}`)
+  .join('\n')}
+
+### Risk Domains by Feature
+${Array.from(evidencePack.riskFlagsByFeature.entries())
+  .map(
+    ([feature, risks]) =>
+      `- ${feature}: ${risks.length > 0 ? risks.join(', ') : '(none)'}`
+  )
+  .join('\n')}
+
+### Recent Git Changes${evidencePack.gitDataAvailable ? '' : ' (UNKNOWN)'}
+${
+  evidencePack.gitDataAvailable
+    ? evidencePack.recentGitChanges
+        .slice(0, 5)
+        .map(
+          (c) =>
+            `- ${c.hash}: ${c.message} (${c.files.length} files, features: ${
+              c.features.join(', ') || 'n/a'
+            })`
+        )
+        .join('\n')
+    : '- Git data unavailable'
+}
+
+### Feature Summary Table
+| Feature | TODOs | Handlers | Tests | Stores | Risk Domains |
+|---------|-------|----------|-------|--------|--------------|
+${evidencePack.discoveredFeatures
+  .map((f) => {
+    const todos = evidencePack.todosByFeature.get(f.name)?.length ?? 0;
+    const handlers = evidencePack.clickHandlersByFeature.get(f.name) ?? 0;
+    const tests = evidencePack.testFilesByFeature.get(f.name)?.length ?? 0;
+    const stores = evidencePack.storeUsageByFeature.get(f.name)?.length ?? 0;
+    const risks = evidencePack.riskFlagsByFeature.get(f.name) ?? [];
+    return `| ${f.name} | ${todos} | ${handlers} | ${tests} | ${stores} | ${
+      risks.join(', ') || '-'
+    } |`;
+  })
+  .join('\n')}
+
+`
+    : '';
+
+  return `${evidenceSection}## Codebase Analysis Summary
 ${formatList(codebaseSummaryLines)}
 
 ## Feature Completeness Report
@@ -6029,13 +7489,50 @@ const rankedRecommendationTool = tool({
     const dependencies = analyzeDependencies(scan);
     const technicalHealth = analyzeTechnicalHealth(scan);
     const resolvedWeights = resolveWeights(weights);
+
+    // STRATEGY A: QUICK_WIN - Collect Evidence Pack V2 for per-feature metrics
+    const evidencePack = collectEvidencePackV2(
+      scan.basePath,
+      scan.discoveredFeatures
+    );
+
+    // FAIL-FAST: Validate evidence before building report
+    if (!evidencePack.gitDataAvailable) {
+      console.warn('⚠️ Git data unavailable - marking as UNKNOWN in report');
+    }
+    if (evidencePack.discoveredFeatures.length === 0) {
+      throw new Error(
+        'FAIL-FAST: No features discovered. Check features directory path.'
+      );
+    }
+
+    // FAIL-FAST: Check for evidence consistency between Evidence Pack and Dependency Analysis
+    for (const featureScan of scan.featureScans) {
+      const evidenceStores =
+        evidencePack.storeUsageByFeature.get(featureScan.name) ?? [];
+      const depReport = scanFeatureDependencies(featureScan);
+      const depStores = depReport.categorized.stores;
+
+      // If Evidence Pack shows 0 stores but dependency analysis found stores, we have a conflict
+      if (evidenceStores.length === 0 && depStores.length > 0) {
+        console.error(
+          `EVIDENCE_CONFLICT(StoreUsage): Feature "${
+            featureScan.name
+          }" shows 0 stores in Evidence Pack but dependency analysis found: ${depStores.join(
+            ', '
+          )}`
+        );
+      }
+    }
+
     const report = buildRecommendationReport(
       scan,
       completeness,
       business,
       dependencies,
       technicalHealth,
-      resolvedWeights
+      resolvedWeights,
+      evidencePack
     );
     return report;
   },
@@ -6062,7 +7559,10 @@ RULES:
 - If business config is missing, say so and leave business scores empty.
 - Use the recommend_features_ranked tool output as the final response.
 
-OUTPUT FORMAT (use recommend_features_ranked tool):
+STRATEGY A: QUICK_WIN - Prioritize features closest to shippable baseline.
+
+OUTPUT FORMAT (use recommend_features_ranked tool - output EXACTLY as returned):
+0. Evidence Pack (STRATEGY A: QUICK_WIN) - MUST appear first
 1. Codebase Analysis Summary
 2. Feature Completeness Report
 3. Dependency Analysis
@@ -6070,7 +7570,9 @@ OUTPUT FORMAT (use recommend_features_ranked tool):
 5. Technical Health Report
 6. Next Feature Recommendations (Prioritized)
 7. Recommended Next Steps
-8. Implementation Prompt`,
+8. Implementation Prompt
+
+CRITICAL: Output the recommend_features_ranked tool result VERBATIM without summarizing or omitting sections.`,
   tools: [
     projectStateAnalyzer,
     featureCompletenessAnalyzer,

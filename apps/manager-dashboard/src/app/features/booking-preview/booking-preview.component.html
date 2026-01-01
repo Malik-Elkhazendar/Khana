@@ -95,6 +95,13 @@
     </button>
   </form>
 
+  <!-- Empty State -->
+  @if (!loading() && !error() && facilities().length === 0) {
+  <div class="empty-state preview-empty" role="status">
+    <p>No facilities available.</p>
+  </div>
+  }
+
   <!-- Error Message -->
   @if (error()) {
   <div
@@ -103,7 +110,10 @@
     role="alert"
     aria-live="assertive"
   >
-    {{ error() }}
+    <span>{{ error() }}</span>
+    <button type="button" class="btn-secondary" (click)="retry()">
+      Try Again
+    </button>
   </div>
   }
 

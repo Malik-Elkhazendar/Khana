@@ -273,6 +273,11 @@ export class BookingListComponent implements OnInit, OnDestroy {
     });
   }
 
+  retryLoad(): void {
+    this.store.loadBookings(this.getFacilityFilter());
+    this.clearSelection();
+  }
+
   private getFacilityFilter(): string | null {
     const facilityId = this.selectedFacilityId().trim();
     return facilityId.length > 0 ? facilityId : null;

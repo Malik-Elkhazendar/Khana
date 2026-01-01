@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, catchError, throwError } from 'rxjs';
 import {
   FacilityListItemDto,
   BookingPreviewRequestDto,
@@ -24,6 +24,13 @@ export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = 'http://localhost:3000/api';
 
+  private handleError(operation: string) {
+    return (err: unknown) => {
+      console.error(`Failed to ${operation}`, err);
+      return throwError(() => err);
+    };
+  }
+
   // ============================================================
   // FACILITIES
   // ============================================================
@@ -32,9 +39,9 @@ export class ApiService {
    * Get all facilities available for booking
    */
   getFacilities(): Observable<FacilityListItemDto[]> {
-    return this.http.get<FacilityListItemDto[]>(
-      `${this.baseUrl}/v1/bookings/facilities`
-    );
+    return this.http
+      .get<FacilityListItemDto[]>(`${this.baseUrl}/v1/bookings/facilities`)
+      .pipe(catchError(this.handleError('load facilities')));
   }
 
   // ============================================================
@@ -49,9 +56,11 @@ export class ApiService {
     if (facilityId) {
       params['facilityId'] = facilityId;
     }
-    return this.http.get<BookingListItemDto[]>(`${this.baseUrl}/v1/bookings`, {
-      params,
-    });
+    return this.http
+      .get<BookingListItemDto[]>(`${this.baseUrl}/v1/bookings`, {
+        params,
+      })
+      .pipe(catchError(this.handleError('load bookings')));
   }
 
   /**
@@ -61,10 +70,12 @@ export class ApiService {
   previewBooking(
     request: BookingPreviewRequestDto
   ): Observable<BookingPreviewResponseDto> {
-    return this.http.post<BookingPreviewResponseDto>(
-      `${this.baseUrl}/v1/bookings/preview`,
-      request
-    );
+    return this.http
+      .post<BookingPreviewResponseDto>(
+        `${this.baseUrl}/v1/bookings/preview`,
+        request
+      )
+      .pipe(catchError(this.handleError('preview booking')));
   }
 
   /**
@@ -73,10 +84,9 @@ export class ApiService {
   createBooking(
     request: CreateBookingRequestDto
   ): Observable<BookingListItemDto> {
-    return this.http.post<BookingListItemDto>(
-      `${this.baseUrl}/v1/bookings`,
-      request
-    );
+    return this.http
+      .post<BookingListItemDto>(`${this.baseUrl}/v1/bookings`, request)
+      .pipe(catchError(this.handleError('create booking')));
   }
 
   /**
@@ -88,13 +98,12 @@ export class ApiService {
     paymentStatus?: PaymentStatus,
     cancellationReason?: string
   ): Observable<BookingListItemDto> {
-    return this.http.patch<BookingListItemDto>(
-      `${this.baseUrl}/v1/bookings/${id}/status`,
-      {
+    return this.http
+      .patch<BookingListItemDto>(`${this.baseUrl}/v1/bookings/${id}/status`, {
         status,
         paymentStatus,
         cancellationReason,
-      }
-    );
+      })
+      .pipe(catchError(this.handleError('update booking status')));
   }
 }

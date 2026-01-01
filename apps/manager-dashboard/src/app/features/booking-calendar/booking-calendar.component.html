@@ -50,9 +50,9 @@
   }
 
   <!-- Error State -->
-  @if (error()) {
+  @if (error(); as err) {
   <div class="calendar__error" role="alert" aria-live="assertive">
-    <span>{{ error() }}</span>
+    <span>{{ err.message }}</span>
     <button
       type="button"
       class="calendar__retry-btn"
@@ -60,6 +60,13 @@
     >
       Retry
     </button>
+  </div>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && !error() && bookings().length === 0) {
+  <div class="empty-state calendar__empty" role="status">
+    <p>No bookings found for this week.</p>
   </div>
   }
 
