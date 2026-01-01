@@ -1071,22 +1071,22 @@ const IMPROVEMENT_PATTERNS: Record<
 > = {
   'error-handling-transport': {
     required: [
-      /(catch\s*\(|\.catch\s*\(|catchError\s*\()/,
-      /(subscribe\s*\([^)]*error|\.pipe\s*\(\s*tap\s*\([^)]*error)/,
+      /(catch\s*\(|\.catch\s*\(|catchError\s*\(?\s*|catch\s*\{)/,
+      /(subscribe\s*\([^)]*error|error\s*=>|\.pipe\s*\(\s*tap\s*\([^)]*error|\.catch\(|catchError)/,
     ],
     descriptions: [
       'Try-catch or catchError operator (transport layer)',
-      'Error handler in subscribe or tap operator',
+      'Error handler in subscribe, arrow function, or pipe operator',
     ],
   },
   'error-handling-ui': {
     required: [
-      /(\*ngIf\s*=\s*['"][^'"]*error|error\(\)|error\s*\?\s*\?|@if\s*\(error\(\)\))/,
-      /(role\s*=\s*['"]alert['"]|aria-live\s*=\s*['"]assertive['"])/,
+      /(\*ngIf\s*=\s*['"][^'"]*error|error\(\)|error\s*\?\s*\?|@if\s*\(\s*error\s*\(\s*\)\s*\))/,
+      /(role\s*=\s*['"]alert['"]|aria-live\s*=\s*['"]assertive['"]|role\s*=\s*['"]status['"])/,
     ],
     descriptions: [
       'Error signal/state display (*ngIf or @if with error)',
-      'Error accessibility (role=alert or aria-live)',
+      'Error accessibility (role=alert, aria-live, or role=status)',
     ],
   },
   'loading-state': {
@@ -1104,7 +1104,7 @@ const IMPROVEMENT_PATTERNS: Record<
   'empty-state': {
     required: [
       /(\.\s*length\s*===?\s*0|isEmpty\(\)|empty-state)/,
-      /(\*ngIf\s*=\s*['"][^'"]*\.length\s*===?\s*0|@if\s*\([^)]*\.length\s*===?\s*0\)|@empty)/,
+      /(\*ngIf\s*=\s*['"][^'"]*\.length\s*===?\s*0|@if[^{]*\.length\s*===?\s*0|@empty)/,
     ],
     descriptions: [
       'Empty check logic',
