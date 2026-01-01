@@ -89,7 +89,10 @@ describe('BookingStore', () => {
   });
 
   it('clears previous error state when loading bookings', () => {
-    patchState(store, { error: 'Previous error', errorCode: 'SERVER_ERROR' });
+    patchState(store, {
+      error: new Error('Previous error'),
+      errorCode: 'SERVER_ERROR',
+    });
 
     store.loadBookings(null);
 
@@ -437,7 +440,10 @@ describe('BookingStore', () => {
 
   it('clears global error state after a successful action', async () => {
     const booking = seedBooking({ status: BookingStatus.PENDING });
-    patchState(store, { error: 'Old error', errorCode: 'SERVER_ERROR' });
+    patchState(store, {
+      error: new Error('Old error'),
+      errorCode: 'SERVER_ERROR',
+    });
     apiMock.updateBookingStatus.mockReturnValueOnce(of(booking));
 
     await store.confirmBooking(booking.id);

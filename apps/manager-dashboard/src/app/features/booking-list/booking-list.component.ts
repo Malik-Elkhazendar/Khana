@@ -62,6 +62,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
   facilities = signal<FacilityListItemDto[]>([]);
   selectedFacilityId = signal<string>('');
   focusedRowIndex = signal(0);
+  facilityError = signal<Error | null>(null);
 
   bookings = this.store.bookings;
   loading = this.store.loading;
@@ -133,6 +134,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
     const paymentFilter = this.filterPaymentStatus();
     const startDate = this.startDateFilter();
     const endDate = this.endDateFilter();
+    const dateRangeError = this.dateRangeError();
 
     let result = raw;
 
@@ -159,13 +161,13 @@ export class BookingListComponent implements OnInit, OnDestroy {
       });
     }
 
-    if (startDate) {
+    if (!dateRangeError && startDate) {
       const start = new Date(`${startDate}T00:00:00`);
       result = result.filter(
         (booking) => new Date(booking.startTime).getTime() >= start.getTime()
       );
     }
-    if (endDate) {
+    if (!dateRangeError && endDate) {
       const end = new Date(`${endDate}T23:59:59`);
       result = result.filter(
         (booking) => new Date(booking.startTime).getTime() <= end.getTime()
@@ -221,6 +223,13 @@ export class BookingListComponent implements OnInit, OnDestroy {
   });
 
   readonly selectionCount = computed(() => this.selectedBookingIds().size);
+  readonly dateRangeError = computed(() => {
+    const start = this.startDateFilter().trim();
+    const end = this.endDateFilter().trim();
+    if (!start || !end) return null;
+    return start > end ? 'Start date must be before end date.' : null;
+  });
+  readonly filtersValid = computed(() => this.dateRangeError() === null);
   readonly selectedCancellableBookings = computed(() => {
     const selected = this.selectedBookingIds();
     return this.bookings().filter(
@@ -262,12 +271,18 @@ export class BookingListComponent implements OnInit, OnDestroy {
   }
 
   private loadFacilities(): void {
+    this.facilityError.set(null);
     this.api.getFacilities().subscribe({
       next: (facilities) => {
         this.facilities.set(facilities);
+        this.facilityError.set(null);
       },
       error: (err) => {
-        // We can use a local error or store error, but facilities are separate
+        const resolved =
+          err instanceof Error
+            ? err
+            : new Error('Failed to load facilities. Please try again.');
+        this.facilityError.set(resolved);
         console.error('Error loading facilities:', err);
       },
     });
@@ -276,6 +291,10 @@ export class BookingListComponent implements OnInit, OnDestroy {
   retryLoad(): void {
     this.store.loadBookings(this.getFacilityFilter());
     this.clearSelection();
+  }
+
+  retryFacilities(): void {
+    this.loadFacilities();
   }
 
   private getFacilityFilter(): string | null {

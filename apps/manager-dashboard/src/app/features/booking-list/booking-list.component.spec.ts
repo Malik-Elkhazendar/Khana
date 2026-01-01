@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { BookingListComponent } from './booking-list.component';
 import { ApiService } from '../../shared/services/api.service';
 import { BookingStore } from '../../state/bookings/booking.store';
@@ -353,7 +353,9 @@ describe('BookingListComponent', () => {
     expect(linkMock.click).toHaveBeenCalled();
     expect(linkMock.download).toMatch(/^bookings-/);
 
-    const blob = createObjectURLSpy.mock.calls[0][0] as TestBlob;
+    const calls = createObjectURLSpy.mock.calls as unknown[][];
+    expect(calls.length).toBeGreaterThan(0);
+    const blob = calls[0][0] as TestBlob;
     const text = await blob.text();
     expect(text).toContain('Amal');
     expect(text).not.toContain('Zain');
@@ -453,6 +455,45 @@ describe('BookingListComponent', () => {
     component.selectedBookingIds.set(new Set(['booking-1']));
     component.openBulkCancelDialog();
     expect(component.bulkCancelOpen()).toBe(true);
+  });
+
+  it('shows facility error and retries loading facilities', () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    apiMock.getFacilities.mockReturnValueOnce(
+      throwError(() => new Error('Facilities failed'))
+    );
+
+    const { fixture } = setupComponent([]);
+
+    const errorMessage = fixture.nativeElement.querySelector('.filter-error');
+    expect(errorMessage?.textContent).toContain('Facilities failed');
+
+    apiMock.getFacilities.mockClear();
+    const retryButton = errorMessage?.querySelector('button');
+    retryButton?.click();
+
+    expect(apiMock.getFacilities).toHaveBeenCalled();
+  });
+
+  it('shows date range validation error and disables export', () => {
+    const { fixture, component } = setupComponent([createBooking()]);
+
+    component.startDateFilter.set('2025-03-10');
+    component.endDateFilter.set('2025-03-05');
+    fixture.detectChanges();
+
+    const rangeError = fixture.nativeElement.querySelector('#date-range-error');
+    expect(rangeError?.textContent).toContain(
+      'Start date must be before end date.'
+    );
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('button')
+    ) as HTMLButtonElement[];
+    const exportButton = buttons.find((button) =>
+      button.textContent?.includes('Export CSV')
+    );
+    expect(exportButton?.disabled).toBe(true);
   });
 
   it('shows a create booking call-to-action when there are no bookings', () => {

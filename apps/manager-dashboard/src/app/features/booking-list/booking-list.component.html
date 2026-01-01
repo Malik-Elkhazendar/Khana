@@ -68,16 +68,44 @@
             name="startDate"
             [ngModel]="startDateFilter()"
             (ngModelChange)="startDateFilter.set($event); onFiltersChange()"
+            [attr.max]="endDateFilter() || null"
+            [attr.aria-invalid]="dateRangeError() ? 'true' : null"
+            [attr.aria-describedby]="
+              dateRangeError() ? 'date-range-error' : null
+            "
           />
           <input
             type="date"
             name="endDate"
             [ngModel]="endDateFilter()"
             (ngModelChange)="endDateFilter.set($event); onFiltersChange()"
+            [attr.min]="startDateFilter() || null"
+            [attr.aria-invalid]="dateRangeError() ? 'true' : null"
+            [attr.aria-describedby]="
+              dateRangeError() ? 'date-range-error' : null
+            "
           />
         </div>
       </div>
     </div>
+
+    @if (facilityError(); as facilityErr) {
+    <div class="filter-error" role="alert" aria-live="assertive">
+      <span>{{ facilityErr.message }}</span>
+      <button type="button" class="btn-ghost" (click)="retryFacilities()">
+        Try Again
+      </button>
+    </div>
+    } @if (dateRangeError(); as rangeError) {
+    <p
+      class="filter-error"
+      role="alert"
+      aria-live="assertive"
+      id="date-range-error"
+    >
+      {{ rangeError }}
+    </p>
+    }
   </header>
 
   @if (error(); as err) {
@@ -101,7 +129,7 @@
         type="button"
         class="btn-ghost"
         (click)="exportCsv()"
-        [disabled]="totalFilteredCount() === 0"
+        [disabled]="totalFilteredCount() === 0 || !filtersValid()"
       >
         Export CSV
       </button>
@@ -121,7 +149,7 @@
     </div>
   </div>
 
-  <div class="table-card">
+  <div class="table-card" [attr.aria-busy]="loading() ? 'true' : null">
     @if (loading()) {
     <div class="table-loading" role="status" aria-live="polite">
       Loading bookings…

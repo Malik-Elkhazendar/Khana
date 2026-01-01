@@ -70,6 +70,23 @@
   inline-size: 100%;
 }
 
+.filter-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4);
+  margin-block-start: var(--space-3);
+  background: var(--color-error-light);
+  border-inline-start: 3px solid var(--color-error);
+  border-radius: var(--radius-md);
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
 .filter {
   display: grid;
   gap: var(--space-2);

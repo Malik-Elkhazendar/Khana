@@ -13,7 +13,7 @@ import {
 type BookingState = {
   bookings: BookingListItemDto[];
   loading: boolean;
-  error: string | null;
+  error: Error | null;
   errorCode: string | null;
   filter: { facilityId: string | null };
   actionLoadingById: Record<string, boolean>;
@@ -74,6 +74,10 @@ const resolveBookingError = (
   return { code: 'UNKNOWN', message: BOOKING_ERROR_MESSAGES.UNKNOWN };
 };
 
+const toBookingError = (message: string): Error => {
+  return new Error(message);
+};
+
 export const BookingStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
@@ -98,7 +102,7 @@ export const BookingStore = signalStore(
 
         if (!booking) {
           patchState(store, {
-            error: BOOKING_ERROR_MESSAGES.NOT_FOUND,
+            error: toBookingError(BOOKING_ERROR_MESSAGES.NOT_FOUND),
             errorCode: 'NOT_FOUND',
           });
           return false;
@@ -108,7 +112,7 @@ export const BookingStore = signalStore(
         const trimmedReason = updates.cancellationReason?.trim();
         if (updates.status === BookingStatus.CANCELLED && !trimmedReason) {
           patchState(store, {
-            error: 'Cancellation reason is required',
+            error: toBookingError('Cancellation reason is required'),
             errorCode: 'VALIDATION',
             actionErrorsById: {
               ...store.actionErrorsById(),
@@ -119,7 +123,9 @@ export const BookingStore = signalStore(
         }
         if (trimmedReason && updates.status !== BookingStatus.CANCELLED) {
           patchState(store, {
-            error: 'Cancellation reason is only allowed when cancelling',
+            error: toBookingError(
+              'Cancellation reason is only allowed when cancelling'
+            ),
             errorCode: 'VALIDATION',
             actionErrorsById: {
               ...store.actionErrorsById(),
@@ -183,7 +189,7 @@ export const BookingStore = signalStore(
             bookings: state.bookings.map((b) =>
               b.id === id ? previousBooking : b
             ),
-            error: resolved.message,
+            error: toBookingError(resolved.message),
             errorCode: resolved.code,
             actionErrorsById: {
               ...state.actionErrorsById,
@@ -236,7 +242,7 @@ export const BookingStore = signalStore(
                 const resolved = resolveBookingError(err);
                 patchState(store, {
                   loading: false,
-                  error: resolved.message,
+                  error: toBookingError(resolved.message),
                   errorCode: resolved.code,
                 });
                 console.error(err);
