@@ -1103,12 +1103,12 @@ const IMPROVEMENT_PATTERNS: Record<
   },
   'empty-state': {
     required: [
-      /(\.\s*length\s*===?\s*0|isEmpty\(\)|empty-state)/,
-      /(\*ngIf\s*=\s*['"][^'"]*\.length\s*===?\s*0|@if[^{]*\.length\s*===?\s*0|@empty)/,
+      /(\.\s*length\s*===?\s*0|isEmpty\(\)|empty-state|showEmptyState|emptyState)/,
+      /(\*ngIf\s*=\s*['"][^'"]*\.length\s*===?\s*0|@if[^{]*\.length\s*===?\s*0|@if\s*\(\s*\w*[Ee]mpty\w*\(\s*\)\s*\)|@empty)/,
     ],
     descriptions: [
-      'Empty check logic',
-      'Empty state UI display (*ngIf or @if/@empty)',
+      'Empty check logic (length check, isEmpty, computed signal)',
+      'Empty state UI display (*ngIf, @if with length check, or @if with empty signal)',
     ],
   },
   accessibility: {
@@ -1195,6 +1195,34 @@ const verifyImprovementNeeded = (
     };
   }
 
+  // FIX #3: Skip form-validation for components that don't have form elements
+  // Calendar views, lists, and other non-form components shouldn't require form validation
+  if (type === 'form-validation') {
+    let hasFormElements = false;
+    const formElementPattern =
+      /(<form[\s>]|formGroup|formControl|ngModel|\[formControl\]|\(ngSubmit\)|<input[\s>]|<select[\s>]|<textarea[\s>])/i;
+    for (const comp of feature.componentFiles) {
+      if (
+        formElementPattern.test(comp.htmlContent) ||
+        formElementPattern.test(comp.tsContent)
+      ) {
+        hasFormElements = true;
+        break;
+      }
+    }
+    if (!hasFormElements) {
+      return {
+        needed: false,
+        evidence: `✅ form-validation: N/A (component has no form elements - calendar/view component)`,
+        existingPatterns: ['N/A - no forms'],
+        missingPatterns: [],
+        searchedPatterns: [],
+        searchedFiles:
+          '<FEATURE_ROOT>/**/*.component.html, <FEATURE_ROOT>/**/*.component.ts',
+      };
+    }
+  }
+
   // Collect content based on verification scope (VERIFICATION SCOPE RULE)
   const scope = IMPROVEMENT_SCOPE[type];
   let combinedContent = '';
@@ -1224,8 +1252,37 @@ const verifyImprovementNeeded = (
       const tsContent = safeRead(tsFile);
       if (tsContent) combinedContent += tsContent + '\n';
     }
+    // FIX #1: Also search shared stores outside feature folder
+    // Detect store imports and resolve their paths
+    const storeImportPattern =
+      /import\s*\{[^}]*\}\s*from\s*['"]([^'"]*\.store)['"]/g;
+    let storeMatch;
+    for (const comp of feature.componentFiles) {
+      const content = comp.tsContent;
+      while ((storeMatch = storeImportPattern.exec(content)) !== null) {
+        const importPath = storeMatch[1];
+        // Resolve relative imports to absolute paths
+        if (importPath.includes('state/')) {
+          // Extract state folder name from import (e.g., '../../state/bookings/booking.store')
+          const stateMatch = importPath.match(/state\/([^/]+)\/([^/]+)\.store/);
+          if (stateMatch) {
+            const [, folder, storeName] = stateMatch;
+            const sharedStorePath = join(
+              'apps/manager-dashboard/src/app/state',
+              folder,
+              `${storeName}.store.ts`
+            );
+            const sharedStoreContent = safeRead(sharedStorePath);
+            if (sharedStoreContent) {
+              combinedContent += sharedStoreContent + '\n';
+            }
+          }
+        }
+      }
+      storeImportPattern.lastIndex = 0; // Reset regex state
+    }
     searchedFiles =
-      '<FEATURE_ROOT>/**/*.component.ts, <FEATURE_ROOT>/**/*.service.ts, <FEATURE_ROOT>/**/*.store.ts';
+      '<FEATURE_ROOT>/**/*.component.ts, <FEATURE_ROOT>/**/*.service.ts, <FEATURE_ROOT>/**/*.store.ts, apps/**/state/**/*.store.ts (via imports)';
   } else if (scope === 'html-ts-all') {
     // Search in all component files
     for (const comp of feature.componentFiles) {

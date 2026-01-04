@@ -486,7 +486,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Open action panel for a booking
+   * Open the action panel for a booking.
+   * @param booking Booking to display.
+   * @param event Optional event used to restore focus.
    */
   openBooking(booking: BookingListItemDto, event?: Event): void {
     if (this.actionDialog()) {
@@ -513,7 +515,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Close action panel and restore focus
+   * Close the action panel and restore focus.
    */
   closePanel(): void {
     this.selectedBooking.set(null);
@@ -527,7 +529,8 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Trap focus inside the panel and support ESC close
+   * Trap focus inside the panel and support ESC close.
+   * @param event Keyboard event for focus management.
    */
   onPanelKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
@@ -556,10 +559,20 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Track focused slot for keyboard navigation.
+   * @param dayIndex Day index in the week view.
+   * @param hourIndex Hour index in the day.
+   */
   onSlotFocus(dayIndex: number, hourIndex: number): void {
     this.focusedSlot.set({ dayIndex, hourIndex });
   }
 
+  /**
+   * Provide tabindex for the current slot focus target.
+   * @param dayIndex Day index in the week view.
+   * @param hourIndex Hour index in the day.
+   */
   slotTabIndex(dayIndex: number, hourIndex: number): number {
     const focused = this.focusedSlot();
     if (!focused) return dayIndex === 0 && hourIndex === 0 ? 0 : -1;
@@ -568,6 +581,13 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
       : -1;
   }
 
+  /**
+   * Handle keyboard navigation within the calendar grid.
+   * @param event Keyboard event to interpret.
+   * @param dayIndex Day index in the week view.
+   * @param hourIndex Hour index in the day.
+   * @param slotBookings Bookings for the active slot.
+   */
   onSlotKeydown(
     event: KeyboardEvent,
     dayIndex: number,
@@ -607,10 +627,17 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     this.focusSlot(nextDay, nextHour);
   }
 
+  /**
+   * Retry loading bookings and reset retry state.
+   */
   retryLoad(): void {
     this.loadBookings(true);
   }
 
+  /**
+   * Handle error recovery action selection.
+   * @param action Recovery action chosen by the user.
+   */
   handleErrorRecovery(action: ErrorRecoveryAction): void {
     switch (action) {
       case 'retry':
@@ -625,6 +652,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Confirm the selected booking.
+   */
   async confirmBooking(): Promise<void> {
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
@@ -633,6 +663,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }, 'Booking confirmed');
   }
 
+  /**
+   * Mark the selected booking as paid.
+   */
   async markPaid(): Promise<void> {
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
@@ -641,6 +674,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }, 'Payment marked as paid');
   }
 
+  /**
+   * Cancel the selected booking with a reason.
+   */
   async cancelBooking(): Promise<void> {
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
@@ -652,6 +688,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }, 'Booking cancelled');
   }
 
+  /**
+   * Open the confirm dialog for the selected booking.
+   */
   openConfirmDialog(): void {
     if (!this.dialogAvailable()) return;
     const booking = this.selectedBookingLive();
@@ -659,6 +698,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     this.actionDialog.set({ type: 'confirm', bookingId: booking.id });
   }
 
+  /**
+   * Open the mark-paid dialog for the selected booking.
+   */
   openPayDialog(): void {
     if (!this.dialogAvailable()) return;
     const booking = this.selectedBookingLive();
@@ -666,6 +708,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     this.actionDialog.set({ type: 'pay', bookingId: booking.id });
   }
 
+  /**
+   * Open the cancel dialog and reset the reason input.
+   */
   openCancelDialog(): void {
     if (!this.dialogAvailable()) return;
     const booking = this.selectedBookingLive();
@@ -674,11 +719,17 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     this.actionDialog.set({ type: 'cancel', bookingId: booking.id });
   }
 
+  /**
+   * Close the active dialog and reset dialog state.
+   */
   closeDialog(): void {
     this.actionDialog.set(null);
     this.cancelReason.set('');
   }
 
+  /**
+   * Submit the action configured by the dialog.
+   */
   async submitDialogAction(): Promise<void> {
     const dialog = this.actionDialog();
     if (!dialog) return;
@@ -719,8 +770,14 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     if (this.actionInProgress()) return;
     this.actionInProgress.set(true);
 
-    const success = await action();
-    this.actionInProgress.set(false);
+    let success = false;
+    try {
+      success = await action();
+    } catch (error) {
+      success = false;
+    } finally {
+      this.actionInProgress.set(false);
+    }
 
     if (success) {
       if (onSuccess) {
@@ -949,7 +1006,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Get bookings for a specific day and hour slot (O(1))
+   * Get bookings for a specific day and hour slot (O(1)).
+   * @param day Day to query.
+   * @param hour Hour value to query.
    */
   getBookingsForSlot(day: Date, hour: string): BookingSegment[] {
     const [hourNum] = hour.split(':').map(Number);
@@ -957,6 +1016,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     return this.bookingsMap().get(key) ?? [];
   }
 
+  /**
+   * Resolve layout columns for a booking segment.
+   * @param segment Booking segment to position.
+   */
   getBookingLayout(segment: BookingSegment): BookingLayout {
     return this.bookingLayout().get(segment.id) ?? this.defaultLayout;
   }
@@ -967,6 +1030,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * - Minute-level vertical positioning (top)
    * - Duration-based height
    * - Horizontal splitting for overlapping bookings in the same start slot
+   * @param segment Booking segment to style.
+   * @param columnIndex Column index for the segment.
+   * @param columnCount Total columns in the overlap cluster.
    */
   getBookingStyle(
     segment: BookingSegment,
@@ -1033,7 +1099,8 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Check if a day is today
+   * Check if a day is today.
+   * @param day Day to compare.
    */
   isToday(day: Date): boolean {
     const todayDate = this.today();
@@ -1045,7 +1112,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Navigate to previous week
+   * Navigate to the previous week.
    */
   previousWeek(): void {
     if (!this.canNavigate()) return;
@@ -1057,7 +1124,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Navigate to next week
+   * Navigate to the next week.
    */
   nextWeek(): void {
     if (!this.canNavigate()) return;
@@ -1069,7 +1136,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Go to current week
+   * Navigate to the current week.
    */
   goToToday(): void {
     if (!this.canNavigate()) return;
@@ -1078,7 +1145,8 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Get CSS class for booking status
+   * Get CSS class for booking status.
+   * @param status Booking status to map.
    */
   getStatusClass(status: BookingStatus): string {
     switch (status) {
@@ -1097,6 +1165,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Map booking status to a tone token.
+   * @param status Booking status to map.
+   */
   statusTone(
     status: BookingStatus
   ): 'success' | 'warning' | 'danger' | 'neutral' {
@@ -1114,6 +1186,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Map payment status to a tone token.
+   * @param status Payment status to map.
+   */
   paymentTone(status: PaymentStatus): 'success' | 'warning' | 'neutral' {
     switch (status) {
       case PaymentStatus.PAID:
@@ -1125,6 +1201,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Map booking status to a label.
+   * @param status Booking status to map.
+   */
   statusLabel(status: BookingStatus): string {
     switch (status) {
       case BookingStatus.CONFIRMED:
@@ -1142,6 +1222,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Map payment status to a label.
+   * @param status Payment status to map.
+   */
   paymentLabel(status: PaymentStatus): string {
     switch (status) {
       case PaymentStatus.PAID:
@@ -1158,14 +1242,16 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Format day number for display
+   * Format day number for display.
+   * @param day Day to format.
    */
   formatDayNumber(day: Date): string {
     return day.getDate().toString();
   }
 
   /**
-   * Format time for display (12-hour)
+   * Format time for display (12-hour).
+   * @param hour Hour string in HH:mm.
    */
   formatHour(hour: string): string {
     const [h] = hour.split(':').map(Number);
@@ -1174,6 +1260,12 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     return `${hour12} ${period}`;
   }
 
+  /**
+   * Build an aria-label for a calendar slot.
+   * @param day Day for the slot.
+   * @param hour Hour for the slot.
+   * @param bookingCount Count of bookings in the slot.
+   */
   slotAriaLabel(day: Date, hour: string, bookingCount: number): string {
     const dayLabel = `${this.dayNames[day.getDay()]} ${this.formatDayNumber(
       day
@@ -1186,15 +1278,27 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     return `${dayLabel} at ${timeLabel}. ${bookingCount} ${plural}.`;
   }
 
+  /**
+   * Format an ISO date string for display.
+   * @param isoString ISO timestamp to format.
+   */
   formatDate(isoString: string): string {
     return this.dateFormatter.format(new Date(isoString));
   }
 
+  /**
+   * Format an ISO time string for display.
+   * @param isoString ISO timestamp to format.
+   */
   formatTime(isoString: string | null | undefined): string {
     if (!isoString) return '';
     return this.timeFormatter.format(new Date(isoString));
   }
 
+  /**
+   * Format a timestamp for last-updated messaging.
+   * @param timestamp Epoch millis to format.
+   */
   formatLastUpdated(timestamp: number | null): string {
     if (!timestamp) return '';
     return new Date(timestamp).toLocaleString('en-SA', {
@@ -1206,6 +1310,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Determine if the hold timer is currently active.
+   * @param booking Booking to evaluate.
+   */
   isHoldActive(booking: BookingListItemDto): boolean {
     if (booking.status !== BookingStatus.PENDING || !booking.holdUntil) {
       return false;
@@ -1214,16 +1322,28 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Track function for ngFor
+   * Track function for ngFor.
+   * @param index NgFor index.
+   * @param day Day being tracked.
    */
   trackByDay(index: number, day: Date): number {
     return day.getTime();
   }
 
+  /**
+   * Track function for hour rows.
+   * @param index NgFor index.
+   * @param hour Hour value.
+   */
   trackByHour(index: number, hour: string): string {
     return hour;
   }
 
+  /**
+   * Track function for booking segments.
+   * @param index NgFor index.
+   * @param segment Booking segment.
+   */
   trackByBooking(index: number, segment: BookingSegment): string {
     return segment.id;
   }

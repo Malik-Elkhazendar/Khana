@@ -66,6 +66,15 @@ describe('BookingCalendarComponent', () => {
     expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
   });
 
+  it('clears the error when dismissing recovery options', () => {
+    storeMock.error.set(new Error('Load failed'));
+    const { component } = setupComponent();
+
+    component.handleErrorRecovery('dismiss');
+
+    expect(storeMock.clearError).toHaveBeenCalled();
+  });
+
   it('categorizes errors and exposes recovery options', () => {
     storeMock.error.set(new Error('Network error'));
     storeMock.errorCode.set('NETWORK');
@@ -122,6 +131,16 @@ describe('BookingCalendarComponent', () => {
 
     expect(main?.getAttribute('aria-busy')).toBe('true');
     expect(loading?.getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('renders the empty state when no bookings are available', () => {
+    const { fixture } = setupComponent([]);
+
+    const empty = fixture.nativeElement.querySelector(
+      '.calendar__empty'
+    ) as HTMLElement | null;
+
+    expect(empty?.textContent).toContain('No bookings');
   });
 
   it('builds a week starting on Sunday', () => {
@@ -706,6 +725,21 @@ describe('BookingCalendarComponent', () => {
     });
   });
 
+  it('shows an error toast when an action throws', async () => {
+    const booking = createTimedBooking();
+    storeMock.confirmBooking.mockRejectedValueOnce(new Error('Boom'));
+    const { component } = setupComponent([booking]);
+    component.selectedBooking.set(booking);
+
+    await component.confirmBooking();
+
+    expect(component.toast()).toEqual({
+      message: 'Action failed. Please try again.',
+      tone: 'error',
+    });
+    expect(component.actionInProgress()).toBe(false);
+  });
+
   it('shows a success toast when an action succeeds', async () => {
     const booking = createTimedBooking();
     storeMock.confirmBooking.mockResolvedValueOnce(true);
@@ -716,6 +750,20 @@ describe('BookingCalendarComponent', () => {
 
     expect(component.toast()).toEqual({
       message: 'Booking confirmed',
+      tone: 'success',
+    });
+  });
+
+  it('shows a success toast when cancel action succeeds', async () => {
+    const booking = createTimedBooking();
+    storeMock.cancelBooking.mockResolvedValueOnce(true);
+    const { component } = setupComponent([booking]);
+    component.selectedBooking.set(booking);
+
+    await component.cancelBooking();
+
+    expect(component.toast()).toEqual({
+      message: 'Booking cancelled',
       tone: 'success',
     });
   });

@@ -5,13 +5,51 @@
     Check availability and pricing before creating a booking
   </p>
 
+  @if (toast(); as toast) {
+  <div
+    class="toast"
+    role="status"
+    aria-live="polite"
+    [class.toast--success]="toast.tone === 'success'"
+    [class.toast--info]="toast.tone === 'info'"
+  >
+    {{ toast.message }}
+  </div>
+  } @if (!isOnline()) {
+  <div class="connection-banner" role="status" aria-live="polite">
+    {{ connectionMessage() }}
+  </div>
+  }
+
   <!-- Booking Form -->
   <form
     class="booking-form"
     (ngSubmit)="onSubmit()"
-    [attr.aria-busy]="loading()"
-    [attr.aria-describedby]="error() ? 'booking-preview-error' : null"
+    [attr.aria-busy]="loading() || facilitiesLoading()"
+    [attr.aria-describedby]="
+      error()
+        ? 'booking-preview-error'
+        : validationErrors().length > 0
+        ? 'form-errors'
+        : null
+    "
   >
+    <!-- Form Validation Errors -->
+    @if (validationErrors().length > 0 && !error()) {
+    <div
+      class="form-validation-errors"
+      id="form-errors"
+      role="alert"
+      aria-live="polite"
+    >
+      <ul>
+        @for (err of validationErrors(); track err) {
+        <li>{{ err }}</li>
+        }
+      </ul>
+    </div>
+    }
+
     <!-- Facility Selection -->
     <div class="form-group">
       <label for="facility">Facility</label>
@@ -22,6 +60,10 @@
         name="facility"
         required
         autocomplete="organization"
+        [disabled]="loading() || facilitiesLoading()"
+        [attr.aria-invalid]="
+          selectedFacilityId().trim().length === 0 && !facilitiesLoading()
+        "
       >
         @for (facility of facilities(); track facility.id) {
         <option [value]="facility.id">
@@ -43,6 +85,8 @@
         name="date"
         required
         autocomplete="off"
+        [disabled]="loading() || facilitiesLoading()"
+        [attr.aria-invalid]="selectedDate().trim().length === 0"
       />
     </div>
 
@@ -58,6 +102,11 @@
           name="startTime"
           required
           autocomplete="off"
+          [disabled]="loading() || facilitiesLoading()"
+          [attr.aria-invalid]="
+            startTime().trim().length === 0 ||
+            (endTime().trim().length > 0 && !isValidTimeRange())
+          "
         />
       </div>
       <div class="form-group">
@@ -70,6 +119,11 @@
           name="endTime"
           required
           autocomplete="off"
+          [disabled]="loading() || facilitiesLoading()"
+          [attr.aria-invalid]="
+            endTime().trim().length === 0 ||
+            (startTime().trim().length > 0 && !isValidTimeRange())
+          "
         />
       </div>
     </div>
@@ -86,6 +140,7 @@
         name="promoCode"
         placeholder="Enter promo code"
         autocomplete="off"
+        [disabled]="loading() || facilitiesLoading()"
       />
     </div>
 
@@ -96,7 +151,8 @@
   </form>
 
   <!-- Empty State -->
-  @if (!loading() && !error() && facilities().length === 0) {
+  @if (!loading() && !facilitiesLoading() && !error() && facilities().length ===
+  0) {
   <div class="empty-state preview-empty" role="status">
     <p>No facilities available.</p>
   </div>
@@ -110,10 +166,34 @@
     role="alert"
     aria-live="assertive"
   >
-    <span>{{ err.message }}</span>
-    <button type="button" class="btn-secondary" (click)="retry()">
-      Try Again
-    </button>
+    <div class="error-text">
+      <strong>{{ errorCategoryLabel() }}</strong>
+      <span>{{ err.message }}</span>
+      @if (retryCountdown(); as seconds) {
+      <div class="retry-info">
+        Retrying in {{ seconds }}s - {{ retryAttemptMessage() }}
+      </div>
+      }
+    </div>
+    <div class="error-actions">
+      @for (option of errorRecoveryOptions(); track option.action) {
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="handleErrorRecovery(option.action)"
+        [attr.aria-label]="option.label"
+      >
+        {{ option.label }}
+      </button>
+      }
+    </div>
+  </div>
+  } @if (loading() && !previewResult()) {
+  <div class="preview-skeleton" role="status" aria-live="polite">
+    <div class="skeleton-line skeleton-title"></div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line skeleton-block"></div>
   </div>
   }
 
@@ -127,6 +207,18 @@
     aria-live="polite"
     aria-label="Booking preview result"
   >
+    @if (previewStale() || isPreviewStale()) {
+    <div class="stale-banner" role="status" aria-live="polite">
+      <span>Preview data may be outdated.</span>
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="handleErrorRecovery('refresh')"
+      >
+        Refresh
+      </button>
+    </div>
+    }
     <!-- Status Header -->
     <div class="result-header">
       @if (result.canBook) {
@@ -252,12 +344,59 @@
     </div>
 
     <!-- Suggested Alternatives -->
-    @if (result.suggestedAlternatives && result.suggestedAlternatives.length >
-    0) {
+    @if (alternativesCount() > 0) {
     <div class="alternatives">
-      <h3>Available Alternatives</h3>
+      <div class="alternatives-header">
+        <h3>Available Alternatives</h3>
+        @if (showAlternativesToggle()) {
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="toggleAlternatives()"
+        >
+          {{ alternativesToggleLabel() }}
+        </button>
+        }
+      </div>
+      @if (showAlternatives()) { @if (shouldVirtualizeAlternatives()) {
+      <div
+        class="alternatives-scroll"
+        role="region"
+        aria-label="Alternative booking slots"
+        (scroll)="onAlternativesScroll($event)"
+      >
+        <div
+          class="alternatives-virtual"
+          [style.padding-block-start.px]="alternativesWindow().paddingTop"
+          [style.padding-block-end.px]="alternativesWindow().paddingBottom"
+          [style.min-block-size.px]="alternativesWindow().totalHeight"
+        >
+          @for (alt of alternativesWindow().items; track alt.startTime) {
+          <button
+            class="alt-slot alt-slot--list"
+            type="button"
+            (click)="selectAlternative(alt)"
+            [attr.aria-label]="
+              'Select alternative slot ' +
+              formatTime(alt.startTime) +
+              ' to ' +
+              formatTime(alt.endTime)
+            "
+          >
+            <span class="time"
+              >{{ formatTime(alt.startTime) }} -
+              {{ formatTime(alt.endTime) }}</span
+            >
+            <span class="price">{{
+              formatPrice(alt.price, alt.currency)
+            }}</span>
+          </button>
+          }
+        </div>
+      </div>
+      } @else {
       <div class="alternatives-grid">
-        @for (alt of result.suggestedAlternatives; track alt.startTime) {
+        @for (alt of alternatives(); track alt.startTime) {
         <button
           class="alt-slot"
           type="button"
@@ -277,6 +416,9 @@
         </button>
         }
       </div>
+      } } @else {
+      <p class="alternatives-hint">Tap to view alternative slots.</p>
+      }
     </div>
     }
 
@@ -296,6 +438,7 @@
             placeholder="Enter your full name"
             required
             autocomplete="name"
+            [disabled]="bookingInProgress()"
           />
         </div>
         <div class="form-group">
@@ -310,6 +453,7 @@
             required
             autocomplete="tel"
             inputmode="tel"
+            [disabled]="bookingInProgress()"
           />
         </div>
       </div>
@@ -322,6 +466,7 @@
             name="holdAsPending"
             id="holdAsPending"
             aria-describedby="hold-hint"
+            [disabled]="bookingInProgress()"
           />
           Reserve as hold (pending)
         </label>

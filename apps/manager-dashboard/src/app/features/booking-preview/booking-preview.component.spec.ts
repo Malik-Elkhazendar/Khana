@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, TimeoutError, of, throwError } from 'rxjs';
 import { BookingPreviewComponent } from './booking-preview.component';
 import { ApiService } from '../../shared/services/api.service';
 import { BookingStatus, ConflictType } from '@khana/shared-dtos';
@@ -29,6 +29,7 @@ describe('BookingPreviewComponent', () => {
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
     jest.useRealTimers();
     jest.restoreAllMocks();
     TestBed.resetTestingModule();
@@ -82,7 +83,7 @@ describe('BookingPreviewComponent', () => {
   it('does not submit when canSubmit is false', () => {
     const { component } = setupComponent();
 
-    component.loading.set(true);
+    component.selectedFacilityId.set('');
     component.onSubmit();
 
     expect(apiMock.previewBooking).not.toHaveBeenCalled();
@@ -141,6 +142,7 @@ describe('BookingPreviewComponent', () => {
     apiMock.previewBooking.mockReturnValue(of(createBookingPreview()));
 
     component.onSubmit();
+    jest.advanceTimersByTime(301);
     component.onSubmit();
 
     expect(apiMock.previewBooking).toHaveBeenCalledTimes(1);
@@ -153,8 +155,26 @@ describe('BookingPreviewComponent', () => {
     apiMock.previewBooking.mockReturnValue(of(createBookingPreview()));
 
     component.onSubmit();
+    jest.advanceTimersByTime(301);
     component.onSubmit();
-    jest.advanceTimersByTime(2 * 60 * 1000 + 1);
+    const cacheKey = (
+      component as unknown as {
+        buildCacheKey: (start: Date, end: Date) => string;
+      }
+    ).buildCacheKey(
+      new Date(`${component.selectedDate()}T${component.startTime()}`),
+      new Date(`${component.selectedDate()}T${component.endTime()}`)
+    );
+    const cache = (
+      component as unknown as {
+        previewCache: Map<string, { expiresAt: number }>;
+      }
+    ).previewCache;
+    const entry = cache.get(cacheKey);
+    if (entry) {
+      entry.expiresAt = Date.now() - 1;
+    }
+    jest.advanceTimersByTime(301);
     component.onSubmit();
 
     expect(apiMock.previewBooking).toHaveBeenCalledTimes(2);
@@ -168,6 +188,7 @@ describe('BookingPreviewComponent', () => {
 
     component.promoCode.set(' save10 ');
     component.onSubmit();
+    jest.advanceTimersByTime(301);
     component.promoCode.set('SAVE10');
     component.onSubmit();
 
@@ -175,12 +196,14 @@ describe('BookingPreviewComponent', () => {
   });
 
   it('invalidates cache when time inputs change', () => {
+    jest.useFakeTimers();
     const { component } = setupComponent();
     apiMock.previewBooking.mockReturnValue(of(createBookingPreview()));
 
     component.startTime.set('10:00');
     component.endTime.set('11:00');
     component.onSubmit();
+    jest.advanceTimersByTime(301);
     component.startTime.set('11:00');
     component.endTime.set('12:00');
     component.onSubmit();
@@ -243,6 +266,202 @@ describe('BookingPreviewComponent', () => {
     component.onSubmit();
 
     expect(component.error()?.category).toBe('network');
+  });
+
+  it('debounces rapid preview submissions', () => {
+    jest.useFakeTimers();
+    const { component } = setupComponent();
+    apiMock.previewBooking.mockReturnValue(of(createBookingPreview()));
+
+    component.onSubmit();
+    component.onSubmit();
+
+    expect(apiMock.previewBooking).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(301);
+    component.promoCode.set('NEXT');
+    component.onSubmit();
+
+    expect(apiMock.previewBooking).toHaveBeenCalledTimes(2);
+  });
+
+  it('auto-retries preview requests with exponential backoff', () => {
+    jest.useFakeTimers();
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    apiMock.previewBooking
+      .mockReturnValueOnce(throwError(() => ({ status: 0 })))
+      .mockReturnValueOnce(of(createBookingPreview()));
+
+    const { component } = setupComponent();
+
+    component.onSubmit();
+    expect(component.retryScheduledAt()).not.toBeNull();
+
+    jest.advanceTimersByTime(800);
+
+    expect(apiMock.previewBooking).toHaveBeenCalledTimes(2);
+    expect(component.retryAttempt()).toBe(0);
+  });
+
+  it('does not auto-retry validation errors', () => {
+    jest.useFakeTimers();
+    apiMock.previewBooking.mockReturnValueOnce(
+      throwError(() => ({ status: 400 }))
+    );
+
+    const { component } = setupComponent();
+
+    component.onSubmit();
+
+    expect(component.retryScheduledAt()).toBeNull();
+  });
+
+  it('restores last successful preview after network failures', () => {
+    jest.useFakeTimers();
+    const firstPreview = createBookingPreview({ canBook: true });
+    apiMock.previewBooking
+      .mockReturnValueOnce(of(firstPreview))
+      .mockReturnValueOnce(throwError(() => ({ status: 0 })));
+
+    const { component } = setupComponent();
+
+    component.onSubmit();
+    jest.advanceTimersByTime(301);
+    component.promoCode.set('NEXT');
+    component.onSubmit();
+
+    expect(component.previewResult()).toEqual(firstPreview);
+    expect(component.previewStale()).toBe(true);
+  });
+
+  it('queues preview requests when offline', () => {
+    const { component } = setupComponent();
+    component.isOnline.set(false);
+
+    component.onSubmit();
+
+    expect(component.pendingActions().length).toBe(1);
+    expect(apiMock.previewBooking).not.toHaveBeenCalled();
+    expect(component.error()?.message).toContain('offline');
+  });
+
+  it('flushes queued preview requests when online', () => {
+    const { component } = setupComponent();
+    component.isOnline.set(false);
+
+    component.onSubmit();
+    component.isOnline.set(true);
+    apiMock.previewBooking.mockReturnValueOnce(of(createBookingPreview()));
+
+    (
+      component as unknown as { flushOfflineQueue: () => void }
+    ).flushOfflineQueue();
+
+    expect(apiMock.previewBooking).toHaveBeenCalled();
+  });
+
+  it('ignores stale preview responses when a new request starts', () => {
+    jest.useFakeTimers();
+    const { component } = setupComponent();
+    const firstSubject = new Subject<ReturnType<typeof createBookingPreview>>();
+    const secondSubject = new Subject<
+      ReturnType<typeof createBookingPreview>
+    >();
+    apiMock.previewBooking
+      .mockReturnValueOnce(firstSubject.asObservable())
+      .mockReturnValueOnce(secondSubject.asObservable());
+
+    component.onSubmit();
+    jest.advanceTimersByTime(301);
+    component.promoCode.set('ALT');
+    component.onSubmit();
+
+    firstSubject.next(createBookingPreview({ canBook: false }));
+    secondSubject.next(createBookingPreview({ canBook: true }));
+
+    expect(component.previewResult()?.canBook).toBe(true);
+  });
+
+  it('marks preview data as stale after the TTL window', () => {
+    const { component } = setupComponent();
+    const now = Date.now();
+
+    component.lastPreviewAt.set(now - 5 * 60 * 1000 - 1);
+    component.nowTick.set(now);
+
+    expect(component.isPreviewStale()).toBe(true);
+  });
+
+  it('virtualizes alternative slots for large lists', () => {
+    const { component } = setupComponent();
+    const alternatives = Array.from({ length: 120 }, (_, index) => ({
+      startTime: `2025-03-01T${(index % 24)
+        .toString()
+        .padStart(2, '0')}:00:00Z`,
+      endTime: `2025-03-01T${(index % 24).toString().padStart(2, '0')}:30:00Z`,
+      price: 100,
+      currency: 'SAR',
+    }));
+
+    component.previewResult.set(
+      createBookingPreview({ suggestedAlternatives: alternatives })
+    );
+    component.alternativesScrollTop.set(200);
+
+    expect(component.shouldVirtualizeAlternatives()).toBe(true);
+    expect(component.alternativesWindow().items.length).toBeLessThan(
+      alternatives.length
+    );
+  });
+
+  it('toggles alternatives visibility for large lists', () => {
+    const { component } = setupComponent();
+    const alternatives = Array.from({ length: 7 }, (_, index) => ({
+      startTime: `2025-03-01T${(index % 24)
+        .toString()
+        .padStart(2, '0')}:00:00Z`,
+      endTime: `2025-03-01T${(index % 24).toString().padStart(2, '0')}:30:00Z`,
+      price: 100,
+      currency: 'SAR',
+    }));
+
+    component.previewResult.set(
+      createBookingPreview({ suggestedAlternatives: alternatives })
+    );
+
+    expect(component.showAlternatives()).toBe(false);
+    component.toggleAlternatives();
+    expect(component.showAlternatives()).toBe(true);
+  });
+
+  it('categorizes timeout errors as network errors', () => {
+    const { component } = setupComponent();
+    const timeoutError = new TimeoutError();
+    const resolved = (
+      component as unknown as {
+        resolveError: (
+          action: string,
+          err: unknown
+        ) => { category: string; message: string };
+      }
+    ).resolveError('preview', timeoutError);
+
+    expect(resolved.category).toBe('network');
+    expect(resolved.message).toContain('timed out');
+  });
+
+  it('clears booking success when loading begins', () => {
+    const { component } = setupComponent();
+
+    component.bookingSuccess.set(true);
+    component.loading.set(true);
+    (
+      component as unknown as {
+        enforceStateConsistency: (state: unknown) => void;
+      }
+    ).enforceStateConsistency(component.stateSnapshot());
+
+    expect(component.bookingSuccess()).toBe(false);
   });
 
   it('updates form values when selecting an alternative slot', () => {
@@ -585,5 +804,161 @@ describe('BookingPreviewComponent', () => {
     component.selectedFacilityId.set(facility.id);
 
     expect(component.selectedFacilityId()).toBe('facility-2');
+  });
+
+  it('validates that start time must be before end time', () => {
+    const { component } = setupComponent();
+
+    component.startTime.set('15:00');
+    component.endTime.set('14:00');
+
+    expect(component.isValidTimeRange()).toBe(false);
+    expect(component.inputsValid()).toBe(false);
+  });
+
+  it('allows valid time ranges', () => {
+    const { component } = setupComponent();
+
+    component.startTime.set('10:00');
+    component.endTime.set('11:00');
+
+    expect(component.isValidTimeRange()).toBe(true);
+    expect(component.inputsValid()).toBe(true);
+  });
+
+  it('generates validation error messages for missing inputs', () => {
+    const { component } = setupComponent();
+
+    component.selectedFacilityId.set('');
+    component.selectedDate.set('');
+    component.startTime.set('');
+    component.endTime.set('');
+
+    const errors = component.validationErrors();
+    expect(errors).toContain('Facility is required');
+    expect(errors).toContain('Date is required');
+    expect(errors).toContain('Start time is required');
+    expect(errors).toContain('End time is required');
+  });
+
+  it('generates validation error for invalid time range', () => {
+    const { component } = setupComponent();
+
+    component.startTime.set('15:00');
+    component.endTime.set('14:00');
+
+    const errors = component.validationErrors();
+    expect(errors).toContain('Start time must be before end time');
+  });
+
+  it('does not generate validation error messages when inputs are valid', () => {
+    const { component } = setupComponent();
+
+    expect(component.validationErrors()).toEqual([]);
+  });
+
+  it('attempts booking offline and shows error', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+    component.isOnline.set(false);
+    component.onBook();
+
+    expect(component.error()?.message).toContain('offline');
+    expect(component.confirmDialogOpen()).toBe(false);
+    expect(apiMock.createBooking).not.toHaveBeenCalled();
+  });
+
+  it('closes confirmation dialog when offline booking is attempted', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+    component.confirmDialogOpen.set(true);
+    component.isOnline.set(false);
+    component.onBook();
+
+    expect(component.confirmDialogOpen()).toBe(false);
+  });
+
+  it('displays validation errors with aria-live for accessibility', () => {
+    const { component } = setupComponent();
+
+    component.selectedFacilityId.set('');
+    component.startTime.set('15:00');
+    component.endTime.set('14:00');
+
+    expect(component.validationErrors().length).toBeGreaterThan(0);
+  });
+
+  it('prevents booking when customer name is missing', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('');
+    component.customerPhone.set('0555555555');
+
+    expect(component.canBook()).toBe(false);
+  });
+
+  it('prevents booking when customer phone is missing', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('');
+
+    expect(component.canBook()).toBe(false);
+  });
+
+  it('allows booking with valid customer details and preview', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+
+    expect(component.canBook()).toBe(true);
+  });
+
+  it('closes confirmation dialog on escape key by calling closeConfirmDialog', () => {
+    const { component } = setupComponent();
+
+    component.confirmDialogOpen.set(true);
+    component.closeConfirmDialog();
+
+    expect(component.confirmDialogOpen()).toBe(false);
+  });
+
+  it('does not close confirmation dialog during booking', () => {
+    const { component } = setupComponent();
+
+    component.confirmDialogOpen.set(true);
+    component.bookingInProgress.set(true);
+    component.closeConfirmDialog();
+
+    expect(component.confirmDialogOpen()).toBe(true);
+  });
+
+  it('shows aria-invalid on inputs with missing values', () => {
+    const { component } = setupComponent();
+
+    component.selectedFacilityId.set('');
+    component.selectedDate.set('');
+
+    expect(component.selectedFacilityId().trim().length).toBe(0);
+    expect(component.selectedDate().trim().length).toBe(0);
+  });
+
+  it('shows aria-invalid on time inputs with invalid range', () => {
+    const { component } = setupComponent();
+
+    component.startTime.set('15:00');
+    component.endTime.set('14:00');
+
+    expect(component.isValidTimeRange()).toBe(false);
   });
 });

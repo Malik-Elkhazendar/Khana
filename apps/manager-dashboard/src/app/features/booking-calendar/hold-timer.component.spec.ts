@@ -26,6 +26,7 @@ describe('HoldTimerComponent', () => {
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 
@@ -166,5 +167,16 @@ describe('HoldTimerComponent', () => {
     expect(container?.getAttribute('role')).toBe('status');
     expect(container?.getAttribute('aria-live')).toBe('polite');
     expect(container?.getAttribute('aria-atomic')).toBe('true');
+  });
+
+  it('stops ticking after the component is destroyed', () => {
+    const holdUntil = new Date(baseTime.getTime() + 60 * 1000).toISOString();
+    const { fixture, component } = setup(holdUntil);
+    const initial = component.now();
+
+    fixture.destroy();
+    jest.advanceTimersByTime(2000);
+
+    expect(component.now()).toBe(initial);
   });
 });
