@@ -50,6 +50,7 @@ const createStoreMock = (initialBookings: BookingListItemDto[] = []) => ({
   bookings: signal<BookingListItemDto[]>(initialBookings),
   loading: signal(false),
   error: signal<Error | null>(null),
+  actionLoadingById: signal<Record<string, boolean>>({}),
   loadBookings: jest.fn(),
   cancelBooking: jest.fn(() => Promise.resolve(true)),
   markBookingPaid: jest.fn(() => Promise.resolve(true)),
@@ -90,6 +91,22 @@ describe('BookingListComponent', () => {
     expect(apiMock.getFacilities).toHaveBeenCalled();
     expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
     expect(component.facilities().length).toBe(1);
+  });
+
+  it('reloads bookings and clears selection when facility changes', () => {
+    const booking = createBooking({ id: 'booking-1' });
+    const { component } = setupComponent([booking]);
+
+    component.selectedFacilityId.set('facility-1');
+    component.selectedBookingIds.set(new Set(['booking-1']));
+    component.currentPage.set(3);
+    storeMock.loadBookings.mockClear();
+
+    component.onFacilityChange();
+
+    expect(storeMock.loadBookings).toHaveBeenCalledWith('facility-1');
+    expect(component.currentPage()).toBe(1);
+    expect(component.selectedBookingIds().size).toBe(0);
   });
 
   it('handles first page pagination state', () => {
@@ -193,6 +210,22 @@ describe('BookingListComponent', () => {
     const sorted = component.filteredBookings();
     expect(sorted[0].id).toBe('booking-2');
     expect(sorted[1].id).toBe('booking-1');
+  });
+
+  it('toggles sort direction and resets pagination', () => {
+    const bookings = [createBooking({ id: 'booking-1' })];
+    const { component } = setupComponent(bookings);
+
+    component.currentPage.set(3);
+    component.setSort('customer');
+    expect(component.sortKey()).toBe('customer');
+    expect(component.sortDirection()).toBe('asc');
+    expect(component.currentPage()).toBe(1);
+
+    component.currentPage.set(2);
+    component.setSort('customer');
+    expect(component.sortDirection()).toBe('desc');
+    expect(component.currentPage()).toBe(1);
   });
 
   it('applies status and date range filters together', () => {
@@ -385,6 +418,16 @@ describe('BookingListComponent', () => {
     });
   });
 
+  it('skips mark as paid when action is already loading', async () => {
+    const booking = createBooking({ id: 'booking-1' });
+    storeMock.actionLoadingById.set({ 'booking-1': true });
+    const { component } = setupComponent([booking]);
+
+    await component.markAsPaid(booking);
+
+    expect(storeMock.markBookingPaid).not.toHaveBeenCalled();
+  });
+
   it('shows success toast when mark as paid succeeds', async () => {
     const booking = createBooking({ id: 'booking-1' });
     storeMock.markBookingPaid.mockResolvedValueOnce(true);
@@ -430,6 +473,22 @@ describe('BookingListComponent', () => {
     expect(component.toast()?.tone).toBe('success');
   });
 
+  it('shows an error when cancellation fails', async () => {
+    const booking = createBooking({ id: 'booking-1' });
+    storeMock.cancelBooking.mockResolvedValueOnce(false);
+    const { component } = setupComponent([booking]);
+
+    component.cancelDialogBooking.set(booking);
+    component.cancelReason.set('Customer request');
+
+    await component.submitCancelDialog();
+
+    expect(component.cancelError()).toBe(
+      'Cancellation failed. Please try again.'
+    );
+    expect(component.toast()?.tone).toBe('error');
+  });
+
   it('blocks bulk cancel when reason is too short', async () => {
     const booking = createBooking({ id: 'booking-1' });
     const { component } = setupComponent([booking]);
@@ -455,6 +514,25 @@ describe('BookingListComponent', () => {
     component.selectedBookingIds.set(new Set(['booking-1']));
     component.openBulkCancelDialog();
     expect(component.bulkCancelOpen()).toBe(true);
+  });
+
+  it('shows an error when bulk cancellation fails', async () => {
+    const bookings = [
+      createBooking({ id: 'booking-1' }),
+      createBooking({ id: 'booking-2' }),
+    ];
+    storeMock.cancelBooking
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const { component } = setupComponent(bookings);
+
+    component.selectedBookingIds.set(new Set(['booking-1', 'booking-2']));
+    component.bulkCancelReason.set('Customer request');
+
+    await component.submitBulkCancel();
+
+    expect(component.bulkCancelError()).toContain('1 of 2');
+    expect(component.toast()?.tone).toBe('error');
   });
 
   it('shows facility error and retries loading facilities', () => {
@@ -554,5 +632,25 @@ describe('BookingListComponent', () => {
     expect(component.searchTerm()).toBe('');
     jest.advanceTimersByTime(300);
     expect(component.searchTerm()).toBe('Layla');
+  });
+
+  it('moves focused row with arrow keys', () => {
+    const bookings = [
+      createBooking({ id: 'booking-1' }),
+      createBooking({ id: 'booking-2' }),
+    ];
+    const { component, fixture } = setupComponent(bookings);
+    fixture.detectChanges();
+
+    component.focusedRowIndex.set(0);
+    const preventDefault = jest.fn();
+
+    component.onRowKeydown(
+      { key: 'ArrowDown', preventDefault } as unknown as KeyboardEvent,
+      0
+    );
+
+    expect(component.focusedRowIndex()).toBe(1);
+    expect(preventDefault).toHaveBeenCalled();
   });
 });

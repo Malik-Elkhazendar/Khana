@@ -137,7 +137,9 @@
         type="button"
         class="btn-ghost btn-ghost--danger"
         (click)="openBulkCancelDialog()"
-        [disabled]="selectedCancellableBookings().length === 0"
+        [disabled]="
+          selectedCancellableBookings().length === 0 || bulkActionInProgress()
+        "
       >
         Cancel Selected
       </button>
@@ -152,7 +154,7 @@
   <div class="table-card" [attr.aria-busy]="loading() ? 'true' : null">
     @if (loading()) {
     <div class="table-loading" role="status" aria-live="polite">
-      Loading bookings…
+      Loading bookings...
     </div>
     } @else if (bookings().length === 0) {
     <div class="table-empty" role="status" aria-live="polite">
@@ -291,7 +293,7 @@
                   bookingPrice(booking).currency
                 )
               }}
-              } @else { — }
+              } @else { N/A }
             </td>
             <td class="col-actions">
               <div class="actions">
@@ -306,6 +308,7 @@
                     'Cancel booking for ' + booking.customerName
                   "
                   (click)="openCancelDialog(booking)"
+                  [disabled]="actionLoadingById()[booking.id]"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -340,6 +343,7 @@
                     'Mark booking as paid for ' + booking.customerName
                   "
                   (click)="markAsPaid(booking)"
+                  [disabled]="actionLoadingById()[booking.id]"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -418,7 +422,7 @@
             <span class="value cell-mono">
               @if (price.amount > 0) {
               {{ formatPrice(price.amount, price.currency) }}
-              } @else { — }
+              } @else { N/A }
             </span>
           </div>
           @if (booking.bookingReference) {
@@ -444,6 +448,7 @@
             class="btn-icon btn-icon--danger"
             [attr.aria-label]="'Cancel booking for ' + booking.customerName"
             (click)="openCancelDialog(booking)"
+            [disabled]="actionLoadingById()[booking.id]"
           >
             Cancel
           </button>
@@ -463,6 +468,7 @@
               'Mark booking as paid for ' + booking.customerName
             "
             (click)="markAsPaid(booking)"
+            [disabled]="actionLoadingById()[booking.id]"
           >
             Mark Paid
           </button>

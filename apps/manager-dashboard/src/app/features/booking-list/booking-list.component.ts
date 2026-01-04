@@ -67,6 +67,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
   bookings = this.store.bookings;
   loading = this.store.loading;
   error = this.store.error;
+  actionLoadingById = this.store.actionLoadingById;
 
   searchInput = signal('');
   searchTerm = signal('');
@@ -248,11 +249,17 @@ export class BookingListComponent implements OnInit, OnDestroy {
   private searchDebounceId: number | null = null;
   private toastTimer: number | null = null;
 
+  /**
+   * Initialize facility data and load bookings.
+   */
   ngOnInit(): void {
     this.loadFacilities();
     this.store.loadBookings(this.getFacilityFilter());
   }
 
+  /**
+   * Clear timers on destroy.
+   */
   ngOnDestroy(): void {
     if (this.searchDebounceId) {
       window.clearTimeout(this.searchDebounceId);
@@ -264,6 +271,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Reload bookings when facility selection changes.
+   */
   onFacilityChange(): void {
     this.store.loadBookings(this.getFacilityFilter());
     this.currentPage.set(1);
@@ -288,11 +298,17 @@ export class BookingListComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Retry loading bookings using the current facility filter.
+   */
   retryLoad(): void {
     this.store.loadBookings(this.getFacilityFilter());
     this.clearSelection();
   }
 
+  /**
+   * Retry loading facilities list.
+   */
   retryFacilities(): void {
     this.loadFacilities();
   }
@@ -302,6 +318,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     return facilityId.length > 0 ? facilityId : null;
   }
 
+  /**
+   * Format an ISO date string for display.
+   */
   formatDate(isoString: string): string {
     const date = new Date(isoString);
     return date.toLocaleDateString('en-SA', {
@@ -311,6 +330,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Format an ISO time string for display.
+   */
   formatTime(isoString: string | null | undefined): string {
     if (!isoString) return '';
     return new Date(isoString).toLocaleTimeString('en-SA', {
@@ -320,10 +342,16 @@ export class BookingListComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Format a time range for display.
+   */
   formatTimeRange(startIso: string, endIso: string): string {
-    return `${this.formatTime(startIso)} – ${this.formatTime(endIso)}`;
+    return `${this.formatTime(startIso)} - ${this.formatTime(endIso)}`;
   }
 
+  /**
+   * Map booking status to a visual tone.
+   */
   statusTone(status: string): BookingStatusTone {
     switch (status) {
       case 'CONFIRMED':
@@ -338,6 +366,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Map booking status to a display label.
+   */
   statusLabel(status: string): string {
     switch (status) {
       case 'CONFIRMED':
@@ -353,6 +384,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Determine whether a pending booking hold is still active.
+   */
   isHoldActive(booking: BookingListItemDto): boolean {
     if (booking.status !== BookingStatus.PENDING || !booking.holdUntil) {
       return false;
@@ -360,6 +394,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     return new Date(booking.holdUntil).getTime() > Date.now();
   }
 
+  /**
+   * Resolve booking price using total amount or facility hourly rate.
+   */
   bookingPrice(booking: BookingListItemDto): {
     amount: number;
     currency: string;
@@ -384,6 +421,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     return { amount, currency };
   }
 
+  /**
+   * Format a numeric amount as currency.
+   */
   formatPrice(amount: number, currency: string): string {
     return new Intl.NumberFormat('en-SA', {
       style: 'currency',
@@ -391,6 +431,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }).format(amount);
   }
 
+  /**
+   * Debounce search input and reset pagination.
+   */
   onSearchChange(value: string): void {
     this.searchInput.set(value);
     if (this.searchDebounceId) {
@@ -403,20 +446,33 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }, SEARCH_DEBOUNCE_MS);
   }
 
+  /**
+   * Reset pagination after filter changes.
+   */
   onFiltersChange(): void {
     this.currentPage.set(1);
+    this.focusedRowIndex.set(0);
   }
 
+  /**
+   * Update status filter and reset pagination.
+   */
   onStatusFilterChange(value: string): void {
     this.filterStatus.set(value as BookingStatus | 'ALL');
     this.onFiltersChange();
   }
 
+  /**
+   * Update payment filter and reset pagination.
+   */
   onPaymentFilterChange(value: string): void {
     this.filterPaymentStatus.set(value as PaymentStatus | 'ALL');
     this.onFiltersChange();
   }
 
+  /**
+   * Update page size and reset pagination.
+   */
   onPageSizeChange(value: string): void {
     const parsed = Number(value);
     if (!Number.isNaN(parsed)) {
@@ -426,15 +482,25 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Update sort key or toggle sort direction.
+   */
   setSort(key: 'date' | 'customer' | 'status' | 'price'): void {
     if (this.sortKey() === key) {
       this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
+      this.currentPage.set(1);
+      this.focusedRowIndex.set(0);
       return;
     }
     this.sortKey.set(key);
     this.sortDirection.set('asc');
+    this.currentPage.set(1);
+    this.focusedRowIndex.set(0);
   }
 
+  /**
+   * Return ARIA sort state for column headers.
+   */
   getAriaSort(
     key: 'date' | 'customer' | 'status' | 'price'
   ): 'none' | 'ascending' | 'descending' {
@@ -442,6 +508,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     return this.sortDirection() === 'asc' ? 'ascending' : 'descending';
   }
 
+  /**
+   * Navigate to a specific page.
+   */
   goToPage(page: number): void {
     const total = this.totalPages();
     const next = Math.min(Math.max(page, 1), total);
@@ -449,14 +518,23 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.focusedRowIndex.set(0);
   }
 
+  /**
+   * Navigate to the next page.
+   */
   nextPage(): void {
     this.goToPage(this.currentPage() + 1);
   }
 
+  /**
+   * Navigate to the previous page.
+   */
   previousPage(): void {
     this.goToPage(this.currentPage() - 1);
   }
 
+  /**
+   * Determine whether a booking can be cancelled.
+   */
   isCancellable(booking: BookingListItemDto): boolean {
     if (booking.status === BookingStatus.CANCELLED) return false;
     return (
@@ -465,6 +543,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Toggle selection for a single booking.
+   */
   toggleBookingSelection(booking: BookingListItemDto, checked: boolean): void {
     if (!this.isCancellable(booking)) return;
     const next = new Set(this.selectedBookingIds());
@@ -476,6 +557,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.selectedBookingIds.set(next);
   }
 
+  /**
+   * Toggle selection for all cancellable bookings on the current page.
+   */
   toggleSelectAllOnPage(checked: boolean): void {
     const next = new Set(this.selectedBookingIds());
     for (const booking of this.pagedBookings()) {
@@ -489,10 +573,16 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.selectedBookingIds.set(next);
   }
 
+  /**
+   * Clear all selected bookings.
+   */
   clearSelection(): void {
     this.selectedBookingIds.set(new Set());
   }
 
+  /**
+   * Open the bulk cancel dialog if there are selections.
+   */
   openBulkCancelDialog(): void {
     if (this.selectedCancellableBookings().length === 0) {
       return;
@@ -502,6 +592,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.bulkCancelOpen.set(true);
   }
 
+  /**
+   * Close the bulk cancel dialog and reset inputs.
+   */
   closeBulkCancelDialog(): void {
     this.bulkCancelOpen.set(false);
     this.bulkCancelReason.set('');
@@ -509,6 +602,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.bulkActionInProgress.set(false);
   }
 
+  /**
+   * Submit a bulk cancel request for selected bookings.
+   */
   async submitBulkCancel(): Promise<void> {
     if (this.bulkActionInProgress()) return;
     const reason = this.bulkCancelReason().trim();
@@ -524,25 +620,34 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }
 
     this.bulkActionInProgress.set(true);
-    const results = await Promise.all(
-      targets.map((booking) => this.store.cancelBooking(booking.id, reason))
-    );
-    const failures = results.filter((success) => !success).length;
-    this.bulkActionInProgress.set(false);
-
-    if (failures > 0) {
-      this.bulkCancelError.set(
-        `${failures} of ${targets.length} cancellations failed.`
+    try {
+      const results = await Promise.all(
+        targets.map((booking) => this.store.cancelBooking(booking.id, reason))
       );
-      this.showToast('Some cancellations failed. Please retry.', 'error');
-      return;
-    }
+      const failures = results.filter((success) => !success).length;
 
-    this.showToast('Selected bookings cancelled.', 'success');
-    this.closeBulkCancelDialog();
-    this.clearSelection();
+      if (failures > 0) {
+        this.bulkCancelError.set(
+          `${failures} of ${targets.length} cancellations failed.`
+        );
+        this.showToast('Some cancellations failed. Please retry.', 'error');
+        return;
+      }
+
+      this.showToast('Selected bookings cancelled.', 'success');
+      this.closeBulkCancelDialog();
+      this.clearSelection();
+    } catch (error) {
+      this.bulkCancelError.set('Bulk cancellation failed. Please try again.');
+      this.showToast('Bulk cancellation failed. Please try again.', 'error');
+    } finally {
+      this.bulkActionInProgress.set(false);
+    }
   }
 
+  /**
+   * Export filtered bookings to CSV.
+   */
   exportCsv(): void {
     const rows = this.filteredBookings();
     if (rows.length === 0) return;
@@ -596,10 +701,16 @@ export class BookingListComponent implements OnInit, OnDestroy {
     return `"${escaped}"`;
   }
 
+  /**
+   * Track the focused row index for keyboard navigation.
+   */
   onRowFocus(index: number): void {
     this.focusedRowIndex.set(index);
   }
 
+  /**
+   * Resolve the tabindex for a row based on focus position.
+   */
   rowTabIndex(index: number): number {
     const total = this.pagedBookings().length;
     const safeIndex = Math.min(
@@ -609,6 +720,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     return safeIndex === index ? 0 : -1;
   }
 
+  /**
+   * Handle keyboard navigation within the bookings table.
+   */
   onRowKeydown(event: KeyboardEvent, index: number): void {
     const rows = this.bookingRows?.toArray() ?? [];
     if (rows.length === 0) return;
@@ -659,6 +773,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }, 2500);
   }
 
+  /**
+   * Open the cancel dialog for a booking.
+   */
   openCancelDialog(booking: BookingListItemDto): void {
     if (booking.status === BookingStatus.CANCELLED) return;
     this.cancelDialogBooking.set(booking);
@@ -666,6 +783,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.cancelError.set(null);
   }
 
+  /**
+   * Close the cancel dialog and reset inputs.
+   */
   closeCancelDialog(): void {
     this.cancelDialogBooking.set(null);
     this.cancelReason.set('');
@@ -673,6 +793,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.actionInProgress.set(false);
   }
 
+  /**
+   * Submit cancellation for the selected booking.
+   */
   async submitCancelDialog(): Promise<void> {
     if (this.actionInProgress()) return;
     const booking = this.cancelDialogBooking();
@@ -680,32 +803,46 @@ export class BookingListComponent implements OnInit, OnDestroy {
     if (!this.cancelReasonValid()) return;
 
     this.actionInProgress.set(true);
-    const success = await this.store.cancelBooking(
-      booking.id,
-      this.cancelReason().trim()
-    );
-    this.actionInProgress.set(false);
+    try {
+      const success = await this.store.cancelBooking(
+        booking.id,
+        this.cancelReason().trim()
+      );
 
-    if (success) {
-      this.closeCancelDialog();
-      this.showToast('Booking cancelled.', 'success');
-      this.selectedBookingIds.update((current) => {
-        const next = new Set(current);
-        next.delete(booking.id);
-        return next;
-      });
-    } else {
+      if (success) {
+        this.closeCancelDialog();
+        this.showToast('Booking cancelled.', 'success');
+        this.selectedBookingIds.update((current) => {
+          const next = new Set(current);
+          next.delete(booking.id);
+          return next;
+        });
+      } else {
+        this.cancelError.set(CANCEL_FAILURE_MESSAGE);
+        this.showToast(CANCEL_FAILURE_MESSAGE, 'error');
+      }
+    } catch (error) {
       this.cancelError.set(CANCEL_FAILURE_MESSAGE);
       this.showToast(CANCEL_FAILURE_MESSAGE, 'error');
+    } finally {
+      this.actionInProgress.set(false);
     }
   }
 
+  /**
+   * Mark a booking as paid.
+   */
   async markAsPaid(booking: BookingListItemDto): Promise<void> {
     if (booking.paymentStatus === PaymentStatus.PAID) return;
-    const success = await this.store.markBookingPaid(booking.id);
-    if (success) {
-      this.showToast('Booking marked as paid.', 'success');
-    } else {
+    if (this.actionLoadingById()[booking.id]) return;
+    try {
+      const success = await this.store.markBookingPaid(booking.id);
+      if (success) {
+        this.showToast('Booking marked as paid.', 'success');
+      } else {
+        this.showToast('Failed to mark booking as paid.', 'error');
+      }
+    } catch (error) {
       this.showToast('Failed to mark booking as paid.', 'error');
     }
   }
