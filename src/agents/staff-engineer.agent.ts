@@ -2,6 +2,15 @@ import { Agent, run, tool } from '@openai/agents';
 import { z } from 'zod';
 import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import {
+  authoritativeLoader,
+  buildAuthoritativeContext,
+  loadAuthoritativeDocs,
+} from './authoritative-loader';
+import {
+  AUTHORITATIVE_FAILURE_MESSAGE,
+  STAFF_ENGINEER_TAGS,
+} from './authoritative-config';
 
 /**
  * Staff Engineer Agent for Khana Project
@@ -10,7 +19,7 @@ import { join } from 'path';
  * ✅ Prevent duplicate features
  * ✅ Enforce architectural consistency
  * ✅ Follow established patterns (SignalStore, Angular signals, NestJS)
- * ✅ Maintain design system compliance (Desert Night theme, RTL)
+ * ✅ Maintain design system compliance (RTL, accessibility)
  * ✅ Detect existing components to reuse
  */
 
@@ -81,12 +90,12 @@ Key Pattern: Uses @ngrx/signals (SignalStore) for state management.
 });
 
 /**
- * Tool 2: Architecture Validator - Checks ARCHITECTURE.md compliance
+ * Tool 2: Architecture Validator - Checks docs/authoritative/engineering/architecture.md compliance
  */
 const architectureValidator = tool({
   name: 'validate_architecture',
   description:
-    'Verify that a proposed feature follows ARCHITECTURE.md guidelines',
+    'Verify that a proposed feature follows docs/authoritative/engineering/architecture.md guidelines',
   parameters: z.object({
     featureName: z.string().describe('Name of the feature to validate'),
     proposedLocation: z
@@ -120,7 +129,7 @@ const architectureValidator = tool({
       rule: architectureRules[proposedLocation] || '❌ Invalid location',
       analysis: isValid
         ? `✅ "${featureName}" correctly targets ${proposedLocation}`
-        : `❌ "${featureName}" should NOT be in ${proposedLocation}. See ARCHITECTURE.md.`,
+        : `❌ "${featureName}" should NOT be in ${proposedLocation}. See docs/authoritative/engineering/architecture.md.`,
     });
   },
 });
@@ -144,48 +153,27 @@ const duplicationDetector = tool({
       existing: {
         'booking-calendar': {
           path: 'apps/manager-dashboard/src/app/features/booking-calendar',
-          purpose:
-            'Weekly calendar view with hourly slots (O(1) booking lookups)',
-          features: [
-            'Week navigation',
-            'Booking grid display',
-            'Action panel with confirm/cancel',
-            'Accessibility (focus trapping, keyboard nav)',
-            'Toast notifications',
-          ],
+          purpose: 'Booking calendar feature (inspect for capabilities)',
           reusable: true,
         },
         'booking-preview': {
           path: 'apps/manager-dashboard/src/app/features/booking-preview',
-          purpose: 'Booking preview and creation form',
-          features: [
-            'Facility selection',
-            'Date/time picker',
-            'Preview availability',
-            'Create booking flow',
-          ],
+          purpose: 'Booking preview feature (inspect for capabilities)',
           reusable: true,
         },
         BookingStore: {
           path: 'apps/manager-dashboard/src/app/state/bookings/booking.store.ts',
-          purpose: 'SignalStore for booking state',
-          features: [
-            'Optimistic updates',
-            'Error rollback',
-            'Status management',
-            'Facility filtering',
-          ],
+          purpose: 'SignalStore for booking state (data/API state)',
           reusable: true,
         },
       },
       recommendation: `
 If searching for "${searchTerm}":
-- 🔍 Check if "booking-calendar" or "booking-preview" can be extended
-- 📦 Extend BookingStore instead of creating new stores
-- ♻️ Reuse existing components before creating duplicates
+- Check if "booking-calendar" or "booking-preview" can be extended
+- Extend BookingStore instead of creating new stores
+- Reuse existing components before creating duplicates
       `,
     };
-
     return JSON.stringify(findings);
   },
 });
@@ -205,41 +193,27 @@ const patternInspector = tool({
   execute: async ({ pattern }) => {
     const patterns: Record<string, string> = {
       component: `
-✅ ANGULAR COMPONENT PATTERN:
-- Use standalone: true
+ANGULAR COMPONENT PATTERN:
+- Standalone components
 - Inject services with inject()
-- Use signals for state: signal<Type>()
-- Use computed for derived state: computed(() => ...)
-- Implement ChangeDetectionStrategy.OnPush
-- Event handling via methods (no console.log in prod)
-- No hardcoded strings (use constants)
-- Proper typing on all inputs/outputs
-- Accessibility: semantic HTML, ARIA labels, keyboard nav
+- Use signals for state and computed for derived state
+- UI state lives in components; data state lives in BookingStore
+- Template-driven forms with ngModel for filters/inputs when applicable
+- For timers, follow takeUntilDestroyed pattern (HoldTimerComponent)
+- Accessibility: focus rings and keyboard navigation; add skip links when relevant
       `,
       store: `
-✅ SIGNALSTORE PATTERN:
-- Use signalStore() from @ngrx/signals
-- withState() for initial state
-- withMethods() for actions
-- Use patchState() for updates
-- Implement optimistic updates with rollback
-- rxMethod() for async operations
-- Use tap/switchMap/catchError from RxJS
-- Error handling with proper rollback
-- No direct HTTP calls (use injected ApiService)
+SIGNALSTORE PATTERN:
+- Follow BookingStore pattern in apps/manager-dashboard/src/app/state/bookings/booking.store.ts
+- Data state and API calls live in BookingStore
+- UI state lives in components
       `,
       service: `
-✅ NESTJS SERVICE PATTERN:
-- @Injectable() decorator
-- Inject repositories via constructor
-- No business logic in controllers
-- Use TypeORM repository pattern
-- Proper error handling
-- Return DTOs (not entities)
-- Validate inputs (use class-validator)
+NESTJS SERVICE PATTERN:
+- Refer to docs/authoritative/engineering/backend-nest.md (load backend tag) for service patterns
+- Follow architecture boundaries in docs/authoritative/engineering/architecture.md
       `,
     };
-
     return JSON.stringify({
       pattern,
       guide: patterns[pattern] || 'Unknown pattern',
@@ -284,60 +258,48 @@ ${businessContext}
 ${technicalScope}
 
 ### Architecture Rules (MUST FOLLOW)
-✅ Reuse existing components: ${componentsToReuse.join(', ')}
-✅ Use @ngrx/signals for state (never RxJS subjects)
-✅ Use standalone: true components
-✅ Implement ChangeDetectionStrategy.OnPush
-✅ No hardcoded values - extract to constants
-✅ No console.log in production code
-✅ All functions must have explicit TypeScript types
-✅ Follow Nx workspace boundaries (import from @khana/*)
-✅ Implement error handling with user feedback
-✅ Add loading/error states for async operations
+? Reuse existing components: ${componentsToReuse.join(', ')}
+? Follow boundaries in docs/authoritative/engineering/architecture.md
+? Use Angular standalone components with signals/computed state
+? Data state and API calls live in BookingStore; UI state lives in components
+? Use template-driven forms with ngModel for filters/inputs when applicable
+? Timer subscriptions use takeUntilDestroyed
 
 ### Design System Rules
-✅ Desert Night theme only (no custom colors)
-✅ Use CSS Logical Properties for RTL support (inset-start, inset-end, etc.)
-✅ Use TailwindCSS classes exclusively (no custom SCSS)
-✅ Follow spacing scale (space-1, space-2, etc.)
-✅ Implement accessibility: semantic HTML, ARIA labels, keyboard nav
+? Follow docs/authoritative/design/design-system.md (pointer to docs/DESIGN_SYSTEM.md)
+? Use CSS logical properties for RTL support
+? Target WCAG 2.1 AA focus and keyboard navigation; add skip links when relevant
 
 ### Validation Rules
-✅ ESLint must pass: npm run lint
-✅ Prettier must pass: npm run format
-✅ TypeScript must compile: npx tsc --noEmit
-✅ Tests must pass: npm run test (80%+ coverage for components)
-✅ No module boundary violations
+? npm run lint
+? npm run test
+? npm run build
+? npm run check (lint + test + build)
+? npx tsc --noEmit
 
 ### Code Patterns
-✅ Angular Signals: signal<T>(), computed(() => ...)
-✅ SignalStore: withState(), withMethods()
-✅ Service injection: private readonly X = inject(ServiceClass)
-✅ Event handlers: private/public methodName(): ReturnType { }
-✅ Store state access: this.store.signalName() (call as function)
+? Angular signals: signal<T>(), computed(() => ...)
+? BookingStore pattern in apps/manager-dashboard/src/app/state/bookings/booking.store.ts
+? UI state stays in components; data state stays in BookingStore
+? Timer cleanup uses takeUntilDestroyed
 
 ### Testing Requirements
-✅ Unit tests for all user interactions
-✅ Component render tests
-✅ Edge case coverage
-✅ Integration with BookingStore
+? Jest is the unit test runner for manager-dashboard
 
 ${
   rules ? `### Additional Rules\n${rules.map((r) => `✅ ${r}`).join('\n')}` : ''
 }
 
 ### Before Implementing
-1. Run \`npm run lint:fix && npm run format\`
-2. Verify no module boundary violations
-3. Check existing components in features/ directory
-4. Review BookingStore patterns in state/bookings/
-5. Ensure compliance with ARCHITECTURE.md
+1. Review docs/authoritative/engineering/architecture.md and docs/authoritative/decisions/ADR-0001-state-ownership.md
+2. Review docs/authoritative/design/design-system.md, docs/authoritative/design/rtl.md, docs/authoritative/design/accessibility.md
+3. Review docs/authoritative/engineering/frontend-angular.md and docs/authoritative/engineering/quality-gates.md
 
 ### After Implementing
-1. \`npm run lint\` - Must pass
-2. \`npm run format:check\` - Must pass
-3. \`npm run test\` - 80%+ coverage
-4. \`git add . && git commit\` - Pre-commit hooks validate
+1. \`npm run lint\`
+2. \`npm run test\`
+3. \`npm run build\`
+4. \`npx tsc --noEmit\`
     `;
 
     return prompt;
@@ -351,13 +313,36 @@ export const staffEngineerAgent = new Agent({
   model: 'gpt-5-nano',
   instructions: `You are a Principal Software Architect and Staff Engineer for the Khana project.
 
+SOURCE OF TRUTH RULES (MANDATORY):
+- The ONLY source of truth is docs/authoritative/.
+- You MUST call load_authoritative(tags) before reasoning or responding.
+- Always load docs/authoritative/ROOT.md and docs/authoritative/ROUTER.md.
+- Use ROUTER tags to load the minimal additional files.
+- If authoritative docs are not loaded, respond ONLY with: "Authoritative docs not loaded. Call load_authoritative()."
+
+CONFLICT RULES:
+- Code evidence overrides docs when a mismatch exists.
+- Record any mismatch as STALE_DOC in docs/authoritative/UNKNOWN.md.
+- If not provable by loaded docs or code evidence, label UNKNOWN or PROPOSED.
+
+HARD PROHIBITIONS:
+- Do not assume auth, payments, environment config, or providers unless explicitly confirmed.
+- Do not invent APIs, configs, or behaviors.
+- Do not use web knowledge unless a web-search tool is explicitly available and used.
+
 CRITICAL RULES:
 1. **The Law of Context**: Always audit the codebase first before recommending features
 2. **The Law of Consistency**: Follow existing patterns (SignalStore, signals, NestJS)
 3. **The Law of DRY**: Never suggest duplicating a feature - find what exists first
-4. **The Law of Architecture**: Enforce separation of concerns and Nx boundaries
+4. **The Law of Architecture**: Enforce boundaries defined in docs/authoritative/engineering/architecture.md
+
+PROCESS:
+1. Call load_authoritative(tags).
+2. Reason only from loaded docs and code evidence.
+3. Answer concisely, citing file paths when relevant.
 
 YOUR WORKFLOW:
+0. Use load_authoritative to load ROOT, ROUTER, and minimal tagged docs
 1. 🔎 Use analyze_codebase to understand current structure
 2. 🔍 Use detect_duplication to find existing components
 3. ✅ Use validate_architecture to ensure compliance
@@ -375,12 +360,13 @@ YOUR OUTPUT:
 A detailed implementation prompt that includes:
 - ✅ What to reuse (existing components/stores)
 - ✅ What patterns to follow (Angular, NestJS, SignalStore)
-- ✅ What rules to enforce (no hardcoding, RTL, Desert Night theme)
-- ✅ Testing requirements (80%+ coverage)
+- ✅ What rules to enforce (architecture, state ownership, design, RTL, accessibility)
+- ✅ Testing requirements (quality gates and Jest runner)
 - ✅ Validation steps (lint, format, types)
 
 TONE: Authoritative, solution-driven. You do not ask "what should I do?"; you analyze and direct.`,
   tools: [
+    authoritativeLoader,
     codeAnalyzer,
     architectureValidator,
     duplicationDetector,
@@ -394,10 +380,61 @@ TONE: Authoritative, solution-driven. You do not ask "what should I do?"; you an
 export async function analyzeAndGeneratePrompt(
   userRequest: string
 ): Promise<string> {
-  const result = await run(staffEngineerAgent, userRequest, {
+  // ENFORCEMENT LEVEL 1: Entry point ensures docs are loaded
+  const loaded = await loadAuthoritativeDocs(STAFF_ENGINEER_TAGS);
+  if (loaded.status !== 'success') {
+    return AUTHORITATIVE_FAILURE_MESSAGE;
+  }
+
+  const context = buildAuthoritativeContext(loaded);
+  const enforcePrompt = `${context}
+
+AUTHORITATIVE ENFORCEMENT REMINDER:
+- You MUST explicitly call load_authoritative(tags) before any other tool.
+- This is not optional - it is a HARD REQUIREMENT for this analysis.
+- Agent will fail validation if load_authoritative is not called.
+- After calling load_authoritative, proceed with the user request analysis.
+
+User request:
+${userRequest}`;
+
+  const result = await run(staffEngineerAgent, enforcePrompt, {
     maxTurns: 10,
   });
-  return result.finalOutput;
+
+  const output = result.finalOutput ?? AUTHORITATIVE_FAILURE_MESSAGE;
+
+  // ENFORCEMENT LEVEL 2: Post-execution validation
+  // Check that output actually references authoritative docs
+  const hasAuthReference =
+    output.includes('docs/authoritative') ||
+    output.includes('ADR-0001') ||
+    output.includes('ROUTER') ||
+    output.includes('authoritative');
+
+  if (!hasAuthReference) {
+    console.warn(
+      '\n⚠️  ENFORCEMENT WARNING: Agent output does not reference authoritative docs.\n' +
+        'Output should cite docs/authoritative/ sources and ADRs.\n'
+    );
+  }
+
+  // ENFORCEMENT LEVEL 3: Validate against ADR-0001
+  const hasDialogViolation =
+    output.includes('dialog') &&
+    output.includes('component') &&
+    (output.includes('should be in store') || output.includes('incorrect'));
+
+  if (hasDialogViolation) {
+    console.error(
+      '\n❌ ENFORCEMENT VIOLATION: Output contradicts ADR-0001.\n' +
+        'Dialog state in components is CORRECT per ADR-0001.\n' +
+        'ADR-0001 states: "Components own UI state (dialogs, selection, pagination)"\n'
+    );
+    // Still return output but with warning
+  }
+
+  return output;
 }
 
 /**

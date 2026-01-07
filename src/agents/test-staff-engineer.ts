@@ -24,8 +24,8 @@ I want to build the Interactive Calendar action panel feature that allows facili
 
 Requirements:
 - Reuse existing BookingStore for state
-- Follow Desert Night design system
-- Support RTL (Right-to-Left) for MENA region
+- Follow design system guidance (docs/DESIGN_SYSTEM.md)
+- Support RTL (Right-to-Left) using CSS logical properties
 - Implement keyboard accessibility
 - Add confirmation dialogs before destructive actions
 - Show toast notifications for success/error
@@ -49,13 +49,13 @@ I need guidance on the action panel enhancement.
     console.log('\n📝 Next Steps:');
     console.log('1. Copy the implementation prompt above');
     console.log('2. Follow the rules and patterns listed');
-    console.log('3. Run: npm run lint:fix && npm run format');
-    console.log('4. Implement the feature');
-    console.log('5. Run: npm run lint && npm run test');
+    console.log('3. Run: npm run check');
+    console.log('4. Run: npx tsc --noEmit');
+    console.log('5. Implement the feature');
+    console.log('6. Run: npm run lint && npm run test');
     console.log(
-      '6. Commit: git add . && git commit -m "feat: add calendar action panel"'
+      '7. Commit: git add . && git commit -m "feat: add calendar action panel"'
     );
-    console.log('\n✨ Pre-commit hooks will automatically validate!\n');
   } catch (error) {
     console.error('❌ Error:', error);
   }
@@ -79,11 +79,11 @@ main().catch(console.error);
  *
  * ### Architecture Rules (MUST FOLLOW)
  * ✅ Reuse existing components: BookingStore, BookingCalendarComponent
- * ✅ Use @ngrx/signals for state (never RxJS subjects)
+ * ✅ Use signals and BookingStore for state
  * ... [more rules]
  *
  * ### Design System Rules
- * ✅ Desert Night theme only
+ * ✅ Follow design system guidance (docs/DESIGN_SYSTEM.md)
  * ✅ Use CSS Logical Properties for RTL support
  * ... [more rules]
  *
@@ -92,6 +92,6 @@ main().catch(console.error);
  * ... [pattern examples]
  *
  * ### Validation Rules
- * ✅ ESLint must pass: npm run lint
+ * ✅ Quality gates: npm run lint, npm run test, npm run build, npx tsc --noEmit
  * ... [validation rules]
  */

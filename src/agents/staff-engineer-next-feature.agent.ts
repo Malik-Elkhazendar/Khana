@@ -1,8 +1,23 @@
-import { Agent, run, tool } from '@openai/agents';
+import { Agent, run, tool, webSearchTool } from '@openai/agents';
 import { z } from 'zod';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { basename, join, relative, sep } from 'path';
 import { execSync } from 'child_process';
+import {
+  authoritativeLoader,
+  buildAuthoritativeContext,
+  loadAuthoritativeDocs,
+} from './authoritative-loader';
+import {
+  AUTHORITATIVE_FAILURE_MESSAGE,
+  NEXT_FEATURE_TAGS,
+  CRITICAL_BLOCKERS,
+  PHASES,
+} from './authoritative-config';
+import {
+  validateBlockersForShipping,
+  validatePhaseAppropriateness,
+} from './authoritative-enforcement';
 
 type CalendarSignals = {
   holdTimer: boolean;
@@ -132,8 +147,9 @@ type ProjectScan = {
     bookingPreviewTs: string;
     bookingStore: string;
     designSystemDoc: string;
+    designRtlDoc: string;
+    designAccessibilityDoc: string;
     architectureDoc: string;
-    developmentGuideDoc: string;
     appRoutes: string;
     holdTimerComponent: string;
     confirmationDialogComponent: string;
@@ -181,8 +197,9 @@ type ProjectScan = {
   };
   docs: {
     designSystem: boolean;
+    designRtl: boolean;
+    designAccessibility: boolean;
     architecture: boolean;
-    developmentGuide: boolean;
   };
   routing: {
     appRoutesPath: string;
@@ -340,27 +357,11 @@ type Phase1CompletionReport = {
 
 type MarketTimingAnalysis = {
   feature: string;
-  menaMarketReadiness: {
-    score: number;
-    factors: string[];
-    culturalFit: 'HIGH' | 'MEDIUM' | 'LOW';
-  };
-  competitorAnalysis: {
-    competitorCount: number;
-    competitorFeatures: string[];
-    differentiationOpportunity: number;
-  };
-  windowOfOpportunity: {
-    isOpen: boolean;
-    urgency: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-    expiresIn?: string;
-    reasoning: string;
-  };
-  strategicTiming: {
-    shouldBuildNow: boolean;
-    reasoning: string[];
-  };
+  status: 'UNKNOWN';
+  notes: string[];
 };
+
+// ============================================================================
 
 // ============================================================================
 // UI/UX ARCHITECTURE ANALYSIS TYPES
@@ -398,16 +399,10 @@ type LayoutAssessment = {
 };
 
 type DesignSystemReadiness = {
-  tokensApplied: {
-    colors: boolean;
-    typography: boolean;
-    spacing: boolean;
-    borderRadius: boolean;
-  };
   rtlSupport: {
     implemented: boolean;
     logicalPropertiesUsed: boolean;
-    arabicFontsConfigured: boolean;
+    dirAttributeDetected: boolean;
     issues: string[];
   };
   componentConsistency: {
@@ -416,10 +411,10 @@ type DesignSystemReadiness = {
     missingComponents: string[];
   };
   accessibility: {
-    wcagCompliance: 'AAA' | 'AA' | 'A' | 'NONE';
-    contrastRatios: boolean;
-    touchTargets: boolean;
-    focusStates: boolean;
+    wcagCompliance: 'AA' | 'UNKNOWN';
+    focusStylesDetected: boolean;
+    keyboardNavigationDetected: boolean;
+    skipLinkDetected: boolean;
   };
 };
 
@@ -2031,9 +2026,19 @@ const scanProjectState = (): ProjectScan => {
       basePath,
       'apps/manager-dashboard/src/app/state/bookings/booking.store.ts'
     ),
-    designSystemDoc: join(basePath, 'docs/DESIGN_SYSTEM.md'),
-    architectureDoc: join(basePath, 'docs/ARCHITECTURE.md'),
-    developmentGuideDoc: join(basePath, 'docs/DEVELOPMENT_GUIDE.md'),
+    designSystemDoc: join(
+      basePath,
+      'docs/authoritative/design/design-system.md'
+    ),
+    designRtlDoc: join(basePath, 'docs/authoritative/design/rtl.md'),
+    designAccessibilityDoc: join(
+      basePath,
+      'docs/authoritative/design/accessibility.md'
+    ),
+    architectureDoc: join(
+      basePath,
+      'docs/authoritative/engineering/architecture.md'
+    ),
     appRoutes: join(basePath, 'apps/manager-dashboard/src/app/app.routes.ts'),
     holdTimerComponent: join(
       basePath,
@@ -2240,8 +2245,9 @@ const scanProjectState = (): ProjectScan => {
     sharedComponents,
     docs: {
       designSystem: existsSync(paths.designSystemDoc),
+      designRtl: existsSync(paths.designRtlDoc),
+      designAccessibility: existsSync(paths.designAccessibilityDoc),
       architecture: existsSync(paths.architectureDoc),
-      developmentGuide: existsSync(paths.developmentGuideDoc),
     },
     routing: {
       appRoutesPath: paths.appRoutes,
@@ -2616,20 +2622,41 @@ const buildStructuralGaps = (scan: ProjectScan): string[] => {
   return scan.structuralGaps.map((gap) => `Component structure gap: ${gap}`);
 };
 
+/**
+ * Build architecture notes that VALIDATE against ADR-0001 state ownership rules.
+ *
+ * Per ADR-0001 (docs/authoritative/decisions/ADR-0001-state-ownership.md):
+ * - Store owns: data state (bookings, loading, error, per-item action state)
+ * - Components own: UI state (dialogs, selection, pagination, search, filters)
+ *
+ * This function validates that the codebase FOLLOWS these rules, not violates them.
+ */
 const buildArchitectureNotes = (scan: ProjectScan): string[] => {
   const notes: string[] = [];
 
-  if (
-    scan.calendar.hasDialogState &&
-    !scan.store.hasDialogState &&
-    !scan.architectureMentionsDialogState
-  ) {
+  // ADR-0001 COMPLIANCE CHECK: Dialog state in components is CORRECT architecture
+  if (scan.calendar.hasDialogState && !scan.store.hasDialogState) {
+    // This is CORRECT per ADR-0001: "Components own UI state (dialogs, selection, ...)"
     notes.push(
-      `Dialog state detected in booking-calendar.component.ts but not in BookingStore (${
-        scan.paths.bookingStore
-      }). Architecture doc explicit dialog-state rules: ${yesNo(
-        scan.architectureMentionsDialogState
-      )}. Treat as a design decision unless docs require store ownership.`
+      `✅ ADR-0001 COMPLIANT: Dialog/UI state correctly placed in component, not in store. ` +
+        `Per ADR-0001, components own UI state (dialogs, selection, pagination).`
+    );
+  }
+
+  // ADR-0001 VIOLATION CHECK: Dialog state in store would be incorrect
+  if (scan.store.hasDialogState) {
+    notes.push(
+      `⚠️ ADR-0001 REVIEW: Dialog state detected in BookingStore (${scan.paths.bookingStore}). ` +
+        `Per ADR-0001, UI state (dialogs) should be in components, not store. ` +
+        `Review if this is data-driven dialog state or UI-only state.`
+    );
+  }
+
+  // Store signals usage validation
+  if (scan.store.exists && !scan.store.usesSignals) {
+    notes.push(
+      `⚠️ Store exists but does not use @ngrx/signals. ` +
+        `Per docs/authoritative/engineering/frontend-angular.md, stores should use signalStore.`
     );
   }
 
@@ -3058,6 +3085,8 @@ const scoreAccessibility = (feature: FeatureScan): ScoreDetail => {
     /\btabindex=/i,
     /\bcdkTrapFocus\b/i,
     /\bcdkFocusInitial\b/i,
+    /skip[- ]?link/i,
+    /href=['"]#(main|content)['"]/i,
   ];
   const keyboardMarkers = [/\(keydown/gi, /\(keyup/gi, /\(keypress/gi];
   let filesWithA11y = 0;
@@ -3087,15 +3116,17 @@ const scoreAccessibility = (feature: FeatureScan): ScoreDetail => {
 
   // Add disclaimer that this is pattern-based, not actual a11y testing
   details.push(
-    'NOTE: This is ARIA pattern detection, NOT actual accessibility testing.'
+    'NOTE: This is accessibility pattern detection, NOT a WCAG audit.'
   );
-  details.push('Use aXe or Pa11y for real WCAG compliance validation.');
+  details.push(
+    'Verify focus rings, keyboard navigation, and skip links manually.'
+  );
 
   return {
     score,
     details,
     confidence: 'PATTERN-BASED',
-    source: 'ARIA attribute/keyboard handler detection',
+    source: 'Accessibility marker detection (aria/keyboard/skip-link)',
   };
 };
 
@@ -4391,14 +4422,14 @@ const PATTERN_BASED_RULES: PatternRule[] = [
     name: 'payments',
     condition: (f, df) => df?.riskDomains?.includes('payments') ?? false,
     rules: [
-      'CRITICAL: Validate all amounts server-side',
-      'Show clear pricing breakdown before confirmation',
-      'Log all payment operations for audit trail',
+      'If payment handling is confirmed, validate all amounts server-side',
+      'If payment handling is confirmed, show clear pricing before confirmation',
+      'If payment handling is confirmed, log payment operations for audit trail',
     ],
     acceptanceCriteria: [
-      '[ ] Amounts validated server-side (no client-only validation)',
-      '[ ] User sees clear total before confirming',
-      '[ ] Payment operations logged with timestamps',
+      '[ ] If payment handling is confirmed, amounts validated server-side',
+      '[ ] If payment handling is confirmed, user sees clear total before confirming',
+      '[ ] If payment handling is confirmed, payment operations logged',
     ],
   },
   {
@@ -4479,15 +4510,26 @@ const buildImplementationPrompt = (
       scan.basePath,
       scan.paths.designSystemDoc
     ).replace(/\\/g, '/');
-    designRules.push(`Use Desert Night tokens from \`${designDocRelative}\`.`);
+    designRules.push(
+      `Follow design system pointer in \`${designDocRelative}\`.`
+    );
   }
-  if (scan.docs.architecture) {
-    const archDocRelative = relative(
+  if (scan.docs.designRtl) {
+    const rtlDocRelative = relative(
       scan.basePath,
-      scan.paths.architectureDoc
+      scan.paths.designRtlDoc
     ).replace(/\\/g, '/');
     designRules.push(
-      `Follow CSS logical properties guidance in \`${archDocRelative}\`.`
+      `Use CSS logical properties for RTL support (see \`${rtlDocRelative}\`).`
+    );
+  }
+  if (scan.docs.designAccessibility) {
+    const accessibilityDocRelative = relative(
+      scan.basePath,
+      scan.paths.designAccessibilityDoc
+    ).replace(/\\/g, '/');
+    designRules.push(
+      `Target WCAG 2.1 AA focus/keyboard navigation; add skip links when relevant (see \`${accessibilityDocRelative}\`).`
     );
   }
   if (designRules.length === 0) {
@@ -4564,7 +4606,7 @@ const buildImplementationPrompt = (
       const specFile =
         featureScan?.specFiles[0] || `${featureName}.component.spec.ts`;
       steps.push(
-        `Verify + Fix if needed: test coverage (+${gap} points to excellence) in \`${specFile}\`:`
+        `Verify + Fix if needed: test signal (+${gap} points to excellence) in \`${specFile}\`:`
       );
       if (completeness.testCoverage.score < 18) {
         steps.push(
@@ -4735,10 +4777,10 @@ const buildImplementationPrompt = (
 - Feature root: \`<FEATURE_ROOT>\` = \`${featureRootRelative}\`
 - Completeness: ${completeness ? `${completeness.total}/100` : 'N/A'}
   - Implementation: ${completeness?.implementation.score || 0}/25
-  - Test Coverage: ${completeness?.testCoverage.score || 0}/25
+  - Test signal: ${completeness?.testCoverage.score || 0}/25
   - Accessibility: ${completeness?.accessibility.score || 0}/25
   - Code Quality: ${completeness?.codeQuality.score || 0}/25
-- Risk domains: ${riskDomainsText}
+- Risk domains (scan-based): ${riskDomainsText}
 - Files in scope (patterns):
   - \`<FEATURE_ROOT>/**/*.component.ts\`
   - \`<FEATURE_ROOT>/**/*.component.html\`
@@ -4760,6 +4802,7 @@ ${formatList(designRules)}
 ${formatList(storeRules)}
 
 ### Pattern-Based Rules (SCALABLE)
+NOTE: Pattern-based rules are heuristic; verify against authoritative docs and code.
 ${patternRulesText}
 
 ### Implementation Steps
@@ -4770,398 +4813,24 @@ ${steps
   .join('\n')}
 
 ### Acceptance Criteria
+NOTE: Criteria include scan-based and heuristic items; verify against authoritative docs and code.
 ${acceptanceCriteria.join('\n')}
 
 ### Validation Commands
 \`\`\`bash
 npm run lint
 npm run test
+npm run build
+npm run check
 npx tsc --noEmit
 \`\`\`
 `;
 };
 
 // ============================================================================
-// DECISION REPORT GENERATOR (deprecated; not used by default agent)
-// ============================================================================
-/* eslint-disable @typescript-eslint/no-unused-vars -- deprecated report generator retained for reference */
-
-/**
- * Generates comprehensive decision report with Phase 1 completion check,
- * UI/UX architecture analysis, market timing, and single feature decision.
- *
- * Report sections:
- * 1. Phase 1 Completion Analysis (blocker if <70%)
- * 2. UI/UX Architecture Decision (sidebar/layout refactor needed?)
- * 3. SINGLE DECISION (if Phase 1 complete)
- * 4. WHY THIS NEXT (4 dimensions + UI/UX)
- * 5. IMPLEMENTATION PLAN (exact file paths)
- * 6. SUCCESS METRICS
- * 7. BLOCKERS & RISKS
- * 8. Appendix: Full decision matrix
- */
-function buildDecisionReport(
-  scan: ProjectScan,
-  phase1Report: Phase1CompletionReport,
-  completeness: FeatureCompletenessMap,
-  business: BusinessValueScore[],
-  dependencies: DependencyMap,
-  technicalHealth: TechnicalHealthReport,
-  decisionMatrix: DecisionMatrix | null,
-  uiuxAnalysis?: UIUXArchitectureAnalysis
-): string {
-  const sections: string[] = [];
-
-  // Header
-  sections.push('# STAFF ENGINEER DECISION REPORT\n');
-  sections.push(`Generated: ${new Date().toISOString()}\n`);
-  sections.push('---\n');
-
-  // SECTION 1: Phase 1 Completion Analysis
-  sections.push('## 1. PHASE 1 COMPLETION ANALYSIS\n');
-  sections.push(
-    `**Status**: ${
-      phase1Report.overallComplete ? '✅ COMPLETE' : '🚧 INCOMPLETE'
-    }\n`
-  );
-  sections.push(
-    `**Average Completion**: ${phase1Report.averageCompletion.toFixed(
-      1
-    )}% (Target: ≥75%)\n\n`
-  );
-
-  for (const [featureName, analysis] of Object.entries(phase1Report.features)) {
-    sections.push(
-      `### ${featureName}: ${analysis.completionPercentage.toFixed(0)}%\n\n`
-    );
-    sections.push('**Quality Gates**:\n');
-    sections.push(
-      `- Implementation: ${
-        analysis.qualityGates.implementation ? '✅' : '❌'
-      }\n`
-    );
-    sections.push(
-      `- Testing: ${analysis.qualityGates.testing ? '✅' : '❌'}\n`
-    );
-    sections.push(
-      `- Accessibility: ${analysis.qualityGates.accessibility ? '✅' : '❌'}\n`
-    );
-    sections.push(
-      `- Code Quality: ${analysis.qualityGates.codeQuality ? '✅' : '❌'}\n`
-    );
-    sections.push(
-      `- Documentation: ${
-        analysis.qualityGates.documentation ? '✅' : '❌'
-      }\n\n`
-    );
-
-    if (analysis.blockers.length > 0) {
-      sections.push('**Blockers**:\n');
-      analysis.blockers.forEach((b) => sections.push(`- ${b}\n`));
-      sections.push('\n');
-    }
-  }
-
-  if (phase1Report.blockingIssues.length > 0) {
-    sections.push('**🚨 BLOCKING ISSUES**:\n');
-    phase1Report.blockingIssues.forEach((issue) =>
-      sections.push(`- ${issue}\n`)
-    );
-    sections.push('\n');
-  }
-
-  if (phase1Report.recommendedActions.length > 0) {
-    sections.push('**Recommended Actions**:\n');
-    phase1Report.recommendedActions.forEach((action) =>
-      sections.push(`- ${action}\n`)
-    );
-    sections.push('\n');
-  }
-
-  // If Phase 1 not complete, stop here
-  if (!phase1Report.overallComplete) {
-    sections.push('---\n');
-    sections.push('**DECISION: BLOCKED**\n\n');
-    sections.push(
-      'Phase 1 features must be ≥70% complete (each) and ≥75% average before building new features.\n'
-    );
-    sections.push(
-      'Focus on completing booking-calendar, booking-list, and booking-preview first.\n'
-    );
-    return sections.join('');
-  }
-
-  // SECTION 2: UI/UX Architecture Analysis
-  if (uiuxAnalysis) {
-    sections.push('---\n');
-    sections.push('## 2. UI/UX ARCHITECTURE ANALYSIS\n\n');
-
-    sections.push(
-      `**Current Navigation**: ${uiuxAnalysis.navigation.currentPattern}\n`
-    );
-    sections.push(
-      `**User Flow Complexity**: ${uiuxAnalysis.navigation.userFlowComplexity}\n`
-    );
-    sections.push(
-      `**Design System Compliance**: ${uiuxAnalysis.designSystem.componentConsistency.score}%\n`
-    );
-    sections.push(
-      `**RTL Support**: ${
-        uiuxAnalysis.designSystem.rtlSupport.implemented ? '✅' : '❌'
-      }\n`
-    );
-    sections.push(
-      `**WCAG Compliance**: ${uiuxAnalysis.designSystem.accessibility.wcagCompliance}\n\n`
-    );
-
-    sections.push('**DECISION**:\n');
-    if (uiuxAnalysis.decision.buildSidebarFirst) {
-      sections.push('🚨 **BUILD SIDEBAR FIRST** before new features\n');
-      sections.push(
-        `Estimated effort: ${
-          uiuxAnalysis.decision.estimatedEffort.sidebarImplementation || 0
-        }h\n\n`
-      );
-    } else if (uiuxAnalysis.decision.refactorLayoutFirst) {
-      sections.push(
-        '⚠️  **REFACTOR LAYOUT FIRST** to improve design system compliance\n'
-      );
-      sections.push(
-        `Estimated effort: ${
-          uiuxAnalysis.decision.estimatedEffort.designSystemUpdates || 0
-        }h\n\n`
-      );
-    } else {
-      sections.push(
-        '✅ **PROCEED WITH CURRENT UI** - No architectural blockers\n\n'
-      );
-    }
-
-    sections.push('**Reasoning**:\n');
-    uiuxAnalysis.decision.reasoning.forEach((r) => sections.push(`- ${r}\n`));
-    sections.push('\n');
-  }
-
-  // SECTION 3: SINGLE DECISION (if available)
-  if (decisionMatrix && decisionMatrix.winner.feature !== 'NONE') {
-    const winner = decisionMatrix.winner;
-
-    sections.push('---\n');
-    sections.push('## 3. 🎯 DECISION: BUILD THIS NEXT\n\n');
-    sections.push(`**Feature**: ${winner.feature}\n`);
-    sections.push(
-      `**Total Score**: ${(winner.totalScore * 100).toFixed(1)}/100\n\n`
-    );
-
-    sections.push('### WHY THIS FEATURE?\n\n');
-    sections.push('**Scoring Breakdown**:\n');
-    sections.push(
-      `- Business Value (40%): ${(winner.factors.business.score * 100).toFixed(
-        0
-      )}% → ${(winner.factors.business.weightedScore * 100).toFixed(
-        1
-      )} points\n`
-    );
-    sections.push(
-      `- Technical Foundation (25%): ${(
-        winner.factors.technical.score * 100
-      ).toFixed(0)}% → ${(winner.factors.technical.weightedScore * 100).toFixed(
-        1
-      )} points\n`
-    );
-    sections.push(
-      `- Market Timing (20%): ${(winner.factors.market.score * 100).toFixed(
-        0
-      )}% → ${(winner.factors.market.weightedScore * 100).toFixed(1)} points\n`
-    );
-    sections.push(
-      `- Dependency Impact (15%): ${(
-        winner.factors.dependency.score * 100
-      ).toFixed(0)}% → ${(
-        winner.factors.dependency.weightedScore * 100
-      ).toFixed(1)} points\n\n`
-    );
-
-    if (winner.whyNotOthers && winner.whyNotOthers.length > 0) {
-      sections.push('**Why not others?**\n');
-      winner.whyNotOthers.forEach((reason) => sections.push(`- ${reason}\n`));
-      sections.push('\n');
-    }
-
-    // Generate implementation plan
-    const implPlan = buildEnhancedImplementationPlan(
-      winner.feature,
-      scan,
-      uiuxAnalysis
-    );
-
-    sections.push('---\n');
-    sections.push('## 4. IMPLEMENTATION PLAN\n\n');
-    sections.push(
-      `**Total Effort**: ${implPlan.totalEffort.total}h (~${Math.ceil(
-        implPlan.totalEffort.total / 8
-      )} days)\n`
-    );
-    sections.push(`- Prerequisites: ${implPlan.totalEffort.prerequisites}h\n`);
-    sections.push(`- Core Development: ${implPlan.totalEffort.core}h\n`);
-    sections.push(`- Testing & Docs: ${implPlan.totalEffort.testing}h\n`);
-    if (implPlan.totalEffort.uiRefactor > 0) {
-      sections.push(`- UI Refactoring: ${implPlan.totalEffort.uiRefactor}h\n`);
-    }
-    if (implPlan.totalEffort.designSystem > 0) {
-      sections.push(`- Design System: ${implPlan.totalEffort.designSystem}h\n`);
-    }
-    sections.push('\n');
-
-    sections.push('### Tasks (in dependency order):\n\n');
-    for (const taskId of implPlan.criticalPath) {
-      const task = implPlan.tasks.find((t) => t.id === taskId);
-      if (!task) continue;
-
-      sections.push(`**${task.id}**: ${task.description}\n`);
-      sections.push(
-        `- File: \`${task.filePath}\`${
-          task.lineNumber ? ` (line ${task.lineNumber})` : ''
-        }\n`
-      );
-      sections.push(`- Operation: ${task.operation}\n`);
-      sections.push(`- Effort: ${task.estimatedHours}h\n`);
-      if (task.dependencies.length > 0) {
-        sections.push(
-          `- Depends on: ${task.dependencies.map((d) => d.taskId).join(', ')}\n`
-        );
-      }
-      sections.push('\n');
-    }
-
-    sections.push('---\n');
-    sections.push('## 5. SUCCESS METRICS\n\n');
-    implPlan.successMetrics.forEach((metric) => {
-      sections.push(`**${metric.name}** (${metric.type})\n`);
-      sections.push(`- Target: ${metric.target}\n`);
-      sections.push(`- Measurement: ${metric.measurement}\n\n`);
-    });
-
-    sections.push('---\n');
-    sections.push('## 6. BLOCKERS & RISKS\n\n');
-    implPlan.blockersAndRisks.forEach((risk) => {
-      sections.push(`**${risk.description}**\n`);
-      sections.push(
-        `- Likelihood: ${risk.likelihood} | Impact: ${risk.impact}\n`
-      );
-      sections.push(`- Mitigation: ${risk.mitigation}\n\n`);
-    });
-  } else {
-    sections.push('---\n');
-    sections.push('## 3. DECISION: NO ELIGIBLE FEATURES\n\n');
-    sections.push('No features available for decision-making.\n');
-  }
-
-  return sections.join('');
-}
-
-// ============================================================================
-// Technical Guidance Prompt (fallback when no business config)
+// RECOMMENDATION REPORT BUILDER
 // ============================================================================
 
-/**
- * Build guidance prompt when no specific recommendation is available.
- * This ensures the agent NEVER returns "No recommendation available".
- */
-const buildTechnicalGuidancePrompt = (
-  scan: ProjectScan,
-  completenessScores: FeatureCompletenessScore[],
-  technicalHealth: TechnicalHealthReport
-): string => {
-  const sections: string[] = [];
-
-  sections.push('# Technical Guidance (No Business Config Detected)\n\n');
-  sections.push(
-    '> ⚠️ No business-priority.json found. Using technical evidence to guide recommendations.\n\n'
-  );
-
-  // Find lowest completeness feature
-  const sortedByCompleteness = [...completenessScores].sort(
-    (a, b) => a.total - b.total
-  );
-  const lowestFeature = sortedByCompleteness[0];
-
-  if (lowestFeature) {
-    sections.push(
-      '## Recommended Focus: Improve Lowest Completeness Feature\n\n'
-    );
-    sections.push(`**Feature**: ${lowestFeature.feature}\n`);
-    sections.push(`**Completeness**: ${lowestFeature.total}/100\n\n`);
-
-    sections.push('### Gaps Identified:\n');
-    if (lowestFeature.testCoverage.score < 15) {
-      sections.push(
-        `- ❌ Test coverage: ${lowestFeature.testCoverage.score}/25\n`
-      );
-    }
-    if (lowestFeature.accessibility.score < 15) {
-      sections.push(
-        `- ❌ Accessibility: ${lowestFeature.accessibility.score}/25\n`
-      );
-    }
-    if (lowestFeature.implementation.score < 15) {
-      sections.push(
-        `- ❌ Implementation: ${lowestFeature.implementation.score}/25\n`
-      );
-    }
-    if (lowestFeature.codeQuality.score < 15) {
-      sections.push(
-        `- ❌ Code quality: ${lowestFeature.codeQuality.score}/25\n`
-      );
-    }
-    sections.push('\n');
-  }
-
-  // Technical health summary
-  if (technicalHealth.debtItems.length > 0) {
-    sections.push('## Technical Debt Items:\n\n');
-    technicalHealth.debtItems.slice(0, 5).forEach((item) => {
-      sections.push(`- ${item.issue} (Risk: ${item.risk}/10)\n`);
-    });
-    sections.push('\n');
-  }
-
-  // Integration gaps
-  if (technicalHealth.integrationGaps.length > 0) {
-    sections.push('## Integration Gaps:\n\n');
-    technicalHealth.integrationGaps.slice(0, 5).forEach((gap) => {
-      sections.push(`- ${gap}\n`);
-    });
-    sections.push('\n');
-  }
-
-  sections.push('---\n\n');
-  sections.push('## Next Steps:\n\n');
-  sections.push(
-    '1. Create `business-priority.json` for full prioritization capabilities\n'
-  );
-  sections.push('2. Or proceed with technical recommendations above\n\n');
-
-  sections.push('### How to create business-priority.json:\n\n');
-  sections.push('```json\n');
-  sections.push('{\n');
-  sections.push('  "features": [\n');
-  sections.push('    {\n');
-  sections.push('      "name": "booking-calendar",\n');
-  sections.push('      "userValue": 9,\n');
-  sections.push('      "businessImpact": 8,\n');
-  sections.push('      "strategicImportance": 7\n');
-  sections.push('    }\n');
-  sections.push('  ]\n');
-  sections.push('}\n');
-  sections.push('```\n');
-
-  return sections.join('');
-};
-
-// ============================================================================
-// Recommendation Report (tiered, evidence-based)
-// ============================================================================
 const buildRecommendationReport = (
   scan: ProjectScan,
   completenessScores: FeatureCompletenessScore[],
@@ -5169,109 +4838,30 @@ const buildRecommendationReport = (
   dependencyAnalysis: DependencyAnalysis,
   technicalHealth: TechnicalHealthReport,
   weights: RecommendationWeights,
-  evidencePack?: EvidencePackV2
+  evidencePack?: EvidencePackV2 | null,
+  blockerCheckResult?: any
 ): string => {
-  const businessScoresMissing = businessScores.length === 0;
-  const anyBusinessUnavailable =
-    !businessScoresMissing &&
-    businessScores.some((score) => score.confidence === 'UNAVAILABLE');
-  const effectiveWeights = weights;
-
-  const recommendations = buildRecommendationScores(
-    scan,
-    completenessScores,
-    businessScores,
-    dependencyAnalysis,
-    effectiveWeights,
-    technicalHealth
-  ).sort((a, b) => b.score - a.score);
-
-  const testCoverage = analyzeTestCoverage(scan);
-  const criticalBlockers: string[] = [];
-  for (const debt of technicalHealth.debtItems) {
-    if (debt.priority === 'HIGH') {
-      criticalBlockers.push(
-        `${debt.issue} (Risk ${debt.risk}/10, Blocker ${debt.blocking}/10)`
-      );
-    }
-  }
-
-  // Check for critically low test coverage (score <= 16 or very few tests)
-  // SCALABLE: Check if feature is in discovered features, not just booking- prefix
-  const discoveredFeatureNames = new Set(scan.featureScans.map((f) => f.name));
-  const criticalTestGaps = testCoverage.filter((coverage) => {
-    // Only check features that are part of the scanned features
-    if (!discoveredFeatureNames.has(coverage.feature)) return false;
-    // Flag if score is low OR if test count is very low (from buildTestGaps)
-    const hasLowScore = coverage.score <= 16;
-    return hasLowScore;
-  });
-
-  // Also check test gaps from buildTestGaps for specific low test counts
-  // SCALABLE: Use generic regex instead of booking- hardcoded prefix
-  const testGapsFromScan = buildTestGaps(scan);
-  const lowTestCountFeatures = testGapsFromScan
-    .filter((gap) => gap.includes('Low test coverage'))
-    .map((gap) => {
-      const match = gap.match(/in ([^:]+):/);
-      return match ? match[1] : null;
-    })
-    .filter((f): f is string => f !== null && discoveredFeatureNames.has(f));
-
-  // Combine both checks
-  const allCriticalFeatures = new Set([
-    ...criticalTestGaps.map((item) => item.feature),
-    ...lowTestCountFeatures,
-  ]);
-
-  if (allCriticalFeatures.size > 0) {
-    const featureDetails = Array.from(allCriticalFeatures).map((feature) => {
-      const coverage = testCoverage.find((c) => c.feature === feature);
-      return `${feature} (${coverage?.score ?? '?'}/25)`;
-    });
-    criticalBlockers.push(
-      `Test coverage critically low on features: ${featureDetails.join(
-        ', '
-      )}. Minimum 10+ tests required per feature.`
-    );
-  }
-
-  // Separate Tier 2 into new features and polish work for clearer prioritization
-  const tier2Features = recommendations.filter(
-    (rec) => rec.category === 'feature' && rec.subCategory === 'new'
-  );
-  const tier2Polish = recommendations.filter(
-    (rec) => rec.category === 'feature' && rec.subCategory === 'polish'
-  );
-
-  const tier3 = [
-    ...technicalHealth.debtItems.map(
-      (item) =>
-        `${item.issue} (Risk ${item.risk}/10, Remediation ${item.remediationHours}h, Value ${item.value}/10)`
-    ),
-  ];
-
-  // Prefer new high-value features over polish work
-  const topRecommendation =
-    tier2Features[0] ?? tier2Polish[0] ?? recommendations[0];
-  const prompt = topRecommendation
-    ? buildImplementationPrompt(
-        topRecommendation.feature,
-        scan,
-        completenessScores
-      )
-    : buildTechnicalGuidancePrompt(scan, completenessScores, technicalHealth);
-
-  // Convert doc paths to relative for output
-  const toRelPath = (p: string) =>
+  const toRelPath = (p: string): string =>
     relative(scan.basePath, p).replace(/\\/g, '/');
 
   const codebaseSummaryLines = [
-    `Features detected: ${scan.features.join(', ') || '(none)'}`,
+    `Features discovered: ${scan.features.length}`,
+    `Features root: ${toRelPath(scan.paths.featuresDir)}`,
     `Shared components: ${scan.sharedComponents.join(', ') || '(none)'}`,
+    `BookingStore exists: ${yesNo(scan.store.exists)} (${toRelPath(
+      scan.paths.bookingStore
+    )})`,
     `Design system doc: ${yesNo(scan.docs.designSystem)}${
       scan.docs.designSystem
         ? ` (\`${toRelPath(scan.paths.designSystemDoc)}\`)`
+        : ''
+    }`,
+    `Design RTL doc: ${yesNo(scan.docs.designRtl)}${
+      scan.docs.designRtl ? ` (\`${toRelPath(scan.paths.designRtlDoc)}\`)` : ''
+    }`,
+    `Design accessibility doc: ${yesNo(scan.docs.designAccessibility)}${
+      scan.docs.designAccessibility
+        ? ` (\`${toRelPath(scan.paths.designAccessibilityDoc)}\`)`
         : ''
     }`,
     `Architecture doc: ${yesNo(scan.docs.architecture)}${
@@ -5279,21 +4869,10 @@ const buildRecommendationReport = (
         ? ` (\`${toRelPath(scan.paths.architectureDoc)}\`)`
         : ''
     }`,
-    `Development guide: ${yesNo(scan.docs.developmentGuide)}${
-      scan.docs.developmentGuide
-        ? ` (\`${toRelPath(scan.paths.developmentGuideDoc)}\`)`
-        : ''
-    }`,
-    `Integration gaps: ${summarizeIntegrationGaps(
-      technicalHealth.integrationGaps
-    )}`,
-    `Structural gaps: ${technicalHealth.structuralGaps.length}`,
-    `Architecture notes: ${technicalHealth.architectureNotes.length}`,
   ];
 
   const completenessLines = completenessScores
     .map((score) => {
-      // Helper function to format score with confidence indicator
       const formatScoreWithConfidence = (
         label: string,
         scoreDetail: ScoreDetail,
@@ -5305,11 +4884,7 @@ const buildRecommendationReport = (
 
       const details = [
         formatScoreWithConfidence('Implementation', score.implementation, 25),
-        formatScoreWithConfidence(
-          'Test coverage signal',
-          score.testCoverage,
-          25
-        ),
+        formatScoreWithConfidence('Test signal', score.testCoverage, 25),
         formatScoreWithConfidence(
           'Accessibility signal',
           score.accessibility,
@@ -5327,8 +4902,10 @@ const buildRecommendationReport = (
     dependencyAnalysis.dependencies
   );
   const dependentsByFeature = formatRecordList(dependencyAnalysis.dependents);
+  const missingDependenciesByFeature = formatRecordList(
+    dependencyAnalysis.missingDependencies
+  );
 
-  // Scan feature-level dependencies (internal imports, stores, components, etc.)
   const featureDependencyReports = scan.featureScans.map(
     scanFeatureDependencies
   );
@@ -5346,6 +4923,9 @@ const buildRecommendationReport = (
     'Dependents (feature coupling):',
     formatList(dependentsByFeature),
     '',
+    'Missing dependencies (import scan):',
+    formatList(missingDependenciesByFeature),
+    '',
     'Shared dependencies (feature coupling):',
     formatList(dependencyAnalysis.blocking),
     '',
@@ -5354,9 +4934,6 @@ const buildRecommendationReport = (
     '',
     'Notable cross-feature uses:',
     formatList(dependencyAnalysis.notes),
-    '',
-    'Integration chains (heuristic):',
-    formatList(dependencyAnalysis.chains),
   ].join('\n');
 
   const scoredFeatures = new Set(businessScores.map((score) => score.feature));
@@ -5364,8 +4941,9 @@ const buildRecommendationReport = (
     (feature) => !scoredFeatures.has(feature)
   );
 
+  const businessScoresMissing = businessScores.length === 0;
   const businessLines = businessScoresMissing
-    ? 'SKIPPED: No business config files found (business-priority.json, feature-list.json, issues.json, feature-revenue.json).'
+    ? 'UNKNOWN: No business config files found (business-priority.json, feature-list.json, issues.json, feature-revenue.json).'
     : businessScores
         .map((score) => {
           const notes =
@@ -5385,8 +4963,16 @@ const buildRecommendationReport = (
         )}`
       : businessLines;
 
+  // Add ADR-0001 validation header
+  const adr0001ValidationHeader = [
+    '### ADR-0001 State Ownership Validation',
+    'Per ADR-0001: Store owns DATA state (bookings, loading, error). Components own UI state (dialogs, selection, pagination).',
+    '',
+  ];
+
   const technicalLines = [
-    'Architecture notes:',
+    ...adr0001ValidationHeader,
+    'Architecture notes (ADR-0001 validated):',
     formatList(technicalHealth.architectureNotes),
     '',
     `Integration gaps (${summarizeIntegrationGaps(
@@ -5405,194 +4991,132 @@ const buildRecommendationReport = (
     '',
     'Security signals:',
     formatList(technicalHealth.securityNotes),
-    '',
-    'Technical debt scoring:',
-    formatList(
-      technicalHealth.debtItems.map(
-        (item) =>
-          `${item.issue} (Risk ${item.risk}/10, Blocking ${item.blocking}/10, Remediation ${item.remediationHours}h, Value ${item.value}/10, Priority ${item.priority})`
-      )
-    ),
   ].join('\n');
 
-  // Build Tier 2 output with separate NEW FEATURES and POLISH WORK sections
-  const tier2NewFeaturesLines =
-    tier2Features.length > 0
-      ? '**NEW FEATURES (High Value)**\n' +
-        tier2Features
-          .map(
-            (rec, index) =>
-              `${index + 1}. ${rec.feature} (Score: ${
-                rec.score
-              }/100)\n   - User impact: ${
-                rec.userImpact !== null
-                  ? `${Math.round(rec.userImpact * 100) / 100}/10`
-                  : 'UNKNOWN'
-              }\n   - Business value: ${
-                rec.businessValue !== null
-                  ? `${rec.businessValue}/10`
-                  : 'UNKNOWN (no business config)'
-              }\n   - Effort: ${
-                rec.effortHours !== undefined
-                  ? `${rec.effortHours} hours (${rec.effortConfidence}, ${rec.effortSource})`
-                  : `UNKNOWN (${rec.effortSource})`
-              }\n   - Why: ${rec.rationale.join(' ')}`
-          )
-          .join('\n')
-      : '';
+  const recommendations = buildRecommendationScores(
+    scan,
+    completenessScores,
+    businessScores,
+    dependencyAnalysis,
+    weights,
+    technicalHealth
+  ).sort((a, b) => b.score - a.score);
 
-  const tier2PolishLines =
-    tier2Polish.length > 0
-      ? (tier2NewFeaturesLines ? '\n\n' : '') +
-        '**POLISH WORK (Completion)**\n' +
-        tier2Polish
-          .map(
-            (rec, index) =>
-              `${index + 1}. ${rec.feature} (Score: ${
-                rec.score
-              }/100)\n   - User impact: ${
-                rec.userImpact !== null
-                  ? `${Math.round(rec.userImpact * 100) / 100}/10`
-                  : 'UNKNOWN'
-              }\n   - Business value: ${
-                rec.businessValue !== null
-                  ? `${rec.businessValue}/10`
-                  : 'UNKNOWN (no business config)'
-              }\n   - Effort: ${
-                rec.effortHours !== undefined
-                  ? `${rec.effortHours} hours (${rec.effortConfidence}, ${rec.effortSource})`
-                  : `UNKNOWN (${rec.effortSource})`
-              }\n   - Why: ${rec.rationale.join(' ')}`
-          )
-          .join('\n')
-      : '';
+  const topRecommendation = recommendations[0];
+  const securityBlockers = technicalHealth.securityNotes.filter(
+    (note) => !note.startsWith('No security patterns detected')
+  );
+  const criticalBlockers = [
+    ...technicalHealth.integrationGaps,
+    ...securityBlockers,
+  ];
 
   const tier2Lines =
-    tier2NewFeaturesLines || tier2PolishLines
-      ? tier2NewFeaturesLines + tier2PolishLines
+    recommendations.length > 0
+      ? recommendations
+          .slice(0, 3)
+          .map((rec, index) => {
+            const categoryLabel = rec.subCategory
+              ? `${rec.category}/${rec.subCategory}`
+              : rec.category;
+            const effort = rec.effortHours
+              ? `${rec.effortHours}h (${rec.effortConfidence})`
+              : `UNKNOWN (${rec.effortSource})`;
+            return `${index + 1}. ${rec.feature} (Score: ${
+              rec.score
+            }/100, ${categoryLabel})\n   - Effort: ${effort}\n   - Rationale: ${rec.rationale.join(
+              ' '
+            )}`;
+          })
+          .join('\n')
       : '- (none)';
 
-  const tier1Lines =
-    criticalBlockers.length > 0 ? formatList(criticalBlockers) : '- (none)';
+  const priorityScore = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+  const tier3 = technicalHealth.debtItems
+    .slice()
+    .sort((a, b) => priorityScore[b.priority] - priorityScore[a.priority])
+    .slice(0, 3)
+    .map(
+      (item) =>
+        `${item.issue} (priority ${item.priority}, remediation ${item.remediationHours}h)`
+    );
 
   const nextSteps = [
     topRecommendation
       ? `Build: ${topRecommendation.feature} (score ${topRecommendation.score}/100).`
       : 'No top recommendation identified.',
     criticalBlockers.length > 0
-      ? 'Address critical blockers first to reduce delivery risk.'
-      : 'No critical blockers detected; prioritize high-value feature work.',
-    tier3.length > 0
-      ? 'Defer lower-impact technical debt until after high-value delivery.'
-      : 'Reassess technical debt after feature delivery.',
-    businessScoresMissing
-      ? 'Business value assessment skipped; add business config files to enable.'
-      : anyBusinessUnavailable
-      ? 'Business value inputs incomplete; add missing data to business-priority.json.'
-      : 'Business value scores include measured inputs.',
+      ? 'Address scan-based blockers before new feature work.'
+      : 'No critical blockers detected; proceed with highest-value feature.',
+    'Run quality gates: npm run lint, npm run test, npm run build, and npx tsc --noEmit when applicable.',
   ];
 
-  // Build Evidence Pack V2 section with per-feature metrics
-  const evidenceSection = evidencePack
-    ? `## Evidence Pack (STRATEGY A: QUICK_WIN)
+  const prompt = topRecommendation
+    ? buildImplementationPrompt(
+        topRecommendation.feature,
+        scan,
+        completenessScores
+      )
+    : 'No implementation prompt available.';
 
-### Features Discovered: ${evidencePack.discoveredFeatures.length}
-${evidencePack.discoveredFeatures.map((f) => `- ${f.name}`).join('\n')}
+  const evidenceSection = `## Evidence Pack (STRATEGY A: QUICK_WIN)\n\nFeatures discovered: ${
+    evidencePack ? evidencePack.discoveredFeatures.length : 0
+  }\nGit data: ${
+    evidencePack
+      ? evidencePack.gitDataAvailable
+        ? 'available'
+        : 'UNKNOWN'
+      : 'UNKNOWN'
+  }\n\n`;
 
-### TODOs/FIXMEs by Feature
-${Array.from(evidencePack.todosByFeature.entries())
-  .map(([feature, todos]) => `- ${feature}: ${todos.length} items`)
-  .join('\n')}
+  // Add blocker status section if blockerCheckResult is provided
+  const blockerSection = blockerCheckResult
+    ? `## 🚫 BLOCKER STATUS REPORT
 
-### Click Handlers by Feature (complexity signal)
-${Array.from(evidencePack.clickHandlersByFeature.entries())
-  .map(([feature, count]) => `- ${feature}: ${count} handlers`)
-  .join('\n')}
+**Current Phase**: ${blockerCheckResult.currentPhase}
+**Can Ship Features**: ${
+        blockerCheckResult.canShipFeatures ? '✅ YES' : '❌ NO'
+      }
+**Estimated Effort to Ship**: ${blockerCheckResult.estimatedEffortToShip}
 
-### Test Files by Feature
-${Array.from(evidencePack.testFilesByFeature.entries())
-  .map(([feature, files]) => `- ${feature}: ${files.length} spec files`)
-  .join('\n')}
+${
+  blockerCheckResult.activeBlockers.length > 0
+    ? `
+### Active Blockers (MUST RESOLVE BEFORE SHIPPING)
 
-### Store Usage by Feature
-${Array.from(evidencePack.storeUsageByFeature.entries())
-  .map(([feature, stores]) => `- ${feature}: ${stores.join(', ') || '(none)'}`)
-  .join('\n')}
-
-### Risk Domains by Feature
-${Array.from(evidencePack.riskFlagsByFeature.entries())
+${blockerCheckResult.activeBlockers
   .map(
-    ([feature, risks]) =>
-      `- ${feature}: ${risks.length > 0 ? risks.join(', ') : '(none)'}`
+    (b, i) => `${i + 1}. **${b.id}: ${b.name}**
+   - Status: ${b.status}
+   - Effort: ${b.effort}
+   - Blocks All Features: ${b.blocksAll ? 'YES' : 'No'}`
   )
   .join('\n')}
 
-### Recent Git Changes${evidencePack.gitDataAvailable ? '' : ' (UNKNOWN)'}
-${
-  evidencePack.gitDataAvailable
-    ? evidencePack.recentGitChanges
-        .slice(0, 5)
-        .map(
-          (c) =>
-            `- ${c.hash}: ${c.message} (${c.files.length} files, features: ${
-              c.features.join(', ') || 'n/a'
-            })`
-        )
-        .join('\n')
-    : '- Git data unavailable'
-}
-
-### Feature Summary Table
-| Feature | TODOs | Handlers | Tests | Stores | Risk Domains |
-|---------|-------|----------|-------|--------|--------------|
-${evidencePack.discoveredFeatures
-  .map((f) => {
-    const todos = evidencePack.todosByFeature.get(f.name)?.length ?? 0;
-    const handlers = evidencePack.clickHandlersByFeature.get(f.name) ?? 0;
-    const tests = evidencePack.testFilesByFeature.get(f.name)?.length ?? 0;
-    const stores = evidencePack.storeUsageByFeature.get(f.name)?.length ?? 0;
-    const risks = evidencePack.riskFlagsByFeature.get(f.name) ?? [];
-    return `| ${f.name} | ${todos} | ${handlers} | ${tests} | ${stores} | ${
-      risks.join(', ') || '-'
-    } |`;
-  })
+### Required Actions
+${blockerCheckResult.requiredActions
+  .map((action, i) => `${i + 1}. ${action}`)
   .join('\n')}
+`
+    : '✅ All critical blockers resolved. Features can proceed to production.'
+}
 
 `
     : '';
 
-  return `${evidenceSection}## Codebase Analysis Summary
-${formatList(codebaseSummaryLines)}
-
-## Feature Completeness Report
-${completenessLines || '- (none)'}
-
-## Dependency Analysis
-${dependencyLines}
-
-## Business Value Assessment
-${businessLinesWithMissing || '- (none)'}
-
-## Technical Health Report
-${technicalLines}
-
-## Next Feature Recommendations (Prioritized)
-
-### Tier 1: CRITICAL BLOCKERS
-${tier1Lines}
-
-### Tier 2: HIGH-VALUE FEATURES
-${tier2Lines}
-
-### Tier 3: TECHNICAL DEBT
-${tier3.length > 0 ? formatList(tier3) : '- (none)'}
-
-## Recommended Next Steps
-${nextSteps.map((step, index) => `${index + 1}. ${step}`).join('\n')}
-
-## Implementation Prompt
-${prompt}
-`;
+  return `${blockerSection}${evidenceSection}## Codebase Analysis Summary\n${formatList(
+    codebaseSummaryLines
+  )}\n\n## Feature Completeness Report\n${
+    completenessLines || '- (none)'
+  }\n\n## Dependency Analysis\n${dependencyLines}\n\n## Business Value Assessment\n${
+    businessLinesWithMissing || '- (none)'
+  }\n\n## Technical Health Report\n${technicalLines}\n\n## Next Feature Recommendations (Prioritized)\n\n### Tier 1: CRITICAL BLOCKERS (scan-based)\n${
+    criticalBlockers.length > 0 ? formatList(criticalBlockers) : '- (none)'
+  }\n\n### Tier 2: HIGH-VALUE FEATURES (scan-based)\n${tier2Lines}\n\n### Tier 3: TECHNICAL DEBT (scan-based)\n${
+    tier3.length > 0 ? formatList(tier3) : '- (none)'
+  }\n\n## Recommended Next Steps\n${nextSteps
+    .map((step, index) => `${index + 1}. ${step}`)
+    .join('\n')}\n\n## Implementation Prompt\n${prompt}\n`;
 };
 
 /**
@@ -5971,10 +5495,10 @@ function checkPhase1Completion(
     );
     const featuresComplete =
       featureRequirements.met.length >=
-      featureRequirements.required.length * 0.7; // 70% of required features
+      featureRequirements.required.length * 0.7; // heuristic threshold
 
     checkpoints.push({
-      name: 'Feature Requirements',
+      name: 'Feature Requirements (heuristic)',
       met: featuresComplete,
       evidence: `Met: ${
         featureRequirements.met.join(', ') || 'none'
@@ -5984,34 +5508,34 @@ function checkPhase1Completion(
 
     if (!featuresComplete) {
       blockers.push(
-        `Missing feature requirements: ${featureRequirements.missing.join(
-          ', '
-        )}`
+        `Heuristic requirement gaps: ${featureRequirements.missing.join(', ')}`
       );
       missingElements.push(...featureRequirements.missing);
     }
 
     // Quality Gate 2: Testing
     const testScore = completionScore.testCoverage.score;
-    const testingComplete = testScore >= 12; // ≥50% threshold
+    const testingComplete = testScore >= 12; // heuristic threshold
 
     checkpoints.push({
-      name: 'Unit Tests',
+      name: 'Unit Tests (signal)',
       met: testingComplete,
-      evidence: `Test score: ${testScore}/25 (${completionScore.testCoverage.details.join(
+      evidence: `Test signal score: ${testScore}/25 (${completionScore.testCoverage.details.join(
         ', '
       )})`,
       blockerLevel: testingComplete ? 'LOW' : 'HIGH',
     });
 
     if (!testingComplete) {
-      blockers.push(`Insufficient test coverage (score: ${testScore}/25)`);
+      blockers.push(
+        `Test signal below heuristic threshold (score: ${testScore}/25)`
+      );
       missingElements.push('comprehensive unit tests');
     }
 
     // Quality Gate 3: Accessibility
     const a11yScore = completionScore.accessibility.score;
-    const a11yComplete = a11yScore >= 12; // ≥50% threshold
+    const a11yComplete = a11yScore >= 12; // heuristic threshold
 
     checkpoints.push({
       name: 'Accessibility',
@@ -6029,7 +5553,7 @@ function checkPhase1Completion(
 
     // Quality Gate 4: Code Quality
     const qualityScore = completionScore.codeQuality.score;
-    const qualityComplete = qualityScore >= 18; // ≥75% threshold
+    const qualityComplete = qualityScore >= 18; // heuristic threshold
 
     checkpoints.push({
       name: 'Code Quality',
@@ -6122,7 +5646,7 @@ function checkPhase1Completion(
  * Evaluates:
  * 1. Navigation pattern and complexity
  * 2. Layout scalability and sidebar necessity
- * 3. Design system readiness (Desert Night tokens, RTL, accessibility)
+ * 3. Design system readiness (design system pointer, RTL, accessibility)
  * 4. Future design alignment (client-side + server-side vision)
  *
  * Decision logic:
@@ -6250,23 +5774,16 @@ function analyzeUIUXArchitecture(scan: ProjectScan): UIUXArchitectureAnalysis {
   const styleFiles = appComponents.filter(
     (c) => c.path.endsWith('.scss') || c.path.endsWith('.css')
   );
-  let colorTokensUsed = 0;
-  let typographyTokensUsed = 0;
-  let spacingTokensUsed = 0;
-  let borderRadiusTokensUsed = 0;
   let logicalPropertiesCount = 0;
   let physicalPropertiesCount = 0;
+  let focusStylesDetected = false;
 
   for (const styleFile of styleFiles) {
     const content = safeRead(styleFile.path) || '';
 
-    // Check Desert Night tokens
-    if (/--color-primary|--color-accent|--color-surface/.test(content))
-      colorTokensUsed++;
-    if (/--font-display|--font-body|--text-/.test(content))
-      typographyTokensUsed++;
-    if (/--space-\d+/.test(content)) spacingTokensUsed++;
-    if (/--radius-/.test(content)) borderRadiusTokensUsed++;
+    if (/:focus|focus-visible/.test(content)) {
+      focusStylesDetected = true;
+    }
 
     // Check RTL support (logical vs physical properties)
     const inlineStartMatches = (
@@ -6282,57 +5799,61 @@ function analyzeUIUXArchitecture(scan: ProjectScan): UIUXArchitectureAnalysis {
     physicalPropertiesCount += leftRightMatches;
   }
 
-  const totalStyleFiles = styleFiles.length || 1;
-  const tokensApplied = {
-    colors: colorTokensUsed / totalStyleFiles > 0.5,
-    typography: typographyTokensUsed / totalStyleFiles > 0.5,
-    spacing: spacingTokensUsed / totalStyleFiles > 0.5,
-    borderRadius: borderRadiusTokensUsed / totalStyleFiles > 0.3,
-  };
-
   const rtlSupported = logicalPropertiesCount > physicalPropertiesCount;
-  const arabicFontsConfigured = appComponentContent
-    ? /Plex.*Arabic|Noto.*Arabic/.test(appComponentContent)
-    : false;
+  const dirAttributeDetected = appComponents.some((component) => {
+    if (!component.hasHtml) return false;
+    const htmlContent = safeRead(component.htmlPath) || '';
+    return /dir\s*=\s*['"]rtl['"]/i.test(htmlContent);
+  });
 
   const rtlIssues: string[] = [];
   if (!rtlSupported)
-    rtlIssues.push('Physical properties detected (should use logical)');
-  if (!arabicFontsConfigured) rtlIssues.push('Arabic fonts not configured');
+    rtlIssues.push('CSS logical properties not dominant for RTL support');
+  if (!dirAttributeDetected)
+    rtlIssues.push('dir="rtl" not detected in templates');
   if (physicalPropertiesCount > 10)
     rtlIssues.push(`${physicalPropertiesCount} physical property usages found`);
 
+  const keyboardNavigationDetected = appComponents.some((component) => {
+    const tsContent = safeRead(component.path) || '';
+    const htmlContent = component.hasHtml
+      ? safeRead(component.htmlPath) || ''
+      : '';
+    return /keydown|keypress|keyup|tabindex|aria-keyshortcuts/i.test(
+      `${tsContent}
+${htmlContent}`
+    );
+  });
+
+  const skipLinkDetected = appComponents.some((component) => {
+    if (!component.hasHtml) return false;
+    const htmlContent = safeRead(component.htmlPath) || '';
+    return /skip[- ]?link|href=['"]#(main|content)['"]/i.test(htmlContent);
+  });
+
+  const accessibilityIssues: string[] = [];
+  if (!focusStylesDetected)
+    accessibilityIssues.push('Focus styles not detected');
+  if (!keyboardNavigationDetected)
+    accessibilityIssues.push('Keyboard navigation handlers not detected');
+  if (!skipLinkDetected) accessibilityIssues.push('Skip link not detected');
+
   const componentConsistencyScore =
-    (tokensApplied.colors ? 25 : 0) +
-    (tokensApplied.typography ? 25 : 0) +
-    (tokensApplied.spacing ? 25 : 0) +
-    (tokensApplied.borderRadius ? 25 : 0);
+    (rtlSupported ? 50 : 0) +
+    (focusStylesDetected ? 20 : 0) +
+    (keyboardNavigationDetected ? 20 : 0) +
+    (skipLinkDetected ? 10 : 0);
 
-  const deviations: string[] = [];
-  if (!tokensApplied.colors)
-    deviations.push('Hardcoded colors instead of design tokens');
-  if (!tokensApplied.typography)
-    deviations.push('Inconsistent typography usage');
-  if (!tokensApplied.spacing) deviations.push('Non-standard spacing values');
-
-  // Check accessibility
-  const contrastRatiosGood = tokensApplied.colors; // Desert Night has good contrast
-  const touchTargetsGood = supportsMobile; // Assume touch targets if mobile support
-  const focusStatesGood = hasRouting; // Router typically adds focus states
+  const deviations: string[] = [...rtlIssues, ...accessibilityIssues];
 
   const wcagCompliance: DesignSystemReadiness['accessibility']['wcagCompliance'] =
-    contrastRatiosGood && touchTargetsGood && focusStatesGood
-      ? 'AA'
-      : contrastRatiosGood && touchTargetsGood
-      ? 'A'
-      : 'NONE';
+    focusStylesDetected && keyboardNavigationDetected ? 'AA' : 'UNKNOWN';
 
   const designSystem: DesignSystemReadiness = {
-    tokensApplied,
     rtlSupport: {
       implemented: rtlSupported,
       logicalPropertiesUsed: logicalPropertiesCount > 0,
-      arabicFontsConfigured,
+      dirAttributeDetected,
       issues: rtlIssues,
     },
     componentConsistency: {
@@ -6344,43 +5865,23 @@ function analyzeUIUXArchitecture(scan: ProjectScan): UIUXArchitectureAnalysis {
     },
     accessibility: {
       wcagCompliance,
-      contrastRatios: contrastRatiosGood,
-      touchTargets: touchTargetsGood,
-      focusStates: focusStatesGood,
+      focusStylesDetected,
+      keyboardNavigationDetected,
+      skipLinkDetected,
     },
   };
 
   // Future design alignment
   const futureAlignment: FutureDesignAlignment = {
     clientSideVision: {
-      targetUserFlow:
-        'Intuitive navigation → Feature discovery → Action completion',
-      plannedFeatures: [
-        'Multi-facility management',
-        'Analytics dashboard',
-        'Customer portal',
-      ],
-      designEvolution: [
-        'Scalable sidebar navigation',
-        'Consistent Desert Night theming',
-        'Full RTL support for Arabic users',
-        'Mobile-first responsive design',
-      ],
+      targetUserFlow: 'UNKNOWN (no authoritative roadmap loaded)',
+      plannedFeatures: ['UNKNOWN (no authoritative roadmap loaded)'],
+      designEvolution: ['UNKNOWN (no authoritative roadmap loaded)'],
     },
     serverSideVision: {
-      apiEndpoints: [
-        '/api/facilities',
-        '/api/bookings',
-        '/api/analytics',
-        '/api/customers',
-      ],
-      dataModels: ['Facility', 'Booking', 'Customer', 'Payment', 'Analytics'],
-      businessLogicAlignment: [
-        'RESTful API design matching UI navigation',
-        'Real-time updates for booking status',
-        'Multi-tenancy support for facility owners',
-        'Payment integration for MENA region',
-      ],
+      apiEndpoints: ['UNKNOWN (no authoritative roadmap loaded)'],
+      dataModels: ['UNKNOWN (no authoritative roadmap loaded)'],
+      businessLogicAlignment: ['UNKNOWN (no authoritative roadmap loaded)'],
     },
     alignmentScore: (componentConsistencyScore / 100) * 100, // 0-100 scale
     gaps: [
@@ -6393,13 +5894,13 @@ function analyzeUIUXArchitecture(scan: ProjectScan): UIUXArchitectureAnalysis {
         ? ['Implement sidebar before adding more features']
         : []),
       ...(componentConsistencyScore < 75
-        ? ['Apply Desert Night design tokens consistently']
+        ? ['Align UI with design system guidance and RTL/accessibility signals']
         : []),
       ...(rtlIssues.length > 0
-        ? ['Convert to CSS Logical Properties for RTL support']
+        ? ['Resolve RTL issues using CSS logical properties']
         : []),
-      ...(wcagCompliance === 'NONE'
-        ? ['Improve WCAG compliance to AA level']
+      ...(wcagCompliance === 'UNKNOWN'
+        ? ['Review WCAG 2.1 AA focus/keyboard guidance and skip links']
         : []),
     ],
   };
@@ -6424,9 +5925,8 @@ function analyzeUIUXArchitecture(scan: ProjectScan): UIUXArchitectureAnalysis {
 
   if (refactorLayoutFirst) {
     reasoning.push(
-      `Design system compliance at ${componentConsistencyScore}% (target: ≥75%)`,
-      'Inconsistent use of Desert Night tokens detected',
-      'RTL support needs improvement before production'
+      `Design system signal score at ${componentConsistencyScore}% (target: ≥75%)`,
+      'RTL/accessibility signals need improvement before production'
     );
     estimatedEffort.designSystemUpdates = 12; // 1.5 days
   }
@@ -6434,7 +5934,7 @@ function analyzeUIUXArchitecture(scan: ProjectScan): UIUXArchitectureAnalysis {
   if (proceedWithCurrentUI) {
     reasoning.push(
       'Current navigation can accommodate new feature',
-      'Design system compliance acceptable',
+      'Design system signal score acceptable',
       'No architectural blockers detected'
     );
   }
@@ -6461,221 +5961,14 @@ function analyzeUIUXArchitecture(scan: ProjectScan): UIUXArchitectureAnalysis {
 // ============================================================================
 
 /**
- * Analyzes market timing for feature implementation in MENA context.
- *
- * Evaluates:
- * 1. MENA market readiness (cultural fit, payment methods, mobile-first)
- * 2. Competitor analysis (differentiation opportunities)
- * 3. Window of opportunity (urgency, market gaps)
- * 4. Strategic timing (build now vs later)
- *
- * MENA-specific factors:
- * - Payment features: +2 score (high demand in MENA for diverse payment options)
- * - Booking features: +1 score (established pattern, table stakes)
- * - Mobile-first: +2 score (MENA has high mobile usage)
- * - Arabic/RTL: +1 score (cultural fit)
+ * Market timing is UNKNOWN unless authoritative business sources are provided.
+ * This avoids assumptions about regions, competitors, or timing windows.
  */
 function analyzeMarketTiming(feature: string): MarketTimingAnalysis {
-  // MENA market readiness scoring
-  let menaScore = 5; // Base score
-  const factors: string[] = [];
-
-  // Feature-specific MENA scoring
-  const isPaymentFeature = /payment|checkout|billing|invoice|transaction/i.test(
-    feature
-  );
-  const isBookingFeature = /booking|reservation|schedule|calendar/i.test(
-    feature
-  );
-  const isAnalyticsFeature = /analytics|report|dashboard|insight|metrics/i.test(
-    feature
-  );
-  const isCustomerFeature = /customer|client|user|profile|account/i.test(
-    feature
-  );
-  const isCommunicationFeature =
-    /notification|sms|email|whatsapp|message/i.test(feature);
-
-  if (isPaymentFeature) {
-    menaScore += 2;
-    factors.push(
-      'High MENA demand for flexible payment options (cash, card, installments)'
-    );
-    factors.push('Payment localization critical for Saudi market');
-  }
-
-  if (isBookingFeature) {
-    menaScore += 1;
-    factors.push(
-      'Core booking functionality expected in MENA hospitality/sports sector'
-    );
-  }
-
-  if (isAnalyticsFeature) {
-    menaScore += 1;
-    factors.push('Growing demand for data-driven decisions in MENA businesses');
-  }
-
-  if (isCustomerFeature) {
-    menaScore += 1;
-    factors.push(
-      'Customer relationship features align with MENA business culture'
-    );
-  }
-
-  if (isCommunicationFeature) {
-    menaScore += 2;
-    factors.push('WhatsApp/SMS notifications highly valued in MENA');
-    factors.push('Mobile-first communication critical for engagement');
-  }
-
-  // Cultural fit assessment
-  const culturalFit: MarketTimingAnalysis['menaMarketReadiness']['culturalFit'] =
-    menaScore >= 8 ? 'HIGH' : menaScore >= 6 ? 'MEDIUM' : 'LOW';
-
-  // Competitor analysis (heuristic-based)
-  const competitorFeatures: string[] = [];
-  let competitorCount = 0;
-  let differentiationOpportunity = 5; // Base score
-
-  if (isBookingFeature) {
-    competitorCount = 8; // Many booking systems in market
-    differentiationOpportunity = 3; // Lower opportunity
-    competitorFeatures.push(
-      'Basic booking calendar',
-      'Slot management',
-      'Customer database'
-    );
-  }
-
-  if (isPaymentFeature) {
-    competitorCount = 5; // Moderate competition for MENA payment integration
-    differentiationOpportunity = 7; // Higher opportunity
-    competitorFeatures.push(
-      'Card payments',
-      'MADA integration',
-      'Invoice generation'
-    );
-    factors.push(
-      'Opportunity: Integrated MENA payment methods (MADA, STC Pay, cash)'
-    );
-  }
-
-  if (isAnalyticsFeature) {
-    competitorCount = 3; // Lower competition for analytics
-    differentiationOpportunity = 8; // High opportunity
-    competitorFeatures.push('Basic reports', 'Revenue tracking');
-    factors.push(
-      'Opportunity: Real-time analytics with MENA business insights'
-    );
-  }
-
-  if (isCommunicationFeature) {
-    competitorCount = 4; // Moderate competition
-    differentiationOpportunity = 7; // High opportunity
-    competitorFeatures.push('Email notifications', 'SMS alerts');
-    factors.push('Opportunity: WhatsApp Business API integration');
-  }
-
-  // Window of opportunity assessment
-  const urgency: MarketTimingAnalysis['windowOfOpportunity']['urgency'] =
-    differentiationOpportunity >= 7 && menaScore >= 7
-      ? 'CRITICAL'
-      : differentiationOpportunity >= 6
-      ? 'HIGH'
-      : differentiationOpportunity >= 4
-      ? 'MEDIUM'
-      : 'LOW';
-
-  const isOpen = differentiationOpportunity >= 5;
-  const expiresIn =
-    urgency === 'CRITICAL'
-      ? '3-6 months'
-      : urgency === 'HIGH'
-      ? '6-12 months'
-      : urgency === 'MEDIUM'
-      ? '12-18 months'
-      : undefined;
-
-  let windowReasoning = '';
-  if (urgency === 'CRITICAL') {
-    windowReasoning =
-      'High differentiation opportunity with strong MENA market fit. Competitors likely to implement soon.';
-  } else if (urgency === 'HIGH') {
-    windowReasoning =
-      'Good market opportunity with moderate competition. Strategic advantage if implemented well.';
-  } else if (urgency === 'MEDIUM') {
-    windowReasoning =
-      'Standard feature with moderate competitive pressure. Implement when foundational features are complete.';
-  } else {
-    windowReasoning =
-      'Low urgency feature. Focus on higher-priority items first.';
-  }
-
-  // Strategic timing recommendation
-  const shouldBuildNow =
-    (urgency === 'CRITICAL' || urgency === 'HIGH') &&
-    culturalFit !== 'LOW' &&
-    differentiationOpportunity >= 6;
-
-  const timingReasoning: string[] = [];
-
-  if (shouldBuildNow) {
-    timingReasoning.push(
-      'Strong market opportunity aligns with strategic goals'
-    );
-    timingReasoning.push(`${culturalFit} MENA cultural fit supports adoption`);
-    if (differentiationOpportunity >= 7) {
-      timingReasoning.push('High differentiation potential vs competitors');
-    }
-    if (isPaymentFeature) {
-      timingReasoning.push(
-        'Payment features drive revenue and reduce manual work'
-      );
-    }
-    if (isCommunicationFeature) {
-      timingReasoning.push(
-        'Communication features improve customer engagement and retention'
-      );
-    }
-  } else {
-    timingReasoning.push(
-      'Market timing suggests prioritizing foundational features first'
-    );
-    if (culturalFit === 'LOW') {
-      timingReasoning.push(
-        'Feature may require cultural adaptation before MENA rollout'
-      );
-    }
-    if (differentiationOpportunity < 5) {
-      timingReasoning.push(
-        'Competitive landscape crowded; focus on unique value propositions'
-      );
-    }
-  }
-
   return {
     feature,
-    menaMarketReadiness: {
-      score: menaScore,
-      factors,
-      culturalFit,
-    },
-    competitorAnalysis: {
-      competitorCount,
-      competitorFeatures,
-      differentiationOpportunity,
-    },
-    windowOfOpportunity: {
-      isOpen,
-      urgency,
-      expiresIn,
-      reasoning: windowReasoning,
-    },
-    strategicTiming: {
-      shouldBuildNow,
-      reasoning: timingReasoning,
-    },
+    status: 'UNKNOWN',
+    notes: ['UNKNOWN - no authoritative market timing sources loaded'],
   };
 }
 
@@ -6689,7 +5982,7 @@ function analyzeMarketTiming(feature: string): MarketTimingAnalysis {
  * Weighted scoring:
  * - Business Value: 40%
  * - Technical Foundation: 25%
- * - Market Timing: 20%
+ * - Market Timing: UNKNOWN (not scored without authoritative sources)
  * - Dependency Blocking: 15%
  * - UI/UX Architecture: Factored into decision reasoning
  *
@@ -6771,23 +6064,13 @@ function buildDecisionMatrix(
       confidence: 'MEASURED',
     };
 
-    // Factor 3: Market Timing (20% weight)
-    const marketScore =
-      (marketTiming.menaMarketReadiness.score / 10) * 0.4 +
-      (marketTiming.competitorAnalysis.differentiationOpportunity / 10) * 0.6;
+    // Factor 3: Market Timing (UNKNOWN - no authoritative sources)
     const marketFactor: DecisionFactor = {
       name: 'Market Timing',
-      score: marketScore,
-      weight: 0.2,
-      weightedScore: marketScore * 0.2,
-      evidence: [
-        `MENA market readiness: ${marketTiming.menaMarketReadiness.score}/10 (${marketTiming.menaMarketReadiness.culturalFit})`,
-        `Differentiation opportunity: ${marketTiming.competitorAnalysis.differentiationOpportunity}/10`,
-        `Window urgency: ${marketTiming.windowOfOpportunity.urgency}`,
-        `Strategic timing: ${
-          marketTiming.strategicTiming.shouldBuildNow ? 'BUILD NOW' : 'CAN WAIT'
-        }`,
-      ],
+      score: 0,
+      weight: 0,
+      weightedScore: 0,
+      evidence: marketTiming.notes,
       confidence: 'HEURISTIC',
     };
 
@@ -6957,7 +6240,7 @@ function buildDecisionMatrix(
     }
     if (uiuxAnalysis.decision.refactorLayoutFirst) {
       whyNotOthers.push(
-        `WARNING: Design system compliance at ${uiuxAnalysis.designSystem.componentConsistency.score}% (target: ≥75%)`
+        `WARNING: Design system signal score at ${uiuxAnalysis.designSystem.componentConsistency.score}% (target: ≥75%)`
       );
     }
   }
@@ -6969,18 +6252,16 @@ function buildDecisionMatrix(
     ).toFixed(1)}/100`,
     `Business Value (40%): ${(winner.factors.business.score * 100).toFixed(
       0
-    )}% → ${(winner.factors.business.weightedScore * 100).toFixed(1)} points`,
+    )}% ? ${(winner.factors.business.weightedScore * 100).toFixed(1)} points`,
     `Technical Foundation (25%): ${(
       winner.factors.technical.score * 100
-    ).toFixed(0)}% → ${(winner.factors.technical.weightedScore * 100).toFixed(
+    ).toFixed(0)}% ? ${(winner.factors.technical.weightedScore * 100).toFixed(
       1
     )} points`,
-    `Market Timing (20%): ${(winner.factors.market.score * 100).toFixed(
-      0
-    )}% → ${(winner.factors.market.weightedScore * 100).toFixed(1)} points`,
+    'Market Timing: UNKNOWN (no authoritative sources)',
     `Dependency Impact (15%): ${(winner.factors.dependency.score * 100).toFixed(
       0
-    )}% → ${(winner.factors.dependency.weightedScore * 100).toFixed(1)} points`,
+    )}% ? ${(winner.factors.dependency.weightedScore * 100).toFixed(1)} points`,
   ];
 
   if (runnerUps.length > 0) {
@@ -7001,8 +6282,6 @@ function buildDecisionMatrix(
   };
 }
 
-/* eslint-enable @typescript-eslint/no-unused-vars */
-
 // ============================================================================
 // ENHANCED IMPLEMENTATION PLAN GENERATOR
 // ============================================================================
@@ -7015,7 +6294,7 @@ function buildDecisionMatrix(
  * - PREREQUISITE: DTOs, API contracts, shared services
  * - CORE: Components, templates, routing, state management
  * - TESTING: Unit tests, E2E tests, documentation
- * - DESIGN_SYSTEM: Desert Night tokens, RTL support
+ * - DESIGN_SYSTEM: design system guidance, RTL support, accessibility
  * - UI_REFACTOR: Sidebar, layout changes (if needed)
  */
 function buildEnhancedImplementationPlan(
@@ -7038,19 +6317,17 @@ function buildEnhancedImplementationPlan(
     tasks.push({
       id: sidebarTaskId,
       category: 'UI_REFACTOR',
-      description:
-        'Implement collapsible sidebar navigation with Desert Night theme',
-      filePath:
-        'apps/manager-dashboard/src/app/shared/components/sidebar.component.ts',
-      operation: 'CREATE',
-      estimatedHours: 16,
+      description: 'Add sidebar navigation pattern (heuristic)',
+      filePath: 'apps/manager-dashboard/src/app',
+      lineNumber: 1,
+      operation: 'MODIFY',
+      estimatedHours: 12,
       dependencies: [],
       acceptanceCriteria: [
-        'Sidebar renders with responsive collapsible behavior',
-        'Desert Night design tokens applied',
-        'RTL support via CSS Logical Properties',
-        'Keyboard navigation and ARIA labels',
-        'Mobile drawer mode for <768px screens',
+        'Navigation follows existing routing patterns',
+        'CSS logical properties for RTL support',
+        'Keyboard navigation and focus states implemented',
+        'Skip links added where main content exists',
       ],
     });
   }
@@ -7060,17 +6337,18 @@ function buildEnhancedImplementationPlan(
     tasks.push({
       id: dsTaskId,
       category: 'DESIGN_SYSTEM',
-      description: 'Apply Desert Night tokens consistently across components',
+      description:
+        'Align components with design system guidance and RTL/accessibility rules',
       filePath: 'apps/manager-dashboard/src/styles.scss',
       lineNumber: 1,
       operation: 'MODIFY',
       estimatedHours: 12,
       dependencies: [],
       acceptanceCriteria: [
-        'All components use CSS variables from DESIGN_SYSTEM.md',
-        'Physical properties converted to logical (margin-left → margin-inline-start)',
-        'Arabic font family configured in global styles',
-        'WCAG AA contrast ratios verified',
+        'Design system pointer reviewed and applied where relevant',
+        'Physical properties converted to logical properties for RTL support',
+        'Skip link guidance reviewed where applicable',
+        'WCAG 2.1 AA focus/keyboard guidance reviewed',
       ],
     });
   }
@@ -7088,10 +6366,9 @@ function buildEnhancedImplementationPlan(
     estimatedHours: 2,
     dependencies: [],
     acceptanceCriteria: [
-      'DTO matches backend API contract',
-      'TypeScript interfaces exported',
-      'Validation decorators applied',
-      'Documented with JSDoc comments',
+      'DTOs and enums live in libs/shared-dtos (ADR-0003)',
+      'DTOs align with API contract docs when available',
+      'Frontend and backend share types consistently',
     ],
   });
 
@@ -7106,10 +6383,10 @@ function buildEnhancedImplementationPlan(
     estimatedHours: 3,
     dependencies: [{ taskId: dtoTaskId, reason: 'Requires DTO types' }],
     acceptanceCriteria: [
-      'CRUD methods implemented (GET, POST, PUT, DELETE)',
-      'Error handling with Observable.catchError',
-      'Loading states managed',
-      'API paths follow RESTful conventions',
+      'ApiService methods added for required endpoints',
+      'Error handling aligns with existing ApiService usage',
+      'Data state and API calls live in BookingStore',
+      'Endpoint paths follow existing API contract docs when available',
     ],
   });
 
@@ -7127,9 +6404,9 @@ function buildEnhancedImplementationPlan(
       { taskId: apiTaskId, reason: 'Calls ApiService methods' },
     ],
     acceptanceCriteria: [
-      'SignalStore with withState, withMethods, withHooks',
-      'Optimistic updates with rollback on error',
-      'Loading and error signals',
+      'SignalStore pattern aligns with BookingStore (booking.store.ts)',
+      'Data state and API calls live in BookingStore',
+      'UI state remains in components',
       'Computed selectors for derived data',
     ],
   });
@@ -7150,10 +6427,10 @@ function buildEnhancedImplementationPlan(
     ],
     acceptanceCriteria: [
       'Standalone component with reactive signals',
-      'OnPush change detection strategy',
-      'Accessibility attributes (ARIA labels, roles)',
-      'Responsive layout with mobile breakpoints',
-      'Error boundary for graceful failures',
+      'UI state lives in components; data state lives in BookingStore',
+      'Keyboard navigation supported for interactive elements',
+      'Focus states visible (WCAG 2.1 AA target)',
+      'Skip link added when main content is present',
     ],
   });
 
@@ -7161,7 +6438,7 @@ function buildEnhancedImplementationPlan(
   tasks.push({
     id: templateTaskId,
     category: 'CORE',
-    description: `Create ${feature} template with Desert Night styling`,
+    description: `Create ${feature} template aligned with design system guidance`,
     filePath: `apps/manager-dashboard/src/app/features/${feature}/${feature}.component.html`,
     operation: 'CREATE',
     estimatedHours: 4,
@@ -7169,10 +6446,10 @@ function buildEnhancedImplementationPlan(
       { taskId: componentTaskId, reason: 'Template for component' },
     ],
     acceptanceCriteria: [
-      'Semantic HTML5 elements (header, main, section)',
-      'CSS Logical Properties for RTL support',
-      'Touch targets ≥48px for mobile',
-      'Loading and error states rendered',
+      'CSS logical properties for RTL support',
+      'Respect dir="rtl" at document or component scope when applicable',
+      'Keyboard navigation supported for interactive elements',
+      'Skip link to main content when applicable',
     ],
   });
 
@@ -7180,16 +6457,15 @@ function buildEnhancedImplementationPlan(
   tasks.push({
     id: styleTaskId,
     category: 'CORE',
-    description: `Apply Desert Night tokens to ${feature} styles`,
+    description: `Align ${feature} styles with design system guidance`,
     filePath: `apps/manager-dashboard/src/app/features/${feature}/${feature}.component.scss`,
     operation: 'CREATE',
     estimatedHours: 3,
     dependencies: [{ taskId: templateTaskId, reason: 'Styles for template' }],
     acceptanceCriteria: [
-      'Uses design tokens (--color-*, --font-*, --space-*)',
-      'No hardcoded colors or spacing values',
-      'Responsive breakpoints (@media)',
-      'Focus states with visible outline',
+      'Uses design system guidance where applicable',
+      'Use CSS logical properties for RTL support',
+      'Focus states with visible outline (WCAG 2.1 AA target)',
     ],
   });
 
@@ -7204,10 +6480,8 @@ function buildEnhancedImplementationPlan(
     estimatedHours: 1,
     dependencies: [{ taskId: componentTaskId, reason: 'Routes to component' }],
     acceptanceCriteria: [
-      'Route path defined (e.g., /${feature})',
-      'Lazy loading configured',
-      'Route guards if needed (auth)',
-      'Title metadata for SEO',
+      'Route path defined following app.routes.ts patterns',
+      'Route wired to the feature component',
     ],
   });
 
@@ -7229,7 +6503,7 @@ function buildEnhancedImplementationPlan(
       'User interaction tests (click, input)',
       'Store method call verification',
       'Error state rendering tests',
-      'Edge cases covered (≥80% coverage)',
+      'Edge cases covered',
     ],
   });
 
@@ -7299,27 +6573,22 @@ function buildEnhancedImplementationPlan(
       type: 'TECHNICAL',
     },
     {
-      name: 'Test Coverage',
-      target: '≥80%',
-      measurement: 'Unit test coverage via Jest',
+      name: 'Quality Gates',
+      target: 'Pass',
+      measurement: 'npm run lint/test/build + npx tsc --noEmit when applicable',
       type: 'TECHNICAL',
     },
     {
-      name: 'WCAG Compliance',
-      target: 'AA',
-      measurement: 'axe DevTools audit passes',
+      name: 'Accessibility',
+      target: 'WCAG 2.1 AA focus/keyboard/skip links',
+      measurement:
+        'Manual verification per docs/authoritative/design/accessibility.md',
       type: 'USER',
     },
     {
-      name: 'User Adoption',
-      target: '50% of target users within 2 weeks',
-      measurement: 'Google Analytics usage tracking',
-      type: 'BUSINESS',
-    },
-    {
       name: 'Design Consistency',
-      target: '100% Desert Night tokens used',
-      measurement: 'No hardcoded colors in SCSS',
+      target: 'Design system guidance applied',
+      measurement: 'Review against docs/DESIGN_SYSTEM.md',
       type: 'DESIGN',
     },
   ];
@@ -7327,49 +6596,31 @@ function buildEnhancedImplementationPlan(
   // Identify blockers and risks
   const blockersAndRisks: BlockerRisk[] = [
     {
-      description: 'Backend API not yet implemented',
-      likelihood: 'MEDIUM',
-      impact: 'HIGH',
-      mitigation: 'Mock API with json-server or MSW for frontend development',
-      isShared: false,
-      isExternal: true,
-    },
-    {
-      description: 'Shared DTO types may conflict with backend updates',
-      likelihood: 'LOW',
-      impact: 'MEDIUM',
-      mitigation: 'Use API versioning and contract testing',
-      isShared: true,
-      isExternal: false,
-    },
-    {
-      description: 'RTL support may reveal layout bugs',
+      description:
+        'RTL support relies on CSS logical properties and dir="rtl" usage',
       likelihood: 'MEDIUM',
       impact: 'MEDIUM',
-      mitigation: 'Test with dir="rtl" throughout development',
+      mitigation: 'Validate per docs/authoritative/design/rtl.md',
       isShared: false,
       isExternal: false,
     },
     {
-      description: 'SignalStore learning curve for team',
+      description: 'Accessibility gaps may exist (focus/keyboard/skip links)',
+      likelihood: 'MEDIUM',
+      impact: 'MEDIUM',
+      mitigation: 'Verify per docs/authoritative/design/accessibility.md',
+      isShared: false,
+      isExternal: false,
+    },
+    {
+      description: 'State ownership drift between BookingStore and components',
       likelihood: 'LOW',
-      impact: 'LOW',
-      mitigation: 'Pair programming and code review focus',
+      impact: 'MEDIUM',
+      mitigation: 'Follow docs/authoritative/engineering/frontend-angular.md',
       isShared: false,
       isExternal: false,
     },
   ];
-
-  if (needsSidebar) {
-    blockersAndRisks.push({
-      description: 'Sidebar refactor impacts all existing features',
-      likelihood: 'HIGH',
-      impact: 'HIGH',
-      mitigation: 'Implement sidebar behind feature flag, gradual rollout',
-      isShared: true,
-      isExternal: false,
-    });
-  }
 
   return {
     feature,
@@ -7378,11 +6629,11 @@ function buildEnhancedImplementationPlan(
     criticalPath,
     acceptanceCriteria: [
       'All tasks completed and acceptance criteria met',
-      'Tests passing with ≥80% coverage',
-      'No ESLint or TypeScript errors',
-      'WCAG AA accessibility compliance',
-      'Desert Night design system applied',
-      'RTL support verified with Arabic locale',
+      'Tests passing (quality gates)',
+      'Lint and type check pass (quality gates)',
+      'WCAG 2.1 AA focus/keyboard/skip links verified',
+      'Design system guidance applied',
+      'RTL support verified with CSS logical properties and dir="rtl" when applicable',
     ],
     successMetrics,
     blockersAndRisks,
@@ -7443,7 +6694,7 @@ const featureCompletenessAnalyzer = tool({
  */
 const testCoverageAnalyzer = tool({
   name: 'analyze_test_coverage',
-  description: 'Analyze test coverage signals for each feature',
+  description: 'Analyze test signals for each feature',
   parameters: z.object({}),
   execute: async () => {
     const scan = scanProjectState();
@@ -7507,12 +6758,87 @@ const technicalHealthAnalyzer = tool({
 });
 
 /**
- * Tool 7: Ranked Recommendations
+ * Tool 7: Check Blockers and Phase
+ * MANDATORY: Must be called before making shipping recommendations
+ */
+const blockerCheckTool = tool({
+  name: 'check_blockers_and_phase',
+  description:
+    'Check BLOCKERS.md status and determine current project phase. MUST be called before making shipping recommendations.',
+  parameters: z.object({}),
+  execute: async () => {
+    // Read blocker status from CRITICAL_BLOCKERS config
+    const activeBlockers = Object.values(CRITICAL_BLOCKERS).filter(
+      (blocker) => blocker.status === 'NOT_STARTED' && blocker.blocksAll
+    );
+
+    // Validate using existing enforcement logic
+    const validation = validateBlockersForShipping('any-feature');
+
+    // Determine current phase
+    const currentPhase =
+      activeBlockers.length > 0
+        ? 'Phase 0 (Pre-Foundation)'
+        : PHASES.PHASE_2_FEATURES.name;
+
+    const result = {
+      status: activeBlockers.length > 0 ? 'blocked' : 'ok',
+      activeBlockers: activeBlockers.map((b) => ({
+        id: b.id,
+        name: b.name,
+        status: b.status,
+        effort: b.effort,
+        blocksAll: b.blocksAll,
+      })),
+      canShipFeatures: activeBlockers.length === 0,
+      currentPhase: currentPhase,
+      requiredPhase: validation.requiredPhase,
+      requiredActions:
+        activeBlockers.length > 0
+          ? [
+              `Complete ${PHASES.PHASE_1_FOUNDATION.name} (${PHASES.PHASE_1_FOUNDATION.effort})`,
+            ]
+          : [],
+      estimatedEffortToShip:
+        activeBlockers.length > 0
+          ? PHASES.PHASE_1_FOUNDATION.effort
+          : '0h (ready to ship)',
+      timestamp: new Date().toISOString(),
+    };
+
+    return JSON.stringify(result, null, 2);
+  },
+});
+
+/**
+ * Tool 8: Ranked Recommendations
  */
 const rankedRecommendationTool = tool({
   name: 'recommend_features_ranked',
   description: 'Rank features using weighted business and technical scoring',
   parameters: z.object({
+    blockerCheckResult: z
+      .object({
+        status: z.enum(['ok', 'blocked']),
+        activeBlockers: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            status: z.string(),
+            effort: z.string(),
+            blocksAll: z.boolean(),
+          })
+        ),
+        canShipFeatures: z.boolean(),
+        currentPhase: z.string(),
+        requiredPhase: z.string(),
+        requiredActions: z.array(z.string()),
+        estimatedEffortToShip: z.string(),
+        timestamp: z.string(),
+      })
+      .describe(
+        'REQUIRED: Result from check_blockers_and_phase tool. Must be called first before generating recommendations.'
+      ),
     weights: z
       .object({
         user_impact: z.number().default(1),
@@ -7530,7 +6856,24 @@ const rankedRecommendationTool = tool({
       })
       .default({}),
   }),
-  execute: async ({ weights, business_config }) => {
+  execute: async ({ blockerCheckResult, weights, business_config }) => {
+    // FAIL-FAST: Validate blocker check was performed
+    if (!blockerCheckResult) {
+      throw new Error(
+        'ENFORCEMENT VIOLATION: blockerCheckResult is required. ' +
+          'You MUST call check_blockers_and_phase tool before recommend_features_ranked.'
+      );
+    }
+
+    // FAIL-FAST: Validate timestamp freshness (5 minutes)
+    const checkTime = new Date(blockerCheckResult.timestamp);
+    const now = new Date();
+    if (now.getTime() - checkTime.getTime() > 5 * 60 * 1000) {
+      throw new Error(
+        'ENFORCEMENT VIOLATION: Blocker check is stale (>5 min). ' +
+          'Call check_blockers_and_phase again.'
+      );
+    }
     const scan = scanProjectState();
     const completeness = analyzeFeatureCompleteness(scan);
     const business = analyzeBusinessValue(
@@ -7589,68 +6932,314 @@ const rankedRecommendationTool = tool({
       dependencies,
       technicalHealth,
       resolvedWeights,
-      evidencePack
+      evidencePack,
+      blockerCheckResult
     );
     return report;
   },
 });
 
 /**
- * Main Agent (Advanced Feature Recommender)
+ * Main Agent (Advanced Feature Recommender + Decision-Maker)
+ *
+ * This agent is NOT just an analyzer - it is a DECISION-MAKER that:
+ * 1. Analyzes code quality and feature completeness
+ * 2. Checks BLOCKERS.md before any shipping recommendation
+ * 3. Applies DECISION_FRAMEWORK.md constraints
+ * 4. References ROADMAP.md for phase-appropriate recommendations
  */
 export const staffEngineerNextFeatureAgent = new Agent({
-  name: 'Staff Engineer - Advanced Feature Recommender',
+  name: 'Staff Engineer - Advanced Feature Recommender + Decision-Maker',
   model: 'gpt-5-nano',
-  instructions: `You are a Staff Engineer recommender for the Khana booking platform.
+  instructions: `You are a Staff Engineer DECISION-MAKER for the Khana booking platform.
+You are NOT just an analyzer - you are responsible for making strategic recommendations
+that account for BLOCKERS, PHASES, and CONSTRAINTS.
 
-YOUR TASK: Analyze the Khana codebase and produce the advanced feature recommendation report.
+SOURCE OF TRUTH RULES (MANDATORY):
+- The ONLY source of truth is docs/authoritative/.
+- You MUST call load_authoritative(tags) before reasoning or responding.
+- Always load docs/authoritative/ROOT.md and docs/authoritative/ROUTER.md.
+- Use ROUTER tags to load the minimal additional files.
+- CRITICAL: Include 'strategic' tag to load DECISION_FRAMEWORK.md, ROADMAP.md, BLOCKERS.md.
+- If authoritative docs are not loaded, respond ONLY with: "Authoritative docs not loaded. Call load_authoritative()."
 
-WORKFLOW:
-1. Scan project state and feature completeness.
-2. Analyze dependencies, business value, and technical health.
-3. Rank recommendations using weighted scoring.
-4. Provide a prioritized report with tiers and an implementation prompt for the top recommendation.
+=== DECISION-MAKER RULES (CRITICAL - READ CAREFULLY) ===
+
+BEFORE making ANY shipping recommendation, you MUST:
+1. Load 'strategic' tag to get DECISION_FRAMEWORK.md, ROADMAP.md, BLOCKERS.md
+2. Check BLOCKERS.md for unresolved blockers
+3. Apply DECISION_FRAMEWORK.md constraints
+4. Reference ROADMAP.md for phase-appropriate recommendations
+
+CORE CONSTRAINTS (BLOCKING RULES from DECISION_FRAMEWORK.md):
+- Constraint 1: No Auth = No Production (BLOCKER-1 must resolve first)
+- Constraint 2: No User ID = No Multi-Tenant Safety
+- Constraint 3: No Permissions = No Role-Based Access
+- Constraint 4: No Audit Trail = No Production (Compliance)
+
+PHASE GATE SYSTEM (from ROADMAP.md):
+- Phase 1 (Foundation): Auth, User DB, Permissions, Audit - MUST complete first (20-30h)
+- Phase 2 (Features): booking-calendar/preview/list with auth integration (12-16h)
+- Phase 3 (Advanced): Payments, Notifications, Analytics (16-20h)
+
+DECISION OUTPUT REQUIREMENTS:
+Every recommendation MUST include:
+1. Blocker Status: Which blockers are unresolved?
+2. Phase Assessment: What phase is the project in?
+3. Can Ship?: YES/NO with reasoning
+4. If NO, what must be done first?
+5. Effort Estimate: Total hours to reach production
+
+EXAMPLE CORRECT OUTPUT:
+"booking-calendar is feature-complete at 87/100 score.
+BLOCKER STATUS: CANNOT SHIP - Auth system (BLOCKER-1, 20-30h) not implemented.
+PHASE: Currently in Phase 0 (Pre-Foundation). Must complete Phase 1 first.
+RECOMMENDED ACTION: Implement authentication system before shipping any feature.
+EFFORT TO PRODUCTION: 40-50h (Phase 1) + integration testing."
+
+EXAMPLE INCORRECT OUTPUT (NEVER DO THIS):
+"booking-calendar is ready to ship at 87/100 score."
+This is WRONG because it ignores BLOCKER-1 (auth not implemented).
+
+=== END DECISION-MAKER RULES ===
+
+CRITICAL ADR RULES (MUST FOLLOW):
+- ADR-0001 (State Ownership): Store owns DATA state (bookings, loading, error). Components own UI state (dialogs, selection, pagination, filters).
+- Dialog state in components is CORRECT architecture per ADR-0001. Do NOT flag this as an issue.
+- Dialog state in the Store would be a VIOLATION of ADR-0001.
+- When reviewing architecture, VALIDATE against ADR-0001, do not make assumptions.
+
+SCORING TRANSPARENCY:
+- Tool scores are ESTIMATED from regex/pattern matching, not MEASURED from actual test runs.
+- Confidence levels: MEASURED (from actual runs), ESTIMATED (from heuristics), PATTERN-BASED (from regex), UNAVAILABLE.
+- All completeness scores should be treated as estimates unless verified by actual lint/test runs.
+- Features at 90+ score are typically production-ready pending manual verification.
+- IMPORTANT: High scores do NOT mean "ready to ship" - blocker status determines shippability.
+
+CONFLICT RULES:
+- Code evidence overrides docs when a mismatch exists.
+- Record any mismatch as STALE_DOC in docs/authoritative/UNKNOWN.md.
+- If not provable by loaded docs or code evidence, label UNKNOWN or PROPOSED.
+
+WEB SEARCH TOOL (AVAILABLE):
+- Web search is available via webSearchTool() - use it when needed for current information.
+- Use web search when: checking latest library versions, verifying framework capabilities, looking up security advisories, researching market trends.
+- Use web search SPARINGLY - prefer authoritative docs and code evidence as primary sources.
+- Always cite web sources in findings and cross-reference with code/docs.
+
+HARD PROHIBITIONS:
+- NEVER recommend shipping without checking BLOCKERS.md first.
+- NEVER say "ready to ship" or "production-ready" if auth is not implemented.
+- Do not assume auth, payments, environment config, or providers unless explicitly confirmed.
+- Do not invent APIs, configs, or behaviors.
+- Do not use external web information as your primary truth source - authoritative docs and code are primary.
+- Do not flag dialog state in components as an architecture issue (this is CORRECT per ADR-0001).
+
+YOUR TASK: Analyze the Khana codebase AND make strategic recommendations that respect blockers and phases.
+
+PROCESS:
+1. Call load_authoritative(tags) with ['state-store', 'design', 'testing', 'booking-engine', 'dtos', 'strategic'].
+2. Read DECISION_FRAMEWORK.md, ROADMAP.md, BLOCKERS.md before making recommendations.
+3. Reason only from loaded docs and code evidence.
+4. Validate architecture findings against ADR-0001 before reporting.
+5. Apply blocker constraints to ALL shipping recommendations.
+6. Answer concisely, citing file paths when relevant.
+
+WORKFLOW (MANDATORY SEQUENCE):
+0. Use load_authoritative to load ROOT, ROUTER, strategic docs, and minimal tagged docs.
+1. [MANDATORY] Call check_blockers_and_phase() tool FIRST - returns blocker status.
+   - This tool is REQUIRED - cannot skip blocker checking.
+   - Save the blockerCheckResult for next step.
+2. [MANDATORY] Call recommend_features_ranked WITH blockerCheckResult parameter.
+   - blockerCheckResult is a REQUIRED parameter - tool will fail without it.
+   - The tool validates blocker data freshness (5 minute window).
+3. [IF blockerCheckResult shows blockers] Inform user that shipping is blocked.
+   - Cannot recommend shipping features when BLOCKER-1 (auth) blocks ALL features.
+   - Recommend Phase 1 Foundation work instead (Auth, User DB, Permissions, Audit).
+4. [IF blockerCheckResult shows no blockers] Proceed with feature recommendations.
+   - Use weighted scoring and phase-appropriate recommendations.
+   - Include all tiers: Critical Blockers, High-Value Features, Technical Debt.
+
+OPTIONAL STEPS:
+5. [OPTIONAL] Use web search for: latest Angular/NestJS/TailwindCSS versions, security advisories on dependencies, market research on booking platforms.
+6. For any web search results, cite sources and cross-reference with code/docs.
 
 RULES:
 - Base findings on scan/config evidence; do not invent features or scores.
 - If business config is missing, say so and leave business scores empty.
 - Use the recommend_features_ranked tool output as the final response.
+- Mark all scores with their confidence level (MEASURED vs ESTIMATED).
+- ALWAYS include blocker status and phase assessment in recommendations.
+- [CRITICAL] You CANNOT call recommend_features_ranked without blockerCheckResult parameter.
+  The tool will REJECT your call with ENFORCEMENT VIOLATION error if this parameter is missing.
+- [CRITICAL] You CANNOT recommend shipping features if blockerCheckResult.canShipFeatures is false.
+  Your recommendations must explicitly state blocking condition.
 
 STRATEGY A: QUICK_WIN - Prioritize features closest to shippable baseline.
+BUT: "Shippable" means blockers are resolved, not just high code quality score.
 
 OUTPUT FORMAT (use recommend_features_ranked tool - output EXACTLY as returned):
 0. Evidence Pack (STRATEGY A: QUICK_WIN) - MUST appear first
 1. Codebase Analysis Summary
-2. Feature Completeness Report
-3. Dependency Analysis
-4. Business Value Assessment
-5. Technical Health Report
-6. Next Feature Recommendations (Prioritized)
-7. Recommended Next Steps
-8. Implementation Prompt
+2. BLOCKER STATUS REPORT (NEW - MUST INCLUDE)
+3. Feature Completeness Report (with confidence levels)
+4. Dependency Analysis
+5. Business Value Assessment
+6. Technical Health Report (ADR-0001 validated)
+7. Next Feature Recommendations (Prioritized WITH blocker status)
+8. PHASE ASSESSMENT (NEW - MUST INCLUDE current phase and what's needed)
+9. Recommended Next Steps (blocker-aware)
+10. Implementation Prompt
 
-CRITICAL: Output the recommend_features_ranked tool result VERBATIM without summarizing or omitting sections.`,
+CRITICAL: Output the recommend_features_ranked tool result VERBATIM without summarizing or omitting sections.
+CRITICAL: NEVER recommend shipping if BLOCKER-1 (auth) is NOT_STARTED.`,
   tools: [
+    authoritativeLoader,
     projectStateAnalyzer,
     featureCompletenessAnalyzer,
     testCoverageAnalyzer,
     dependencyAnalyzer,
     businessValueAnalyzer,
     technicalHealthAnalyzer,
+    blockerCheckTool,
     rankedRecommendationTool,
+    webSearchTool(),
   ],
 });
 
 /**
- * Main entry point
+ * Main entry point with HARD ENFORCEMENT of authoritative docs AND blocker validation
+ *
+ * This function is the DECISION-MAKER entry point that:
+ * 1. Loads authoritative docs INCLUDING strategic docs (blockers, roadmap, decision framework)
+ * 2. Validates agent output against ADR-0001
+ * 3. Validates shipping recommendations against BLOCKERS.md
+ * 4. Reports enforcement violations and warnings
  */
 export async function analyzeAndRecommendNextFeature(): Promise<string> {
-  const result = await run(
-    staffEngineerNextFeatureAgent,
-    'Analyze the Khana codebase and produce the advanced feature recommendation report.',
-    {
-      maxTurns: 10,
-    }
+  // ENFORCEMENT LEVEL 1: Entry point ensures docs are loaded (including strategic)
+  const loaded = await loadAuthoritativeDocs(NEXT_FEATURE_TAGS);
+  if (loaded.status !== 'success') {
+    return AUTHORITATIVE_FAILURE_MESSAGE;
+  }
+
+  // Verify strategic docs were loaded
+  const strategicLoaded =
+    loaded.resolvedTags.includes('strategic') ||
+    loaded.files.some(
+      (f) =>
+        f.path.includes('DECISION_FRAMEWORK') ||
+        f.path.includes('BLOCKERS') ||
+        f.path.includes('ROADMAP')
+    );
+
+  if (!strategicLoaded) {
+    console.warn(
+      '\n⚠️  WARNING: Strategic docs (DECISION_FRAMEWORK, BLOCKERS, ROADMAP) may not be loaded.\n' +
+        'Decision-making constraints may not be applied.\n'
+    );
+  }
+
+  const context = buildAuthoritativeContext(loaded);
+  const enforcePrompt = `${context}
+
+AUTHORITATIVE ENFORCEMENT REMINDER:
+- You MUST explicitly call load_authoritative(tags) before any other tool.
+- Include 'strategic' tag to load DECISION_FRAMEWORK.md, ROADMAP.md, BLOCKERS.md.
+- This is not optional - it is a HARD REQUIREMENT for this analysis.
+- Agent will fail validation if load_authoritative is not called.
+
+DECISION-MAKER ENFORCEMENT:
+- You are a DECISION-MAKER, not just an analyzer.
+- BEFORE recommending shipping, check BLOCKERS.md for unresolved blockers.
+- BLOCKER-1 (Auth System) is NOT_STARTED - this blocks ALL features from shipping.
+- Apply Phase Gate constraints from ROADMAP.md.
+- NEVER say "ready to ship" or "production-ready" if auth is not implemented.
+
+After calling load_authoritative, analyze the Khana codebase and produce the advanced feature recommendation report WITH blocker status and phase assessment.`;
+
+  const result = await run(staffEngineerNextFeatureAgent, enforcePrompt, {
+    maxTurns: 10,
+  });
+
+  const output = result.finalOutput ?? AUTHORITATIVE_FAILURE_MESSAGE;
+
+  // ENFORCEMENT LEVEL 2: Post-execution validation
+  // Check that output actually references authoritative docs
+  const hasAuthReference =
+    output.includes('docs/authoritative') ||
+    output.includes('ADR-0001') ||
+    output.includes('ROUTER') ||
+    output.includes('authoritative');
+
+  if (!hasAuthReference) {
+    console.warn(
+      '\n⚠️  ENFORCEMENT WARNING: Agent output does not reference authoritative docs.\n' +
+        'Output should cite docs/authoritative/ sources and ADRs.\n'
+    );
+  }
+
+  // ENFORCEMENT LEVEL 3: Validate against ADR-0001
+  const hasDialogViolation =
+    output.includes('dialog') &&
+    output.includes('component') &&
+    (output.includes('should be in store') || output.includes('incorrect'));
+
+  if (hasDialogViolation) {
+    console.error(
+      '\n❌ ENFORCEMENT VIOLATION: Output contradicts ADR-0001.\n' +
+        'Dialog state in components is CORRECT per ADR-0001.\n' +
+        'ADR-0001 states: "Components own UI state (dialogs, selection, pagination)"\n'
+    );
+  }
+
+  // ENFORCEMENT LEVEL 4: Validate shipping recommendations against blockers
+  const shippingPatterns = [
+    /ship\s+(booking-calendar|booking-preview|booking-list)/i,
+    /ready\s+to\s+ship/i,
+    /production[- ]ready/i,
+    /deploy\s+to\s+production/i,
+    /can\s+be\s+shipped/i,
+    /recommend\s+shipping/i,
+  ];
+
+  const hasShippingRecommendation = shippingPatterns.some((pattern) =>
+    pattern.test(output)
   );
-  return result.finalOutput ?? '';
+
+  const authBlockerMentioned =
+    output.includes('BLOCKER-1') ||
+    (output.includes('auth') && output.includes('not implemented')) ||
+    (output.includes('Phase 1') && output.includes('must complete')) ||
+    output.includes('CANNOT SHIP');
+
+  if (hasShippingRecommendation && !authBlockerMentioned) {
+    console.error(
+      '\n❌ CRITICAL ENFORCEMENT VIOLATION: Agent recommends shipping without mentioning auth blocker!\n' +
+        'Per DECISION_FRAMEWORK.md Constraint 1: "No Auth = No Production"\n' +
+        'BLOCKER-1 (Auth System, 20-30h effort) must be resolved before ANY feature ships.\n' +
+        '\nCORRECT OUTPUT SHOULD BE:\n' +
+        '"booking-calendar is feature-complete at 87/100 score.\n' +
+        'BLOCKER STATUS: CANNOT SHIP - Auth system (BLOCKER-1, 20-30h) not implemented.\n' +
+        'RECOMMENDED ACTION: Implement authentication system before shipping any feature."\n'
+    );
+  }
+
+  // ENFORCEMENT LEVEL 5: Check for decision framework references
+  const hasDecisionFrameworkReference =
+    output.includes('DECISION_FRAMEWORK') ||
+    output.includes('BLOCKERS.md') ||
+    output.includes('ROADMAP.md') ||
+    output.includes('Phase Gate') ||
+    output.includes('Phase 1') ||
+    output.includes('Phase 0');
+
+  if (!hasDecisionFrameworkReference) {
+    console.warn(
+      '\n⚠️  ENFORCEMENT WARNING: Agent output does not reference decision framework.\n' +
+        'For strategic recommendations, agent should cite DECISION_FRAMEWORK.md, BLOCKERS.md, or ROADMAP.md.\n'
+    );
+  }
+
+  return output;
 }

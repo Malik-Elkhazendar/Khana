@@ -13,16 +13,30 @@ import 'dotenv/config';
 
 import { analyzeAndRecommendNextFeature } from './staff-engineer-next-feature.agent';
 import { analyzeAndGeneratePrompt } from './staff-engineer.agent';
+import { loadAuthoritativeDocs } from './authoritative-loader';
+import {
+  AUTHORITATIVE_FAILURE_MESSAGE,
+  NEXT_FEATURE_TAGS,
+  STAFF_ENGINEER_TAGS,
+} from './authoritative-config';
 
 async function main() {
   const mode = process.argv[2] || 'next-feature';
   const customRequest = process.argv[3];
 
-  console.log('\n' + '═'.repeat(80));
-  console.log('🚀 STAFF ENGINEER AGENT');
-  console.log('═'.repeat(80) + '\n');
-
   try {
+    const tags =
+      mode === 'next-feature' ? NEXT_FEATURE_TAGS : STAFF_ENGINEER_TAGS;
+    const loaded = await loadAuthoritativeDocs(tags);
+    if (loaded.status !== 'success') {
+      console.log(AUTHORITATIVE_FAILURE_MESSAGE);
+      process.exit(1);
+    }
+
+    console.log('\n' + '═'.repeat(80));
+    console.log('🚀 STAFF ENGINEER AGENT');
+    console.log('═'.repeat(80) + '\n');
+
     if (mode === 'next-feature') {
       console.log('📊 Analyzing Khana codebase...\n');
       const result = await analyzeAndRecommendNextFeature();

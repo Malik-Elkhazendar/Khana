@@ -6,11 +6,11 @@ A production-grade AI agent that acts as a Principal Software Architect, ensurin
 
 ### What It Does
 
-✅ **Analyzes** your codebase to understand existing features
-✅ **Detects** duplicate components (prevents "hallucinated duplication")
-✅ **Validates** architectural compliance (ARCHITECTURE.md, Nx boundaries)
-✅ **Inspects** patterns (SignalStore, Angular signals, NestJS)
-✅ **Generates** implementation prompts with all rules
+- Analyzes your codebase to understand existing features
+- Detects duplicate components to prevent redundant work
+- Validates architectural compliance (docs/authoritative/engineering/architecture.md)
+- Inspects patterns (SignalStore, Angular signals)
+- Generates implementation prompts aligned with authoritative docs
 
 ### Why It Matters
 
@@ -19,7 +19,7 @@ Instead of asking "Should I create a new booking-form component?", the agent:
 1. Reads the codebase and finds BookingPreviewComponent already exists
 2. Validates it fits your needs
 3. Recommends reusing it instead
-4. Generates a prompt that prevents hardcoding, enforces design system, and ensures RTL support
+4. Generates a prompt that enforces design system guidance and RTL/accessibility support
 
 ### Usage
 
@@ -34,7 +34,7 @@ I need to build an interactive calendar action panel that allows:
 - Marking payments as paid
 - Canceling bookings
 
-It should integrate with BookingStore, follow Desert Night theme, and support RTL.
+It should integrate with BookingStore, follow the design system (docs/DESIGN_SYSTEM.md), and support RTL.
 `);
 
 console.log(prompt);
@@ -58,129 +58,88 @@ Add facility availability filter to the booking calendar view.
 
 Every generated prompt contains:
 
-**✅ Business Context**
+**Business Context**
 
 - Why the feature matters
 
-**✅ Architecture Rules**
+**Architecture Rules**
 
 - Reuse existing components
-- Use @ngrx/signals (never RxJS subjects)
-- Standalone components with OnPush detection
-- Nx workspace boundaries (@khana/\* imports)
+- Follow docs/authoritative/engineering/architecture.md boundaries
+- Angular standalone components with signals/computed state
+- Data state and API calls live in BookingStore; UI state in components
 
-**✅ Design System Rules**
+**Design System Rules**
 
-- Desert Night theme only
-- CSS Logical Properties for RTL
-- TailwindCSS classes
-- Accessibility (semantic HTML, ARIA, keyboard nav)
+- Follow docs/authoritative/design/design-system.md (pointer to docs/DESIGN_SYSTEM.md)
+- Use CSS logical properties for RTL
+- Target WCAG 2.1 AA focus/keyboard navigation; add skip links when relevant
 
-**✅ Code Patterns**
+**Code Patterns**
 
 - Angular signals: `signal<T>()`, `computed()`
-- SignalStore: `withState()`, `withMethods()`
-- Service injection: `inject()`
-- Proper typing on all functions
+- BookingStore pattern in apps/manager-dashboard/src/app/state/bookings/booking.store.ts
+- Template-driven forms with `ngModel` for filters/inputs
 
-**✅ Validation Rules**
+**Testing**
 
-- ESLint must pass
-- Prettier must format
-- TypeScript must compile
-- Tests must pass (80%+ coverage)
+- Jest is the unit test runner for manager-dashboard
 
-**✅ Before/After Checklist**
+**Validation Rules**
 
-- Steps to validate before implementing
-- Testing requirements
-- Pre-commit hook validation
+- npm run lint
+- npm run test
+- npm run build
+- npm run check (lint + test + build)
+- npx tsc --noEmit
+
+**Before/After Checklist**
+
+- Review authoritative docs before implementing
+- Run quality gates after implementation
 
 ### How to Use This Prompt
 
 1. **Copy the generated prompt**
 2. **Use it as your implementation guide**
-3. **Every step is actionable**
+3. **Run quality gates after changes**
 
 Example:
 
 ```bash
-# Pre-implementation check
-npm run lint:fix && npm run format
-
 # Implement the feature (guided by the prompt)
 
-# Post-implementation validation
-npm run lint
-npm run format:check
-npm run test
-
-# Commit (pre-commit hooks validate automatically)
-git add .
-git commit -m "feat: add interactive calendar action panel"
+# Validation
+npm run check
+npx tsc --noEmit
 ```
 
 ### Agent Tools
 
-The agent has 5 specialized tools:
+The agent has 6 specialized tools:
 
-| Tool                             | Purpose                                     |
-| -------------------------------- | ------------------------------------------- |
-| `analyze_codebase`               | Scan features, stores, services             |
-| `validate_architecture`          | Check ARCHITECTURE.md compliance            |
-| `detect_duplication`             | Find existing components to reuse           |
-| `inspect_patterns`               | Show Angular, store, service patterns       |
-| `generate_implementation_prompt` | Create detailed implementation instructions |
+| Tool                             | Purpose                                                         |
+| -------------------------------- | --------------------------------------------------------------- |
+| `load_authoritative`             | Load authoritative docs from docs/authoritative                 |
+| `analyze_codebase`               | Scan features, stores, services                                 |
+| `validate_architecture`          | Check docs/authoritative/engineering/architecture.md compliance |
+| `detect_duplication`             | Find existing components to reuse                               |
+| `inspect_patterns`               | Show Angular, store, service patterns                           |
+| `generate_implementation_prompt` | Create detailed implementation instructions                     |
 
 ### Key Features
 
-✨ **Prevents Hallucinated Duplication**
-
-- Scans actual codebase
-- Finds existing BookingStore, BookingPreviewComponent, etc.
-- Recommends reuse over creation
-
-✨ **Enforces Architectural Discipline**
-
-- Uses @ngrx/signals (not RxJS)
-- Standalone components with OnPush
-- Nx workspace boundaries
-- Pure domain logic separation
-
-✨ **Balances Speed with Quality**
-
-- Fast feature delivery (no overthinking)
-- Strict architectural enforcement (no shortcuts)
-- Clear checklist (no ambiguity)
-
-✨ **Uses gpt-5-nano (Cost-Efficient)**
-
-- Minimal API usage
-- Fast responses
-- Affordable for frequent use
-
-### Integration with Pre-Commit Hooks
-
-The prompts generated by the agent are designed to work with your pre-commit hooks:
-
-```bash
-npm install husky lint-staged  # Already done ✅
-
-# Every commit automatically:
-# 1. Fixes formatting (Prettier)
-# 2. Fixes linting errors (ESLint)
-# 3. Validates TypeScript
-# 4. Runs tests
-
-# So the prompt's validation steps are already automated!
-```
+- Prevents duplication by scanning the codebase
+- Enforces architecture boundaries and BookingStore usage
+- Aligns prompts with authoritative design/RTL/accessibility guidance
+- Uses gpt-5-nano (cost-efficient)
 
 ### Next Steps
 
-1. **Run the agent** for your Interactive Calendar feature
+1. **Run the agent** for your feature
 2. **Copy the generated prompt**
-3. **Use it as your development guide**
-4. **Commit with pre-commit hooks validating automatically**
+3. **Implement changes using the prompt**
+4. **Run quality gates before committing**
 
 ---
 

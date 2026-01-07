@@ -37,7 +37,11 @@
       "mcp__plugin_playwright_playwright__browser_snapshot",
       "Bash(npm run:*)",
       "Bash(npx eslint:*)",
-      "Bash(npx nx test:*)"
+      "Bash(npx nx test:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:openai.github.io)"
     ],
     "deny": [],
     "ask": []
