@@ -5011,8 +5011,16 @@ const buildRecommendationReport = (
     ...securityBlockers,
   ];
 
+  // DYNAMIC: Build tier2 recommendations based on blocker status
   const tier2Lines =
-    recommendations.length > 0
+    blockerCheckResult && !blockerCheckResult.canShipFeatures
+      ? `⚠️ BLOCKED BY PHASE 1 FOUNDATION\n\nFeature recommendations are blocked until critical dependencies are resolved:\n${blockerCheckResult.activeBlockers
+          .map(
+            (b) =>
+              `- ${b.id}: ${b.name} (${b.effort})\n  Blocks: All production features`
+          )
+          .join('\n')}\n\nFocus on Phase 1 Foundation first.`
+      : recommendations.length > 0
       ? recommendations
           .slice(0, 3)
           .map((rec, index) => {
@@ -5032,32 +5040,67 @@ const buildRecommendationReport = (
       : '- (none)';
 
   const priorityScore = { HIGH: 3, MEDIUM: 2, LOW: 1 };
-  const tier3 = technicalHealth.debtItems
-    .slice()
-    .sort((a, b) => priorityScore[b.priority] - priorityScore[a.priority])
-    .slice(0, 3)
-    .map(
-      (item) =>
-        `${item.issue} (priority ${item.priority}, remediation ${item.remediationHours}h)`
-    );
+  // DYNAMIC: Show technical debt only when not blocked by Phase 1
+  const tier3 =
+    blockerCheckResult && !blockerCheckResult.canShipFeatures
+      ? [] // No technical debt work until Phase 1 is complete
+      : technicalHealth.debtItems
+          .slice()
+          .sort((a, b) => priorityScore[b.priority] - priorityScore[a.priority])
+          .slice(0, 3)
+          .map(
+            (item) =>
+              `${item.issue} (priority ${item.priority}, remediation ${item.remediationHours}h)`
+          );
 
-  const nextSteps = [
-    topRecommendation
-      ? `Build: ${topRecommendation.feature} (score ${topRecommendation.score}/100).`
-      : 'No top recommendation identified.',
-    criticalBlockers.length > 0
-      ? 'Address scan-based blockers before new feature work.'
-      : 'No critical blockers detected; proceed with highest-value feature.',
-    'Run quality gates: npm run lint, npm run test, npm run build, and npx tsc --noEmit when applicable.',
-  ];
+  // DYNAMIC: Build nextSteps based on blocker status
+  const nextSteps =
+    blockerCheckResult && !blockerCheckResult.canShipFeatures
+      ? [
+          // When blockers exist, recommend Phase 1 work instead of features
+          `🚫 SHIPPING BLOCKED: ${blockerCheckResult.activeBlockers.length} critical blocker(s) must be resolved first.`,
+          ...blockerCheckResult.requiredActions,
+          `Estimated effort: ${blockerCheckResult.estimatedEffortToShip}`,
+          'Refer to ROADMAP.md Phase 1 (Foundation) for implementation details.',
+        ]
+      : [
+          // When no blockers, recommend feature work
+          topRecommendation
+            ? `Build: ${topRecommendation.feature} (score ${topRecommendation.score}/100).`
+            : 'No top recommendation identified.',
+          criticalBlockers.length > 0
+            ? 'Address scan-based blockers before new feature work.'
+            : 'No scan-based blockers detected; proceed with highest-value feature.',
+          'Run quality gates: npm run lint, npm run test, npm run build, and npx tsc --noEmit when applicable.',
+        ];
 
-  const prompt = topRecommendation
-    ? buildImplementationPrompt(
-        topRecommendation.feature,
-        scan,
-        completenessScores
-      )
-    : 'No implementation prompt available.';
+  // DYNAMIC: Build prompt based on blocker status
+  const prompt =
+    blockerCheckResult && !blockerCheckResult.canShipFeatures
+      ? `## PHASE 1: FOUNDATION (BLOCKER RESOLUTION)
+
+Current Status: ${blockerCheckResult.currentPhase}
+Can Ship: ${blockerCheckResult.canShipFeatures ? 'YES' : 'NO'}
+
+Active Blockers:
+${blockerCheckResult.activeBlockers
+  .map((b) => `- ${b.id}: ${b.name} (${b.effort})`)
+  .join('\n')}
+
+Action Items (in order):
+${blockerCheckResult.requiredActions
+  .map((action, i) => `${i + 1}. ${action}`)
+  .join('\n')}
+
+Before implementing any features, complete all Phase 1 Foundation items to unblock production shipping.
+Refer to ROADMAP.md and BLOCKERS.md for detailed guidance.`
+      : topRecommendation
+      ? buildImplementationPrompt(
+          topRecommendation.feature,
+          scan,
+          completenessScores
+        )
+      : 'No implementation prompt available.';
 
   const evidenceSection = `## Evidence Pack (STRATEGY A: QUICK_WIN)\n\nFeatures discovered: ${
     evidencePack ? evidencePack.discoveredFeatures.length : 0
