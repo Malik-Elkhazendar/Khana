@@ -4839,7 +4839,8 @@ const buildRecommendationReport = (
   technicalHealth: TechnicalHealthReport,
   weights: RecommendationWeights,
   evidencePack?: EvidencePackV2 | null,
-  blockerCheckResult?: any
+  blockerCheckResult?: any,
+  uiUxAnalysis?: any
 ): string => {
   const toRelPath = (p: string): string =>
     relative(scan.basePath, p).replace(/\\/g, '/');
@@ -5147,7 +5148,50 @@ ${blockerCheckResult.requiredActions
 `
     : '';
 
-  return `${blockerSection}${evidenceSection}## Codebase Analysis Summary\n${formatList(
+  // Build UI/UX Architecture section
+  const uiUxSection = uiUxAnalysis
+    ? `
+## 🎨 UI/UX ARCHITECTURE ANALYSIS
+
+**Status**: ${
+        uiUxAnalysis.gaps && uiUxAnalysis.gaps.length > 0
+          ? '⚠️ GAPS FOUND'
+          : '✅ COMPLETE'
+      }
+**Priority**: ${uiUxAnalysis.priority || 'UNKNOWN'}
+**Estimated Effort**: ${uiUxAnalysis.estimatedEffort?.total || 'Unknown'}
+
+${
+  uiUxAnalysis.gaps && uiUxAnalysis.gaps.length > 0
+    ? `
+### Missing Components (${uiUxAnalysis.gaps.length})
+${uiUxAnalysis.gaps
+  .map(
+    (gap: any, i: number) =>
+      `${i + 1}. **${gap.gap}** [${gap.severity}]\n   - Why: ${gap.why}`
+  )
+  .join('\n')}
+
+### Recommendations
+${uiUxAnalysis.recommendations
+  .map((rec: any, i: number) => `${i + 1}. ${rec}`)
+  .join('\n')}
+
+### Effort Breakdown
+${Object.entries(uiUxAnalysis.estimatedEffort || {})
+  .filter(([key]) => key !== 'total')
+  .map(([key, value]) => `- ${key}: ${value}`)
+  .join('\n')}
+- **TOTAL: ${uiUxAnalysis.estimatedEffort?.total || 'Unknown'}**
+
+**Message**: ${uiUxAnalysis.message || 'No message'}
+`
+    : '✅ All UI/UX components are properly implemented.'
+}
+`
+    : '';
+
+  return `${blockerSection}${evidenceSection}${uiUxSection}## Codebase Analysis Summary\n${formatList(
     codebaseSummaryLines
   )}\n\n## Feature Completeness Report\n${
     completenessLines || '- (none)'
@@ -6801,7 +6845,146 @@ const technicalHealthAnalyzer = tool({
 });
 
 /**
- * Tool 7: Check Blockers and Phase
+ * Tool 7: UI/UX Architecture Analyzer
+ * Detects missing layout components and foundational UI patterns
+ */
+const uiUxArchitectureAnalyzer = tool({
+  name: 'analyze_ui_architecture',
+  description:
+    'Analyze UI/UX architecture gaps: missing sidebar, layout shell, header extraction, responsive patterns, RTL support',
+  parameters: z.object({}),
+  execute: async () => {
+    const basePath = process.cwd();
+    const layoutsDir = join(basePath, 'apps/manager-dashboard/src/app/layouts');
+    const appDir = join(basePath, 'apps/manager-dashboard/src/app');
+
+    // Check for existing layout components
+    const hasLayoutShell = existsSync(join(layoutsDir, 'layout-shell'));
+    const hasSidebar = existsSync(join(layoutsDir, 'sidebar'));
+    const hasHeaderComponent = existsSync(join(layoutsDir, 'header'));
+    const hasLayoutStore = existsSync(
+      join(layoutsDir, 'store', 'layout.store.ts')
+    );
+    const hasMobileDrawer = existsSync(join(layoutsDir, 'mobile-nav-drawer'));
+
+    // Check app.html for hardcoded header
+    const appHtmlPath = join(appDir, 'app.html');
+    let hasHardcodedHeader = false;
+    let headerInRoot = false;
+    if (existsSync(appHtmlPath)) {
+      const appHtml = readFileSync(appHtmlPath, 'utf-8');
+      hasHardcodedHeader =
+        appHtml.includes('<header') || appHtml.includes('class="top-nav"');
+      headerInRoot = hasHardcodedHeader; // If header is in app.html, it's in root
+    }
+
+    // Check for logical properties and RTL support
+    const stylesPath = join(appDir, 'styles.scss');
+    let hasLogicalProperties = false;
+    let hasRtlSupport = false;
+    if (existsSync(stylesPath)) {
+      const styles = readFileSync(stylesPath, 'utf-8');
+      hasLogicalProperties = /inline|block|start|end|inset/.test(styles);
+      hasRtlSupport = /\[dir=['"]rtl['"]|:lang\(ar\)/.test(styles);
+    }
+
+    // Analyze gaps
+    const gaps = [];
+    const recommendations = [];
+
+    if (!hasLayoutShell) {
+      gaps.push({
+        gap: 'Missing Layout Shell Component',
+        severity: 'CRITICAL',
+        why: 'No unified wrapper for all pages - header/sidebar not properly structured',
+      });
+      recommendations.push('Create layout-shell.component.ts');
+    }
+
+    if (!hasSidebar) {
+      gaps.push({
+        gap: 'Missing Sidebar Navigation Component',
+        severity: 'CRITICAL',
+        why: 'No collapsible sidebar for main navigation - currently only hardcoded top-nav',
+      });
+      recommendations.push(
+        'Create sidebar.component.ts with signal-based collapse state'
+      );
+    }
+
+    if (headerInRoot) {
+      gaps.push({
+        gap: 'Header Embedded in app.html',
+        severity: 'HIGH',
+        why: 'Header is hardcoded in root component instead of extracted as reusable component',
+      });
+      recommendations.push('Extract header.component.ts from app.html');
+    }
+
+    if (!hasLayoutStore) {
+      gaps.push({
+        gap: 'Missing Layout Signal Store',
+        severity: 'HIGH',
+        why: 'No state management for layout UI (sidebar collapse, mobile menu visibility, theme)',
+      });
+      recommendations.push(
+        'Create layout.store.ts using @ngrx/signals pattern'
+      );
+    }
+
+    if (!hasMobileDrawer) {
+      gaps.push({
+        gap: 'No Mobile Navigation Drawer',
+        severity: 'MEDIUM',
+        why: 'Mobile users see no hamburger menu or navigation drawer - only top-nav',
+      });
+      recommendations.push(
+        'Create mobile-nav-drawer.component.ts for mobile experience'
+      );
+    }
+
+    // Priority scoring for UI/UX blockers
+    const uiUxBlockerScore = gaps.filter(
+      (g) => g.severity === 'CRITICAL'
+    ).length;
+
+    return JSON.stringify({
+      timestamp: new Date().toISOString(),
+      layoutArchitecture: {
+        hasLayoutShell,
+        hasSidebar,
+        hasHeaderComponent,
+        hasLayoutStore,
+        hasMobileDrawer,
+        headerInRoot,
+        hasLogicalProperties,
+        hasRtlSupport,
+      },
+      gaps,
+      recommendations,
+      uiUxBlockerScore,
+      priority:
+        uiUxBlockerScore >= 2
+          ? 'BLOCKING: UI/UX architecture must be built before other features'
+          : 'HIGH: Recommended before feature implementation',
+      estimatedEffort: {
+        layoutShell: '4h',
+        sidebar: '8h',
+        headerComponent: '3h',
+        layoutStore: '2h',
+        mobileDrawer: '4h',
+        total: '21h',
+      },
+      message:
+        gaps.length === 0
+          ? 'UI/UX architecture is complete'
+          : `Found ${gaps.length} critical UI/UX architecture gaps that should be addressed before implementing Phase 1 features.`,
+    });
+  },
+});
+
+/**
+ * Tool 8: Check Blockers and Phase
  * MANDATORY: Must be called before making shipping recommendations
  */
 const blockerCheckTool = tool({
@@ -6917,6 +7100,206 @@ const rankedRecommendationTool = tool({
           'Call check_blockers_and_phase again.'
       );
     }
+
+    // EARLY: Inline UI/UX architecture analysis (execute directly, not via tool call)
+    console.log('\n[UI/UX ANALYZER] Starting architecture analysis...');
+    let uiUxAnalysis: any = null;
+    try {
+      const basePath = process.cwd();
+      const layoutsDir = join(
+        basePath,
+        'apps/manager-dashboard/src/app/layouts'
+      );
+      const appDir = join(basePath, 'apps/manager-dashboard/src/app');
+
+      // Check for existing layout components
+      const hasLayoutShell = existsSync(join(layoutsDir, 'layout-shell'));
+      const hasSidebar = existsSync(join(layoutsDir, 'sidebar'));
+      const hasHeaderComponent = existsSync(join(layoutsDir, 'header'));
+      const hasLayoutStore = existsSync(
+        join(layoutsDir, 'store', 'layout.store.ts')
+      );
+      const hasMobileDrawer = existsSync(join(layoutsDir, 'mobile-nav-drawer'));
+
+      // Check app.html for hardcoded header
+      const appHtmlPath = join(appDir, 'app.html');
+      let headerInRoot = false;
+      if (existsSync(appHtmlPath)) {
+        const appHtml = readFileSync(appHtmlPath, 'utf-8');
+        headerInRoot =
+          appHtml.includes('<header') || appHtml.includes('class="top-nav"');
+      }
+
+      // DYNAMIC: Analyze feature patterns and existing shared components
+      const gaps = [];
+      const recommendations = [];
+
+      // Scan features to dynamically detect what's needed
+      const featuresDir = join(appDir, 'features');
+      const featureFolders = existsSync(featuresDir)
+        ? readdirSync(featuresDir).filter((f) =>
+            statSync(join(featuresDir, f)).isDirectory()
+          )
+        : [];
+
+      // Analyze features for layout-related patterns
+      const hasRouterOutlet = featureFolders.some((feature) => {
+        const htmlPath = join(
+          featuresDir,
+          feature,
+          `${feature}.component.html`
+        );
+        if (!existsSync(htmlPath)) return false;
+        const content = readFileSync(htmlPath, 'utf-8');
+        return content.includes('<router-outlet>');
+      });
+
+      const usesHardcodedNavigation = featureFolders.some((feature) => {
+        const htmlPath = join(
+          featuresDir,
+          feature,
+          `${feature}.component.html`
+        );
+        if (!existsSync(htmlPath)) return false;
+        const content = readFileSync(htmlPath, 'utf-8');
+        return (
+          content.includes('class="nav') ||
+          content.includes('class="header') ||
+          content.includes('routerLink=')
+        );
+      });
+
+      // DYNAMIC: If app.html has header but features don't have router outlet = needs layout shell
+      if (headerInRoot && featureFolders.length > 0 && !hasRouterOutlet) {
+        if (!hasLayoutShell) {
+          gaps.push({
+            gap: 'Missing Layout Shell Component',
+            severity: 'CRITICAL',
+            why: `Detected ${featureFolders.length} feature(s) but no unified layout wrapper. Header is hardcoded in app.html. Need layout shell to properly structure: header + sidebar + router-outlet.`,
+          });
+          recommendations.push(
+            'Create layout-shell.component.ts in apps/manager-dashboard/src/app/layouts/\n' +
+              '   └─ Wire together: header, sidebar, mobile-nav-drawer, and router-outlet\n' +
+              '   └─ Pattern: standalone component with OnPush change detection'
+          );
+        }
+      }
+
+      // DYNAMIC: If app.html has header but no sidebar = needs sidebar
+      if (headerInRoot && !hasSidebar && featureFolders.length > 0) {
+        gaps.push({
+          gap: 'Missing Sidebar Navigation Component',
+          severity: 'CRITICAL',
+          why: `Detected ${featureFolders.length} feature(s) with navigation hardcoded in header. Should extract sidebar for better mobile support and feature organization.`,
+        });
+        recommendations.push(
+          'Create sidebar.component.ts in apps/manager-dashboard/src/app/shared/components/\n' +
+            '   └─ Pattern: FOLLOW existing shared components (ConfirmationDialogComponent, CancellationFormComponent)\n' +
+            '   └─ Make it standalone, use signal-based collapse state, export from shared barrel\n' +
+            '   └─ Supports RTL with CSS Logical Properties (start/end instead of left/right)'
+        );
+      }
+
+      // DYNAMIC: Extract hardcoded header
+      if (headerInRoot && featureFolders.length > 0) {
+        gaps.push({
+          gap: 'Header Embedded in app.html',
+          severity: 'HIGH',
+          why: `Header is hardcoded in root component. To support auth (user profile, logout button in Phase 1), extract as reusable component.`,
+        });
+        recommendations.push(
+          'Extract header.component.ts to apps/manager-dashboard/src/app/shared/components/\n' +
+            '   └─ Pattern: FOLLOW existing shared components (ConfirmationDialogComponent)\n' +
+            '   └─ Make it standalone component with OnPush change detection\n' +
+            '   └─ Will integrate user profile & logout when auth is added in Phase 1\n' +
+            '   └─ Export from shared barrel for reuse across layouts'
+        );
+      }
+
+      // DYNAMIC: Layout store only needed if layout is being restructured
+      if (
+        !hasLayoutStore &&
+        (gaps.some((g) => g.gap.includes('Layout Shell')) || !hasSidebar)
+      ) {
+        gaps.push({
+          gap: 'Missing Layout Signal Store',
+          severity: 'HIGH',
+          why: 'Need state management for new layout components (sidebar collapse, mobile drawer visibility, theme).',
+        });
+        recommendations.push(
+          'Create layout.store.ts in apps/manager-dashboard/src/app/shared/state/\n' +
+            '   └─ Pattern: FOLLOW existing state pattern (BookingStore uses @ngrx/signals)\n' +
+            '   └─ Manage: sidebar collapsed state, mobile drawer visibility, theme toggle\n' +
+            '   └─ Export from shared state barrel'
+        );
+      }
+
+      // DYNAMIC: Mobile drawer only needed if responsive design is a priority
+      if (!hasMobileDrawer && featureFolders.length > 0) {
+        gaps.push({
+          gap: 'No Mobile Navigation Drawer',
+          severity: 'MEDIUM',
+          why: `Detected ${featureFolders.length} feature(s). Mobile support needed for hamburger menu on small screens.`,
+        });
+        recommendations.push(
+          'Create mobile-nav-drawer.component.ts in apps/manager-dashboard/src/app/shared/components/\n' +
+            '   └─ Pattern: FOLLOW existing shared components\n' +
+            '   └─ Standalone component with responsive hamburger trigger\n' +
+            '   └─ Integrates with layout.store for visibility state management\n' +
+            '   └─ RTL support via CSS Logical Properties'
+        );
+      }
+
+      const uiUxBlockerScore = gaps.filter(
+        (g: any) => g.severity === 'CRITICAL'
+      ).length;
+
+      uiUxAnalysis = {
+        timestamp: new Date().toISOString(),
+        layoutArchitecture: {
+          hasLayoutShell,
+          hasSidebar,
+          hasHeaderComponent,
+          hasLayoutStore,
+          hasMobileDrawer,
+          headerInRoot,
+        },
+        gaps,
+        recommendations,
+        uiUxBlockerScore,
+        priority:
+          uiUxBlockerScore >= 2
+            ? 'BLOCKING: UI/UX architecture must be built before other features'
+            : 'HIGH: Recommended before feature implementation',
+        estimatedEffort: {
+          layoutShell: '4h',
+          sidebar: '8h',
+          headerComponent: '3h',
+          layoutStore: '2h',
+          mobileDrawer: '4h',
+          total: '21h',
+        },
+        message:
+          gaps.length === 0
+            ? 'UI/UX architecture is complete'
+            : `Found ${gaps.length} critical UI/UX architecture gaps that should be addressed before implementing Phase 1 features.`,
+      };
+
+      console.log(
+        '[UI/UX ANALYZER] ✅ Successfully analyzed. Found',
+        uiUxAnalysis.gaps?.length || 0,
+        'architecture gaps'
+      );
+      console.log('[UI/UX ANALYZER] Priority:', uiUxAnalysis.priority);
+      console.log(
+        '[UI/UX ANALYZER] Total estimated effort:',
+        uiUxAnalysis.estimatedEffort?.total
+      );
+    } catch (error) {
+      console.error('[UI/UX ANALYZER] ❌ Error analyzing:', error);
+      uiUxAnalysis = null;
+    }
+
     const scan = scanProjectState();
     const completeness = analyzeFeatureCompleteness(scan);
     const business = analyzeBusinessValue(
@@ -6976,7 +7359,8 @@ const rankedRecommendationTool = tool({
       technicalHealth,
       resolvedWeights,
       evidencePack,
-      blockerCheckResult
+      blockerCheckResult,
+      uiUxAnalysis
     );
     return report;
   },
@@ -7090,6 +7474,10 @@ PROCESS:
 
 WORKFLOW (MANDATORY SEQUENCE):
 0. Use load_authoritative to load ROOT, ROUTER, strategic docs, and minimal tagged docs.
+0.5 [EARLY] Call analyze_ui_architecture() tool to detect missing layout/sidebar/header components.
+   - This detects architectural gaps in UI/UX foundation (sidebar, layout shell, header extraction).
+   - If gaps found with CRITICAL severity, flag these as BLOCKING work before Phase 1 auth.
+   - Report findings: which layout components exist, which are missing, estimated effort to build them.
 1. [MANDATORY] Call check_blockers_and_phase() tool FIRST - returns blocker status.
    - This tool is REQUIRED - cannot skip blocker checking.
    - Save the blockerCheckResult for next step.
@@ -7110,9 +7498,13 @@ OPTIONAL STEPS:
 RULES:
 - Base findings on scan/config evidence; do not invent features or scores.
 - If business config is missing, say so and leave business scores empty.
+- EARLY: Always call analyze_ui_architecture() to detect missing layout components BEFORE recommending features.
+- If UI/UX architecture gaps found with CRITICAL severity, recommend building layout foundation FIRST.
+  This includes: sidebar, layout-shell, header component, layout signal store, mobile drawer.
+- UI/UX Foundation is PRE-REQUISITE before Phase 1 auth work (auth needs somewhere to integrate).
 - Use the recommend_features_ranked tool output as the final response.
 - Mark all scores with their confidence level (MEASURED vs ESTIMATED).
-- ALWAYS include blocker status and phase assessment in recommendations.
+- ALWAYS include blocker status, phase assessment, AND UI/UX architecture findings in recommendations.
 - [CRITICAL] You CANNOT call recommend_features_ranked without blockerCheckResult parameter.
   The tool will REJECT your call with ENFORCEMENT VIOLATION error if this parameter is missing.
 - [CRITICAL] You CANNOT recommend shipping features if blockerCheckResult.canShipFeatures is false.
@@ -7144,6 +7536,7 @@ CRITICAL: NEVER recommend shipping if BLOCKER-1 (auth) is NOT_STARTED.`,
     dependencyAnalyzer,
     businessValueAnalyzer,
     technicalHealthAnalyzer,
+    uiUxArchitectureAnalyzer,
     blockerCheckTool,
     rankedRecommendationTool,
     webSearchTool(),
