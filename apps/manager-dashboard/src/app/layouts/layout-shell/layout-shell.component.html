@@ -1,0 +1,27 @@
+<div
+  class="layout-wrapper"
+  [class.sidebar-collapsed]="layoutStore.sidebarCollapsed()"
+  [class.is-desktop]="isDesktop()"
+>
+  <app-header></app-header>
+
+  <aside
+    class="sidebar"
+    [class.collapsed]="layoutStore.sidebarCollapsed()"
+    *ngIf="showSidebar()"
+    aria-label="Primary sidebar"
+  >
+    <app-sidebar
+      [isCollapsed]="layoutStore.sidebarCollapsed()"
+      (toggleCollapse)="layoutStore.toggleSidebar()"
+    >
+    </app-sidebar>
+  </aside>
+
+  <main id="main-content" class="main-content" role="main" tabindex="-1">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <router-outlet></router-outlet>
+  </main>
+
+  <app-mobile-nav-drawer></app-mobile-nav-drawer>
+</div>

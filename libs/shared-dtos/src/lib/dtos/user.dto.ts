@@ -52,8 +52,8 @@ export interface CreateUserDto {
   /** Phone number */
   phone?: string;
 
-  /** User role */
-  role: UserRole;
+  /** User role (optional for self-registration) */
+  role?: UserRole;
 }
 
 /**

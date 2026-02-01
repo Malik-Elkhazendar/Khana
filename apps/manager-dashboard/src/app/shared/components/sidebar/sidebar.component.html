@@ -1,0 +1,45 @@
+<nav
+  class="sidebar"
+  [class.collapsed]="isCollapsed"
+  role="navigation"
+  aria-label="Main navigation"
+>
+  <div class="sidebar__header">
+    <span class="sidebar__logo" *ngIf="!isCollapsed">Khana</span>
+    <button
+      class="sidebar__toggle"
+      type="button"
+      [attr.aria-expanded]="!isCollapsed"
+      aria-label="Toggle sidebar"
+      (click)="onToggleClick()"
+    >
+      <span class="sidebar__toggle-icon" aria-hidden="true">
+        {{ isCollapsed ? '>' : '<' }}
+      </span>
+    </button>
+  </div>
+
+  <ul class="sidebar__nav-list">
+    <li
+      *ngFor="let item of navItems; trackBy: trackByRoute"
+      class="sidebar__nav-item"
+    >
+      <a
+        class="sidebar__nav-link"
+        [routerLink]="item.route"
+        routerLinkActive="sidebar__nav-link--active"
+        #linkActive="routerLinkActive"
+        [routerLinkActiveOptions]="{ exact: false }"
+        [attr.aria-current]="linkActive.isActive ? 'page' : null"
+        [attr.aria-label]="isCollapsed ? item.label : null"
+      >
+        <span class="sidebar__nav-icon" aria-hidden="true">
+          {{ item.icon }}
+        </span>
+        <span class="sidebar__nav-label" *ngIf="!isCollapsed">
+          {{ item.label }}
+        </span>
+      </a>
+    </li>
+  </ul>
+</nav>

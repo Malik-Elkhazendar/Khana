@@ -5,7 +5,7 @@
 
 import 'dotenv/config';
 import 'reflect-metadata';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { HttpExceptionFilter } from '@khana/shared-utils';
@@ -17,6 +17,11 @@ async function bootstrap() {
   // Global prefix for all routes
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
+
+  // Enable URI Versioning (e.g. /api/v1/...)
+  app.enableVersioning({
+    type: VersioningType.URI,
+  });
 
   // Global HTTP exception filter (sanitizes 5xx responses)
   app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
