@@ -1,0 +1,61 @@
+<button
+  type="button"
+  class="dialog-backdrop"
+  (click)="onBackdropClick()"
+  aria-label="Close dialog"
+  tabindex="-1"
+></button>
+
+<section
+  class="confirmation-dialog"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-labelledby]="titleId"
+  [attr.aria-describedby]="message ? descriptionId : null"
+  (keydown)="onPanelKeydown($event)"
+  tabindex="-1"
+  #dialogPanel
+>
+  <header class="confirmation-dialog__header">
+    <h3 [id]="titleId">{{ title }}</h3>
+    <button
+      type="button"
+      class="confirmation-dialog__close"
+      (click)="onCancelClick()"
+      [disabled]="busy"
+      aria-label="Close"
+    >
+      Close
+    </button>
+  </header>
+
+  @if (message) {
+  <p class="confirmation-dialog__message" [id]="descriptionId">
+    {{ message }}
+  </p>
+  }
+
+  <div class="confirmation-dialog__content">
+    <ng-content></ng-content>
+  </div>
+
+  <div class="confirmation-dialog__actions">
+    <button
+      #cancelButton
+      type="button"
+      class="dialog-btn dialog-btn--ghost"
+      (click)="onCancelClick()"
+      [disabled]="busy"
+    >
+      {{ cancelLabel }}
+    </button>
+    <button
+      type="button"
+      class="dialog-btn dialog-btn--{{ confirmTone }}"
+      (click)="onConfirmClick()"
+      [disabled]="busy || confirmDisabled"
+    >
+      {{ confirmLabel }}
+    </button>
+  </div>
+</section>

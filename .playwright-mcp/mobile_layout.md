@@ -1,0 +1,181 @@
+### Page state
+
+- Page URL: http://localhost:4200/bookings
+- Page Title: manager-dashboard
+- Page Snapshot:
+
+```yaml
+- generic [ref=e4]:
+    - banner [ref=e6]:
+        - generic [ref=e7]:
+            - link "Khana home" [ref=e8] [cursor=pointer]:
+                - /url: /bookings
+                - text: Khana
+            - generic [ref=e19]:
+                - button "Toggle navigation" [ref=e62] [cursor=pointer]
+                - button "Sign in" [disabled] [ref=e20]
+    - main [ref=e26]:
+        - link "Skip to main content" [ref=e27] [cursor=pointer]:
+            - /url: '#main-content'
+        - generic [ref=e28]:
+            - link "Skip to bookings list" [ref=e29] [cursor=pointer]:
+                - /url: '#booking-list-main'
+            - main [ref=e30]:
+                - generic [ref=e31]:
+                    - generic [ref=e32]:
+                        - heading "Bookings" [level=1] [ref=e33]
+                        - paragraph [ref=e34]: All bookings for your facilities
+                    - generic [ref=e35]:
+                        - generic [ref=e36]:
+                            - generic [ref=e37]: Search
+                            - searchbox "Search bookings" [ref=e38]
+                        - generic [ref=e39]:
+                            - generic [ref=e40]: Facility
+                            - combobox "Facility" [ref=e41]:
+                                - option "All" [selected]
+                                - option "Center Court"
+                        - generic [ref=e42]:
+                            - generic [ref=e43]: Status
+                            - combobox "Status" [ref=e44]:
+                                - option "All" [selected]
+                                - option "Pending"
+                                - option "Confirmed"
+                                - option "Completed"
+                                - option "Cancelled"
+                                - option "No show"
+                        - generic [ref=e45]:
+                            - generic [ref=e46]: Payment
+                            - combobox "Payment" [ref=e47]:
+                                - option "All" [selected]
+                                - option "Unpaid"
+                                - option "Partial"
+                                - option "Paid"
+                                - option "Refunded"
+                        - generic [ref=e48]:
+                            - generic [ref=e49]: Date Range
+                            - generic [ref=e50]:
+                                - textbox [ref=e51]
+                                - textbox [ref=e52]
+                - generic [ref=e53]:
+                    - generic [ref=e55]: Showing 1-4 of 4
+                    - generic [ref=e56]:
+                        - button "Export CSV" [ref=e57] [cursor=pointer]
+                        - button "Cancel Selected" [disabled] [ref=e58]
+                - list [ref=e67]:
+                    - listitem [ref=e68]:
+                        - generic [ref=e69]:
+                            - generic [ref=e70]:
+                                - paragraph [ref=e71]: Jan 02, 2026
+                                - paragraph [ref=e72]: 10:00 AM - 11:00 AM
+                            - generic [ref=e73]:
+                                - generic [ref=e74]: Confirmed
+                                - checkbox "Select booking for shneezy" [disabled] [ref=e75]
+                        - generic [ref=e76]:
+                            - generic [ref=e77]:
+                                - generic [ref=e78]: Customer
+                                - generic [ref=e79]: shneezy
+                            - generic [ref=e80]:
+                                - generic [ref=e81]: Phone
+                                - link "43523463546" [ref=e82] [cursor=pointer]:
+                                    - /url: tel:43523463546
+                            - generic [ref=e83]:
+                                - generic [ref=e84]: Facility
+                                - generic [ref=e85]: Center Court
+                            - generic [ref=e86]:
+                                - generic [ref=e87]: Price
+                                - generic [ref=e88]: SAR 3,500.00
+                            - generic [ref=e89]:
+                                - generic [ref=e90]: Reference
+                                - generic [ref=e91]: KH-2026-000002
+                        - generic [ref=e93]: Paid booking - cancellation will require refund once payment gateway is integrated.
+                    - listitem [ref=e94]:
+                        - generic [ref=e95]:
+                            - generic [ref=e96]:
+                                - paragraph [ref=e97]: Jan 02, 2026
+                                - paragraph [ref=e98]: 09:00 AM - 10:00 AM
+                            - generic [ref=e99]:
+                                - generic [ref=e100]: Confirmed
+                                - checkbox "Select booking for opase" [disabled] [ref=e101]
+                        - generic [ref=e102]:
+                            - generic [ref=e103]:
+                                - generic [ref=e104]: Customer
+                                - generic [ref=e105]: opase
+                            - generic [ref=e106]:
+                                - generic [ref=e107]: Phone
+                                - link "a" [ref=e108] [cursor=pointer]:
+                                    - /url: tel:a
+                            - generic [ref=e109]:
+                                - generic [ref=e110]: Facility
+                                - generic [ref=e111]: Center Court
+                            - generic [ref=e112]:
+                                - generic [ref=e113]: Price
+                                - generic [ref=e114]: SAR 3,500.00
+                            - generic [ref=e115]:
+                                - generic [ref=e116]: Reference
+                                - generic [ref=e117]: KH-2026-000004
+                        - generic [ref=e119]: Paid booking - cancellation will require refund once payment gateway is integrated.
+                    - listitem [ref=e120]:
+                        - generic [ref=e121]:
+                            - generic [ref=e122]:
+                                - paragraph [ref=e123]: Jan 02, 2026
+                                - paragraph [ref=e124]: 08:00 AM - 09:00 AM
+                            - generic [ref=e125]:
+                                - generic [ref=e126]: Confirmed
+                                - checkbox "Select booking for uere" [disabled] [ref=e127]
+                        - generic [ref=e128]:
+                            - generic [ref=e129]:
+                                - generic [ref=e130]: Customer
+                                - generic [ref=e131]: uere
+                            - generic [ref=e132]:
+                                - generic [ref=e133]: Phone
+                                - link "92083475" [ref=e134] [cursor=pointer]:
+                                    - /url: tel:92083475
+                            - generic [ref=e135]:
+                                - generic [ref=e136]: Facility
+                                - generic [ref=e137]: Center Court
+                            - generic [ref=e138]:
+                                - generic [ref=e139]: Price
+                                - generic [ref=e140]: SAR 3,500.00
+                            - generic [ref=e141]:
+                                - generic [ref=e142]: Reference
+                                - generic [ref=e143]: KH-2026-000003
+                        - generic [ref=e145]: Paid booking - cancellation will require refund once payment gateway is integrated.
+                    - listitem [ref=e146]:
+                        - generic [ref=e147]:
+                            - generic [ref=e148]:
+                                - paragraph [ref=e149]: Dec 31, 2025
+                                - paragraph [ref=e150]: 10:00 AM - 11:00 AM
+                            - generic [ref=e151]:
+                                - generic [ref=e152]: Confirmed
+                                - checkbox "Select booking for luka" [disabled] [ref=e153]
+                        - generic [ref=e154]:
+                            - generic [ref=e155]:
+                                - generic [ref=e156]: Customer
+                                - generic [ref=e157]: luka
+                            - generic [ref=e158]:
+                                - generic [ref=e159]: Phone
+                                - link "4324" [ref=e160] [cursor=pointer]:
+                                    - /url: tel:4324
+                            - generic [ref=e161]:
+                                - generic [ref=e162]: Facility
+                                - generic [ref=e163]: Center Court
+                            - generic [ref=e164]:
+                                - generic [ref=e165]: Price
+                                - generic [ref=e166]: SAR 3,500.00
+                            - generic [ref=e167]:
+                                - generic [ref=e168]: Reference
+                                - generic [ref=e169]: KH-2025-000001
+                        - generic [ref=e171]: Paid booking - cancellation will require refund once payment gateway is integrated.
+                - generic [ref=e172]:
+                    - generic [ref=e173]: Showing 1-4 of 4
+                    - generic [ref=e174]:
+                        - button "Previous" [disabled] [ref=e175]
+                        - generic [ref=e176]: Page 1 of 1
+                        - button "Next" [disabled] [ref=e177]
+                    - generic [ref=e178]:
+                        - generic [ref=e179]: Rows
+                        - combobox "Rows" [ref=e180]:
+                            - option "25" [selected]
+                            - option "50"
+                            - option "100"
+```

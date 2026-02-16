@@ -1,0 +1,47 @@
+<div class="landing-rtl" dir="rtl" lang="ar">
+  <!-- Skip to main content link for accessibility -->
+  <a
+    href="#main-content"
+    class="skip-link"
+    aria-label="انتقل إلى المحتوى الرئيسي"
+  >
+    انتقل إلى المحتوى الرئيسي
+  </a>
+
+  <app-landing-header-ar
+    [isScrolled]="isScrolled()"
+    (navigateToSection)="scrollToSection($event)"
+  />
+
+  <main id="main-content" class="landing-main" role="main">
+    <!-- Hero Section -->
+    <app-hero-section-ar id="hero" [scrollY]="scrollY()" />
+
+    <!-- Problem/Solution Section -->
+    <section id="problem-solution" class="animate-on-scroll">
+      <app-problem-solution-ar />
+    </section>
+
+    <!-- Features Grid Section -->
+    <section id="features" class="animate-on-scroll">
+      <app-features-grid-ar />
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="animate-on-scroll">
+      <app-how-it-works-ar />
+    </section>
+
+    <!-- Social Proof Section -->
+    <section id="testimonials" class="animate-on-scroll">
+      <app-social-proof-ar />
+    </section>
+
+    <!-- Bottom CTA Section -->
+    <section id="cta" class="animate-on-scroll">
+      <app-bottom-cta-ar />
+    </section>
+  </main>
+
+  <app-landing-footer-ar />
+</div>

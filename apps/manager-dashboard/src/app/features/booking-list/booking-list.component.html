@@ -1,0 +1,567 @@
+<a class="skip-link" href="#booking-list-main">Skip to bookings list</a>
+<main class="booking-list" id="booking-list-main" role="main">
+  <header class="page-header">
+    <div class="title-block">
+      <h1>Bookings</h1>
+      <p class="subtitle">All bookings for your facilities</p>
+    </div>
+
+    <div class="filters">
+      <label class="filter filter--search">
+        <span class="filter-label">Search</span>
+        <input
+          type="search"
+          name="search"
+          placeholder="Customer, phone, reference"
+          aria-label="Search bookings"
+          [ngModel]="searchInput()"
+          (ngModelChange)="onSearchChange($event)"
+          autocomplete="off"
+        />
+      </label>
+
+      <label class="filter">
+        <span class="filter-label">Facility</span>
+        <select
+          [ngModel]="selectedFacilityId()"
+          (ngModelChange)="selectedFacilityId.set($event); onFacilityChange()"
+          name="facility"
+        >
+          <option value="">All</option>
+          @for (facility of facilities(); track facility.id) {
+          <option [value]="facility.id">{{ facility.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="filter">
+        <span class="filter-label">Status</span>
+        <select
+          [ngModel]="filterStatus()"
+          (ngModelChange)="onStatusFilterChange($event)"
+          name="status"
+        >
+          @for (option of statusFilterOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="filter">
+        <span class="filter-label">Payment</span>
+        <select
+          [ngModel]="filterPaymentStatus()"
+          (ngModelChange)="onPaymentFilterChange($event)"
+          name="paymentStatus"
+        >
+          @for (option of paymentFilterOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </label>
+
+      <div class="filter filter--range">
+        <span class="filter-label">Date Range</span>
+        <div class="filter-range">
+          <input
+            type="date"
+            name="startDate"
+            [ngModel]="startDateFilter()"
+            (ngModelChange)="startDateFilter.set($event); onFiltersChange()"
+            [attr.max]="endDateFilter() || null"
+            [attr.aria-invalid]="dateRangeError() ? 'true' : null"
+            [attr.aria-describedby]="
+              dateRangeError() ? 'date-range-error' : null
+            "
+          />
+          <input
+            type="date"
+            name="endDate"
+            [ngModel]="endDateFilter()"
+            (ngModelChange)="endDateFilter.set($event); onFiltersChange()"
+            [attr.min]="startDateFilter() || null"
+            [attr.aria-invalid]="dateRangeError() ? 'true' : null"
+            [attr.aria-describedby]="
+              dateRangeError() ? 'date-range-error' : null
+            "
+          />
+        </div>
+      </div>
+    </div>
+
+    @if (facilityError(); as facilityErr) {
+    <div class="filter-error" role="alert" aria-live="assertive">
+      <span>{{ facilityErr.message }}</span>
+      <button type="button" class="btn-ghost" (click)="retryFacilities()">
+        Try Again
+      </button>
+    </div>
+    } @if (dateRangeError(); as rangeError) {
+    <p
+      class="filter-error"
+      role="alert"
+      aria-live="assertive"
+      id="date-range-error"
+    >
+      {{ rangeError }}
+    </p>
+    }
+  </header>
+
+  @if (error(); as err) {
+  <div class="error-message" role="alert" aria-live="assertive">
+    <div><strong>Error:</strong> {{ err.message }}</div>
+    <button type="button" class="btn-ghost" (click)="retryLoad()">
+      Try Again
+    </button>
+  </div>
+  }
+
+  <div class="table-toolbar">
+    <div class="table-toolbar__left">
+      <span class="result-count">{{ pageRangeLabel() }}</span>
+      @if (selectionCount() > 0) {
+      <span class="selection-count">{{ selectionCount() }} selected</span>
+      }
+    </div>
+    <div class="table-toolbar__right">
+      <button
+        type="button"
+        class="btn-ghost"
+        (click)="exportCsv()"
+        [disabled]="totalFilteredCount() === 0 || !filtersValid()"
+      >
+        Export CSV
+      </button>
+      <button
+        type="button"
+        class="btn-ghost btn-ghost--danger"
+        (click)="openBulkCancelDialog()"
+        [disabled]="
+          selectedCancellableBookings().length === 0 || bulkActionInProgress()
+        "
+      >
+        Cancel Selected
+      </button>
+      @if (selectionCount() > 0) {
+      <button type="button" class="btn-ghost" (click)="clearSelection()">
+        Clear
+      </button>
+      }
+    </div>
+  </div>
+
+  <div class="table-card" [attr.aria-busy]="loading() ? 'true' : null">
+    @if (loading()) {
+    <div class="table-loading" role="status" aria-live="polite">
+      Loading bookings...
+    </div>
+    } @else if (bookings().length === 0) {
+    <div class="table-empty" role="status" aria-live="polite">
+      <p>No bookings yet.</p>
+      <a class="btn-ghost" href="/new">Create your first booking</a>
+    </div>
+    } @else if (totalFilteredCount() === 0) {
+    <div class="table-empty" role="status" aria-live="polite">
+      No bookings found.
+    </div>
+    } @else {
+    <div class="booking-table">
+      <table class="data-table" aria-label="Bookings list">
+        <caption class="sr-only">
+          Bookings list
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" class="col-select">
+              <input
+                type="checkbox"
+                [checked]="allPageSelected()"
+                [disabled]="pagedBookings().length === 0"
+                [attr.aria-label]="'Select all bookings on this page'"
+                (change)="toggleSelectAllOnPage($any($event.target).checked)"
+              />
+            </th>
+            <th scope="col" [attr.aria-sort]="getAriaSort('date')">
+              <button
+                type="button"
+                class="sort-button"
+                (click)="setSort('date')"
+              >
+                Date @if (sortKey() === 'date') {
+                <span class="sort-indicator">
+                  {{ sortDirection() === 'asc' ? '^' : 'v' }}
+                </span>
+                }
+              </button>
+            </th>
+            <th scope="col">Time Range</th>
+            <th scope="col" [attr.aria-sort]="getAriaSort('customer')">
+              <button
+                type="button"
+                class="sort-button"
+                (click)="setSort('customer')"
+              >
+                Customer Name @if (sortKey() === 'customer') {
+                <span class="sort-indicator">
+                  {{ sortDirection() === 'asc' ? '^' : 'v' }}
+                </span>
+                }
+              </button>
+            </th>
+            <th scope="col">Phone</th>
+            <th scope="col" [attr.aria-sort]="getAriaSort('status')">
+              <button
+                type="button"
+                class="sort-button"
+                (click)="setSort('status')"
+              >
+                Status @if (sortKey() === 'status') {
+                <span class="sort-indicator">
+                  {{ sortDirection() === 'asc' ? '^' : 'v' }}
+                </span>
+                }
+              </button>
+            </th>
+            <th
+              scope="col"
+              class="col-price"
+              [attr.aria-sort]="getAriaSort('price')"
+            >
+              <button
+                type="button"
+                class="sort-button"
+                (click)="setSort('price')"
+              >
+                Price @if (sortKey() === 'price') {
+                <span class="sort-indicator">
+                  {{ sortDirection() === 'asc' ? '^' : 'v' }}
+                </span>
+                }
+              </button>
+            </th>
+            <th scope="col" class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (booking of pagedBookings(); track booking.id; let rowIndex =
+          $index) {
+          <tr
+            #bookingRow
+            [attr.tabindex]="rowTabIndex(rowIndex)"
+            (focus)="onRowFocus(rowIndex)"
+            (keydown)="onRowKeydown($event, rowIndex)"
+          >
+            <td class="col-select">
+              <input
+                type="checkbox"
+                [checked]="selectedBookingIds().has(booking.id)"
+                [disabled]="!isCancellable(booking)"
+                [attr.aria-label]="'Select booking for ' + booking.customerName"
+                (change)="
+                  toggleBookingSelection(booking, $any($event.target).checked)
+                "
+              />
+            </td>
+            <td>{{ formatDate(booking.startTime) }}</td>
+            <td>{{ formatTimeRange(booking.startTime, booking.endTime) }}</td>
+            <td class="cell-strong">
+              {{ booking.customerName }}
+              @if (booking.bookingReference) {
+              <div class="cell-meta">{{ booking.bookingReference }}</div>
+              }
+            </td>
+            <td class="cell-mono">{{ booking.customerPhone }}</td>
+            <td>
+              <span
+                class="badge"
+                [class]="'badge--' + statusTone(booking.status)"
+              >
+                {{ statusLabel(booking.status) }}
+              </span>
+              @if (isHoldActive(booking)) {
+              <div class="cell-meta">
+                Reserved until {{ formatTime(booking.holdUntil) }}
+              </div>
+              }
+            </td>
+            <td class="col-price cell-mono">
+              @if (bookingPrice(booking).amount > 0) {
+              {{
+                formatPrice(
+                  bookingPrice(booking).amount,
+                  bookingPrice(booking).currency
+                )
+              }}
+              } @else { N/A }
+            </td>
+            <td class="col-actions">
+              <div class="actions">
+                @if ( booking.status !== BookingStatus.CANCELLED &&
+                booking.paymentStatus !== PaymentStatus.PAID &&
+                booking.paymentStatus !== PaymentStatus.PARTIALLY_PAID ) {
+                <button
+                  type="button"
+                  class="btn-icon btn-icon--danger"
+                  title="Cancel Booking"
+                  [attr.aria-label]="
+                    'Cancel booking for ' + booking.customerName
+                  "
+                  (click)="openCancelDialog(booking)"
+                  [disabled]="actionLoadingById()[booking.id]"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                </button>
+                } @if ( booking.status !== BookingStatus.CANCELLED &&
+                (booking.paymentStatus === PaymentStatus.PAID ||
+                booking.paymentStatus === PaymentStatus.PARTIALLY_PAID) ) {
+                <span class="actions__note">
+                  Paid booking - cancellation will require refund once payment
+                  gateway is integrated.
+                </span>
+                } @if (booking.paymentStatus === PaymentStatus.PENDING &&
+                booking.status !== BookingStatus.CANCELLED) {
+                <button
+                  type="button"
+                  class="btn-icon btn-icon--success"
+                  title="Mark as Paid"
+                  [attr.aria-label]="
+                    'Mark booking as paid for ' + booking.customerName
+                  "
+                  (click)="markAsPaid(booking)"
+                  [disabled]="actionLoadingById()[booking.id]"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 2v20" />
+                    <path
+                      d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+                    />
+                  </svg>
+                </button>
+                }
+              </div>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="card-list" role="list">
+      @for (booking of pagedBookings(); track booking.id) { @let price =
+      bookingPrice(booking);
+      <article class="booking-card" role="listitem">
+        <header class="booking-card__header">
+          <div>
+            <p class="booking-card__date">
+              {{ formatDate(booking.startTime) }}
+            </p>
+            <p class="booking-card__time">
+              {{ formatTimeRange(booking.startTime, booking.endTime) }}
+            </p>
+          </div>
+          <div class="booking-card__status">
+            <span
+              class="badge"
+              [class]="'badge--' + statusTone(booking.status)"
+            >
+              {{ statusLabel(booking.status) }}
+            </span>
+            <input
+              type="checkbox"
+              class="select-checkbox"
+              [checked]="selectedBookingIds().has(booking.id)"
+              [disabled]="!isCancellable(booking)"
+              [attr.aria-label]="'Select booking for ' + booking.customerName"
+              (change)="
+                toggleBookingSelection(booking, $any($event.target).checked)
+              "
+            />
+          </div>
+        </header>
+        <div class="booking-card__body">
+          <div class="booking-card__row">
+            <span class="label">Customer</span>
+            <span class="value">{{ booking.customerName }}</span>
+          </div>
+          <div class="booking-card__row">
+            <span class="label">Phone</span>
+            <a class="value link" [href]="'tel:' + booking.customerPhone">
+              {{ booking.customerPhone }}
+            </a>
+          </div>
+          <div class="booking-card__row">
+            <span class="label">Facility</span>
+            <span class="value">{{ booking.facility.name }}</span>
+          </div>
+          <div class="booking-card__row">
+            <span class="label">Price</span>
+            <span class="value cell-mono">
+              @if (price.amount > 0) {
+              {{ formatPrice(price.amount, price.currency) }}
+              } @else { N/A }
+            </span>
+          </div>
+          @if (booking.bookingReference) {
+          <div class="booking-card__row booking-card__meta">
+            <span class="label">Reference</span>
+            <span class="value cell-mono">{{ booking.bookingReference }}</span>
+          </div>
+          } @if (isHoldActive(booking)) {
+          <div class="booking-card__row booking-card__meta">
+            <span class="label">Hold</span>
+            <span class="value">
+              Reserved until {{ formatTime(booking.holdUntil) }}
+            </span>
+          </div>
+          }
+        </div>
+        <div class="booking-card__actions">
+          @if ( booking.status !== BookingStatus.CANCELLED &&
+          booking.paymentStatus !== PaymentStatus.PAID && booking.paymentStatus
+          !== PaymentStatus.PARTIALLY_PAID ) {
+          <button
+            type="button"
+            class="btn-icon btn-icon--danger"
+            [attr.aria-label]="'Cancel booking for ' + booking.customerName"
+            (click)="openCancelDialog(booking)"
+            [disabled]="actionLoadingById()[booking.id]"
+          >
+            Cancel
+          </button>
+          } @if ( booking.status !== BookingStatus.CANCELLED &&
+          (booking.paymentStatus === PaymentStatus.PAID || booking.paymentStatus
+          === PaymentStatus.PARTIALLY_PAID) ) {
+          <span class="actions__note">
+            Paid booking - cancellation will require refund once payment gateway
+            is integrated.
+          </span>
+          } @if (booking.paymentStatus === PaymentStatus.PENDING &&
+          booking.status !== BookingStatus.CANCELLED) {
+          <button
+            type="button"
+            class="btn-icon btn-icon--success"
+            [attr.aria-label]="
+              'Mark booking as paid for ' + booking.customerName
+            "
+            (click)="markAsPaid(booking)"
+            [disabled]="actionLoadingById()[booking.id]"
+          >
+            Mark Paid
+          </button>
+          }
+        </div>
+      </article>
+      }
+    </div>
+    }
+  </div>
+
+  @if (!loading() && totalFilteredCount() > 0) {
+  <div class="pagination">
+    <span class="page-range">{{ pageRangeLabel() }}</span>
+    <div class="pagination__controls">
+      <button
+        type="button"
+        class="btn-ghost"
+        (click)="previousPage()"
+        [disabled]="!hasPreviousPage()"
+      >
+        Previous
+      </button>
+      <span class="page-info"
+        >Page {{ currentPageSafe() }} of {{ totalPages() }}</span
+      >
+      <button
+        type="button"
+        class="btn-ghost"
+        (click)="nextPage()"
+        [disabled]="!hasNextPage()"
+      >
+        Next
+      </button>
+    </div>
+    <label class="page-size">
+      <span>Rows</span>
+      <select [ngModel]="pageSize()" (ngModelChange)="onPageSizeChange($event)">
+        @for (size of pageSizeOptions; track size) {
+        <option [value]="size">{{ size }}</option>
+        }
+      </select>
+    </label>
+  </div>
+  }
+</main>
+
+@if (cancelDialogBooking(); as booking) {
+<app-confirmation-dialog
+  [title]="cancelDialogCopy.title"
+  [message]="cancelDialogCopy.message"
+  [confirmLabel]="cancelDialogCopy.confirmLabel"
+  confirmTone="danger"
+  [confirmDisabled]="!cancelReasonValid()"
+  [busy]="actionInProgress()"
+  (confirmed)="submitCancelDialog()"
+  (dismissed)="closeCancelDialog()"
+>
+  <app-cancellation-form
+    [reason]="cancelReason()"
+    [minLength]="cancelReasonMinLength"
+    (reasonChange)="cancelReason.set($event)"
+  ></app-cancellation-form>
+  @if (cancelError()) {
+  <p class="dialog-error" role="alert" aria-live="assertive">
+    {{ cancelError() }}
+  </p>
+  }
+</app-confirmation-dialog>
+} @if (bulkCancelOpen()) {
+<app-confirmation-dialog
+  [title]="bulkCancelDialogCopy.title"
+  [message]="bulkCancelDialogCopy.message"
+  [confirmLabel]="bulkCancelDialogCopy.confirmLabel"
+  confirmTone="danger"
+  [confirmDisabled]="bulkCancelReason().trim().length < cancelReasonMinLength"
+  [busy]="bulkActionInProgress()"
+  (confirmed)="submitBulkCancel()"
+  (dismissed)="closeBulkCancelDialog()"
+>
+  <app-cancellation-form
+    [reason]="bulkCancelReason()"
+    [minLength]="cancelReasonMinLength"
+    (reasonChange)="bulkCancelReason.set($event)"
+  ></app-cancellation-form>
+  @if (bulkCancelError()) {
+  <p class="dialog-error" role="alert" aria-live="assertive">
+    {{ bulkCancelError() }}
+  </p>
+  }
+</app-confirmation-dialog>
+} @if (toast(); as notice) {
+<div class="toast toast--{{ notice.tone }}" role="status" aria-live="polite">
+  {{ notice.message }}
+</div>
+}

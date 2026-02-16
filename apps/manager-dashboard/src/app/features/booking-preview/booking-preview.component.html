@@ -1,0 +1,552 @@
+<a class="skip-link" href="#booking-preview-main">Skip to booking preview</a>
+<main class="booking-preview" id="booking-preview-main" role="main">
+  <h1>Booking Preview</h1>
+  <p class="subtitle">
+    Check availability and pricing before creating a booking
+  </p>
+
+  @if (toast(); as toast) {
+  <div
+    class="toast"
+    role="status"
+    aria-live="polite"
+    [class.toast--success]="toast.tone === 'success'"
+    [class.toast--info]="toast.tone === 'info'"
+  >
+    {{ toast.message }}
+  </div>
+  } @if (!isOnline()) {
+  <div class="connection-banner" role="status" aria-live="polite">
+    {{ connectionMessage() }}
+  </div>
+  }
+
+  <!-- Booking Form -->
+  <form
+    class="booking-form"
+    (ngSubmit)="onSubmit()"
+    [attr.aria-busy]="loading() || facilitiesLoading()"
+    [attr.aria-describedby]="
+      error()
+        ? 'booking-preview-error'
+        : validationErrors().length > 0
+        ? 'form-errors'
+        : null
+    "
+  >
+    <!-- Form Validation Errors -->
+    @if (validationErrors().length > 0 && !error()) {
+    <div
+      class="form-validation-errors"
+      id="form-errors"
+      role="alert"
+      aria-live="polite"
+    >
+      <ul>
+        @for (err of validationErrors(); track err) {
+        <li>{{ err }}</li>
+        }
+      </ul>
+    </div>
+    }
+
+    <!-- Facility Selection -->
+    <div class="form-group">
+      <label for="facility">Facility</label>
+      <select
+        id="facility"
+        [ngModel]="selectedFacilityId()"
+        (ngModelChange)="selectedFacilityId.set($event)"
+        name="facility"
+        required
+        autocomplete="organization"
+        [disabled]="loading() || facilitiesLoading()"
+        [attr.aria-invalid]="
+          selectedFacilityId().trim().length === 0 && !facilitiesLoading()
+        "
+      >
+        @for (facility of facilities(); track facility.id) {
+        <option [value]="facility.id">
+          {{ facility.name }} -
+          {{ formatPrice(facility.basePrice, facility.currency) }}/hour
+        </option>
+        }
+      </select>
+    </div>
+
+    <!-- Date Selection -->
+    <div class="form-group">
+      <label for="date">Date</label>
+      <input
+        type="date"
+        id="date"
+        [ngModel]="selectedDate()"
+        (ngModelChange)="selectedDate.set($event)"
+        name="date"
+        required
+        autocomplete="off"
+        [disabled]="loading() || facilitiesLoading()"
+        [attr.aria-invalid]="selectedDate().trim().length === 0"
+      />
+    </div>
+
+    <!-- Time Selection -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="startTime">Start Time</label>
+        <input
+          type="time"
+          id="startTime"
+          [ngModel]="startTime()"
+          (ngModelChange)="startTime.set($event)"
+          name="startTime"
+          required
+          autocomplete="off"
+          [disabled]="loading() || facilitiesLoading()"
+          [attr.aria-invalid]="
+            startTime().trim().length === 0 ||
+            (endTime().trim().length > 0 && !isValidTimeRange())
+          "
+        />
+      </div>
+      <div class="form-group">
+        <label for="endTime">End Time</label>
+        <input
+          type="time"
+          id="endTime"
+          [ngModel]="endTime()"
+          (ngModelChange)="endTime.set($event)"
+          name="endTime"
+          required
+          autocomplete="off"
+          [disabled]="loading() || facilitiesLoading()"
+          [attr.aria-invalid]="
+            endTime().trim().length === 0 ||
+            (startTime().trim().length > 0 && !isValidTimeRange())
+          "
+        />
+      </div>
+    </div>
+    <p class="timezone-hint">Times shown in {{ timezoneLabel }}</p>
+
+    <!-- Promo Code -->
+    <div class="form-group">
+      <label for="promoCode">Promo Code (Optional)</label>
+      <input
+        type="text"
+        id="promoCode"
+        [ngModel]="promoCode()"
+        (ngModelChange)="promoCode.set($event)"
+        name="promoCode"
+        placeholder="Enter promo code"
+        autocomplete="off"
+        [disabled]="loading() || facilitiesLoading()"
+      />
+    </div>
+
+    <!-- Submit Button -->
+    <button type="submit" class="btn-primary" [disabled]="!canSubmit()">
+      @if (loading()) { Checking... } @else { Check Availability }
+    </button>
+  </form>
+
+  <!-- Empty State -->
+  @if (!loading() && !facilitiesLoading() && !error() && facilities().length ===
+  0) {
+  <div class="empty-state preview-empty" role="status">
+    <p>No facilities available.</p>
+  </div>
+  }
+
+  <!-- Error Message -->
+  @if (error(); as err) {
+  <div
+    class="error-message"
+    id="booking-preview-error"
+    role="alert"
+    aria-live="assertive"
+  >
+    <div class="error-text">
+      <strong>{{ errorCategoryLabel() }}</strong>
+      <span>{{ err.message }}</span>
+      @if (retryCountdown(); as seconds) {
+      <div class="retry-info">
+        Retrying in {{ seconds }}s - {{ retryAttemptMessage() }}
+      </div>
+      }
+    </div>
+    <div class="error-actions">
+      @for (option of errorRecoveryOptions(); track option.action) {
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="handleErrorRecovery(option.action)"
+        [attr.aria-label]="option.label"
+      >
+        {{ option.label }}
+      </button>
+      }
+    </div>
+  </div>
+  } @if (loading() && !previewResult()) {
+  <div class="preview-skeleton" role="status" aria-live="polite">
+    <div class="skeleton-line skeleton-title"></div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line skeleton-block"></div>
+  </div>
+  }
+
+  <!-- Preview Result -->
+  @if (previewResult(); as result) {
+  <div
+    class="preview-result"
+    [class.success]="result.canBook"
+    [class.conflict]="!result.canBook"
+    role="region"
+    aria-live="polite"
+    aria-label="Booking preview result"
+  >
+    @if (previewStale() || isPreviewStale()) {
+    <div class="stale-banner" role="status" aria-live="polite">
+      <span>Preview data may be outdated.</span>
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="handleErrorRecovery('refresh')"
+      >
+        Refresh
+      </button>
+    </div>
+    }
+    <!-- Status Header -->
+    <div class="result-header">
+      @if (result.canBook) {
+      <span class="status-icon success" aria-hidden="true">✓</span>
+      <h2>Available!</h2>
+      } @else {
+      <span class="status-icon conflict" aria-hidden="true">✗</span>
+      <h2>Not Available</h2>
+      }
+    </div>
+
+    <!-- Validation Errors -->
+    @if (result.validationErrors && result.validationErrors.length > 0) {
+    <div class="validation-errors">
+      <h3>Validation Issues:</h3>
+      <ul>
+        @for (error of result.validationErrors; track error) {
+        <li>{{ error }}</li>
+        }
+      </ul>
+    </div>
+    }
+
+    <!-- Conflict Info -->
+    @if (result.conflict) {
+    <div class="conflict-info">
+      <p class="conflict-message">{{ result.conflict.message }}</p>
+      @if (result.conflict.conflictType) {
+      <p class="conflict-type">
+        {{ formatConflictType(result.conflict.conflictType) }}
+      </p>
+      } @if (result.conflict.conflictingSlots.length > 0) {
+      <div class="conflicting-slots">
+        <h4>Conflicting Slots:</h4>
+        @for (slot of result.conflict.conflictingSlots; track slot.startTime) {
+        <div class="slot">
+          {{ formatTime(slot.startTime) }} - {{ formatTime(slot.endTime) }}
+          <span class="status">{{ slot.status }}</span>
+          @if (slot.bookingReference) {
+          <span class="ref">({{ slot.bookingReference }})</span>
+          }
+        </div>
+        }
+      </div>
+      }
+    </div>
+    }
+
+    <!-- Price Breakdown -->
+    <div class="price-breakdown">
+      <h3>Price Breakdown</h3>
+      <table aria-label="Price breakdown">
+        <tr>
+          <td>Base Price</td>
+          <td>
+            {{
+              formatPrice(
+                result.priceBreakdown.basePrice,
+                result.priceBreakdown.currency
+              )
+            }}
+          </td>
+        </tr>
+        @if (result.priceBreakdown.timeMultiplier !== 1) {
+        <tr>
+          <td>Peak Hours ({{ result.priceBreakdown.timeMultiplier }}x)</td>
+          <td class="modifier">Applied</td>
+        </tr>
+        } @if (result.priceBreakdown.dayMultiplier !== 1) {
+        <tr>
+          <td>Weekend Rate ({{ result.priceBreakdown.dayMultiplier }}x)</td>
+          <td class="modifier">Applied</td>
+        </tr>
+        }
+        <tr>
+          <td>Subtotal</td>
+          <td>
+            {{
+              formatPrice(
+                result.priceBreakdown.subtotal,
+                result.priceBreakdown.currency
+              )
+            }}
+          </td>
+        </tr>
+        @if (result.priceBreakdown.discountAmount > 0) {
+        <tr class="discount">
+          <td>Discount</td>
+          <td>
+            -{{
+              formatPrice(
+                result.priceBreakdown.discountAmount,
+                result.priceBreakdown.currency
+              )
+            }}
+          </td>
+        </tr>
+        } @if (result.priceBreakdown.promoCode) {
+        <tr class="promo">
+          <td>Promo ({{ result.priceBreakdown.promoCode }})</td>
+          <td>
+            -{{
+              formatPrice(
+                result.priceBreakdown.promoDiscount || 0,
+                result.priceBreakdown.currency
+              )
+            }}
+          </td>
+        </tr>
+        }
+        <tr class="total">
+          <td><strong>Total</strong></td>
+          <td>
+            <strong>{{
+              formatPrice(
+                result.priceBreakdown.total,
+                result.priceBreakdown.currency
+              )
+            }}</strong>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Suggested Alternatives -->
+    @if (alternativesCount() > 0) {
+    <div class="alternatives">
+      <div class="alternatives-header">
+        <h3>Available Alternatives</h3>
+        @if (showAlternativesToggle()) {
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="toggleAlternatives()"
+        >
+          {{ alternativesToggleLabel() }}
+        </button>
+        }
+      </div>
+      @if (showAlternatives()) { @if (shouldVirtualizeAlternatives()) {
+      <div
+        class="alternatives-scroll"
+        role="region"
+        aria-label="Alternative booking slots"
+        (scroll)="onAlternativesScroll($event)"
+      >
+        <div
+          class="alternatives-virtual"
+          [style.padding-block-start.px]="alternativesWindow().paddingTop"
+          [style.padding-block-end.px]="alternativesWindow().paddingBottom"
+          [style.min-block-size.px]="alternativesWindow().totalHeight"
+        >
+          @for (alt of alternativesWindow().items; track alt.startTime) {
+          <button
+            class="alt-slot alt-slot--list"
+            type="button"
+            (click)="selectAlternative(alt)"
+            [attr.aria-label]="
+              'Select alternative slot ' +
+              formatTime(alt.startTime) +
+              ' to ' +
+              formatTime(alt.endTime)
+            "
+          >
+            <span class="time"
+              >{{ formatTime(alt.startTime) }} -
+              {{ formatTime(alt.endTime) }}</span
+            >
+            <span class="price">{{
+              formatPrice(alt.price, alt.currency)
+            }}</span>
+          </button>
+          }
+        </div>
+      </div>
+      } @else {
+      <div class="alternatives-grid">
+        @for (alt of alternatives(); track alt.startTime) {
+        <button
+          class="alt-slot"
+          type="button"
+          (click)="selectAlternative(alt)"
+          [attr.aria-label]="
+            'Select alternative slot ' +
+            formatTime(alt.startTime) +
+            ' to ' +
+            formatTime(alt.endTime)
+          "
+        >
+          <span class="time"
+            >{{ formatTime(alt.startTime) }} -
+            {{ formatTime(alt.endTime) }}</span
+          >
+          <span class="price">{{ formatPrice(alt.price, alt.currency) }}</span>
+        </button>
+        }
+      </div>
+      } } @else {
+      <p class="alternatives-hint">Tap to view alternative slots.</p>
+      }
+    </div>
+    }
+
+    <!-- Customer Details (show when available) -->
+    @if (result.canBook) {
+    <div class="customer-details">
+      <h3>Customer Details</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="customerName">Your Name</label>
+          <input
+            type="text"
+            id="customerName"
+            [ngModel]="customerName()"
+            (ngModelChange)="customerName.set($event)"
+            name="customerName"
+            placeholder="Enter your full name"
+            required
+            autocomplete="name"
+            [disabled]="bookingInProgress()"
+          />
+        </div>
+        <div class="form-group">
+          <label for="customerPhone">Phone Number</label>
+          <input
+            type="tel"
+            id="customerPhone"
+            [ngModel]="customerPhone()"
+            (ngModelChange)="customerPhone.set($event)"
+            name="customerPhone"
+            placeholder="+966 5XX XXX XXXX"
+            required
+            autocomplete="tel"
+            inputmode="tel"
+            [disabled]="bookingInProgress()"
+          />
+        </div>
+      </div>
+      <div class="hold-toggle">
+        <label for="holdAsPending">
+          <input
+            type="checkbox"
+            [ngModel]="holdAsPending()"
+            (ngModelChange)="holdAsPending.set($event)"
+            name="holdAsPending"
+            id="holdAsPending"
+            aria-describedby="hold-hint"
+            [disabled]="bookingInProgress()"
+          />
+          Reserve as hold (pending)
+        </label>
+        <p class="hold-hint" id="hold-hint">
+          Temporarily reserve this slot until confirmation.
+        </p>
+      </div>
+    </div>
+
+    <!-- Confirm Booking Button -->
+    <button
+      class="btn-book"
+      [disabled]="!canBook()"
+      (click)="openConfirmDialog()"
+    >
+      @if (bookingInProgress()) { Confirming... } @else { Confirm Booking }
+    </button>
+    }
+  </div>
+  } @if (confirmDialogOpen() && previewResult(); as result) { @let facility =
+  selectedFacility();
+  <app-confirmation-dialog
+    [title]="confirmCopy.title"
+    [message]="confirmCopy.message"
+    [confirmLabel]="confirmCopy.confirmLabel"
+    [cancelLabel]="confirmCopy.cancelLabel"
+    [confirmTone]="'primary'"
+    [confirmDisabled]="!canBook()"
+    [busy]="bookingInProgress()"
+    (confirmed)="onBook()"
+    (dismissed)="closeConfirmDialog()"
+  >
+    <div class="confirm-summary">
+      <div class="confirm-row">
+        <span class="label">Facility</span>
+        <span class="value">{{ facility?.name ?? 'Selected facility' }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="label">Date</span>
+        <span class="value">{{ selectedDate() }}</span>
+      </div>
+      <div class="confirm-row">
+        <span class="label">Time</span>
+        <span class="value">
+          {{ formatTime(selectedDate() + 'T' + startTime()) }} -
+          {{ formatTime(selectedDate() + 'T' + endTime()) }}
+        </span>
+      </div>
+      <div class="confirm-row">
+        <span class="label">Total</span>
+        <span class="value">{{
+          formatPrice(
+            result.priceBreakdown.total,
+            result.priceBreakdown.currency
+          )
+        }}</span>
+      </div>
+      @if (holdAsPending()) {
+      <div class="confirm-row">
+        <span class="label">Hold</span>
+        <span class="value">Reserve as pending</span>
+      </div>
+      }
+    </div>
+    <p class="policy-note">{{ cancellationPolicyNote }}</p>
+  </app-confirmation-dialog>
+  }
+
+  <!-- Booking Success Message -->
+  @if (bookingSuccess()) {
+  <div class="success-message" role="status" aria-live="polite">
+    <span class="success-icon" aria-hidden="true">✓</span>
+    <p>Booking Confirmed!</p>
+    @if (bookingReference()) {
+    <p class="success-reference">Reference: {{ bookingReference() }}</p>
+    }
+    <p class="success-subtitle">You will receive a confirmation shortly.</p>
+    <button class="btn-secondary" (click)="resetBooking()">
+      Make Another Booking
+    </button>
+  </div>
+  }
+</main>

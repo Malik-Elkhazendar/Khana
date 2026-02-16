@@ -1,0 +1,26 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@khana/shared-dtos": ["libs/shared-dtos/src/index.ts"],
+      "@khana/booking-engine": ["libs/booking-engine/src/index.ts"],
+      "@khana/data-access": ["libs/data-access/src/index.ts"],
+      "@khana/shared-utils": ["libs/shared-utils/src/index.ts"],
+      "@khana/notifications": ["libs/notifications/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

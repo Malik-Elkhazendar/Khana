@@ -1,0 +1,94 @@
+{
+  "name": "manager-dashboard",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/manager-dashboard/src",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/manager-dashboard",
+        "browser": "apps/manager-dashboard/src/main.ts",
+        "polyfills": ["zone.js"],
+        "tsConfig": "apps/manager-dashboard/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/manager-dashboard/public"
+          }
+        ],
+        "styles": ["apps/manager-dashboard/src/styles.scss"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "500kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "30kb",
+              "maximumError": "32kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "proxyConfig": "apps/manager-dashboard/proxy.conf.json"
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "manager-dashboard:build:production"
+        },
+        "development": {
+          "buildTarget": "manager-dashboard:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "extract-i18n": {
+      "executor": "@angular/build:extract-i18n",
+      "options": {
+        "buildTarget": "manager-dashboard:build"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/manager-dashboard/jest.config.cts",
+        "tsConfig": "apps/manager-dashboard/tsconfig.spec.json"
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "manager-dashboard:build",
+        "port": 4200,
+        "staticFilePath": "dist/apps/manager-dashboard/browser",
+        "spa": true
+      }
+    }
+  }
+}

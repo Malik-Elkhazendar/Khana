@@ -1,0 +1,346 @@
+<a class="skip-link" href="#booking-calendar-main">Skip to calendar</a>
+<main
+  class="calendar"
+  id="booking-calendar-main"
+  role="main"
+  [attr.aria-busy]="loading() ? 'true' : null"
+  [attr.aria-describedby]="error() ? errorDescriptionId : null"
+>
+  <!-- Header -->
+  <header class="calendar__header">
+    <div class="calendar__nav">
+      <button
+        type="button"
+        class="calendar__nav-btn"
+        (click)="previousWeek()"
+        aria-label="Previous week"
+        [disabled]="!canNavigate()"
+        [attr.aria-disabled]="!canNavigate()"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            fill-rule="evenodd"
+            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+
+      <button
+        type="button"
+        class="calendar__today-btn"
+        (click)="goToToday()"
+        [disabled]="!canNavigate()"
+        [attr.aria-disabled]="!canNavigate()"
+      >
+        Today
+      </button>
+
+      <button
+        type="button"
+        class="calendar__nav-btn"
+        (click)="nextWeek()"
+        aria-label="Next week"
+        [disabled]="!canNavigate()"
+        [attr.aria-disabled]="!canNavigate()"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            fill-rule="evenodd"
+            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <h2 class="calendar__title">{{ weekRange() }}</h2>
+  </header>
+
+  <!-- Loading State -->
+  @if (loading()) {
+  <div
+    class="calendar__loading"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  >
+    <div class="calendar__spinner"></div>
+    <span>Loading bookings...</span>
+  </div>
+  }
+
+  <!-- Error State -->
+  @if (error(); as err) {
+  <div
+    class="calendar__error"
+    role="alert"
+    aria-live="assertive"
+    [attr.id]="errorDescriptionId"
+  >
+    <div class="calendar__error-content">
+      <p class="calendar__error-message">{{ err.message }}</p>
+      @if (errorCategoryLabel()) {
+      <p class="calendar__error-meta">{{ errorCategoryLabel() }}</p>
+      } @if (autoRetryEligible()) {
+      <p class="calendar__error-meta">Auto-retrying with backoff.</p>
+      } @if (retryScheduledAt()) {
+      <p class="calendar__error-meta">
+        Next retry at {{ formatLastUpdated(retryScheduledAt()) }}
+      </p>
+      } @if (lastSuccessfulAt()) {
+      <p class="calendar__error-meta">
+        Showing last updated {{ formatLastUpdated(lastSuccessfulAt()) }}
+      </p>
+      }
+    </div>
+    <div class="calendar__error-actions">
+      @for (option of errorRecoveryOptions(); track option.action) {
+      <div class="calendar__error-option">
+        <button
+          type="button"
+          class="calendar__retry-btn"
+          (click)="handleErrorRecovery(option.action)"
+          [attr.aria-describedby]="'calendar-error-option-' + option.action"
+        >
+          {{ option.label }}
+        </button>
+        <span
+          class="calendar__error-option-meta"
+          [attr.id]="'calendar-error-option-' + option.action"
+        >
+          {{ option.description }}
+        </span>
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  <!-- Empty State -->
+  @if (showEmptyState()) {
+  <div class="empty-state calendar__empty" role="status">
+    <p>No bookings found for this week.</p>
+  </div>
+  }
+
+  <!-- Calendar Grid -->
+  @if (showGrid()) {
+  <div
+    class="calendar__grid"
+    role="grid"
+    aria-label="Weekly booking calendar"
+    [attr.aria-rowcount]="hours.length"
+    [attr.aria-colcount]="weekDays().length"
+  >
+    <!-- Header Row -->
+    <div class="calendar__corner"></div>
+    @for (day of weekDays(); track trackByDay($index, day)) {
+    <div
+      class="calendar__day-header"
+      [class.calendar__day-header--today]="isToday(day)"
+      role="columnheader"
+    >
+      <span class="calendar__day-name">{{ dayNames[day.getDay()] }}</span>
+      <span class="calendar__day-number">{{ formatDayNumber(day) }}</span>
+    </div>
+    }
+
+    <!-- Time Rows -->
+    @for (hour of hours; track trackByHour($index, hour); let hourIndex =
+    $index) {
+    <!-- Time Label -->
+    <div class="calendar__time-label" role="rowheader">
+      {{ formatHour(hour) }}
+    </div>
+
+    <!-- Day Slots -->
+    @for (day of weekDays(); track trackByDay($index, day); let dayIndex =
+    $index) { @let slotBookings = getBookingsForSlot(day, hour);
+    <div
+      class="calendar__slot"
+      [class.calendar__slot--today]="isToday(day)"
+      [attr.tabindex]="slotTabIndex(dayIndex, hourIndex)"
+      [attr.aria-label]="slotAriaLabel(day, hour, slotBookings.length)"
+      role="gridcell"
+      (focus)="onSlotFocus(dayIndex, hourIndex)"
+      (keydown)="onSlotKeydown($event, dayIndex, hourIndex, slotBookings)"
+      #slotCell
+    >
+      @for (segment of slotBookings; track trackByBooking($index, segment)) {
+      @let booking = segment.booking; @let layout = getBookingLayout(segment);
+      <button
+        type="button"
+        class="calendar__booking {{ getStatusClass(booking.status) }}"
+        [class.calendar__booking--hold]="isHoldActive(booking)"
+        [ngStyle]="getBookingStyle(segment, layout.column, layout.columns)"
+        [attr.aria-label]="'Booking: ' + booking.customerName"
+        [attr.title]="
+          isHoldActive(booking)
+            ? 'Reserved until ' + formatTime(booking.holdUntil)
+            : null
+        "
+        (click)="openBooking(booking, $event)"
+      >
+        <span class="calendar__booking-name">{{ booking.customerName }}</span>
+        <span class="calendar__booking-facility">{{
+          booking.facility.name
+        }}</span>
+        @if (isHoldActive(booking)) {
+        <span class="calendar__booking-hold">Hold</span>
+        }
+      </button>
+      }
+    </div>
+    } }
+  </div>
+  }
+</main>
+
+@if (selectedBookingLive(); as booking) {
+<button
+  type="button"
+  class="sheet-backdrop"
+  (click)="closePanel()"
+  aria-label="Close booking actions"
+  tabindex="-1"
+></button>
+
+<section
+  class="action-sheet"
+  role="dialog"
+  [attr.aria-modal]="actionDialog() !== null ? 'false' : 'true'"
+  aria-labelledby="booking-actions-title"
+  [attr.aria-hidden]="actionDialog() !== null ? 'true' : null"
+  (keydown)="onPanelKeydown($event)"
+  tabindex="-1"
+  #actionPanel
+>
+  <header class="action-sheet__header">
+    <div>
+      <h3 id="booking-actions-title">Booking Actions</h3>
+      <p class="action-sheet__meta">
+        {{ booking.customerName }} - {{ booking.facility.name }}
+      </p>
+    </div>
+    <button
+      #closeButton
+      type="button"
+      class="action-sheet__close"
+      (click)="closePanel()"
+    >
+      Close
+    </button>
+  </header>
+
+  <div class="action-sheet__body">
+    <div class="action-sheet__row">
+      <span class="label">Date</span>
+      <span class="value">{{ formatDate(booking.startTime) }}</span>
+    </div>
+    <div class="action-sheet__row">
+      <span class="label">Time</span>
+      <span class="value"
+        >{{ formatTime(booking.startTime) }} -
+        {{ formatTime(booking.endTime) }}</span
+      >
+    </div>
+    <div class="action-sheet__row">
+      <span class="label">Customer Phone</span>
+      <a class="value link" [href]="'tel:' + booking.customerPhone">
+        {{ booking.customerPhone }}
+      </a>
+    </div>
+    <div class="action-sheet__row">
+      <span class="label">Status</span>
+      <span class="value">
+        <span class="status-pill status-pill--{{ statusTone(booking.status) }}">
+          {{ statusLabel(booking.status) }}
+        </span>
+      </span>
+    </div>
+    <div class="action-sheet__row">
+      <span class="label">Payment</span>
+      <span class="value">
+        <span
+          class="status-pill status-pill--{{
+            paymentTone(booking.paymentStatus)
+          }}"
+        >
+          {{ paymentLabel(booking.paymentStatus) }}
+        </span>
+      </span>
+    </div>
+    @if (booking.status === BookingStatus.PENDING && booking.holdUntil) {
+    <div class="action-sheet__row action-sheet__row--hold">
+      <span class="label">Hold</span>
+      <span class="value">
+        <app-hold-timer [holdUntil]="booking.holdUntil"></app-hold-timer>
+        <span class="hold-time">{{ formatTime(booking.holdUntil) }}</span>
+      </span>
+    </div>
+    }
+  </div>
+
+  <div class="action-sheet__actions">
+    <button
+      type="button"
+      class="btn primary"
+      (click)="openConfirmDialog()"
+      [disabled]="!dialogAvailable()"
+    >
+      Confirm
+    </button>
+    <button
+      type="button"
+      class="btn secondary"
+      (click)="openPayDialog()"
+      [disabled]="!dialogAvailable()"
+    >
+      Mark Paid
+    </button>
+    <button
+      type="button"
+      class="btn danger"
+      (click)="openCancelDialog()"
+      [disabled]="
+        !dialogAvailable() ||
+        booking.paymentStatus === PaymentStatus.PAID ||
+        booking.paymentStatus === PaymentStatus.PARTIALLY_PAID
+      "
+    >
+      Cancel
+    </button>
+    @if ( booking.paymentStatus === PaymentStatus.PAID || booking.paymentStatus
+    === PaymentStatus.PARTIALLY_PAID ) {
+    <p class="action-sheet__note">
+      Paid booking - cancellation will require refund once payment gateway is
+      integrated.
+    </p>
+    }
+  </div>
+</section>
+} @if (actionDialog(); as dialog) { @let copy = dialogCopy();
+<app-confirmation-dialog
+  [title]="copy?.title ?? 'Confirm action'"
+  [message]="copy?.message ?? ''"
+  [confirmLabel]="copy?.confirmLabel ?? 'Confirm'"
+  [confirmTone]="copy?.confirmTone ?? 'primary'"
+  [confirmDisabled]="dialog.type === 'cancel' && !cancelReasonValid()"
+  [busy]="actionInProgress()"
+  (confirmed)="submitDialogAction()"
+  (dismissed)="closeDialog()"
+>
+  @if (dialog.type === 'cancel') {
+  <app-cancellation-form
+    [reason]="cancelReason()"
+    [minLength]="cancelReasonMinLength"
+    (reasonChange)="cancelReason.set($event)"
+  ></app-cancellation-form>
+  }
+</app-confirmation-dialog>
+} @if (toast(); as notice) {
+<div class="toast toast--{{ notice.tone }}" role="status" aria-live="polite">
+  {{ notice.message }}
+</div>
+}

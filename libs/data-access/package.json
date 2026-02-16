@@ -1,0 +1,13 @@
+{
+  "name": "@khana/data-access",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "typeorm": "^0.3.28",
+    "@khana/shared-dtos": "0.0.1",
+    "tslib": "^2.3.0"
+  }
+}

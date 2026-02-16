@@ -1,0 +1,22 @@
+<div class="cancel-form">
+  <label class="cancel-form__label" [for]="textAreaId">
+    Cancellation reason
+  </label>
+  <textarea
+    class="cancel-form__input"
+    [id]="textAreaId"
+    rows="3"
+    [attr.minlength]="minLength"
+    [placeholder]="placeholder"
+    [value]="reason"
+    (input)="onInput($event)"
+  ></textarea>
+  <div class="cancel-form__meta">
+    <span class="cancel-form__hint" [class.cancel-form__hint--error]="!isValid">
+      Minimum {{ minLength }} characters
+    </span>
+    <span class="cancel-form__count">
+      {{ trimmedLength }} / {{ minLength }}
+    </span>
+  </div>
+</div>

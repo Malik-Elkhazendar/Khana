@@ -1,0 +1,166 @@
+### Page state
+
+- Page URL: http://localhost:4200/bookings
+- Page Title: manager-dashboard
+- Page Snapshot:
+
+```yaml
+- generic [ref=e4]:
+    - banner [ref=e6]:
+        - generic [ref=e7]:
+            - link "Khana home" [ref=e8] [cursor=pointer]:
+                - /url: /bookings
+                - text: Khana
+            - navigation "Primary navigation" [ref=e9]:
+                - list [ref=e10]:
+                    - listitem [ref=e11]:
+                        - link "Dashboard" [ref=e12] [cursor=pointer]:
+                            - /url: /bookings
+                    - listitem [ref=e13]:
+                        - link "Bookings" [ref=e14] [cursor=pointer]:
+                            - /url: /calendar
+                    - listitem [ref=e15]:
+                        - generic [ref=e16]: Facilities
+                    - listitem [ref=e17]:
+                        - generic [ref=e18]: Settings
+            - button "Sign in" [disabled] [ref=e20]
+    - complementary "Primary sidebar" [ref=e181]:
+        - generic [ref=e183]:
+            - generic [ref=e184]: Sidebar - Coming next
+            - button "Expand sidebar" [ref=e185] [cursor=pointer]
+    - main [active] [ref=e26]:
+        - link "Skip to main content" [ref=e27] [cursor=pointer]:
+            - /url: '#main-content'
+        - generic [ref=e28]:
+            - link "Skip to bookings list" [ref=e29] [cursor=pointer]:
+                - /url: '#booking-list-main'
+            - main [ref=e30]:
+                - generic [ref=e31]:
+                    - generic [ref=e32]:
+                        - heading "Bookings" [level=1] [ref=e33]
+                        - paragraph [ref=e34]: All bookings for your facilities
+                    - generic [ref=e35]:
+                        - generic [ref=e36]:
+                            - generic [ref=e37]: Search
+                            - searchbox "Search bookings" [ref=e38]
+                        - generic [ref=e39]:
+                            - generic [ref=e40]: Facility
+                            - combobox "Facility" [ref=e41]:
+                                - option "All" [selected]
+                                - option "Center Court"
+                        - generic [ref=e42]:
+                            - generic [ref=e43]: Status
+                            - combobox "Status" [ref=e44]:
+                                - option "All" [selected]
+                                - option "Pending"
+                                - option "Confirmed"
+                                - option "Completed"
+                                - option "Cancelled"
+                                - option "No show"
+                        - generic [ref=e45]:
+                            - generic [ref=e46]: Payment
+                            - combobox "Payment" [ref=e47]:
+                                - option "All" [selected]
+                                - option "Unpaid"
+                                - option "Partial"
+                                - option "Paid"
+                                - option "Refunded"
+                        - generic [ref=e48]:
+                            - generic [ref=e49]: Date Range
+                            - generic [ref=e50]:
+                                - textbox [ref=e51]
+                                - textbox [ref=e52]
+                - generic [ref=e53]:
+                    - generic [ref=e55]: Showing 1-4 of 4
+                    - generic [ref=e56]:
+                        - button "Export CSV" [ref=e57] [cursor=pointer]
+                        - button "Cancel Selected" [disabled] [ref=e58]
+                - table "Bookings list" [ref=e187]:
+                    - caption [ref=e188]: Bookings list
+                    - rowgroup [ref=e189]:
+                        - row "Select all bookings on this page Date v Time Range Customer Name Phone Status Price Actions" [ref=e190]:
+                            - columnheader "Select all bookings on this page" [ref=e191]:
+                                - checkbox "Select all bookings on this page" [ref=e192]
+                            - columnheader "Date v" [ref=e193]:
+                                - button "Date v" [ref=e194] [cursor=pointer]:
+                                    - text: Date
+                                    - generic [ref=e195]: v
+                            - columnheader "Time Range" [ref=e196]
+                            - columnheader "Customer Name" [ref=e197]:
+                                - button "Customer Name" [ref=e198] [cursor=pointer]
+                            - columnheader "Phone" [ref=e199]
+                            - columnheader "Status" [ref=e200]:
+                                - button "Status" [ref=e201] [cursor=pointer]
+                            - columnheader "Price" [ref=e202]:
+                                - button "Price" [ref=e203] [cursor=pointer]
+                            - columnheader "Actions" [ref=e204]
+                    - rowgroup [ref=e205]:
+                        - row "Select booking for shneezy Jan 02, 2026 10:00 AM - 11:00 AM shneezy KH-2026-000002 43523463546 Confirmed SAR 3,500.00 Paid booking - cancellation will require refund once payment gateway is integrated." [ref=e206]:
+                            - cell "Select booking for shneezy" [ref=e207]:
+                                - checkbox "Select booking for shneezy" [disabled] [ref=e208]
+                            - cell "Jan 02, 2026" [ref=e209]
+                            - cell "10:00 AM - 11:00 AM" [ref=e210]
+                            - cell "shneezy KH-2026-000002" [ref=e211]:
+                                - text: shneezy
+                                - generic [ref=e212]: KH-2026-000002
+                            - cell "43523463546" [ref=e213]
+                            - cell "Confirmed" [ref=e214]:
+                                - generic [ref=e215]: Confirmed
+                            - cell "SAR 3,500.00" [ref=e216]
+                            - cell "Paid booking - cancellation will require refund once payment gateway is integrated." [ref=e217]:
+                                - generic [ref=e219]: Paid booking - cancellation will require refund once payment gateway is integrated.
+                        - row "Select booking for opase Jan 02, 2026 09:00 AM - 10:00 AM opase KH-2026-000004 a Confirmed SAR 3,500.00 Paid booking - cancellation will require refund once payment gateway is integrated." [ref=e220]:
+                            - cell "Select booking for opase" [ref=e221]:
+                                - checkbox "Select booking for opase" [disabled] [ref=e222]
+                            - cell "Jan 02, 2026" [ref=e223]
+                            - cell "09:00 AM - 10:00 AM" [ref=e224]
+                            - cell "opase KH-2026-000004" [ref=e225]:
+                                - text: opase
+                                - generic [ref=e226]: KH-2026-000004
+                            - cell "a" [ref=e227]
+                            - cell "Confirmed" [ref=e228]:
+                                - generic [ref=e229]: Confirmed
+                            - cell "SAR 3,500.00" [ref=e230]
+                            - cell "Paid booking - cancellation will require refund once payment gateway is integrated." [ref=e231]:
+                                - generic [ref=e233]: Paid booking - cancellation will require refund once payment gateway is integrated.
+                        - row "Select booking for uere Jan 02, 2026 08:00 AM - 09:00 AM uere KH-2026-000003 92083475 Confirmed SAR 3,500.00 Paid booking - cancellation will require refund once payment gateway is integrated." [ref=e234]:
+                            - cell "Select booking for uere" [ref=e235]:
+                                - checkbox "Select booking for uere" [disabled] [ref=e236]
+                            - cell "Jan 02, 2026" [ref=e237]
+                            - cell "08:00 AM - 09:00 AM" [ref=e238]
+                            - cell "uere KH-2026-000003" [ref=e239]:
+                                - text: uere
+                                - generic [ref=e240]: KH-2026-000003
+                            - cell "92083475" [ref=e241]
+                            - cell "Confirmed" [ref=e242]:
+                                - generic [ref=e243]: Confirmed
+                            - cell "SAR 3,500.00" [ref=e244]
+                            - cell "Paid booking - cancellation will require refund once payment gateway is integrated." [ref=e245]:
+                                - generic [ref=e247]: Paid booking - cancellation will require refund once payment gateway is integrated.
+                        - row "Select booking for luka Dec 31, 2025 10:00 AM - 11:00 AM luka KH-2025-000001 4324 Confirmed SAR 3,500.00 Paid booking - cancellation will require refund once payment gateway is integrated." [ref=e248]:
+                            - cell "Select booking for luka" [ref=e249]:
+                                - checkbox "Select booking for luka" [disabled] [ref=e250]
+                            - cell "Dec 31, 2025" [ref=e251]
+                            - cell "10:00 AM - 11:00 AM" [ref=e252]
+                            - cell "luka KH-2025-000001" [ref=e253]:
+                                - text: luka
+                                - generic [ref=e254]: KH-2025-000001
+                            - cell "4324" [ref=e255]
+                            - cell "Confirmed" [ref=e256]:
+                                - generic [ref=e257]: Confirmed
+                            - cell "SAR 3,500.00" [ref=e258]
+                            - cell "Paid booking - cancellation will require refund once payment gateway is integrated." [ref=e259]:
+                                - generic [ref=e261]: Paid booking - cancellation will require refund once payment gateway is integrated.
+                - generic [ref=e172]:
+                    - generic [ref=e173]: Showing 1-4 of 4
+                    - generic [ref=e174]:
+                        - button "Previous" [disabled] [ref=e175]
+                        - generic [ref=e176]: Page 1 of 1
+                        - button "Next" [disabled] [ref=e177]
+                    - generic [ref=e178]:
+                        - generic [ref=e179]: Rows
+                        - combobox "Rows" [ref=e180]:
+                            - option "25" [selected]
+                            - option "50"
+                            - option "100"
+```

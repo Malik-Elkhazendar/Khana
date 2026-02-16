@@ -1,0 +1,19 @@
+{
+  "name": "booking-engine",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/booking-engine/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/booking-engine",
+        "main": "libs/booking-engine/src/index.ts",
+        "tsConfig": "libs/booking-engine/tsconfig.lib.json",
+        "assets": ["libs/booking-engine/*.md"]
+      }
+    }
+  }
+}

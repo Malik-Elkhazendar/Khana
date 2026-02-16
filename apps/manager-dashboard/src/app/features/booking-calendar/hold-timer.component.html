@@ -1,0 +1,15 @@
+@if (view(); as current) {
+<div
+  class="hold-timer"
+  [class.hold-timer--expired]="current.state === 'expired'"
+  [class.hold-timer--empty]="current.state === 'none'"
+  role="status"
+  aria-live="polite"
+  aria-atomic="true"
+>
+  @if (current.state === 'active') {
+  <span class="hold-timer__label">{{ prefix }}</span>
+  }
+  <span class="hold-timer__value">{{ current.label }}</span>
+</div>
+}

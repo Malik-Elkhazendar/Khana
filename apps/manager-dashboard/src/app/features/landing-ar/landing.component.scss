@@ -1,0 +1,175 @@
+// ============================================
+// Landing Page - Desert Night Luxury Theme
+// ============================================
+
+// Skip link for accessibility
+.skip-link {
+  position: absolute;
+  inset-block-start: -100%;
+  inset-inline-start: var(--space-4);
+  z-index: 1000;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-weight: var(--font-semibold);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: inset-block-start var(--transition-base);
+
+  &:focus {
+    inset-block-start: var(--space-4);
+  }
+}
+
+// Main content area
+.landing-main {
+  overflow-x: hidden;
+}
+
+// ============================================
+// Scroll-Triggered Animations
+// ============================================
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.animate-in {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// Staggered children animation
+.stagger-children {
+  .stagger-item {
+    opacity: 0;
+    transform: translateX(30px);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  &.animate-in {
+    @for $i from 1 through 12 {
+      .stagger-item:nth-child(#{$i}) {
+        transition-delay: #{$i * 0.08}s;
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  }
+}
+
+// ============================================
+// Responsive Section Containers
+// ============================================
+section {
+  position: relative;
+}
+
+// ============================================
+// Global Animation Keyframes
+// ============================================
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes rotate-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ============================================
+// Utility Classes for Landing Page
+// ============================================
+.text-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--color-accent) 0%,
+    var(--color-secondary) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glow-accent {
+  box-shadow: 0 0 20px rgba(212, 168, 85, 0.3), 0 0 40px rgba(212, 168, 85, 0.1);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 20px rgba(199, 93, 74, 0.3), 0 0 40px rgba(199, 93, 74, 0.1);
+}
+
+// Noise texture overlay mixin
+@mixin noise-texture($opacity: 0.03) {
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: $opacity;
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+// Gradient mesh background mixin
+@mixin gradient-mesh($color1, $color2, $color3) {
+  background: radial-gradient(at 40% 20%, $color1 0, transparent 50%),
+    radial-gradient(at 80% 0%, $color2 0, transparent 50%),
+    radial-gradient(at 0% 50%, $color3 0, transparent 50%),
+    radial-gradient(at 80% 50%, $color1 0, transparent 50%),
+    radial-gradient(at 0% 100%, $color2 0, transparent 50%),
+    radial-gradient(at 80% 100%, $color3 0, transparent 50%);
+}

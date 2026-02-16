@@ -1,0 +1,47 @@
+<ng-container *ngIf="layoutStore.mobileDrawerOpen()">
+  <button
+    class="mobile-drawer__overlay"
+    type="button"
+    aria-label="Close navigation"
+    tabindex="-1"
+    (click)="onOverlayClick()"
+  ></button>
+
+  <section
+    class="mobile-drawer"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Mobile navigation"
+    #drawerPanel
+    tabindex="-1"
+  >
+    <div class="mobile-drawer__header">
+      <h2 class="mobile-drawer__title">Navigation</h2>
+      <button
+        class="mobile-drawer__close"
+        type="button"
+        aria-label="Close navigation"
+        (click)="closeDrawer()"
+        #closeButton
+      >
+        Close
+      </button>
+    </div>
+
+    <nav class="mobile-drawer__nav" aria-label="Mobile navigation links">
+      <ul class="mobile-drawer__list">
+        <li class="mobile-drawer__item" *ngFor="let item of navItems">
+          <button
+            class="mobile-drawer__link"
+            type="button"
+            [disabled]="!item.route"
+            [attr.aria-disabled]="!item.route"
+            (click)="onNavClick(item, $event)"
+          >
+            {{ item.label }}
+          </button>
+        </li>
+      </ul>
+    </nav>
+  </section>
+</ng-container>

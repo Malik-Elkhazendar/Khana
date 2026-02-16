@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+out-tsc
+tmp
+
+# Git
+.git
+.gitignore
+
+# Environment files (secrets)
+.env
+.env.*
+
+# Documentation
+*.md
+docs/
+
+# IDE
+.vscode
+.idea
+
+# Angular/Nx cache
+.angular
+.nx
+
+# Testing
+coverage
+e2e
+*-e2e
+
+# Logs
+*.log
+error.log

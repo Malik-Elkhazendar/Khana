@@ -1,0 +1,253 @@
+<div class="register-container">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <main id="main-content" class="register-card">
+    <div class="register-header">
+      <h1 class="register-title">Create Account</h1>
+      <p class="register-subtitle">Join Khana Booking Platform</p>
+      <p class="register-signin">
+        Already have an account?
+        <a routerLink="/login" class="link">Sign in</a>
+      </p>
+    </div>
+
+    <form
+      [formGroup]="registerForm"
+      (ngSubmit)="onSubmit()"
+      class="register-form"
+    >
+      @if (authStore.error()) {
+      <div class="alert-error" role="alert" aria-live="polite">
+        {{ authStore.error() }}
+      </div>
+      }
+
+      <div class="form-group">
+        <label for="email" class="form-label">
+          Email
+          <span class="required" aria-label="required">*</span>
+        </label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          class="form-input"
+          placeholder="business@example.com"
+          autocomplete="email"
+          inputmode="email"
+          aria-label="Email address"
+          [attr.aria-invalid]="emailControl?.invalid && emailControl?.touched"
+          [attr.aria-describedby]="
+            emailControl?.invalid && emailControl?.touched
+              ? 'email-error'
+              : null
+          "
+        />
+        @if (emailControl?.invalid && emailControl?.touched) {
+        <div id="email-error" class="form-error" role="alert">
+          @if (emailControl?.hasError('required')) {
+          <span>Email is required</span>
+          } @if (emailControl?.hasError('email')) {
+          <span>Please enter a valid email address</span>
+          } @if (emailControl?.hasError('duplicate')) {
+          <span>Email already in use</span>
+          }
+        </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="name" class="form-label">
+          Full Name
+          <span class="required" aria-label="required">*</span>
+        </label>
+        <input
+          id="name"
+          type="text"
+          formControlName="name"
+          class="form-input"
+          placeholder="Full Name"
+          autocomplete="name"
+          aria-label="Full name"
+          [attr.aria-invalid]="nameControl?.invalid && nameControl?.touched"
+          [attr.aria-describedby]="
+            nameControl?.invalid && nameControl?.touched ? 'name-error' : null
+          "
+        />
+        @if (nameControl?.invalid && nameControl?.touched) {
+        <div id="name-error" class="form-error" role="alert">
+          @if (nameControl?.hasError('required')) {
+          <span>Full name is required</span>
+          } @if (nameControl?.hasError('minlength')) {
+          <span>Name must be at least 2 characters</span>
+          }
+        </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="phone" class="form-label">Phone (optional)</label>
+        <input
+          id="phone"
+          type="tel"
+          formControlName="phone"
+          class="form-input"
+          placeholder="+966 50 123 4567"
+          autocomplete="tel"
+          inputmode="tel"
+          aria-label="Phone number"
+          [attr.aria-invalid]="phoneControl?.invalid && phoneControl?.touched"
+          [attr.aria-describedby]="
+            phoneControl?.invalid && phoneControl?.touched
+              ? 'phone-error'
+              : null
+          "
+        />
+        @if (phoneControl?.invalid && phoneControl?.touched) {
+        <div id="phone-error" class="form-error" role="alert">
+          <span>Please enter a valid phone number</span>
+        </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">
+          Password
+          <span class="required" aria-label="required">*</span>
+        </label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          class="form-input"
+          placeholder="********"
+          autocomplete="new-password"
+          aria-label="Password"
+          (focus)="onPasswordFocus()"
+          (blur)="onPasswordBlur()"
+          [attr.aria-invalid]="
+            passwordControl?.invalid && passwordControl?.touched
+          "
+          [attr.aria-describedby]="
+            passwordControl?.invalid && passwordControl?.touched
+              ? 'password-error'
+              : null
+          "
+        />
+        @if (passwordControl?.invalid && passwordControl?.touched) {
+        <div id="password-error" class="form-error" role="alert">
+          @if (passwordControl?.hasError('required')) {
+          <span>Password is required</span>
+          } @if (passwordControl?.hasError('minlength')) {
+          <span>Password must be at least 8 characters</span>
+          } @if ( passwordControl?.hasError('uppercase') ||
+          passwordControl?.hasError('lowercase') ||
+          passwordControl?.hasError('number') ) {
+          <span>Password must include uppercase, lowercase, and a number</span>
+          }
+        </div>
+        }
+
+        <khana-password-strength-indicator
+          [visible]="showPasswordStrength()"
+          [result]="passwordStrength()"
+          [percent]="passwordStrengthPercent()"
+          [message]="getPasswordStrengthMessage()"
+        ></khana-password-strength-indicator>
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword" class="form-label">
+          Confirm Password
+          <span class="required" aria-label="required">*</span>
+        </label>
+        <input
+          id="confirmPassword"
+          type="password"
+          formControlName="confirmPassword"
+          class="form-input"
+          placeholder="********"
+          autocomplete="new-password"
+          aria-label="Confirm password"
+          [attr.aria-invalid]="
+            (confirmPasswordControl?.invalid &&
+              confirmPasswordControl?.touched) ||
+            passwordMismatch
+          "
+          [attr.aria-describedby]="
+            (confirmPasswordControl?.invalid &&
+              confirmPasswordControl?.touched) ||
+            passwordMismatch
+              ? 'confirm-password-error'
+              : null
+          "
+        />
+        @if ( (confirmPasswordControl?.invalid &&
+        confirmPasswordControl?.touched) || passwordMismatch ) {
+        <div id="confirm-password-error" class="form-error" role="alert">
+          @if (confirmPasswordControl?.hasError('required')) {
+          <span>Confirmation is required</span>
+          } @if (passwordMismatch) {
+          <span>Passwords do not match</span>
+          }
+        </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            formControlName="acceptTerms"
+            class="checkbox-input"
+            aria-label="Accept terms"
+            [attr.aria-invalid]="termsControl?.invalid && termsControl?.touched"
+            [attr.aria-describedby]="
+              termsControl?.invalid && termsControl?.touched
+                ? 'terms-error'
+                : null
+            "
+          />
+          <span>
+            I agree to the
+            <a routerLink="/" class="link">Terms</a>
+          </span>
+        </label>
+        @if (termsControl?.invalid && termsControl?.touched) {
+        <div id="terms-error" class="form-error" role="alert">
+          <span>You must accept the terms to continue</span>
+        </div>
+        }
+      </div>
+
+      <div class="form-actions">
+        <button
+          type="submit"
+          class="btn-primary"
+          [disabled]="authStore.isLoading()"
+          [attr.aria-busy]="authStore.isLoading()"
+        >
+          @if (authStore.isLoading()) {
+          <span class="btn-loading">
+            <span class="spinner" aria-hidden="true"></span>
+            <span>Creating account...</span>
+          </span>
+          } @else {
+          <span>Create Account</span>
+          }
+        </button>
+        <button type="button" class="btn-secondary" (click)="onCancel()">
+          Cancel
+        </button>
+      </div>
+
+      <div class="register-footer">
+        <p class="text-muted">
+          <a routerLink="/login" class="link">Back to login</a>
+          <span class="footer-separator">|</span>
+          <a routerLink="/" class="link">Go to landing page</a>
+        </p>
+      </div>
+    </form>
+  </main>
+</div>
