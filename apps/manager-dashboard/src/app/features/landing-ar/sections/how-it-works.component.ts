@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 
 interface Step {
   number: number;
@@ -12,7 +13,7 @@ interface Step {
 @Component({
   selector: 'app-how-it-works-ar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   template: `
     <div class="section-container">
       <!-- Section Background -->
@@ -57,16 +58,34 @@ interface Step {
 
           <!-- Step Content Card -->
           <div class="step-card">
-            <!-- Step Image -->
-            <div class="step-image-wrapper">
-              <img
-                [src]="step.image"
-                [alt]="step.title"
-                class="step-image"
-                loading="lazy"
-                width="280"
-                height="175"
-              />
+            <!-- Abstract Step Visual -->
+            <div class="step-visual-wrapper">
+              @switch (step.icon) { @case ('user-plus') {
+              <div class="abstract-step step-signup">
+                <div class="s-card main"></div>
+                <div class="s-card float-1"></div>
+              </div>
+              } @case ('upload') {
+              <div class="abstract-step step-import">
+                <div class="s-arrow-up"></div>
+                <div class="s-data-row w-80"></div>
+                <div class="s-data-row w-60"></div>
+                <div class="s-data-row w-90"></div>
+              </div>
+              } @case ('share') {
+              <div class="abstract-step step-share">
+                <div class="s-link-box"></div>
+                <div class="s-ripple"></div>
+              </div>
+              } @case ('zap') {
+              <div class="abstract-step step-manage">
+                <div class="s-metric-grid">
+                  <div class="s-metric"></div>
+                  <div class="s-metric"></div>
+                  <div class="s-metric span-2 accent"></div>
+                </div>
+              </div>
+              } }
             </div>
 
             <div class="step-icon" aria-hidden="true">
@@ -143,7 +162,12 @@ interface Step {
       <!-- Bottom CTA -->
       <div class="section-cta">
         <p class="cta-text">هل أنت جاهز لتحويل عملية الحجز؟</p>
-        <a href="#cta" class="btn btn-cta" aria-label="ابدأ محاولتك المجانية">
+        <a
+          routerLink="/ar"
+          fragment="cta"
+          class="btn btn-cta"
+          aria-label="ابدأ محاولتك المجانية"
+        >
           <span>ابدأ مجاناً</span>
           <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path
@@ -413,24 +437,150 @@ interface Step {
         }
       }
 
-      .step-image-wrapper {
+      // ============================================
+      // Abstract Step Visuals
+      // ============================================
+      .step-visual-wrapper {
         margin-block-end: var(--space-4);
         border-radius: var(--radius-lg);
         overflow: hidden;
         aspect-ratio: 16 / 10;
-        background: var(--color-surface-muted);
-        box-shadow: var(--shadow-sm);
+        background: rgba(30, 42, 58, 0.02);
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.02);
+        position: relative;
       }
 
-      .step-image {
+      .abstract-step {
         width: 100%;
         height: 100%;
-        object-fit: cover;
-        transition: transform 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: transform 0.4s ease;
       }
 
-      .step-card:hover .step-image {
-        transform: scale(1.05);
+      .step-card:hover .abstract-step {
+        transform: translateY(-4px) scale(1.02);
+      }
+
+      /* Step 1: Signup */
+      .step-signup {
+        .s-card {
+          position: absolute;
+          background: var(--color-surface-elevated);
+          border-radius: var(--radius-sm);
+          box-shadow: var(--shadow-sm);
+          &.main {
+            width: 60%;
+            height: 50%;
+            z-index: 2;
+            border: 2px solid var(--color-primary);
+          }
+          &.float-1 {
+            width: 40%;
+            height: 30%;
+            top: 15%;
+            right: 10%;
+            background: var(--color-accent);
+            opacity: 0.9;
+          }
+        }
+      }
+
+      /* Step 2: Import */
+      .step-import {
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-4);
+        .s-arrow-up {
+          width: 0;
+          height: 0;
+          border-left: 10px solid transparent;
+          border-right: 10px solid transparent;
+          border-bottom: 15px solid var(--color-secondary);
+          margin-bottom: var(--space-2);
+          animation: bounce-up 2s infinite;
+        }
+        .s-data-row {
+          height: 8px;
+          background: rgba(30, 42, 58, 0.1);
+          border-radius: var(--radius-sm);
+          &.w-80 {
+            width: 80%;
+          }
+          &.w-60 {
+            width: 60%;
+          }
+          &.w-90 {
+            width: 90%;
+          }
+        }
+      }
+
+      /* Step 3: Share */
+      .step-share {
+        .s-link-box {
+          width: 50%;
+          height: 20px;
+          background: var(--color-surface-elevated);
+          border: 2px solid var(--color-primary);
+          border-radius: var(--radius-full);
+          position: relative;
+          z-index: 2;
+        }
+        .s-ripple {
+          position: absolute;
+          width: 50%;
+          height: 20px;
+          border-radius: var(--radius-full);
+          border: 2px solid var(--color-accent);
+          opacity: 0;
+          animation: ripple-out 2s infinite;
+        }
+      }
+
+      /* Step 4: Manage */
+      .step-manage {
+        padding: var(--space-4);
+        .s-metric-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--space-2);
+          width: 100%;
+          height: 100%;
+        }
+        .s-metric {
+          background: rgba(30, 42, 58, 0.05);
+          border-radius: var(--radius-sm);
+          &.span-2 {
+            grid-column: span 2;
+          }
+          &.accent {
+            background: var(--color-primary);
+            opacity: 0.9;
+          }
+        }
+      }
+
+      @keyframes bounce-up {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-5px);
+        }
+      }
+      @keyframes ripple-out {
+        0% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(1.5);
+          opacity: 0;
+        }
       }
 
       .step-icon {
@@ -567,7 +717,7 @@ export class HowItWorksArComponent {
       description:
         'أنشئ حسابك وأضف منشآتك أو ملاعبك أو عقاراتك. لا حاجة لخبرة تقنية.',
       icon: 'user-plus',
-      image: 'assets/images/landing/how_it_works_signup.png',
+      image: 'assets/images/landing/how_it_works_signup.png?v=3',
     },
     {
       number: 2,
@@ -575,7 +725,7 @@ export class HowItWorksArComponent {
       description:
         'انقل حجوزاتك الحالية بسهولة من واتساب أو الورق أو الجداول. سنساعدك على البدء.',
       icon: 'upload',
-      image: 'assets/images/landing/how_it_works_import.png',
+      image: 'assets/images/landing/how_it_works_import.png?v=3',
     },
     {
       number: 3,
@@ -583,7 +733,7 @@ export class HowItWorksArComponent {
       description:
         'احصل على رابط حجز مخصص يمكن للعملاء استخدامه للحجز مباشرة. شاركه على واتساب أو وسائل التواصل أو موقعك.',
       icon: 'share',
-      image: 'assets/images/landing/how_it_works_share.png',
+      image: 'assets/images/landing/how_it_works_share.png?v=3',
     },
     {
       number: 4,
@@ -591,7 +741,7 @@ export class HowItWorksArComponent {
       description:
         'تابع الحجوزات والإيرادات وبيانات العملاء في لوحة واحدة أنيقة. الآن أنت المتحكم.',
       icon: 'zap',
-      image: 'assets/images/landing/how_it_works_manage.png',
+      image: 'assets/images/landing/how_it_works_manage.png?v=3',
     },
   ];
 }

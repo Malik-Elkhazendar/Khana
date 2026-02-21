@@ -1,4 +1,5 @@
 ﻿import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RouterModule } from '@angular/router';
 import { HowItWorksArComponent } from './how-it-works.component';
 
 describe('HowItWorksArComponent', () => {
@@ -7,7 +8,7 @@ describe('HowItWorksArComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HowItWorksArComponent],
+      imports: [HowItWorksArComponent, RouterModule.forRoot([])],
     }).compileComponents();
 
     fixture = TestBed.createComponent(HowItWorksArComponent);
