@@ -3,7 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  Inject,
+  inject,
   OnDestroy,
   PLATFORM_ID,
   ViewChild,
@@ -158,16 +158,58 @@ interface Feature {
             </a>
           </div>
 
-          <!-- Feature Image -->
-          <div class="feature-image-wrapper">
-            <img
-              [src]="feature.image"
-              [alt]="'لقطة شاشة ميزة ' + feature.title"
-              class="feature-image"
-              width="600"
-              height="375"
-              loading="lazy"
-            />
+          <!-- Abstract Feature Visual -->
+          <div class="feature-visual-wrapper">
+            @switch (feature.icon) { @case ('calendar') {
+            <div class="abstract-visual calendar-visual">
+              <div class="v-grid">
+                <div class="v-cell"></div>
+                <div class="v-cell active pulse"></div>
+                <div class="v-cell active"></div>
+                <div class="v-cell active"></div>
+                <div class="v-cell"></div>
+                <div class="v-cell active"></div>
+              </div>
+            </div>
+            } @case ('shield') {
+            <div class="abstract-visual shield-visual">
+              <div class="v-shield-bg"></div>
+              <div class="v-shield-line" style="width: 80%"></div>
+              <div class="v-shield-line" style="width: 60%"></div>
+              <div class="v-shield-line error" style="width: 90%"></div>
+              <div class="v-shield-overlay"></div>
+            </div>
+            } @case ('mobile') {
+            <div class="abstract-visual mobile-visual">
+              <div class="v-phone">
+                <div class="v-phone-header"></div>
+                <div class="v-phone-card"></div>
+                <div class="v-phone-card"></div>
+              </div>
+            </div>
+            } @case ('users') {
+            <div class="abstract-visual users-visual">
+              <div class="v-user-node main"></div>
+              <div class="v-user-node child-1"></div>
+              <div class="v-user-node child-2"></div>
+              <div class="v-user-line line-1"></div>
+              <div class="v-user-line line-2"></div>
+            </div>
+            } @case ('chart') {
+            <div class="abstract-visual chart-visual">
+              <div class="v-bar h-30"></div>
+              <div class="v-bar h-50"></div>
+              <div class="v-bar h-80 accent"></div>
+              <div class="v-bar h-40"></div>
+              <div class="v-bar h-60"></div>
+            </div>
+            } @case ('lock') {
+            <div class="abstract-visual lock-visual">
+              <div class="v-lock-circle"></div>
+              <div class="v-data-stream"></div>
+              <div class="v-data-stream delay"></div>
+            </div>
+            } }
           </div>
         </article>
         }
@@ -438,26 +480,236 @@ interface Feature {
       }
 
       // ============================================
-      // Image Placeholder
+      // Abstract Visuals
       // ============================================
-      .feature-image-wrapper {
+      .feature-visual-wrapper {
         position: relative;
         margin-block-start: var(--space-5);
         aspect-ratio: 16 / 10;
         border-radius: var(--radius-lg);
         overflow: hidden;
-        box-shadow: var(--shadow-md);
+        background: rgba(30, 42, 58, 0.03);
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.02);
       }
 
-      .feature-image {
+      .abstract-visual {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
         transition: transform 0.4s ease;
       }
 
-      .feature-card:hover .feature-image {
+      .feature-card:hover .abstract-visual {
         transform: scale(1.05);
+      }
+
+      /* Calendar */
+      .calendar-visual {
+        padding: var(--space-4);
+        .v-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: var(--space-2);
+          width: 80%;
+          height: 80%;
+        }
+        .v-cell {
+          background: rgba(30, 42, 58, 0.05);
+          border-radius: var(--radius-sm);
+          &.active {
+            background: var(--color-primary);
+            opacity: 0.8;
+          }
+          &.pulse {
+            background: var(--color-accent);
+            animation: pulse-soft 2s infinite;
+          }
+        }
+      }
+
+      /* Shield / Conflict Detection */
+      .shield-visual {
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: var(--space-6);
+        .v-shield-bg {
+          position: absolute;
+          width: 120px;
+          height: 120px;
+          border-radius: var(--radius-full);
+          background: radial-gradient(
+            circle,
+            rgba(199, 93, 74, 0.1) 0%,
+            transparent 70%
+          );
+        }
+        .v-shield-line {
+          height: 8px;
+          background: rgba(30, 42, 58, 0.1);
+          border-radius: var(--radius-full);
+          z-index: 1;
+          &.error {
+            background: var(--color-error);
+            box-shadow: 0 0 10px rgba(196, 69, 54, 0.3);
+          }
+        }
+      }
+
+      /* Mobile */
+      .mobile-visual {
+        .v-phone {
+          width: 80px;
+          height: 160px;
+          border: 4px solid var(--color-surface-elevated);
+          border-radius: var(--radius-lg);
+          background: rgba(30, 42, 58, 0.02);
+          box-shadow: var(--shadow-md);
+          display: flex;
+          flex-direction: column;
+          padding: var(--space-2);
+          gap: var(--space-2);
+        }
+        .v-phone-header {
+          height: 10px;
+          background: rgba(30, 42, 58, 0.1);
+          border-radius: var(--radius-sm);
+        }
+        .v-phone-card {
+          flex: 1;
+          background: var(--color-surface);
+          border-radius: var(--radius-sm);
+          box-shadow: var(--shadow-sm);
+        }
+      }
+
+      /* Users (Network) */
+      .users-visual {
+        .v-user-node {
+          position: absolute;
+          border-radius: var(--radius-full);
+          background: var(--color-primary);
+          box-shadow: 0 4px 12px rgba(30, 42, 58, 0.2);
+          &.main {
+            width: 40px;
+            height: 40px;
+          }
+          &.child-1 {
+            width: 24px;
+            height: 24px;
+            top: 20%;
+            left: 20%;
+            opacity: 0.8;
+          }
+          &.child-2 {
+            width: 24px;
+            height: 24px;
+            bottom: 20%;
+            right: 20%;
+            opacity: 0.8;
+            background: var(--color-accent);
+          }
+        }
+        .v-user-line {
+          position: absolute;
+          height: 2px;
+          background: rgba(30, 42, 58, 0.1);
+          transform-origin: left center;
+          &.line-1 {
+            width: 60px;
+            top: 30%;
+            left: 30%;
+            transform: rotate(45deg);
+          }
+          &.line-2 {
+            width: 60px;
+            bottom: 30%;
+            right: 30%;
+            transform: rotate(-135deg);
+          }
+        }
+      }
+
+      /* Chart */
+      .chart-visual {
+        align-items: flex-end;
+        padding: var(--space-4);
+        gap: var(--space-2);
+        .v-bar {
+          flex: 1;
+          background: var(--color-primary);
+          border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+          opacity: 0.8;
+          &.accent {
+            background: var(--color-accent);
+            opacity: 1;
+          }
+          &.h-30 {
+            height: 30%;
+          }
+          &.h-40 {
+            height: 40%;
+          }
+          &.h-50 {
+            height: 50%;
+          }
+          &.h-60 {
+            height: 60%;
+          }
+          &.h-80 {
+            height: 80%;
+          }
+        }
+      }
+
+      /* Lock / Security */
+      .lock-visual {
+        .v-lock-circle {
+          width: 60px;
+          height: 60px;
+          border-radius: var(--radius-full);
+          border: 4px solid var(--color-primary);
+          position: relative;
+          z-index: 2;
+          background: var(--color-surface);
+        }
+        .v-data-stream {
+          position: absolute;
+          width: 100%;
+          height: 2px;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            var(--color-primary),
+            transparent
+          );
+          animation: scan 3s infinite linear;
+          &.delay {
+            animation-delay: 1.5s;
+            top: 60%;
+          }
+        }
+      }
+
+      @keyframes pulse-soft {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      @keyframes scan {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(100%);
+        }
       }
 
       // ============================================
@@ -498,10 +750,8 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
 
   private observer: IntersectionObserver | undefined;
 
-  constructor(
-    @Inject(PLATFORM_ID) private platformId: object,
-    private el: ElementRef
-  ) {}
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly el = inject(ElementRef);
 
   ngAfterViewInit() {
     if (isPlatformBrowser(this.platformId)) {
@@ -544,7 +794,7 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       description:
         'وداعاً لعبارة "دعني أتحقق وأعود إليك". يتم تحديث التقويم فورياً عبر جميع الأجهزة مع توافر مباشر.',
       gradient: 'linear-gradient(135deg, #2d7d6f 0%, #1f6357 100%)',
-      image: 'assets/images/landing/feature_realtime_calendar.png',
+      image: 'assets/images/landing/feature_realtime_calendar.png?v=3',
     },
     {
       id: 'conflict-detection',
@@ -553,7 +803,7 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       description:
         'نظامنا الذكي يرصد التعارضات ويمنع الحجوزات المتداخلة قبل حدوثها. لا إحراج مع العملاء بعد اليوم.',
       gradient: 'linear-gradient(135deg, #c75d4a 0%, #a84a39 100%)',
-      image: 'assets/images/landing/feature_zero_double_bookings.png',
+      image: 'assets/images/landing/feature_zero_double_bookings.png?v=3',
     },
     {
       id: 'mobile-first',
@@ -562,7 +812,7 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       description:
         'استقبل العملاء، اعرض الحجوزات، وحدّث التوافر من هاتفك. أدر أعمالك من أي مكان.',
       gradient: 'linear-gradient(135deg, #d4a855 0%, #b8923f 100%)',
-      image: 'assets/images/landing/feature_mobile_first.png',
+      image: 'assets/images/landing/feature_mobile_first.png?v=3',
     },
     {
       id: 'customer-history',
@@ -571,7 +821,7 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       description:
         'تتبّع سجل الحجوزات والتفضيلات وحالة الدفع. ابنِ علاقات طويلة الأمد مع العملاء.',
       gradient: 'linear-gradient(135deg, #5b8def 0%, #4a7bdc 100%)',
-      image: 'assets/images/landing/feature_know_your_customers.png',
+      image: 'assets/images/landing/feature_know_your_customers.png?v=3',
     },
     {
       id: 'smart-pricing',
@@ -580,7 +830,7 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       description:
         'حدد أسعار الذروة وخارج الذروة، وأنشئ عروضاً ترويجية، وزد الإيرادات تلقائياً وقت الطلب العالي.',
       gradient: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
-      image: 'assets/images/landing/feature_dynamic_pricing.png',
+      image: 'assets/images/landing/feature_dynamic_pricing.png?v=3',
     },
     {
       id: 'security',
@@ -589,7 +839,7 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       description:
         'إدارة بيانات متوافقة مع GDPR، وصلاحيات حسب الأدوار، وسجل تدقيق كامل. بياناتك آمنة معنا.',
       gradient: 'linear-gradient(135deg, #1e2a3a 0%, #2d3f54 100%)',
-      image: 'assets/images/landing/feature_bank_level_security.png',
+      image: 'assets/images/landing/feature_bank_level_security.png?v=3',
     },
   ];
 }

@@ -12,6 +12,9 @@ export const environment = {
   auth: {
     tokenKey: 'khana_token',
     refreshTokenKey: 'khana_refresh_token',
+    // Optional tenant override. Leave empty to auto-resolve a real tenant
+    // from /api/v1/auth/tenant at runtime.
+    tenantId: '',
   },
 
   // Feature flags
@@ -34,6 +37,11 @@ export const environment = {
     theme: 'desert-night',
     language: 'en',
     rtl: false,
+  },
+
+  // Marketing
+  marketing: {
+    salesEmail: 'sales@khana.com',
   },
 
   // Timeouts (milliseconds)

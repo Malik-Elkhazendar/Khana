@@ -1,19 +1,32 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { environment } from '../../../../environments/environment';
+
+interface SecondaryAction {
+  id: string;
+  label: string;
+  ariaLabel: string;
+  href: string;
+}
+
+interface TrustItem {
+  id: string;
+  label: string;
+}
 
 @Component({
   selector: 'app-bottom-cta',
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <div class="cta-section">
-      <!-- Background Elements -->
+    <section
+      class="cta-section"
+      role="region"
+      aria-labelledby="landing-cta-title"
+    >
       <div class="cta-bg" aria-hidden="true">
-        <!-- Gradient Overlay -->
         <div class="bg-gradient"></div>
-
-        <!-- 8-Point Star Pattern -->
         <div class="star-pattern">
           @for (star of stars; track star.id) {
           <div
@@ -24,7 +37,7 @@ import { RouterModule } from '@angular/router';
             [style.--opacity]="star.opacity"
             [style.--rotation]="star.rotation + 'deg'"
           >
-            <svg viewBox="0 0 32 32" fill="currentColor">
+            <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
               <path
                 d="M16 0L18.5 13.5L32 16L18.5 18.5L16 32L13.5 18.5L0 16L13.5 13.5L16 0Z"
               />
@@ -32,34 +45,26 @@ import { RouterModule } from '@angular/router';
           </div>
           }
         </div>
-
-        <!-- Glow Effects -->
         <div class="glow glow-1"></div>
         <div class="glow glow-2"></div>
       </div>
 
-      <!-- CTA Content -->
       <div class="cta-content">
-        <h2 class="cta-headline">
-          Ready to Eliminate
-          <span class="headline-accent">Booking Chaos?</span>
+        <h2 id="landing-cta-title" class="cta-headline">
+          {{ headlinePrefix }}
+          <span class="headline-accent">{{ headlineAccent }}</span>
         </h2>
 
-        <p class="cta-subheadline">
-          Join 100+ facilities across MENA who have transformed their booking
-          operations. Start your free trial today and see the difference in
-          minutes.
-        </p>
+        <p class="cta-subheadline">{{ subheadline }}</p>
 
-        <!-- CTA Buttons -->
-        <div class="cta-buttons">
+        <div class="cta-actions">
           <a
-            routerLink="/bookings"
             class="btn btn-primary"
-            aria-label="Start your free trial"
+            [routerLink]="['/register']"
+            [attr.aria-label]="primaryActionAriaLabel"
           >
             <span class="btn-content">
-              <span class="btn-text">Start Your Free Trial</span>
+              <span class="btn-text">{{ primaryActionLabel }}</span>
               <span class="btn-icon" aria-hidden="true">
                 <svg viewBox="0 0 20 20" fill="currentColor">
                   <path
@@ -73,18 +78,21 @@ import { RouterModule } from '@angular/router';
           </a>
 
           <div class="secondary-actions">
-            <a href="#" class="btn btn-outline" aria-label="Schedule a demo">
-              Schedule a Demo
+            @for (action of secondaryActions; track action.id) {
+            <a
+              class="btn btn-outline"
+              [href]="action.href"
+              [attr.aria-label]="action.ariaLabel"
+            >
+              {{ action.label }}
             </a>
-            <a href="#" class="btn btn-outline" aria-label="Contact sales">
-              Contact Sales
-            </a>
+            }
           </div>
         </div>
 
-        <!-- Trust Line -->
-        <div class="trust-line">
-          <span class="trust-item">
+        <ul class="trust-line" role="list" aria-label="Signup trust indicators">
+          @for (item of trustItems; track item.id) {
+          <li class="trust-item">
             <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path
                 fill-rule="evenodd"
@@ -92,60 +100,37 @@ import { RouterModule } from '@angular/router';
                 clip-rule="evenodd"
               />
             </svg>
-            <span>No credit card required</span>
-          </span>
-          <span class="trust-divider" aria-hidden="true">&bull;</span>
-          <span class="trust-item">
-            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            <span>14-day free trial</span>
-          </span>
-          <span class="trust-divider" aria-hidden="true">&bull;</span>
-          <span class="trust-item">
-            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            <span>Cancel anytime</span>
-          </span>
-        </div>
+            <span>{{ item.label }}</span>
+          </li>
+          }
+        </ul>
       </div>
-    </div>
+    </section>
   `,
   styles: [
     `
       .cta-section {
         position: relative;
-        padding: var(--space-16) var(--space-4);
-        margin-inline: calc(var(--space-4) * -1);
+        isolation: isolate;
         overflow: hidden;
+        max-inline-size: 80rem;
+        margin-inline: auto;
+        border-radius: var(--radius-xl);
+        border: 1px solid rgba(250, 248, 245, 0.08);
+        padding-block: var(--space-12);
+        padding-inline: var(--space-4);
+        box-shadow: var(--shadow-lg);
 
         @media (min-width: 48rem) {
-          padding: calc(var(--space-16) * 1.5) var(--space-8);
-          margin-inline: calc(var(--space-8) * -1);
-          border-radius: var(--radius-xl);
-        }
-
-        @media (min-width: 64rem) {
-          margin-inline: 0;
+          padding-block: var(--space-16);
+          padding-inline: var(--space-8);
         }
       }
 
-      // ============================================
-      // Background
-      // ============================================
       .cta-bg {
         position: absolute;
         inset: 0;
-        z-index: 0;
+        z-index: -1;
       }
 
       .bg-gradient {
@@ -154,7 +139,7 @@ import { RouterModule } from '@angular/router';
         background: linear-gradient(
           135deg,
           var(--color-primary) 0%,
-          var(--color-primary-dark) 50%,
+          var(--color-primary-dark) 55%,
           #0f141d 100%
         );
       }
@@ -168,15 +153,15 @@ import { RouterModule } from '@angular/router';
         position: absolute;
         inset-inline-start: var(--x);
         inset-block-start: var(--y);
-        width: var(--size);
-        height: var(--size);
+        inline-size: var(--size);
+        block-size: var(--size);
         color: var(--color-accent);
         opacity: var(--opacity);
         transform: rotate(var(--rotation));
 
         svg {
-          width: 100%;
-          height: 100%;
+          inline-size: 100%;
+          block-size: 100%;
         }
       }
 
@@ -185,50 +170,48 @@ import { RouterModule } from '@angular/router';
         border-radius: 50%;
         filter: blur(100px);
         pointer-events: none;
-
-        &.glow-1 {
-          inset-block-start: -20%;
-          inset-inline-start: -10%;
-          width: 50%;
-          height: 50%;
-          background: radial-gradient(
-            circle,
-            rgba(212, 168, 85, 0.2) 0%,
-            transparent 70%
-          );
-        }
-
-        &.glow-2 {
-          inset-block-end: -20%;
-          inset-inline-end: -10%;
-          width: 60%;
-          height: 60%;
-          background: radial-gradient(
-            circle,
-            rgba(199, 93, 74, 0.15) 0%,
-            transparent 70%
-          );
-        }
       }
 
-      // ============================================
-      // Content
-      // ============================================
+      .glow-1 {
+        inset-block-start: -20%;
+        inset-inline-start: -10%;
+        inline-size: 50%;
+        block-size: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(212, 168, 85, 0.18) 0%,
+          transparent 70%
+        );
+      }
+
+      .glow-2 {
+        inset-block-end: -20%;
+        inset-inline-end: -10%;
+        inline-size: 60%;
+        block-size: 60%;
+        background: radial-gradient(
+          circle,
+          rgba(199, 93, 74, 0.14) 0%,
+          transparent 70%
+        );
+      }
+
       .cta-content {
-        position: relative;
-        z-index: 1;
-        max-width: 800px;
+        max-inline-size: 44rem;
         margin-inline: auto;
         text-align: center;
+        display: grid;
+        gap: var(--space-6);
       }
 
       .cta-headline {
+        margin: 0;
         font-family: var(--font-display);
-        font-size: clamp(2rem, 6vw, 3.5rem);
+        font-size: clamp(2rem, 5.5vw, 4rem);
         font-weight: var(--font-bold);
+        line-height: 1.05;
         color: var(--color-text-inverse);
-        line-height: 1.1;
-        margin-block-end: var(--space-6);
+        text-wrap: balance;
       }
 
       .headline-accent {
@@ -244,166 +227,176 @@ import { RouterModule } from '@angular/router';
       }
 
       .cta-subheadline {
-        font-size: var(--text-lg);
-        color: rgba(250, 248, 245, 0.8);
-        line-height: 1.7;
-        margin-block-end: var(--space-10);
-        max-width: 600px;
+        margin: 0;
+        max-inline-size: 37.5rem;
         margin-inline: auto;
-
-        @media (min-width: 64rem) {
-          font-size: var(--text-xl);
-        }
+        font-size: var(--text-lg);
+        line-height: 1.7;
+        color: rgba(250, 248, 245, 0.84);
       }
 
-      // ============================================
-      // Buttons
-      // ============================================
-      .cta-buttons {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--space-6);
-        margin-block-end: var(--space-8);
+      .cta-actions {
+        display: grid;
+        justify-items: center;
+        gap: var(--space-4);
       }
 
       .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: var(--space-2);
-        padding: var(--space-4) var(--space-6);
+        min-block-size: 3.5rem;
+        padding-block: var(--space-3);
+        padding-inline: var(--space-6);
+        border-radius: var(--radius-lg);
         font-family: var(--font-display);
-        font-size: var(--text-base);
+        font-size: var(--text-lg);
         font-weight: var(--font-semibold);
         text-decoration: none;
-        border-radius: var(--radius-lg);
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        min-height: 56px;
+        text-align: center;
+        transition: transform var(--transition-fast),
+          box-shadow var(--transition-fast), border-color var(--transition-fast),
+          background-color var(--transition-fast), color var(--transition-fast);
       }
 
       .btn-primary {
+        inline-size: min(100%, 22rem);
         background: linear-gradient(
           135deg,
           var(--color-accent) 0%,
           var(--color-accent-dark) 100%
         );
         color: var(--color-primary);
-        border: none;
-        padding: var(--space-5) var(--space-8);
-        font-size: var(--text-lg);
-        box-shadow: 0 8px 32px rgba(212, 168, 85, 0.3),
-          0 0 0 0 rgba(212, 168, 85, 0.4);
+        box-shadow: 0 8px 30px rgba(212, 168, 85, 0.34);
+      }
 
-        .btn-content {
-          display: flex;
-          align-items: center;
-          gap: var(--space-3);
-        }
+      .btn-content {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
 
-        .btn-icon {
-          display: flex;
-          width: 20px;
-          height: 20px;
-          transition: transform 0.3s ease;
+      .btn-icon {
+        inline-size: 1.25rem;
+        block-size: 1.25rem;
+        transition: transform var(--transition-fast);
+      }
 
-          svg {
-            width: 100%;
-            height: 100%;
-          }
-        }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 34px rgba(212, 168, 85, 0.35);
+      }
 
-        &:hover {
-          transform: translateY(-3px) scale(1.02);
-          box-shadow: 0 12px 48px rgba(212, 168, 85, 0.4),
-            0 0 0 4px rgba(212, 168, 85, 0.2);
+      .btn-primary:hover .btn-icon {
+        transform: translateX(4px);
+      }
 
-          .btn-icon {
-            transform: translateX(4px);
-          }
-        }
+      [dir='rtl'] .btn-primary .btn-icon {
+        transform: scaleX(-1);
+      }
 
-        &:active {
-          transform: translateY(-1px) scale(1);
-        }
+      [dir='rtl'] .btn-primary:hover .btn-icon {
+        transform: scaleX(-1) translateX(4px);
+      }
 
-        &:focus-visible {
-          outline: 2px solid var(--color-accent);
-          outline-offset: 4px;
-        }
-
-        [dir='rtl'] & .btn-icon {
-          transform: scaleX(-1);
-        }
-
-        [dir='rtl'] &:hover .btn-icon {
-          transform: scaleX(-1) translateX(4px);
-        }
+      .btn-primary:focus-visible,
+      .btn-outline:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 3px;
       }
 
       .secondary-actions {
-        display: flex;
-        flex-direction: column;
+        inline-size: min(100%, 28rem);
+        display: grid;
         gap: var(--space-3);
+      }
 
-        @media (min-width: 48rem) {
-          flex-direction: row;
-          gap: var(--space-4);
+      @media (min-width: 40rem) {
+        .secondary-actions {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
 
       .btn-outline {
-        background: transparent;
+        inline-size: 100%;
+        font-size: var(--text-base);
         color: var(--color-text-inverse);
-        border: 2px solid rgba(250, 248, 245, 0.3);
-        padding: var(--space-3) var(--space-6);
-
-        &:hover {
-          background: rgba(250, 248, 245, 0.1);
-          border-color: rgba(250, 248, 245, 0.5);
-          transform: translateY(-2px);
-        }
-
-        &:focus-visible {
-          outline: 2px solid var(--color-accent);
-          outline-offset: 2px;
-        }
+        border: 1px solid rgba(250, 248, 245, 0.3);
+        background: rgba(250, 248, 245, 0.03);
       }
 
-      // ============================================
-      // Trust Line
-      // ============================================
+      .btn-outline:hover {
+        transform: translateY(-1px);
+        border-color: rgba(250, 248, 245, 0.6);
+        background: rgba(250, 248, 245, 0.12);
+      }
+
       .trust-line {
+        list-style: none;
+        padding: 0;
+        margin: 0;
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        align-items: center;
         gap: var(--space-3);
-        font-size: var(--text-sm);
-        color: rgba(250, 248, 245, 0.7);
       }
 
       .trust-item {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: var(--space-1);
-
-        svg {
-          width: 16px;
-          height: 16px;
-          color: var(--color-success);
-        }
+        font-size: var(--text-sm);
+        color: rgba(250, 248, 245, 0.78);
       }
 
-      .trust-divider {
-        opacity: 0.4;
+      .trust-item svg {
+        inline-size: 1rem;
+        block-size: 1rem;
+        color: var(--color-success);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .btn,
+        .btn-icon {
+          transition: none;
+        }
       }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BottomCtaComponent {
+  private readonly salesEmail = environment.marketing.salesEmail;
+
+  readonly headlinePrefix = 'Ready to Eliminate';
+  readonly headlineAccent = 'Booking Chaos?';
+  readonly subheadline =
+    'Join 100+ facilities across MENA who have transformed their booking operations. Start your free trial today and see the difference in minutes.';
+
+  readonly primaryActionLabel = 'Start Your Free Trial';
+  readonly primaryActionAriaLabel = 'Start your free trial';
+
+  readonly secondaryActions: SecondaryAction[] = [
+    {
+      id: 'demo',
+      label: 'Schedule a Demo',
+      ariaLabel: 'Schedule a demo with sales',
+      href: this.createSalesMailto('Schedule a Demo'),
+    },
+    {
+      id: 'sales',
+      label: 'Contact Sales',
+      ariaLabel: 'Contact sales team',
+      href: this.createSalesMailto('Contact Sales'),
+    },
+  ];
+
+  readonly trustItems: TrustItem[] = [
+    { id: 'no-card', label: 'No credit card required' },
+    { id: 'trial', label: '14-day free trial' },
+    { id: 'cancel', label: 'Cancel anytime' },
+  ];
+
   readonly stars = [
     { id: 1, x: 5, y: 10, size: 32, opacity: 0.08, rotation: 0 },
     { id: 2, x: 15, y: 60, size: 24, opacity: 0.05, rotation: 15 },
@@ -416,4 +409,11 @@ export class BottomCtaComponent {
     { id: 9, x: 95, y: 5, size: 28, opacity: 0.05, rotation: -20 },
     { id: 10, x: 50, y: 90, size: 36, opacity: 0.03, rotation: 30 },
   ];
+
+  private createSalesMailto(subject: string): string {
+    const query = new URLSearchParams({
+      subject: `${subject} | Khana`,
+    });
+    return `mailto:${this.salesEmail}?${query.toString()}`;
+  }
 }

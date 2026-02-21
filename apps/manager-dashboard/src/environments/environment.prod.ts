@@ -12,6 +12,7 @@ export const environment = {
   auth: {
     tokenKey: 'khana_token',
     refreshTokenKey: 'khana_refresh_token',
+    tenantId: '',
   },
 
   // Feature flags
@@ -35,6 +36,11 @@ export const environment = {
     theme: 'desert-night',
     language: 'en',
     rtl: false,
+  },
+
+  // Marketing
+  marketing: {
+    salesEmail: 'sales@khana.com',
   },
 
   // Timeouts (milliseconds)
