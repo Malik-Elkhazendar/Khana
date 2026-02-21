@@ -99,7 +99,7 @@ import { RouterModule } from '@angular/router';
           <!-- CTA Buttons -->
           <div class="hero-actions animate-in" [style.animation-delay]="'0.6s'">
             <a
-              routerLink="/bookings"
+              routerLink="/register"
               class="btn btn-cta"
               aria-label="Start your free trial - no credit card required"
             >
@@ -164,15 +164,62 @@ import { RouterModule } from '@angular/router';
           <div class="dashboard-container">
             <!-- Main Dashboard Card -->
             <div class="dashboard-main">
-              <!-- IMAGE PLACEHOLDER: Dashboard illustration will go here -->
-              <!-- Dashboard Image -->
-              <img
-                src="assets/images/landing/hero_dashboard_mockup.png"
-                alt="Khana booking dashboard showing weekly calendar with real-time availability"
-                class="dashboard-image"
-                width="1200"
-                height="750"
-              />
+              <!-- Native CSS Abstract Dashboard UI -->
+              <div class="abstract-dashboard">
+                <div class="dash-sidebar">
+                  <div class="dash-logo"></div>
+                  <div class="dash-nav-item active"></div>
+                  <div class="dash-nav-item"></div>
+                  <div class="dash-nav-item"></div>
+                </div>
+                <div class="dash-body">
+                  <div class="dash-header-bar">
+                    <div class="dash-title"></div>
+                    <div class="dash-avatar"></div>
+                  </div>
+                  <div class="dash-calendar-grid">
+                    <!-- Day Columns -->
+                    <div class="dash-col">
+                      <div
+                        class="dash-block primary"
+                        style="top: 10%; height: 20%"
+                      ></div>
+                      <div
+                        class="dash-block secondary"
+                        style="top: 40%; height: 15%"
+                      ></div>
+                    </div>
+                    <div class="dash-col">
+                      <div
+                        class="dash-block accent"
+                        style="top: 20%; height: 30%"
+                      ></div>
+                    </div>
+                    <div class="dash-col">
+                      <div
+                        class="dash-block primary"
+                        style="top: 15%; height: 25%"
+                      ></div>
+                      <div
+                        class="dash-block accent"
+                        style="top: 50%; height: 20%"
+                      ></div>
+                    </div>
+                    <div class="dash-col">
+                      <div
+                        class="dash-block secondary"
+                        style="top: 5%; height: 40%"
+                      ></div>
+                    </div>
+                    <div class="dash-col">
+                      <div
+                        class="dash-block primary"
+                        style="top: 30%; height: 30%"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Floating Elements -->
@@ -752,14 +799,115 @@ import { RouterModule } from '@angular/router';
         }
       }
 
-      .dashboard-image {
+      .abstract-dashboard {
         width: 100%;
-        height: auto;
         aspect-ratio: 16 / 10;
+        background: var(--color-surface);
         border-radius: var(--radius-lg);
-        display: block;
-        margin: var(--space-4);
-        box-shadow: var(--shadow-xl);
+        display: flex;
+        overflow: hidden;
+        border: 1px solid rgba(30, 42, 58, 0.05);
+
+        .dash-sidebar {
+          width: 20%;
+          background: var(--color-primary);
+          padding: var(--space-4) var(--space-3);
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-4);
+          border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .dash-logo {
+          width: 60%;
+          height: 12px;
+          background: var(--color-accent);
+          border-radius: var(--radius-sm);
+          margin-block-end: var(--space-6);
+        }
+
+        .dash-nav-item {
+          width: 80%;
+          height: 8px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: var(--radius-sm);
+
+          &.active {
+            background: var(--color-surface);
+          }
+        }
+
+        .dash-body {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          background: var(--color-surface-elevated);
+        }
+
+        .dash-header-bar {
+          height: 15%;
+          border-bottom: 1px solid rgba(30, 42, 58, 0.05);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-inline: var(--space-4);
+        }
+
+        .dash-title {
+          width: 30%;
+          height: 12px;
+          background: var(--color-surface-muted);
+          border-radius: var(--radius-sm);
+        }
+
+        .dash-avatar {
+          width: 24px;
+          height: 24px;
+          background: var(--color-surface-muted);
+          border-radius: var(--radius-full);
+        }
+
+        .dash-calendar-grid {
+          flex: 1;
+          display: flex;
+          padding: var(--space-4);
+          gap: var(--space-2);
+        }
+
+        .dash-col {
+          flex: 1;
+          height: 100%;
+          position: relative;
+          background: rgba(30, 42, 58, 0.02);
+          border-radius: var(--radius-sm);
+        }
+
+        .dash-block {
+          position: absolute;
+          width: 90%;
+          left: 5%;
+          border-radius: var(--radius-sm);
+          box-shadow: var(--shadow-sm);
+          transition: transform var(--transition-base);
+
+          &:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: var(--shadow-md);
+          }
+
+          &.primary {
+            background: var(--color-primary);
+            opacity: 0.9;
+          }
+          &.secondary {
+            background: var(--color-secondary);
+            opacity: 0.85;
+          }
+          &.accent {
+            background: var(--color-accent);
+            opacity: 0.9;
+          }
+        }
       }
 
       // ============================================

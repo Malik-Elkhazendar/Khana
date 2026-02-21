@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { environment } from '../../../../environments/environment';
 
 interface FooterLink {
   label: string;
   href: string;
+  external?: boolean;
 }
 
 interface FooterSection {
@@ -43,7 +45,14 @@ interface FooterSection {
 
             <!-- Social Links -->
             <div class="social-links" aria-label="Social media links">
-              <a href="#" class="social-link" aria-label="Follow us on Twitter">
+              <a
+                [attr.href]="socialLinks.x || null"
+                [attr.target]="socialLinks.x ? '_blank' : null"
+                [attr.rel]="socialLinks.x ? 'noopener noreferrer' : null"
+                [attr.aria-disabled]="socialLinks.x ? null : 'true'"
+                class="social-link"
+                aria-label="Follow us on Twitter"
+              >
                 <svg viewBox="0 0 24 24" fill="currentColor">
                   <path
                     d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
@@ -51,7 +60,10 @@ interface FooterSection {
                 </svg>
               </a>
               <a
-                href="#"
+                [attr.href]="socialLinks.linkedin || null"
+                [attr.target]="socialLinks.linkedin ? '_blank' : null"
+                [attr.rel]="socialLinks.linkedin ? 'noopener noreferrer' : null"
+                [attr.aria-disabled]="socialLinks.linkedin ? null : 'true'"
                 class="social-link"
                 aria-label="Follow us on LinkedIn"
               >
@@ -62,7 +74,12 @@ interface FooterSection {
                 </svg>
               </a>
               <a
-                href="#"
+                [attr.href]="socialLinks.instagram || null"
+                [attr.target]="socialLinks.instagram ? '_blank' : null"
+                [attr.rel]="
+                  socialLinks.instagram ? 'noopener noreferrer' : null
+                "
+                [attr.aria-disabled]="socialLinks.instagram ? null : 'true'"
                 class="social-link"
                 aria-label="Follow us on Instagram"
               >
@@ -85,7 +102,12 @@ interface FooterSection {
             <ul class="nav-list" role="list">
               @for (link of section.links; track link.label) {
               <li>
-                <a [href]="link.href" class="nav-link">
+                <a
+                  [href]="link.href"
+                  [attr.target]="link.external ? '_blank' : null"
+                  [attr.rel]="link.external ? 'noopener noreferrer' : null"
+                  class="nav-link"
+                >
                   {{ link.label }}
                 </a>
               </li>
@@ -102,11 +124,11 @@ interface FooterSection {
           </p>
 
           <div class="footer-legal">
-            <a href="#">Privacy Policy</a>
+            <a [href]="legalLinks.privacy"> Privacy Policy </a>
             <span class="divider" aria-hidden="true">&bull;</span>
-            <a href="#">Terms of Service</a>
+            <a [href]="legalLinks.terms"> Terms of Service </a>
             <span class="divider" aria-hidden="true">&bull;</span>
-            <a href="#">Cookie Policy</a>
+            <a [href]="legalLinks.cookies"> Cookie Policy </a>
           </div>
 
           <div class="language-selector">
@@ -292,6 +314,12 @@ interface FooterSection {
         }
       }
 
+      .social-link[aria-disabled='true'] {
+        opacity: 0.45;
+        pointer-events: none;
+        cursor: default;
+      }
+
       // ============================================
       // Footer Navigation
       // ============================================
@@ -428,43 +456,79 @@ interface FooterSection {
 })
 export class LandingFooterComponent {
   readonly currentYear = new Date().getFullYear();
+  private readonly salesEmail = environment.marketing.salesEmail;
+
+  readonly socialLinks = {
+    x: '',
+    linkedin: '',
+    instagram: '',
+  };
+
+  readonly legalLinks = {
+    privacy: this.createSalesMailto('Privacy Policy Request'),
+    terms: this.createSalesMailto('Terms of Service Request'),
+    cookies: this.createSalesMailto('Cookie Policy Request'),
+  };
 
   readonly footerSections: FooterSection[] = [
     {
       title: 'Product',
       links: [
         { label: 'Features', href: '#features' },
-        { label: 'Pricing', href: '#' },
-        { label: 'Roadmap', href: '#' },
-        { label: 'Changelog', href: '#' },
+        { label: 'How It Works', href: '#how-it-works' },
+        { label: 'Testimonials', href: '#testimonials' },
+        { label: 'Start Free Trial', href: '#cta' },
       ],
     },
     {
       title: 'Company',
       links: [
-        { label: 'About Us', href: '#' },
-        { label: 'Blog', href: '#' },
-        { label: 'Careers', href: '#' },
-        { label: 'Press', href: '#' },
+        { label: 'About Khana', href: '#problem-solution' },
+        { label: 'Create Account', href: '/register' },
+        { label: 'Sign In', href: '/login' },
+        {
+          label: 'Contact Sales',
+          href: this.createSalesMailto('Contact Sales'),
+        },
       ],
     },
     {
       title: 'Support',
       links: [
-        { label: 'Help Center', href: '#' },
-        { label: 'Contact Us', href: '#' },
-        { label: 'Status', href: '#' },
-        { label: 'API Docs', href: '#' },
+        {
+          label: 'Help Center',
+          href: this.createSalesMailto('Help Center Request'),
+        },
+        {
+          label: 'Book a Demo',
+          href: this.createSalesMailto('Schedule a Demo'),
+        },
+        {
+          label: 'API Docs',
+          href: this.createSalesMailto('API Documentation Request'),
+        },
+        {
+          label: 'Platform Status',
+          href: this.createSalesMailto('Status Page Request'),
+        },
       ],
     },
     {
       title: 'Legal',
       links: [
-        { label: 'Privacy', href: '#' },
-        { label: 'Terms', href: '#' },
-        { label: 'Security', href: '#' },
-        { label: 'GDPR', href: '#' },
+        { label: 'Privacy Policy', href: this.legalLinks.privacy },
+        { label: 'Terms of Service', href: this.legalLinks.terms },
+        { label: 'Cookie Policy', href: this.legalLinks.cookies },
+        {
+          label: 'Security & Compliance',
+          href: this.createSalesMailto('Security and Compliance Request'),
+        },
       ],
     },
   ];
+
+  private createSalesMailto(subject: string): string {
+    const query = new URLSearchParams({ subject: `${subject} | Khana` });
+    return `mailto:${this.salesEmail}?${query.toString()}`;
+  }
 }

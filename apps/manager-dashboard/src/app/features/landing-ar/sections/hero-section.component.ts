@@ -98,7 +98,7 @@ import { RouterModule } from '@angular/router';
           <!-- CTA Buttons -->
           <div class="hero-actions animate-in" [style.animation-delay]="'0.6s'">
             <a
-              routerLink="/bookings"
+              routerLink="/register"
               class="btn btn-cta"
               aria-label="ابدأ محاولتك المجانية - بدون بطاقة ائتمان مطلوبة"
             >

@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { LanguageSwitcherComponent } from '../../../shared/components/language-switcher/language-switcher.component';
 
 interface NavItem {
   label: string;
@@ -17,7 +18,7 @@ interface NavItem {
 @Component({
   selector: 'app-landing-header-ar',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, LanguageSwitcherComponent],
   template: `
     <header class="landing-header" [class.scrolled]="isScrolled" role="banner">
       <div class="header-container">
@@ -62,14 +63,14 @@ interface NavItem {
         <!-- CTA Buttons -->
         <div class="header-actions">
           <a
-            routerLink="/bookings"
+            routerLink="/login"
             class="btn btn-ghost"
             aria-label="تسجيل الدخول إلى حسابك"
           >
             تسجيل الدخول
           </a>
           <a
-            routerLink="/bookings"
+            routerLink="/register"
             class="btn btn-primary"
             aria-label="ابدأ محاولتك المجانية"
           >
@@ -84,14 +85,11 @@ interface NavItem {
               </svg>
             </span>
           </a>
-          <a
-            routerLink="/"
-            class="btn btn-ghost btn-icon-only"
-            aria-label="التبديل إلى الإنجليزية - Switch to English"
-            title="English"
-          >
-            <span class="lang-icon">EN</span>
-          </a>
+          <app-language-switcher
+            class="landing-language-switcher"
+            [tone]="isScrolled ? 'dark' : 'light'"
+            [useShortLabel]="true"
+          ></app-language-switcher>
         </div>
 
         <!-- Mobile Menu Button -->
@@ -134,12 +132,18 @@ interface NavItem {
           }
           <li class="mobile-cta">
             <a
-              routerLink="/bookings"
+              routerLink="/register"
               class="btn btn-primary btn-block"
               (click)="mobileMenuOpen.set(false)"
             >
               ابدأ محاولتك المجانية
             </a>
+          </li>
+          <li class="mobile-cta">
+            <app-language-switcher
+              class="landing-language-switcher landing-language-switcher--mobile"
+              [fullWidth]="true"
+            ></app-language-switcher>
           </li>
         </ul>
       </nav>
@@ -312,6 +316,15 @@ interface NavItem {
         @media (min-width: 48rem) {
           display: flex;
         }
+      }
+
+      .landing-language-switcher {
+        display: inline-flex;
+      }
+
+      .landing-language-switcher--mobile {
+        display: flex;
+        inline-size: 100%;
       }
 
       .btn {
