@@ -10,6 +10,7 @@ import {
   BookingStatus,
   PaymentStatus,
 } from '@khana/shared-dtos';
+import { environment } from '../../../environments/environment';
 
 /**
  * Centralized API Service
@@ -22,7 +23,7 @@ import {
 })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '/api';
+  private readonly baseUrl = environment.apiBaseUrl.replace(/\/+$/, '');
 
   private handleError(operation: string) {
     return (err: unknown) => {

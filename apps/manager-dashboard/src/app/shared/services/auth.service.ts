@@ -51,7 +51,8 @@ export class AuthService {
   private readonly authStore = inject(AuthStore);
   private readonly router = inject(Router);
 
-  private readonly API_URL = '/api/v1/auth';
+  private readonly API_BASE_URL = environment.apiBaseUrl.replace(/\/+$/, '');
+  private readonly API_URL = `${this.API_BASE_URL}/v1/auth`;
   private readonly TOKEN_KEY = 'khana_access_token';
   private readonly REFRESH_TOKEN_KEY = 'khana_refresh_token';
   private readonly TENANT_KEY = 'khana_tenant_id';
@@ -431,10 +432,12 @@ export class AuthService {
   }
 
   private storeTenantId(tenantId?: string | null): void {
-    if (!tenantId?.trim()) {
+    const normalizedTenantId = tenantId?.trim() ?? '';
+    if (!normalizedTenantId) {
+      sessionStorage.removeItem(this.TENANT_KEY);
       return;
     }
-    sessionStorage.setItem(this.TENANT_KEY, tenantId);
+    sessionStorage.setItem(this.TENANT_KEY, normalizedTenantId);
   }
 
   /**
@@ -443,6 +446,8 @@ export class AuthService {
   private clearAuthState(): void {
     sessionStorage.removeItem(this.TOKEN_KEY);
     sessionStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(this.TENANT_KEY);
+    this.tenantContextRequest$ = undefined;
     this.authStore.clearAuth();
   }
 }

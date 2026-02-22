@@ -23,7 +23,7 @@ describe('AuthService', () => {
   let router: Router;
   let storageMock: ReturnType<typeof setupStorageMock>;
 
-  const API_URL = '/api/v1/auth';
+  const API_URL = `${environment.apiBaseUrl}/v1/auth`;
   const DEFAULT_TENANT_ID = 'd74e2910-8ea8-4df7-a4a2-435aca4d649e';
 
   beforeEach(() => {
@@ -256,6 +256,7 @@ describe('AuthService', () => {
     beforeEach(() => {
       storageMock.setItem('khana_access_token', 'test-token');
       storageMock.setItem('khana_refresh_token', 'test-refresh');
+      storageMock.setItem('khana_tenant_id', DEFAULT_TENANT_ID);
       authStore.setUser(createMockUser());
       authStore.setAuthenticated(true);
     });
@@ -270,6 +271,7 @@ describe('AuthService', () => {
 
       expect(storageMock.getItem('khana_access_token')).toBeNull();
       expect(storageMock.getItem('khana_refresh_token')).toBeNull();
+      expect(storageMock.getItem('khana_tenant_id')).toBeNull();
       expect(authStore.user()).toBeNull();
       expect(authStore.isAuthenticated()).toBe(false);
       expect(router.navigate).toHaveBeenCalledWith(['/login']);
@@ -283,6 +285,7 @@ describe('AuthService', () => {
 
       expect(storageMock.getItem('khana_access_token')).toBeNull();
       expect(storageMock.getItem('khana_refresh_token')).toBeNull();
+      expect(storageMock.getItem('khana_tenant_id')).toBeNull();
       expect(authStore.user()).toBeNull();
       expect(authStore.isAuthenticated()).toBe(false);
       expect(router.navigate).toHaveBeenCalledWith(['/login']);
@@ -321,9 +324,12 @@ describe('AuthService', () => {
     });
 
     it('should handle missing refresh token', (done) => {
+      storageMock.setItem('khana_tenant_id', DEFAULT_TENANT_ID);
+
       service.refreshToken().subscribe({
         error: (error) => {
           expect(error.message).toBe('No refresh token available');
+          expect(storageMock.getItem('khana_tenant_id')).toBeNull();
           expect(authStore.user()).toBeNull();
           expect(authStore.isAuthenticated()).toBe(false);
           done();
@@ -335,6 +341,7 @@ describe('AuthService', () => {
 
     it('should clear auth and redirect on refresh failure', (done) => {
       storageMock.setItem('khana_refresh_token', 'expired-refresh-token');
+      storageMock.setItem('khana_tenant_id', DEFAULT_TENANT_ID);
       authStore.setUser(createMockUser());
       authStore.setAuthenticated(true);
 
@@ -342,6 +349,7 @@ describe('AuthService', () => {
         error: () => {
           expect(storageMock.getItem('khana_access_token')).toBeNull();
           expect(storageMock.getItem('khana_refresh_token')).toBeNull();
+          expect(storageMock.getItem('khana_tenant_id')).toBeNull();
           expect(authStore.user()).toBeNull();
           expect(authStore.isAuthenticated()).toBe(false);
           expect(router.navigate).toHaveBeenCalledWith(['/login']);
@@ -525,6 +533,7 @@ describe('AuthService', () => {
 
     it('should clear auth if token is invalid', () => {
       storageMock.setItem('khana_access_token', 'invalid-token');
+      storageMock.setItem('khana_tenant_id', DEFAULT_TENANT_ID);
 
       service.restoreSession();
 
@@ -535,6 +544,7 @@ describe('AuthService', () => {
       );
 
       expect(storageMock.getItem('khana_access_token')).toBeNull();
+      expect(storageMock.getItem('khana_tenant_id')).toBeNull();
       expect(authStore.user()).toBeNull();
       expect(authStore.isAuthenticated()).toBe(false);
     });

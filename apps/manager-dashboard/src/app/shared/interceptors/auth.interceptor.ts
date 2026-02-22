@@ -11,9 +11,9 @@ import {
   catchError,
   switchMap,
   throwError,
-  BehaviorSubject,
-  filter,
-  take,
+  finalize,
+  map,
+  shareReplay,
 } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
@@ -34,8 +34,7 @@ import { AuthService } from '../services/auth.service';
  * - If refresh fails, logout and redirect to login
  */
 
-let isRefreshing = false;
-const refreshTokenSubject = new BehaviorSubject<string | null>(null);
+let refreshTokenInFlight$: Observable<string> | null = null;
 
 export const authInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
@@ -73,32 +72,27 @@ function handle401Error(
   next: HttpHandlerFn,
   authService: AuthService
 ): Observable<HttpEvent<unknown>> {
-  if (!isRefreshing) {
-    isRefreshing = true;
-    refreshTokenSubject.next(null);
+  return getRefreshTokenInFlight(authService).pipe(
+    switchMap((token) => next(addTokenToRequest(req, token))),
+    catchError((error) => {
+      // Refresh failed, service will logout and pending requests fail fast.
+      return throwError(() => error);
+    })
+  );
+}
 
-    return authService.refreshToken().pipe(
-      switchMap((response) => {
-        isRefreshing = false;
-        refreshTokenSubject.next(response.accessToken);
-        return next(addTokenToRequest(req, response.accessToken));
+function getRefreshTokenInFlight(authService: AuthService): Observable<string> {
+  if (!refreshTokenInFlight$) {
+    refreshTokenInFlight$ = authService.refreshToken().pipe(
+      map((response) => response.accessToken),
+      finalize(() => {
+        refreshTokenInFlight$ = null;
       }),
-      catchError((error) => {
-        isRefreshing = false;
-        // Refresh failed, service will logout
-        return throwError(() => error);
-      })
-    );
-  } else {
-    // Wait for refresh to complete, then retry
-    return refreshTokenSubject.pipe(
-      filter((token) => token !== null),
-      take(1),
-      switchMap((token) => {
-        return next(addTokenToRequest(req, token!));
-      })
+      shareReplay({ bufferSize: 1, refCount: false })
     );
   }
+
+  return refreshTokenInFlight$;
 }
 
 /**

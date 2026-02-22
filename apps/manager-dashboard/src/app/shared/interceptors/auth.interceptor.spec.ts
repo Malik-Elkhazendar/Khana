@@ -11,10 +11,7 @@ import {
 import { authInterceptor } from './auth.interceptor';
 import { AuthService } from '../services/auth.service';
 import { setupStorageMock } from '../testing/mocks/storage.mock';
-import {
-  createMockRefreshResponse,
-  createMockLoginResponse,
-} from '../testing/fixtures/auth-response.fixture';
+import { createMockRefreshResponse } from '../testing/fixtures/auth-response.fixture';
 import { of, Subject, throwError } from 'rxjs';
 
 describe('authInterceptor', () => {
@@ -129,6 +126,20 @@ describe('authInterceptor', () => {
       httpClient.post('/api/v1/auth/reset-password', {}).subscribe();
 
       const req = httpMock.expectOne('/api/v1/auth/reset-password');
+      expect(req.request.headers.has('Authorization')).toBe(false);
+
+      req.flush({});
+    });
+
+    it('should skip adding token to absolute login endpoint', () => {
+      const token = 'test-access-token';
+      authService.getAccessToken.mockReturnValue(token);
+
+      httpClient
+        .post('http://localhost:3000/api/v1/auth/login', {})
+        .subscribe();
+
+      const req = httpMock.expectOne('http://localhost:3000/api/v1/auth/login');
       expect(req.request.headers.has('Authorization')).toBe(false);
 
       req.flush({});
@@ -259,6 +270,57 @@ describe('authInterceptor', () => {
         `Bearer ${newToken}`
       );
       req4.flush({});
+    });
+
+    it('should fail queued requests when refresh fails', (done) => {
+      const oldToken = 'old-token';
+      const refreshError = new Error('Refresh failed');
+      const refreshSubject = new Subject<
+        ReturnType<typeof createMockRefreshResponse>
+      >();
+
+      authService.getAccessToken.mockReturnValue(oldToken);
+      authService.refreshToken.mockReturnValue(refreshSubject.asObservable());
+
+      let failedRequests = 0;
+      const expectedFailedRequests = 2;
+      const assertDone = () => {
+        failedRequests += 1;
+        if (failedRequests === expectedFailedRequests) {
+          expect(authService.refreshToken).toHaveBeenCalledTimes(1);
+          done();
+        }
+      };
+
+      httpClient.get('/api/v1/bookings').subscribe({
+        next: () => fail('Expected request to fail after refresh failure'),
+        error: (error) => {
+          expect(error).toBe(refreshError);
+          assertDone();
+        },
+      });
+
+      httpClient.get('/api/v1/facilities').subscribe({
+        next: () => fail('Expected request to fail after refresh failure'),
+        error: (error) => {
+          expect(error).toBe(refreshError);
+          assertDone();
+        },
+      });
+
+      const req1 = httpMock.expectOne('/api/v1/bookings');
+      req1.flush(
+        { message: 'Unauthorized' },
+        { status: 401, statusText: 'Unauthorized' }
+      );
+
+      const req2 = httpMock.expectOne('/api/v1/facilities');
+      req2.flush(
+        { message: 'Unauthorized' },
+        { status: 401, statusText: 'Unauthorized' }
+      );
+
+      refreshSubject.error(refreshError);
     });
   });
 
