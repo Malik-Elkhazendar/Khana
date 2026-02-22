@@ -72,6 +72,7 @@ export interface CreateBookingRequestDto {
   customerName: string;
   customerPhone: string;
   status?: BookingStatus;
+  paymentStatus?: PaymentStatus;
 }
 
 /**

@@ -214,98 +214,121 @@ export class BookingsService {
   ): Promise<Booking> {
     const resolvedTenantId = this.requireTenantId(tenantId);
     const resolvedUserId = this.requireUserId(userId);
-    const now = new Date();
+
     // 1. Fetch facility with ownership validation
     const facility = await this.validateFacilityOwnership(
       dto.facilityId,
       resolvedTenantId
     );
 
-    // 2. Fetch all confirmed bookings for this facility
-    const existingBookings = await this.bookingRepository.find({
-      where: [
-        {
-          facility: { id: dto.facilityId, tenant: { id: resolvedTenantId } },
-          status: BookingStatus.CONFIRMED,
-        },
-        {
-          facility: { id: dto.facilityId, tenant: { id: resolvedTenantId } },
-          status: BookingStatus.PENDING,
-          holdUntil: MoreThan(now),
-        },
-      ],
-    });
+    // 2-6. Create inside a transaction and serialize by facility row lock to
+    // prevent check-then-insert races that can double-book the same slot.
+    const saved = await this.bookingRepository.manager.transaction(
+      async (manager) => {
+        const bookingRepo = manager.getRepository(Booking);
 
-    const occupiedSlots = existingBookings.map((booking) => ({
-      id: booking.id,
-      facilityId: dto.facilityId,
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      status: SlotStatus.BOOKED,
-      bookingReference: booking.bookingReference ?? booking.id,
-    }));
+        const lockedFacility = await manager
+          .getRepository(Facility)
+          .createQueryBuilder('facility')
+          .where('facility.id = :facilityId', { facilityId: facility.id })
+          .setLock('pessimistic_write')
+          .getOne();
 
-    // 3. Guard: Check availability using domain engine
-    const conflictResult = detectConflicts({
-      facilityId: dto.facilityId,
-      requestedStart: new Date(dto.startTime),
-      requestedEnd: new Date(dto.endTime),
-      occupiedSlots,
-    });
+        if (!lockedFacility) {
+          throw new NotFoundException(RESOURCE_NOT_FOUND_MESSAGE);
+        }
 
-    if (conflictResult.hasConflict) {
-      throw new ConflictException({
-        message: conflictResult.message,
-        conflictType: conflictResult.conflictType,
-        conflictingSlots: conflictResult.conflictingSlots,
-      });
-    }
+        const now = new Date();
+        const existingBookings = await bookingRepo.find({
+          where: [
+            {
+              facility: {
+                id: dto.facilityId,
+                tenant: { id: resolvedTenantId },
+              },
+              status: BookingStatus.CONFIRMED,
+            },
+            {
+              facility: {
+                id: dto.facilityId,
+                tenant: { id: resolvedTenantId },
+              },
+              status: BookingStatus.PENDING,
+              holdUntil: MoreThan(now),
+            },
+          ],
+        });
 
-    // 4. Calculate price using domain engine (Server-Side Authority)
-    const facilityConfig = {
-      id: facility.id,
-      name: facility.name,
-      openTime: facility.config.openTime,
-      closeTime: facility.config.closeTime,
-      slotDurationMinutes: 60,
-      pricing: {
-        basePrice: facility.config.pricePerHour,
-        currency: 'SAR',
-      },
-    };
+        const occupiedSlots = existingBookings.map((booking) => ({
+          id: booking.id,
+          facilityId: dto.facilityId,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          status: SlotStatus.BOOKED,
+          bookingReference: booking.bookingReference ?? booking.id,
+        }));
 
-    const priceBreakdown = calculatePrice({
-      startTime: new Date(dto.startTime),
-      endTime: new Date(dto.endTime),
-      pricingConfig: facilityConfig.pricing,
-    });
+        const conflictResult = detectConflicts({
+          facilityId: dto.facilityId,
+          requestedStart: new Date(dto.startTime),
+          requestedEnd: new Date(dto.endTime),
+          occupiedSlots,
+        });
 
-    const bookingReference = await this.generateUniqueBookingReference();
-    const status = dto.status ?? BookingStatus.CONFIRMED;
-    const holdUntil =
-      status === BookingStatus.PENDING
-        ? addMinutes(now, PENDING_HOLD_MINUTES)
-        : null;
+        if (conflictResult.hasConflict) {
+          throw new ConflictException({
+            message: conflictResult.message,
+            conflictType: conflictResult.conflictType,
+            conflictingSlots: conflictResult.conflictingSlots,
+          });
+        }
 
-    // 5. Map & Save: Create booking entity
-    const booking = this.bookingRepository.create({
-      facility,
-      createdByUserId: resolvedUserId,
-      startTime: new Date(dto.startTime),
-      endTime: new Date(dto.endTime),
-      customerName: dto.customerName,
-      customerPhone: dto.customerPhone,
-      status,
-      paymentStatus: dto.paymentStatus ?? PaymentStatus.PENDING,
-      bookingReference,
-      totalAmount: priceBreakdown.total,
-      currency: priceBreakdown.currency,
-      priceBreakdown,
-      holdUntil,
-    });
+        const facilityConfig = {
+          id: facility.id,
+          name: facility.name,
+          openTime: facility.config.openTime,
+          closeTime: facility.config.closeTime,
+          slotDurationMinutes: 60,
+          pricing: {
+            basePrice: facility.config.pricePerHour,
+            currency: 'SAR',
+          },
+        };
 
-    // 6. Save booking
-    const saved = await this.bookingRepository.save(booking);
+        const priceBreakdown = calculatePrice({
+          startTime: new Date(dto.startTime),
+          endTime: new Date(dto.endTime),
+          pricingConfig: facilityConfig.pricing,
+        });
+
+        const bookingReference = await this.generateUniqueBookingReference(
+          bookingRepo
+        );
+        const status = dto.status ?? BookingStatus.CONFIRMED;
+        const holdUntil =
+          status === BookingStatus.PENDING
+            ? addMinutes(now, PENDING_HOLD_MINUTES)
+            : null;
+
+        const booking = bookingRepo.create({
+          facility,
+          createdByUserId: resolvedUserId,
+          startTime: new Date(dto.startTime),
+          endTime: new Date(dto.endTime),
+          customerName: dto.customerName,
+          customerPhone: dto.customerPhone,
+          status,
+          paymentStatus: dto.paymentStatus ?? PaymentStatus.PENDING,
+          bookingReference,
+          totalAmount: priceBreakdown.total,
+          currency: priceBreakdown.currency,
+          priceBreakdown,
+          holdUntil,
+        });
+
+        return bookingRepo.save(booking);
+      }
+    );
 
     // 7. Send notification emails (fire-and-forget, never block)
     this.sendBookingCreatedEmails(saved, facility, resolvedUserId).catch(
@@ -451,10 +474,12 @@ export class BookingsService {
     }
   }
 
-  private async generateUniqueBookingReference(): Promise<string> {
+  private async generateUniqueBookingReference(
+    bookingRepository: Repository<Booking> = this.bookingRepository
+  ): Promise<string> {
     for (let attempt = 0; attempt < BOOKING_REFERENCE_ATTEMPTS; attempt += 1) {
       const candidate = this.buildBookingReference();
-      const alreadyExists = await this.bookingRepository.exists({
+      const alreadyExists = await bookingRepository.exists({
         where: { bookingReference: candidate },
       });
 

@@ -2,7 +2,9 @@ import { waitForPortOpen } from '@nx/node/utils';
 import { existsSync } from 'fs';
 import { config as loadDotenv } from 'dotenv';
 import { Client } from 'pg';
-import { resolveEnvFilePaths } from '@khana/shared-utils';
+// Jest global setup runs outside Nx path mapping; keep this import runtime-resolvable.
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { resolveEnvFilePaths } from '../../../../libs/shared-utils/src/lib/env-files';
 
 /* eslint-disable */
 var __TEARDOWN_MESSAGE__: string;

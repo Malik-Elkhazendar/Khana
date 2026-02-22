@@ -29,7 +29,10 @@ import { User } from '@khana/data-access';
  * All business logic is delegated to the service and domain layer.
  */
 @UseGuards(JwtAuthGuard)
-@Controller('v1/bookings')
+@Controller({
+  path: 'bookings',
+  version: '1',
+})
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 

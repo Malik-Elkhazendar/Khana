@@ -236,6 +236,40 @@ describe('API', () => {
     });
   });
 
+  describe('POST /api/v1/bookings', () => {
+    it('should prevent double-booking for concurrent creates', async () => {
+      const raceDay = new Date();
+      raceDay.setDate(raceDay.getDate() + 5);
+      raceDay.setHours(8, 0, 0, 0);
+
+      const slot = await findAvailableSlot(raceDay);
+      const requestBody = {
+        facilityId,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        customerName: 'Race Condition Test',
+        customerPhone: '+966512345699',
+      };
+
+      const results = await Promise.allSettled([
+        axios.post('/api/v1/bookings', requestBody, { headers: authHeaders() }),
+        axios.post('/api/v1/bookings', requestBody, { headers: authHeaders() }),
+      ]);
+
+      const fulfilled = results.filter(
+        (result) => result.status === 'fulfilled'
+      );
+      const rejected = results.filter((result) => result.status === 'rejected');
+
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const rejectedStatus = (rejected[0] as PromiseRejectedResult).reason
+        ?.response?.status;
+      expect(rejectedStatus).toBe(409);
+    });
+  });
+
   describe('POST /api/v1/bookings/preview', () => {
     it('should return successful preview for available slot', async () => {
       const previewDay = new Date();

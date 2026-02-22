@@ -114,11 +114,11 @@ export interface LoginResponseDto {
   /** User data */
   user: UserDto;
 
-  /** Tenant data */
-  tenant: {
+  /** Tenant data (optional for backward compatibility) */
+  tenant?: {
     id: string;
-    subdomain: string;
     name: string;
+    subdomain?: string;
   };
 }
 
