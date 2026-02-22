@@ -50,7 +50,11 @@ export function resolveEnvFilePaths(nodeEnvRaw?: string): string[] {
     paths.push(resolve(process.cwd(), `.env.${envName}`));
   }
 
-  paths.push(resolve(process.cwd(), '.env'));
+  // In dev/test, avoid .env fallback to prevent accidental secret drift.
+  // Keep local credentials in .env.<env>.local / .env.local only.
+  if (nodeEnv !== 'development' && nodeEnv !== 'test') {
+    paths.push(resolve(process.cwd(), '.env'));
+  }
 
   return [...new Set(paths)];
 }

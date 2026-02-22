@@ -3,6 +3,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import {
   SecurityAlertData,
   PasswordChangedData,
+  PasswordResetData,
   BookingConfirmationData,
   PaymentReceiptData,
   CancellationData,
@@ -16,6 +17,7 @@ import { paymentReceiptTemplate } from '../templates/payment-receipt.template';
 import { cancellationTemplate } from '../templates/cancellation.template';
 import { refundTemplate } from '../templates/refund.template';
 import { newBookingAlertTemplate } from '../templates/new-booking-alert.template';
+import { passwordResetTemplate } from '../templates/password-reset.template';
 
 @Injectable()
 export class EmailService {
@@ -110,6 +112,19 @@ export class EmailService {
       `Refund Processed - ${data.bookingReference}`,
       html,
       'refund'
+    );
+  }
+
+  /**
+   * Send password reset email with token/link.
+   */
+  async sendPasswordResetNotification(data: PasswordResetData): Promise<void> {
+    const html = passwordResetTemplate(data);
+    await this.send(
+      data.recipientEmail,
+      'Reset Your Password',
+      html,
+      'password_reset'
     );
   }
 

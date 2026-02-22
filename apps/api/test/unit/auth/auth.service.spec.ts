@@ -9,10 +9,11 @@ import {
 } from '@nestjs/common';
 import {
   User,
+  Tenant,
   AuditLog,
   AuditAction,
   RefreshToken,
-  Tenant,
+  PasswordResetToken,
 } from '@khana/data-access';
 import { AuthService } from '../../../src/app/auth/auth.service';
 import { PasswordService } from '../../../src/app/auth/services/password.service';
@@ -27,6 +28,7 @@ describe('AuthService', () => {
   let userRepository: any;
   let auditLogRepository: any;
   let refreshTokenRepository: any;
+  let passwordResetTokenRepository: any;
   let tenantRepository: any;
   let dataSource: any;
   let passwordService: PasswordService;
@@ -120,9 +122,18 @@ describe('AuthService', () => {
           },
         },
         {
+          provide: getRepositoryToken(PasswordResetToken),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
           provide: getRepositoryToken(Tenant),
           useValue: {
             find: jest.fn(),
+            exists: jest.fn(),
           },
         },
         {
@@ -136,6 +147,7 @@ describe('AuthService', () => {
           useValue: {
             sendSecurityAlert: jest.fn(),
             sendPasswordChangedNotification: jest.fn(),
+            sendPasswordResetNotification: jest.fn(),
           },
         },
         {
@@ -155,6 +167,7 @@ describe('AuthService', () => {
               if (key === 'REFRESH_TOKEN_TTL_DAYS') return '7';
               if (key === 'REFRESH_TOKEN_HMAC_SECRET')
                 return 'test-hmac-secret';
+              if (key === 'FRONTEND_URL') return 'http://localhost:4200';
               return undefined;
             }),
           },
@@ -166,12 +179,17 @@ describe('AuthService', () => {
     userRepository = module.get(getRepositoryToken(User));
     auditLogRepository = module.get(getRepositoryToken(AuditLog));
     refreshTokenRepository = module.get(getRepositoryToken(RefreshToken));
+    passwordResetTokenRepository = module.get(
+      getRepositoryToken(PasswordResetToken)
+    );
     tenantRepository = module.get(getRepositoryToken(Tenant));
     dataSource = module.get(DataSource);
     passwordService = module.get<PasswordService>(PasswordService);
     jwtTokenService = module.get<JwtTokenService>(JwtTokenService);
     emailService = module.get<EmailService>(EmailService);
     metricsService = module.get<MetricsService>(MetricsService);
+
+    tenantRepository.exists.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -248,6 +266,48 @@ describe('AuthService', () => {
           role: 'STAFF',
         })
       );
+    });
+
+    it('should ignore role from payload for non-first users', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      userRepository.count.mockResolvedValue(1);
+      const dtoWithRole = {
+        ...registerDto,
+        role: 'OWNER',
+      } as typeof registerDto & { role: 'OWNER' };
+      const createdUser = { ...mockUser, ...dtoWithRole, role: 'STAFF' };
+      userRepository.create.mockReturnValue(createdUser);
+      userRepository.save.mockResolvedValue(createdUser);
+      auditLogRepository.create.mockReturnValue({});
+      auditLogRepository.save.mockResolvedValue({});
+
+      await service.register(dtoWithRole as any, tenantId);
+
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: 'STAFF',
+        })
+      );
+    });
+
+    it('should require tenant id for registration', async () => {
+      await expect(
+        service.register(registerDto as any, undefined)
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.register(registerDto as any, undefined)
+      ).rejects.toThrow('Tenant ID is required');
+    });
+
+    it('should reject unknown tenant id for registration', async () => {
+      tenantRepository.exists.mockResolvedValue(false);
+
+      await expect(
+        service.register(registerDto as any, tenantId)
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.register(registerDto as any, tenantId)
+      ).rejects.toThrow('Invalid tenant ID');
     });
 
     it('should throw ConflictException if email exists', async () => {
@@ -718,6 +778,109 @@ describe('AuthService', () => {
 
       expect(error).toBeInstanceOf(BadRequestException);
       expect(error.getStatus()).toBe(400); // Verify it's 400, not 500
+    });
+  });
+
+  describe('forgotPassword', () => {
+    const email = 'test@example.com';
+    const tenantId = MOCK_TENANT_ID;
+
+    it('should scope user lookup by tenant id', async () => {
+      userRepository.findOne.mockResolvedValue({
+        id: mockUser.id,
+        email,
+        tenantId,
+        isActive: true,
+      });
+      passwordResetTokenRepository.update.mockResolvedValue({});
+      passwordResetTokenRepository.save.mockResolvedValue({});
+      auditLogRepository.create.mockReturnValue({});
+      auditLogRepository.save.mockResolvedValue({});
+      (
+        emailService.sendPasswordResetNotification as jest.Mock
+      ).mockResolvedValue({});
+
+      const result = await service.forgotPassword(email, tenantId);
+
+      expect(result).toEqual({
+        message: 'If that email exists, a reset link has been sent',
+      });
+      expect(userRepository.findOne).toHaveBeenCalled();
+      const findCallArgs = userRepository.findOne.mock.calls[0][0];
+      expect(findCallArgs.where.email).toBe(email);
+      expect(findCallArgs.where.tenantId).toBe(tenantId);
+      expect(emailService.sendPasswordResetNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resetUrl: expect.stringContaining(
+            'http://localhost:4200/reset-password?token='
+          ),
+        })
+      );
+    });
+
+    it('should require tenant id for forgot password', async () => {
+      await expect(service.forgotPassword(email)).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.forgotPassword(email)).rejects.toThrow(
+        'Tenant ID is required'
+      );
+    });
+
+    it('should return generic response when user is missing in tenant', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.forgotPassword(email, tenantId);
+
+      expect(result).toEqual({
+        message: 'If that email exists, a reset link has been sent',
+      });
+      expect(passwordResetTokenRepository.save).not.toHaveBeenCalled();
+      expect(emailService.sendPasswordResetNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getTenantContext', () => {
+    it('should return tenant context when exactly one tenant exists', async () => {
+      tenantRepository.find.mockResolvedValue([
+        {
+          id: MOCK_TENANT_ID,
+          name: 'Elite Padel',
+          createdAt: new Date(),
+        },
+      ]);
+
+      const result = await service.getTenantContext();
+
+      expect(result).toEqual({
+        id: MOCK_TENANT_ID,
+        name: 'Elite Padel',
+      });
+    });
+
+    it('should throw when no tenant exists', async () => {
+      tenantRepository.find.mockResolvedValue([]);
+
+      await expect(service.getTenantContext()).rejects.toThrow(
+        NotFoundException
+      );
+      await expect(service.getTenantContext()).rejects.toThrow(
+        'No tenant is configured'
+      );
+    });
+
+    it('should throw when multiple tenants exist', async () => {
+      tenantRepository.find.mockResolvedValue([
+        { id: 'tenant-1', name: 'Tenant 1', createdAt: new Date() },
+        { id: 'tenant-2', name: 'Tenant 2', createdAt: new Date() },
+      ]);
+
+      await expect(service.getTenantContext()).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.getTenantContext()).rejects.toThrow(
+        'Tenant ID is required'
+      );
     });
   });
 });

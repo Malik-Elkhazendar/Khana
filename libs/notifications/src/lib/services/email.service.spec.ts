@@ -4,6 +4,7 @@ import { EmailService } from './email.service';
 import {
   SecurityAlertData,
   PasswordChangedData,
+  PasswordResetData,
   BookingConfirmationData,
   PaymentReceiptData,
   CancellationData,
@@ -95,6 +96,33 @@ describe('EmailService', () => {
       await expect(
         service.sendPasswordChangedNotification(data)
       ).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendPasswordResetNotification', () => {
+    const data: PasswordResetData = {
+      recipientEmail: 'user@example.com',
+      resetToken: 'abc123token',
+      expiresAt: new Date('2026-02-15T10:00:00Z'),
+    };
+
+    it('should send password reset email', async () => {
+      await service.sendPasswordResetNotification(data);
+
+      expect(mailerService.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'user@example.com',
+          subject: 'Reset Your Password',
+          html: expect.stringContaining('Password Reset Request'),
+        })
+      );
+    });
+
+    it('should include reset token in template', async () => {
+      await service.sendPasswordResetNotification(data);
+
+      const call = mailerService.sendMail.mock.calls[0][0];
+      expect(call.html).toContain('abc123token');
     });
   });
 

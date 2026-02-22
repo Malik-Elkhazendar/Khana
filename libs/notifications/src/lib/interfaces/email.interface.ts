@@ -59,6 +59,13 @@ export interface RefundData {
   currency: string;
 }
 
+export interface PasswordResetData {
+  recipientEmail: string;
+  resetToken: string;
+  resetUrl?: string;
+  expiresAt: Date;
+}
+
 export interface NewBookingAlertData {
   managerEmail: string;
   managerName: string;

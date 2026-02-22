@@ -5,7 +5,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import type { StringValue } from 'ms';
-import { User, AuditLog, Tenant, RefreshToken } from '@khana/data-access';
+import {
+  User,
+  AuditLog,
+  RefreshToken,
+  PasswordResetToken,
+  Tenant,
+} from '@khana/data-access';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PasswordService } from './services/password.service';
@@ -43,7 +49,13 @@ import { CleanupService } from './services/cleanup.service';
       },
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([User, AuditLog, Tenant, RefreshToken]),
+    TypeOrmModule.forFeature([
+      User,
+      AuditLog,
+      RefreshToken,
+      PasswordResetToken,
+      Tenant,
+    ]),
     ThrottlerModule.forRoot({
       throttlers: [
         {

@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { Tenant } from './tenant.entity';
 import { RefreshToken } from './refresh-token.entity';
+import { PasswordResetToken } from './password-reset-token.entity';
 
 /**
  * User Entity
@@ -86,4 +87,8 @@ export class User {
   // Refresh tokens (session management)
   @OneToMany(() => RefreshToken, (token) => token.user)
   refreshTokens?: RefreshToken[];
+
+  // Password reset tokens
+  @OneToMany(() => PasswordResetToken, (token) => token.user)
+  passwordResetTokens?: PasswordResetToken[];
 }

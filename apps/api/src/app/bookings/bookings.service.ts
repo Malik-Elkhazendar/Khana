@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes } from 'crypto';
 import { In, MoreThan, Repository } from 'typeorm';
 import {
   previewBooking,
@@ -16,7 +17,7 @@ import {
 } from '@khana/booking-engine';
 import { Booking, Facility, User } from '@khana/data-access';
 import { BookingStatus, PaymentStatus, SlotStatus } from '@khana/shared-dtos';
-import { addMinutes, generateBookingReference } from '@khana/shared-utils';
+import { addMinutes } from '@khana/shared-utils';
 import { EmailService } from '@khana/notifications';
 import {
   BookingPreviewRequestDto,
@@ -30,6 +31,9 @@ const AUTO_CANCEL_REASON = 'Auto-cancelled: hold expired';
 const ACCESS_DENIED_MESSAGE =
   'Access denied: You do not have permission to access this resource.';
 const RESOURCE_NOT_FOUND_MESSAGE = 'Resource not found';
+const BOOKING_REFERENCE_PREFIX = 'KHN';
+const BOOKING_REFERENCE_RANDOM_LENGTH = 6;
+const BOOKING_REFERENCE_ATTEMPTS = 5;
 
 const ALLOWED_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   [BookingStatus.PENDING]: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
@@ -276,8 +280,7 @@ export class BookingsService {
       pricingConfig: facilityConfig.pricing,
     });
 
-    const bookingSequence = (await this.bookingRepository.count()) + 1;
-    const bookingReference = generateBookingReference(bookingSequence);
+    const bookingReference = await this.generateUniqueBookingReference();
     const status = dto.status ?? BookingStatus.CONFIRMED;
     const holdUntil =
       status === BookingStatus.PENDING
@@ -446,6 +449,32 @@ export class BookingsService {
     if (!allowedTransitions.includes(nextStatus)) {
       throw new BadRequestException('Invalid booking status transition.');
     }
+  }
+
+  private async generateUniqueBookingReference(): Promise<string> {
+    for (let attempt = 0; attempt < BOOKING_REFERENCE_ATTEMPTS; attempt += 1) {
+      const candidate = this.buildBookingReference();
+      const alreadyExists = await this.bookingRepository.exists({
+        where: { bookingReference: candidate },
+      });
+
+      if (!alreadyExists) {
+        return candidate;
+      }
+    }
+
+    throw new ConflictException(
+      'Unable to create booking reference. Please retry.'
+    );
+  }
+
+  private buildBookingReference(): string {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const randomSuffix = randomBytes(3)
+      .toString('hex')
+      .toUpperCase()
+      .slice(0, BOOKING_REFERENCE_RANDOM_LENGTH);
+    return `${BOOKING_REFERENCE_PREFIX}-${timestamp}-${randomSuffix}`;
   }
 
   /**

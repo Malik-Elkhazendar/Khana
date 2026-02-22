@@ -7,14 +7,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { randomUUID } from 'crypto';
+import { createHmac, randomBytes, randomUUID } from 'crypto';
 import { DataSource, IsNull, MoreThan, Not, Repository } from 'typeorm';
 import {
   User,
   AuditLog,
   AuditAction,
-  Tenant,
   RefreshToken,
+  PasswordResetToken,
+  Tenant,
 } from '@khana/data-access';
 import { UserDto } from '@khana/shared-dtos';
 import { PasswordService } from './services/password.service';
@@ -47,10 +48,12 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(AuditLog)
     private readonly auditLogRepository: Repository<AuditLog>,
-    @InjectRepository(Tenant)
-    private readonly tenantRepository: Repository<Tenant>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
+    @InjectRepository(Tenant)
+    private readonly tenantRepository: Repository<Tenant>,
     private readonly dataSource: DataSource,
     private readonly passwordService: PasswordService,
     private readonly jwtTokenService: JwtTokenService,
@@ -58,6 +61,29 @@ export class AuthService {
     private readonly metricsService: MetricsService,
     private readonly configService: ConfigService
   ) {}
+
+  async getTenantContext(): Promise<{ id: string; name: string }> {
+    const tenants = await this.tenantRepository.find({
+      select: ['id', 'name', 'createdAt'],
+      order: { createdAt: 'ASC' },
+      take: 2,
+    });
+
+    if (tenants.length === 0) {
+      throw new NotFoundException('No tenant is configured');
+    }
+
+    if (tenants.length > 1) {
+      throw new BadRequestException('Tenant ID is required');
+    }
+
+    const [tenant] = tenants;
+
+    return {
+      id: tenant.id,
+      name: tenant.name,
+    };
+  }
 
   /**
    * Register a new user
@@ -95,7 +121,7 @@ export class AuthService {
     const userCount = await this.userRepository.count({
       where: { tenantId: resolvedTenantId },
     });
-    const initialRole = userCount === 0 ? 'OWNER' : dto.role || 'STAFF';
+    const initialRole = userCount === 0 ? 'OWNER' : 'STAFF';
 
     // Create user
     const user = this.userRepository.create({
@@ -590,6 +616,158 @@ export class AuthService {
     }
   }
 
+  /**
+   * Forgot password - request a reset token
+   *
+   * Always returns a success message to prevent email enumeration.
+   * Only sends the email if the user exists, is active, and not soft-deleted.
+   */
+  async forgotPassword(
+    email: string,
+    tenantId?: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<{ message: string }> {
+    const genericMessage = 'If that email exists, a reset link has been sent';
+    const resolvedTenantId = await this.resolveTenantId(tenantId);
+
+    const user = await this.userRepository.findOne({
+      where: { email, tenantId: resolvedTenantId, deletedAt: IsNull() },
+      select: ['id', 'email', 'tenantId', 'isActive'],
+    });
+
+    if (!user || !user.isActive) {
+      return { message: genericMessage };
+    }
+
+    // Invalidate any existing unused reset tokens for this user
+    await this.passwordResetTokenRepository.update(
+      { userId: user.id, usedAt: IsNull() },
+      { usedAt: new Date() }
+    );
+
+    // Generate a cryptographically secure token
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = createHmac('sha256', this.getHmacSecret())
+      .update(rawToken)
+      .digest('hex');
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.passwordResetTokenRepository.save({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+      ipAddress,
+      userAgent,
+    });
+
+    // Build reset URL if FRONTEND_URL is configured
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    const frontendBase = frontendUrl?.replace(/\/+$/, '');
+    const resetUrl = frontendBase
+      ? `${frontendBase}/reset-password?token=${encodeURIComponent(rawToken)}`
+      : undefined;
+
+    try {
+      await this.emailService.sendPasswordResetNotification({
+        recipientEmail: user.email,
+        resetToken: rawToken,
+        resetUrl,
+        expiresAt,
+      });
+    } catch {
+      // Email failure should not block the response
+    }
+
+    await this.logAudit({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: AuditAction.UPDATE,
+      entityType: 'PasswordResetToken',
+      entityId: user.id,
+      description: `Password reset requested for: ${user.email}`,
+      ipAddress,
+      userAgent,
+    });
+
+    return { message: genericMessage };
+  }
+
+  /**
+   * Reset password using a valid token
+   *
+   * Validates the token, updates the password, marks the token as used,
+   * and invalidates all existing sessions.
+   */
+  async resetPassword(
+    token: string,
+    newPassword: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<{ message: string }> {
+    this.validatePasswordStrength(newPassword);
+
+    const tokenHash = createHmac('sha256', this.getHmacSecret())
+      .update(token)
+      .digest('hex');
+
+    const resetToken = await this.passwordResetTokenRepository.findOne({
+      where: {
+        tokenHash,
+        usedAt: IsNull(),
+      },
+      relations: ['user'],
+    });
+
+    if (!resetToken || resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired password reset token');
+    }
+
+    const user = resetToken.user;
+    if (!user || user.deletedAt || !user.isActive) {
+      throw new BadRequestException('Invalid or expired password reset token');
+    }
+
+    // Hash new password and update user
+    const passwordHash = await this.passwordService.hash(newPassword);
+    await this.userRepository.update(user.id, { passwordHash });
+
+    // Mark token as used
+    await this.passwordResetTokenRepository.update(resetToken.id, {
+      usedAt: new Date(),
+    });
+
+    // Invalidate all existing sessions
+    await this.refreshTokenRepository.update(
+      { userId: user.id, revokedAt: IsNull() },
+      { revokedAt: new Date() }
+    );
+
+    await this.logAudit({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: AuditAction.UPDATE,
+      entityType: 'User',
+      entityId: user.id,
+      description: `Password reset completed for: ${user.email}`,
+      ipAddress,
+      userAgent,
+    });
+
+    // Notify user of password change
+    try {
+      await this.emailService.sendPasswordChangedNotification({
+        recipientEmail: user.email,
+        recipientName: user.email,
+      });
+    } catch {
+      // Email failure should not block the response
+    }
+
+    return { message: 'Password has been reset successfully' };
+  }
+
   // Private helpers
 
   private validatePasswordStrength(password: string): void {
@@ -626,23 +804,19 @@ export class AuthService {
   }
 
   private async resolveTenantId(tenantId?: string): Promise<string> {
-    if (tenantId) {
-      if (!isUUID(tenantId)) {
-        throw new BadRequestException('Invalid tenant id');
-      }
-      return tenantId;
+    if (!tenantId || !isUUID(tenantId)) {
+      throw new BadRequestException('Tenant ID is required');
     }
 
-    const [tenant] = await this.tenantRepository.find({
-      order: { createdAt: 'ASC' },
-      take: 1,
+    const tenantExists = await this.tenantRepository.exists({
+      where: { id: tenantId },
     });
 
-    if (!tenant) {
-      throw new BadRequestException('No tenant configured');
+    if (!tenantExists) {
+      throw new BadRequestException('Invalid tenant ID');
     }
 
-    return tenant.id;
+    return tenantId;
   }
 
   private getRefreshTokenExpiry(issuedAt: Date): Date {

@@ -18,11 +18,13 @@ import { TenantId } from './decorators/tenant-id.decorator';
 import { User } from '@khana/data-access';
 import {
   ChangePasswordDto,
+  ForgotPasswordDto,
   LoginDto,
   LogoutDeviceDto,
   LogoutDto,
   RefreshTokenDto,
   RegisterDto,
+  ResetPasswordDto,
 } from './dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
@@ -44,12 +46,19 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
+  @Get('tenant')
+  @HttpCode(HttpStatus.OK)
+  async getTenantContext() {
+    return this.authService.getTenantContext();
+  }
+
   /**
    * Register a new user
    *
    * POST /api/v1/auth/register
    *
-   * Body: { email, password, name, phone?, role? }
+   * Body: { email, password, name, phone? }
    *
    * Errors:
    * - 400: Validation error (weak password, invalid email)
@@ -231,6 +240,62 @@ export class AuthController {
       dto.currentPassword,
       dto.newPassword,
       user.sid
+    );
+  }
+
+  /**
+   * Request password reset
+   *
+   * POST /api/v1/auth/forgot-password
+   *
+   * Body: { email }
+   *
+   * Always returns 200 to prevent email enumeration.
+   */
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @TenantId() tenantId?: string,
+    @Ip() ipAddress?: string,
+    @Headers('user-agent') userAgent?: string
+  ) {
+    return this.authService.forgotPassword(
+      dto.email,
+      tenantId,
+      ipAddress,
+      userAgent
+    );
+  }
+
+  /**
+   * Reset password with token
+   *
+   * POST /api/v1/auth/reset-password
+   *
+   * Body: { token, newPassword }
+   *
+   * Errors:
+   * - 400: Invalid/expired token or weak password
+   */
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Ip() ipAddress?: string,
+    @Headers('user-agent') userAgent?: string
+  ) {
+    return this.authService.resetPassword(
+      dto.token,
+      dto.newPassword,
+      ipAddress,
+      userAgent
     );
   }
 }
