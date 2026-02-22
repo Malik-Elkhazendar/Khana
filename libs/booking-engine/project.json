@@ -14,6 +14,14 @@
         "tsConfig": "libs/booking-engine/tsconfig.lib.json",
         "assets": ["libs/booking-engine/*.md"]
       }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/booking-engine/jest.config.cjs",
+        "tsConfig": "libs/booking-engine/tsconfig.spec.json"
+      }
     }
   }
 }
