@@ -15,7 +15,9 @@ test.describe('Authentication - error recovery', () => {
     });
 
     await login(page, validCredentials.email, validCredentials.password);
-    await expect(page.getByRole('alert')).toContainText('Server error');
+    await expect(page.getByRole('alert')).toContainText(
+      /server encountered|واجه الخادم/i
+    );
     await expect(page).toHaveURL(/\/login/);
   });
 
@@ -42,10 +44,11 @@ test.describe('Authentication - error recovery', () => {
 
     await mockBookingsRoutes(page);
     await login(page, validCredentials.email, validCredentials.password);
+    await expect(page).toHaveURL(/\/dashboard/);
     await changePassword(page, 'WrongPassword1', 'NewPassword123');
 
     await expect(page.locator('#current-password-error')).toContainText(
-      'Current password is incorrect'
+      /current password is incorrect|كلمة المرور الحالية غير صحيحة/i
     );
   });
 

@@ -1,6 +1,20 @@
 ﻿import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LandingArabicComponent } from './landing.component';
 import { RouterModule } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+
+const AR_TRANSLATIONS = {
+  SHARED: {
+    LANGUAGE: {
+      SWITCH_TO_ARABIC: 'التبديل إلى العربية',
+      SWITCH_TO_ENGLISH: 'التبديل إلى الإنجليزية',
+      LANGUAGE_ARABIC: 'العربية',
+      LANGUAGE_ENGLISH: 'English',
+      SHORT_ARABIC: 'ع',
+      SHORT_ENGLISH: 'EN',
+    },
+  },
+};
 
 describe('LandingArabicComponent', () => {
   let component: LandingArabicComponent;
@@ -8,8 +22,16 @@ describe('LandingArabicComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [LandingArabicComponent, RouterModule.forRoot([])],
+      imports: [
+        LandingArabicComponent,
+        RouterModule.forRoot([]),
+        TranslateModule.forRoot(),
+      ],
     }).compileComponents();
+
+    const translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('ar', AR_TRANSLATIONS);
+    translateService.use('ar');
 
     fixture = TestBed.createComponent(LandingArabicComponent);
     component = fixture.componentInstance;

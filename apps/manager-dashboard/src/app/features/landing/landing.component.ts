@@ -9,14 +9,14 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { LandingHeaderComponent } from './sections/landing-header.component';
-import { HeroSectionComponent } from './sections/hero-section.component';
-import { ProblemSolutionComponent } from './sections/problem-solution.component';
-import { FeaturesGridComponent } from './sections/features-grid.component';
-import { HowItWorksComponent } from './sections/how-it-works.component';
-import { SocialProofComponent } from './sections/social-proof.component';
-import { BottomCtaComponent } from './sections/bottom-cta.component';
-import { LandingFooterComponent } from './sections/landing-footer.component';
+import { LandingHeaderComponent } from './sections/landing-header/landing-header.component';
+import { HeroSectionComponent } from './sections/hero-section/hero-section.component';
+import { ProblemSolutionComponent } from './sections/problem-solution/problem-solution.component';
+import { FeaturesGridComponent } from './sections/features-grid/features-grid.component';
+import { HowItWorksComponent } from './sections/how-it-works/how-it-works.component';
+import { SocialProofComponent } from './sections/social-proof/social-proof.component';
+import { BottomCtaComponent } from './sections/bottom-cta/bottom-cta.component';
+import { LandingFooterComponent } from './sections/landing-footer/landing-footer.component';
 
 @Component({
   selector: 'app-landing',

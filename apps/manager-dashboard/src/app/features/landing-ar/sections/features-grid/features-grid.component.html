@@ -1,0 +1,188 @@
+<div class="section-container">
+  <!-- Background Pattern -->
+  <div class="bg-pattern" aria-hidden="true">
+    <div class="pattern-star pattern-1"></div>
+    <div class="pattern-star pattern-2"></div>
+    <div class="pattern-star pattern-3"></div>
+  </div>
+
+  <!-- Section Header -->
+  <header class="section-header">
+    <span class="section-eyebrow">ميزات قوية</span>
+    <h2 class="section-title">
+      كل ما تحتاجه لـ
+      <span class="text-gradient">تشغيل أعمالك</span>
+    </h2>
+    <p class="section-subtitle">
+      من التوافر الفوري إلى التحليلات الذكية، تمنحك خانة الأدوات للقضاء على
+      الفوضى وإسعاد عملائك.
+    </p>
+  </header>
+
+  <!-- Features Grid -->
+  <div class="features-grid stagger-children" #grid>
+    @for (feature of features; track feature.id) {
+    <article class="feature-card stagger-item" [attr.data-feature]="feature.id">
+      <!-- Card Glow Effect -->
+      <div
+        class="card-glow"
+        [style.background]="feature.gradient"
+        aria-hidden="true"
+      ></div>
+
+      <!-- Card Content -->
+      <div class="card-content">
+        <!-- Icon -->
+        <div
+          class="feature-icon"
+          [style.background]="feature.gradient"
+          aria-hidden="true"
+        >
+          @switch (feature.icon) { @case ('calendar') {
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M3 10h18" />
+            <path d="M8 2v4" />
+            <path d="M16 2v4" />
+            <circle cx="12" cy="16" r="2" />
+          </svg>
+          } @case ('shield') {
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+          } @case ('mobile') {
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <path d="M12 18h.01" />
+          </svg>
+          } @case ('users') {
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+          } @case ('chart') {
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path d="M18 20V10" />
+            <path d="M12 20V4" />
+            <path d="M6 20v-6" />
+          </svg>
+          } @case ('lock') {
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+            <circle cx="12" cy="16" r="1" />
+          </svg>
+          } }
+        </div>
+
+        <!-- Text -->
+        <h3 class="feature-title">{{ feature.title }}</h3>
+        <p class="feature-description">{{ feature.description }}</p>
+
+        <!-- Learn More Link -->
+        <a
+          [attr.href]="learnMoreHref"
+          class="feature-link"
+          [attr.aria-label]="'اعرف المزيد عن ' + feature.title"
+        >
+          <span>اعرف المزيد</span>
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path
+              fill-rule="evenodd"
+              d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </a>
+      </div>
+
+      <!-- Abstract Feature Visual -->
+      <div class="feature-visual-wrapper">
+        @switch (feature.icon) { @case ('calendar') {
+        <div class="abstract-visual calendar-visual">
+          <div class="v-grid">
+            <div class="v-cell"></div>
+            <div class="v-cell active pulse"></div>
+            <div class="v-cell active"></div>
+            <div class="v-cell active"></div>
+            <div class="v-cell"></div>
+            <div class="v-cell active"></div>
+          </div>
+        </div>
+        } @case ('shield') {
+        <div class="abstract-visual shield-visual">
+          <div class="v-shield-bg"></div>
+          <div class="v-shield-line" style="width: 80%"></div>
+          <div class="v-shield-line" style="width: 60%"></div>
+          <div class="v-shield-line error" style="width: 90%"></div>
+          <div class="v-shield-overlay"></div>
+        </div>
+        } @case ('mobile') {
+        <div class="abstract-visual mobile-visual">
+          <div class="v-phone">
+            <div class="v-phone-header"></div>
+            <div class="v-phone-card"></div>
+            <div class="v-phone-card"></div>
+          </div>
+        </div>
+        } @case ('users') {
+        <div class="abstract-visual users-visual">
+          <div class="v-user-node main"></div>
+          <div class="v-user-node child-1"></div>
+          <div class="v-user-node child-2"></div>
+          <div class="v-user-line line-1"></div>
+          <div class="v-user-line line-2"></div>
+        </div>
+        } @case ('chart') {
+        <div class="abstract-visual chart-visual">
+          <div class="v-bar h-30"></div>
+          <div class="v-bar h-50"></div>
+          <div class="v-bar h-80 accent"></div>
+          <div class="v-bar h-40"></div>
+          <div class="v-bar h-60"></div>
+        </div>
+        } @case ('lock') {
+        <div class="abstract-visual lock-visual">
+          <div class="v-lock-circle"></div>
+          <div class="v-data-stream"></div>
+          <div class="v-data-stream delay"></div>
+        </div>
+        } }
+      </div>
+    </article>
+    }
+  </div>
+</div>

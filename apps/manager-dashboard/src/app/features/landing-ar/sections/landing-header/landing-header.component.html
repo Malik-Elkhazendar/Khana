@@ -1,0 +1,128 @@
+<header class="landing-header" [class.scrolled]="isScrolled" role="banner">
+  <div class="header-container">
+    <!-- Logo -->
+    <a routerLink="/ar" class="logo" aria-label="خانة - الصفحة الرئيسية">
+      <span class="logo-mark">
+        <!-- 8-point star SVG icon -->
+        <svg
+          viewBox="0 0 32 32"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M16 0L18.5 13.5L32 16L18.5 18.5L16 32L13.5 18.5L0 16L13.5 13.5L16 0Z"
+            fill="currentColor"
+          />
+        </svg>
+      </span>
+      <span class="logo-text">Khana</span>
+      <span class="logo-arabic">خانة</span>
+    </a>
+
+    <!-- Desktop Navigation -->
+    <nav class="nav-desktop" aria-label="التنقل الرئيسي">
+      <ul class="nav-list" role="list">
+        @for (item of navItems; track item.sectionId) {
+        <li>
+          <button
+            type="button"
+            class="nav-link"
+            (click)="navigateToSection.emit(item.sectionId)"
+            [attr.aria-label]="'انتقل إلى قسم ' + item.label"
+          >
+            {{ item.label }}
+          </button>
+        </li>
+        }
+      </ul>
+    </nav>
+
+    <!-- CTA Buttons -->
+    <div class="header-actions">
+      <a
+        routerLink="/login"
+        class="btn btn-ghost"
+        aria-label="تسجيل الدخول إلى حسابك"
+      >
+        تسجيل الدخول
+      </a>
+      <a
+        routerLink="/register"
+        class="btn btn-primary"
+        aria-label="ابدأ محاولتك المجانية"
+      >
+        <span class="btn-text">ابدأ محاولتك المجانية</span>
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </span>
+      </a>
+      <app-language-switcher
+        class="landing-language-switcher"
+        [tone]="isScrolled ? 'dark' : 'light'"
+        [useShortLabel]="true"
+      ></app-language-switcher>
+    </div>
+
+    <!-- Mobile Menu Button -->
+    <button
+      type="button"
+      class="mobile-menu-btn"
+      (click)="toggleMobileMenu()"
+      [attr.aria-expanded]="mobileMenuOpen()"
+      aria-controls="mobile-menu"
+      aria-label="تبديل قائمة التنقل"
+    >
+      <span class="hamburger" [class.open]="mobileMenuOpen()">
+        <span></span>
+        <span></span>
+        <span></span>
+      </span>
+    </button>
+  </div>
+
+  <!-- Mobile Menu -->
+  <nav
+    id="mobile-menu"
+    class="nav-mobile"
+    [class.open]="mobileMenuOpen()"
+    [attr.aria-hidden]="!mobileMenuOpen()"
+    aria-label="تنقل الهاتف المحمول"
+  >
+    <ul class="mobile-nav-list" role="list">
+      @for (item of navItems; track item.sectionId) {
+      <li>
+        <button
+          type="button"
+          class="mobile-nav-link"
+          (click)="onMobileNavClick(item.sectionId)"
+          [attr.aria-label]="'انتقل إلى قسم ' + item.label"
+        >
+          {{ item.label }}
+        </button>
+      </li>
+      }
+      <li class="mobile-cta">
+        <a
+          routerLink="/register"
+          class="btn btn-primary btn-block"
+          (click)="mobileMenuOpen.set(false)"
+        >
+          ابدأ محاولتك المجانية
+        </a>
+      </li>
+      <li class="mobile-cta">
+        <app-language-switcher
+          class="landing-language-switcher landing-language-switcher--mobile"
+          [fullWidth]="true"
+        ></app-language-switcher>
+      </li>
+    </ul>
+  </nav>
+</header>

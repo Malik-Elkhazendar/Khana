@@ -1,0 +1,148 @@
+<div class="section-container">
+  <!-- Section Header -->
+  <header class="section-header">
+    <span class="section-eyebrow">The Transformation</span>
+    <h2 class="section-title">
+      From <span class="text-chaos">Chaos</span> to
+      <span class="text-control">Control</span>
+    </h2>
+    <p class="section-subtitle">
+      See how facility managers across MENA are transforming their booking
+      operations
+    </p>
+  </header>
+
+  <!-- Comparison Grid -->
+  <div class="comparison-grid">
+    <!-- The Old Way -->
+    <div class="comparison-card old-way">
+      <div class="card-header">
+        <div class="card-icon-container old">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M18.364 5.636a9 9 0 11-12.728 0M12 9v4" />
+            <circle cx="12" cy="17" r="1" />
+          </svg>
+        </div>
+        <h3 class="card-title">The Old Way</h3>
+        <span class="card-subtitle">WhatsApp & Paper</span>
+      </div>
+
+      <ul class="comparison-list" role="list">
+        @for (item of oldWayItems; track item.text) {
+        <li class="comparison-item negative">
+          <span class="item-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </span>
+          <span class="item-text">{{ item.text }}</span>
+        </li>
+        }
+      </ul>
+
+      <!-- Visual Chaos Indicator -->
+      <div class="chaos-visual" aria-hidden="true">
+        <div class="chaos-message msg-1">
+          <span class="msg-time">9:45 AM</span>
+          <span class="msg-text">Is Court 2 free tomorrow at 5?</span>
+        </div>
+        <div class="chaos-message msg-2">
+          <span class="msg-time">9:47 AM</span>
+          <span class="msg-text">Can I book Friday 6PM?</span>
+        </div>
+        <div class="chaos-message msg-3">
+          <span class="msg-time">9:52 AM</span>
+          <span class="msg-text">Still waiting for confirmation...</span>
+        </div>
+        <div class="chaos-overlay"></div>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="comparison-divider" aria-hidden="true">
+      <div class="divider-line"></div>
+      <div class="divider-icon">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </div>
+      <div class="divider-line"></div>
+    </div>
+
+    <!-- The Khana Way -->
+    <div class="comparison-card new-way">
+      <div class="card-header">
+        <div class="card-icon-container new">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M9 12l2 2 4-4" />
+            <circle cx="12" cy="12" r="10" />
+          </svg>
+        </div>
+        <h3 class="card-title">The Khana Way</h3>
+        <span class="card-subtitle">Real-Time Control</span>
+      </div>
+
+      <ul class="comparison-list" role="list">
+        @for (item of newWayItems; track item.text) {
+        <li class="comparison-item positive">
+          <span class="item-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </span>
+          <span class="item-text">{{ item.text }}</span>
+        </li>
+        }
+      </ul>
+
+      <!-- Visual Success Indicator -->
+      <div class="success-visual" aria-hidden="true">
+        <div class="success-card">
+          <div class="success-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 12l2 2 4-4" />
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+            </svg>
+          </div>
+          <div class="success-content">
+            <span class="success-title">Booking Confirmed</span>
+            <span class="success-detail">Instantly, no waiting</span>
+          </div>
+        </div>
+        <div class="success-glow"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom section relies purely on the high-end CSS cards above, removing redundant raster images -->
+</div>

@@ -1,0 +1,86 @@
+<section
+  class="cta-section"
+  role="region"
+  aria-labelledby="landing-cta-title-ar"
+>
+  <div class="cta-bg" aria-hidden="true">
+    <div class="bg-gradient"></div>
+    <div class="star-pattern">
+      @for (star of stars; track star.id) {
+      <div
+        class="star"
+        [style.--x]="star.x + '%'"
+        [style.--y]="star.y + '%'"
+        [style.--size]="star.size + 'px'"
+        [style.--opacity]="star.opacity"
+        [style.--rotation]="star.rotation + 'deg'"
+      >
+        <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+          <path
+            d="M16 0L18.5 13.5L32 16L18.5 18.5L16 32L13.5 18.5L0 16L13.5 13.5L16 0Z"
+          />
+        </svg>
+      </div>
+      }
+    </div>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+  </div>
+
+  <div class="cta-content">
+    <h2 id="landing-cta-title-ar" class="cta-headline">
+      {{ headlinePrefix }}
+      <span class="headline-accent">{{ headlineAccent }}</span>
+    </h2>
+
+    <p class="cta-subheadline">{{ subheadline }}</p>
+
+    <div class="cta-actions">
+      <a
+        class="btn btn-primary"
+        [routerLink]="['/register']"
+        [attr.aria-label]="primaryActionAriaLabel"
+      >
+        <span class="btn-content">
+          <span class="btn-text">{{ primaryActionLabel }}</span>
+          <span class="btn-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </span>
+        </span>
+      </a>
+
+      <div class="secondary-actions">
+        @for (action of secondaryActions; track action.id) {
+        <a
+          class="btn btn-outline"
+          [href]="action.href"
+          [attr.aria-label]="action.ariaLabel"
+        >
+          {{ action.label }}
+        </a>
+        }
+      </div>
+    </div>
+
+    <ul class="trust-line" role="list" aria-label="مؤشرات الثقة للتسجيل">
+      @for (item of trustItems; track item.id) {
+      <li class="trust-item">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path
+            fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <span>{{ item.label }}</span>
+      </li>
+      }
+    </ul>
+  </div>
+</section>

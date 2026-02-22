@@ -2,6 +2,7 @@ import { Page, Route } from '@playwright/test';
 import {
   mockLoginResponse,
   mockRefreshResponse,
+  mockTenant,
   mockUser,
   mockTokens,
 } from './test-data';
@@ -12,6 +13,7 @@ type RouteConfig = {
 };
 
 export type AuthRouteOverrides = {
+  tenant?: RouteConfig;
   login?: RouteConfig;
   register?: RouteConfig;
   refresh?: RouteConfig;
@@ -21,6 +23,10 @@ export type AuthRouteOverrides = {
 };
 
 const defaultRoutes: Required<AuthRouteOverrides> = {
+  tenant: {
+    status: 200,
+    body: { id: mockTenant.id, name: mockTenant.name },
+  },
   login: { status: 200, body: mockLoginResponse },
   register: { status: 200, body: mockLoginResponse },
   refresh: { status: 200, body: mockRefreshResponse },
@@ -35,11 +41,16 @@ export async function mockAuthRoutes(
 ): Promise<void> {
   const routes = { ...defaultRoutes, ...overrides };
 
+  await routeJson(page, '**/api/v1/auth/tenant**', routes.tenant);
   await routeJson(page, '**/api/v1/auth/login', routes.login);
   await routeJson(page, '**/api/v1/auth/register', routes.register);
   await routeJson(page, '**/api/v1/auth/refresh', routes.refresh);
   await routeJson(page, '**/api/v1/auth/me', routes.me);
-  await routeJson(page, '**/api/v1/auth/change-password', routes.changePassword);
+  await routeJson(
+    page,
+    '**/api/v1/auth/change-password',
+    routes.changePassword
+  );
   await routeJson(page, '**/api/v1/auth/logout', routes.logout);
 }
 

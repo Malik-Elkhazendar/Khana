@@ -1,9 +1,9 @@
 export { LandingArabicComponent } from './landing.component';
-export { LandingHeaderArComponent } from './sections/landing-header.component';
-export { HeroSectionArComponent } from './sections/hero-section.component';
-export { ProblemSolutionArComponent } from './sections/problem-solution.component';
-export { FeaturesGridArComponent } from './sections/features-grid.component';
-export { HowItWorksArComponent } from './sections/how-it-works.component';
-export { SocialProofArComponent } from './sections/social-proof.component';
-export { BottomCtaArComponent } from './sections/bottom-cta.component';
-export { LandingFooterArComponent } from './sections/landing-footer.component';
+export { LandingHeaderArComponent } from './sections/landing-header/landing-header.component';
+export { HeroSectionArComponent } from './sections/hero-section/hero-section.component';
+export { ProblemSolutionArComponent } from './sections/problem-solution/problem-solution.component';
+export { FeaturesGridArComponent } from './sections/features-grid/features-grid.component';
+export { HowItWorksArComponent } from './sections/how-it-works/how-it-works.component';
+export { SocialProofArComponent } from './sections/social-proof/social-proof.component';
+export { BottomCtaArComponent } from './sections/bottom-cta/bottom-cta.component';
+export { LandingFooterArComponent } from './sections/landing-footer/landing-footer.component';

@@ -1,12 +1,12 @@
 export const mockTenant = {
-  id: 'tenant-123',
+  id: '11111111-1111-4111-8111-111111111111',
   subdomain: 'test-tenant',
   name: 'Test Tenant',
 };
 
 export const mockUser = {
   id: 'user-123',
-  tenantId: 'tenant-123',
+  tenantId: '11111111-1111-4111-8111-111111111111',
   email: 'test@example.com',
   name: 'Test User',
   role: 'OWNER',

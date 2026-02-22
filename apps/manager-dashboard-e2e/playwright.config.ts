@@ -4,6 +4,7 @@ import { workspaceRoot } from '@nx/devkit';
 
 // For CI, you may want to set BASE_URL to the deployed application.
 const baseURL = process.env['BASE_URL'] || 'http://localhost:4200';
+const includeWebkit = process.env['PW_INCLUDE_WEBKIT'] === 'true';
 
 /**
  * Read environment variables from file.
@@ -28,6 +29,7 @@ export default defineConfig({
     url: 'http://localhost:4200',
     reuseExistingServer: true,
     cwd: workspaceRoot,
+    timeout: 120000,
   },
   projects: [
     {
@@ -40,10 +42,14 @@ export default defineConfig({
       use: { ...devices['Desktop Firefox'] },
     },
 
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    ...(includeWebkit
+      ? [
+          {
+            name: 'webkit',
+            use: { ...devices['Desktop Safari'] },
+          },
+        ]
+      : []),
 
     // Uncomment for mobile browsers support
     /* {

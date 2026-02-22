@@ -8,7 +8,10 @@ import {
   getRefreshToken,
   expectProtectedAccess,
 } from './utils/auth.utils';
-import { validCredentials, invalidCredentials } from './fixtures/users.fixtures';
+import {
+  validCredentials,
+  invalidCredentials,
+} from './fixtures/users.fixtures';
 import { mockLoginResponse } from './fixtures/test-data';
 
 test.describe('Authentication - core flows', () => {
@@ -39,7 +42,9 @@ test.describe('Authentication - core flows', () => {
 
     await login(page, invalidCredentials.email, invalidCredentials.password);
 
-    await expect(page.getByRole('alert')).toContainText('Invalid credentials');
+    await expect(page.getByRole('alert')).toContainText(
+      /invalid credentials|بيانات الاعتماد/i
+    );
     await expect(page).toHaveURL(/\/login/);
   });
 

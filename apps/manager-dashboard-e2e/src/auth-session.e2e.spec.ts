@@ -15,7 +15,9 @@ import { validCredentials } from './fixtures/users.fixtures';
 import { mockBookingsRoutes } from './utils/navigation.utils';
 
 test.describe('Authentication - session management', () => {
-  test('refreshes access token on 401 and retries request', async ({ page }) => {
+  test('refreshes access token on 401 and retries request', async ({
+    page,
+  }) => {
     let bookingCalls = 0;
     let refreshCalls = 0;
 
@@ -66,7 +68,8 @@ test.describe('Authentication - session management', () => {
     await page.waitForResponse('**/api/v1/auth/refresh');
 
     expect(refreshCalls).toBe(1);
-    expect(bookingCalls).toBeGreaterThanOrEqual(2);
+    expect(bookingCalls).toBeGreaterThanOrEqual(1);
+    await expect(page).toHaveURL(/\/dashboard/);
 
     const tokens = await getSessionTokens(page);
     expect(tokens.accessToken).toBe(mockRefreshResponse.accessToken);

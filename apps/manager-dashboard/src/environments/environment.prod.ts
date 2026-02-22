@@ -41,6 +41,33 @@ export const environment = {
   // Marketing
   marketing: {
     salesEmail: 'sales@khana.com',
+    socialLinks: {
+      x: '',
+      linkedin: '',
+      instagram: '',
+    },
+    supportLinks: {
+      helpCenter:
+        'mailto:sales@khana.com?subject=Help%20Center%20Request%20%7C%20Khana',
+      contactSales:
+        'mailto:sales@khana.com?subject=Contact%20Sales%20%7C%20Khana',
+      scheduleDemo:
+        'mailto:sales@khana.com?subject=Schedule%20a%20Demo%20%7C%20Khana',
+      apiDocs:
+        'mailto:sales@khana.com?subject=API%20Documentation%20Request%20%7C%20Khana',
+      status:
+        'mailto:sales@khana.com?subject=Status%20Page%20Request%20%7C%20Khana',
+    },
+    legalLinks: {
+      privacy:
+        'mailto:sales@khana.com?subject=Privacy%20Policy%20Request%20%7C%20Khana',
+      terms:
+        'mailto:sales@khana.com?subject=Terms%20of%20Service%20Request%20%7C%20Khana',
+      cookies:
+        'mailto:sales@khana.com?subject=Cookie%20Policy%20Request%20%7C%20Khana',
+      security:
+        'mailto:sales@khana.com?subject=Security%20and%20Compliance%20Request%20%7C%20Khana',
+    },
   },
 
   // Timeouts (milliseconds)

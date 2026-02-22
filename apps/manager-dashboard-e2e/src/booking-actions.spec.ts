@@ -1,8 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { mockAuthRoutes } from './fixtures/auth.fixtures';
+import { validCredentials } from './fixtures/users.fixtures';
+import { login } from './utils/auth.utils';
 
 test.describe('Booking Actions', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock facilities list
+    await mockAuthRoutes(page);
+
     await page.route('**/api/v1/bookings/facilities', async (route) => {
       await route.fulfill({
         status: 200,
@@ -21,9 +25,7 @@ test.describe('Booking Actions', () => {
       });
     });
 
-    // Mock the bookings list
     await page.route(/\/api\/v1\/bookings(?:\?.*)?$/, async (route) => {
-      // Return a single confirmed booking
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -42,7 +44,6 @@ test.describe('Booking Actions', () => {
       });
     });
 
-    // Mock the update endpoint
     await page.route(
       '**/api/v1/bookings/test-booking-1/status',
       async (route) => {
@@ -50,7 +51,6 @@ test.describe('Booking Actions', () => {
         const postData = route.request().postDataJSON();
 
         if (method === 'PATCH' && postData.status === 'CANCELLED') {
-          // Successful cancellation
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -60,40 +60,50 @@ test.describe('Booking Actions', () => {
               endTime: new Date(Date.now() + 3600000).toISOString(),
               customerName: 'Test Customer',
               customerPhone: '1234567890',
-              status: 'CANCELLED', // Updated status
+              status: 'CANCELLED',
               paymentStatus: 'PENDING',
               facility: { id: 'f1', name: 'Test Facility' },
             }),
           });
-        } else {
-          await route.fallback();
+          return;
         }
+
+        await route.fallback();
       }
     );
 
-    await page.goto('/bookings');
+    await login(page, validCredentials.email, validCredentials.password);
+    await expect(page).toHaveURL(/\/dashboard\/bookings/);
   });
 
   test('should allow cancelling a booking', async ({ page }) => {
-    // 1. Verify initial state
-    const bookingRow = page.getByRole('row', { name: /Test Customer/ });
+    const bookingRow = page.locator('.data-table tbody tr', {
+      hasText: 'Test Customer',
+    });
     await expect(bookingRow).toBeVisible();
-    await expect(bookingRow).toContainText('Confirmed');
+    await expect(bookingRow).toContainText(/Confirmed|مؤكد/i);
 
-    // 2. Find and click cancel button
-    // Note: The button has a title "Cancel Booking"
-    const cancelButton = page.getByTitle('Cancel Booking');
+    const cancelButton = bookingRow.getByRole('button', {
+      name: /cancel booking for test customer|إلغاء الحجز للعميل/i,
+    });
     await expect(cancelButton).toBeVisible();
-
-    // Setup dialog handler for confirm()
-    page.on('dialog', (dialog) => dialog.accept());
-
     await cancelButton.click();
 
-    // 3. Verify optimistic update (Status should change to Cancelled)
-    await expect(page.getByText('Cancelled')).toBeVisible();
+    const dialog = page.locator('.confirmation-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog
+      .locator('textarea.cancel-form__input')
+      .fill('Customer requested cancellation');
 
-    // 4. Verify the button is gone (or logic hides it)
-    await expect(cancelButton).not.toBeVisible();
+    await dialog
+      .getByRole('button', { name: /cancel booking|إلغاء الحجز/i })
+      .click();
+
+    await expect(bookingRow).toContainText(/Cancelled|ملغي/i);
+    await expect(
+      bookingRow.getByRole('button', {
+        name: /cancel booking for test customer|إلغاء الحجز للعميل/i,
+      })
+    ).toHaveCount(0);
   });
 });
