@@ -5,10 +5,43 @@ describe('API', () => {
   let bookedStartTime: string;
   let bookedEndTime: string;
   let accessToken: string;
+  let tenantId: string;
+
+  const tenantHeaders = () => ({
+    'x-tenant-id': tenantId,
+  });
 
   const authHeaders = () => ({
     Authorization: `Bearer ${accessToken}`,
+    ...tenantHeaders(),
   });
+
+  const findAvailableSlot = async (baseStartTime: Date) => {
+    for (let offsetHours = 0; offsetHours < 16; offsetHours += 1) {
+      const candidateStart = new Date(
+        baseStartTime.getTime() + offsetHours * 60 * 60 * 1000
+      );
+      const candidateEnd = new Date(candidateStart.getTime() + 60 * 60 * 1000);
+      const preview = await axios.post(
+        `/api/v1/bookings/preview`,
+        {
+          facilityId,
+          startTime: candidateStart.toISOString(),
+          endTime: candidateEnd.toISOString(),
+        },
+        { headers: authHeaders() }
+      );
+
+      if (preview.data?.canBook) {
+        return {
+          startTime: candidateStart.toISOString(),
+          endTime: candidateEnd.toISOString(),
+        };
+      }
+    }
+
+    throw new Error('No available booking slot found for e2e test setup');
+  };
 
   const expectHttpError = async (
     request: Promise<unknown>,
@@ -26,12 +59,21 @@ describe('API', () => {
   beforeAll(async () => {
     const email = `bookings-e2e-${Date.now()}@khana.dev`;
     const password = 'Password123';
+    const tenantRes = await axios.get(`/api/v1/auth/tenant`);
+    tenantId = tenantRes.data?.id;
+    expect(tenantId).toBeTruthy();
 
-    const registerRes = await axios.post(`/api/v1/auth/register`, {
-      email,
-      password,
-      name: 'Bookings E2E User',
-    });
+    const registerRes = await axios.post(
+      `/api/v1/auth/register`,
+      {
+        email,
+        password,
+        name: 'Bookings E2E User',
+      },
+      {
+        headers: tenantHeaders(),
+      }
+    );
     accessToken = registerRes.data.accessToken;
 
     const facilitiesRes = await axios.get(`/api/v1/bookings/facilities`, {
@@ -40,12 +82,14 @@ describe('API', () => {
     facilityId = facilitiesRes.data?.[0]?.id;
     expect(facilityId).toBeTruthy();
 
-    // Create a deterministic booking for conflict/list tests (tomorrow 10:00-11:00).
+    // Find an available slot for conflict/list tests to keep suite deterministic.
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(10, 0, 0, 0);
-    bookedStartTime = tomorrow.toISOString();
-    bookedEndTime = new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString();
+    tomorrow.setHours(8, 0, 0, 0);
+
+    const selectedSlot = await findAvailableSlot(tomorrow);
+    bookedStartTime = selectedSlot.startTime;
+    bookedEndTime = selectedSlot.endTime;
 
     await axios.post(
       `/api/v1/bookings`,
@@ -66,6 +110,64 @@ describe('API', () => {
 
       expect(res.status).toBe(200);
       expect(res.data).toEqual({ message: 'Hello API' });
+    });
+  });
+
+  describe('Security hardening', () => {
+    it('should require authentication for POST /api/v1/test-email', async () => {
+      await expectHttpError(
+        axios.post('/api/v1/test-email', { email: 'test@khana.dev' }),
+        401
+      );
+    });
+  });
+
+  describe('Auth throttling', () => {
+    it('should throttle repeated register attempts', async () => {
+      const statuses: number[] = [];
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        try {
+          const res = await axios.post(
+            '/api/v1/auth/register',
+            {
+              email: `register-throttle-${Date.now()}-${attempt}@khana.dev`,
+              password: 'Password123',
+              name: `Throttle ${attempt}`,
+            },
+            { headers: tenantHeaders() }
+          );
+          statuses.push(res.status);
+        } catch (error: unknown) {
+          const axiosError = error as { response?: { status?: number } };
+          statuses.push(axiosError.response?.status ?? 0);
+        }
+      }
+
+      expect(statuses).toContain(429);
+    });
+
+    it('should throttle repeated login attempts', async () => {
+      const statuses: number[] = [];
+
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          const res = await axios.post(
+            '/api/v1/auth/login',
+            {
+              email: `bookings-e2e-${Date.now()}@khana.dev`,
+              password: 'WrongPassword123',
+            },
+            { headers: tenantHeaders() }
+          );
+          statuses.push(res.status);
+        } catch (error: unknown) {
+          const axiosError = error as { response?: { status?: number } };
+          statuses.push(axiosError.response?.status ?? 0);
+        }
+      }
+
+      expect(statuses).toContain(429);
     });
   });
 
@@ -136,21 +238,18 @@ describe('API', () => {
 
   describe('POST /api/v1/bookings/preview', () => {
     it('should return successful preview for available slot', async () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(9, 0, 0, 0);
+      const previewDay = new Date();
+      previewDay.setDate(previewDay.getDate() + 3);
+      previewDay.setHours(8, 0, 0, 0);
 
-      const startTime = tomorrow.toISOString();
-      const endTime = new Date(
-        tomorrow.getTime() + 60 * 60 * 1000
-      ).toISOString();
+      const slot = await findAvailableSlot(previewDay);
 
       const res = await axios.post(
         `/api/v1/bookings/preview`,
         {
           facilityId,
-          startTime,
-          endTime,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
         },
         { headers: authHeaders() }
       );
@@ -181,14 +280,13 @@ describe('API', () => {
     });
 
     it('should block conflicts for active pending holds', async () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(12, 0, 0, 0);
+      const holdDay = new Date();
+      holdDay.setDate(holdDay.getDate() + 2);
+      holdDay.setHours(8, 0, 0, 0);
 
-      const startTime = tomorrow.toISOString();
-      const endTime = new Date(
-        tomorrow.getTime() + 60 * 60 * 1000
-      ).toISOString();
+      const holdSlot = await findAvailableSlot(holdDay);
+      const startTime = holdSlot.startTime;
+      const endTime = holdSlot.endTime;
 
       await axios.post(
         `/api/v1/bookings`,
@@ -267,22 +365,24 @@ describe('API', () => {
     });
 
     it('should apply promo code discount', async () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(9, 0, 0, 0);
+      const promoDay = new Date();
+      promoDay.setDate(promoDay.getDate() + 4);
+      promoDay.setHours(8, 0, 0, 0);
+      const slot = await findAvailableSlot(promoDay);
 
       const res = await axios.post(
         `/api/v1/bookings/preview`,
         {
           facilityId,
-          startTime: tomorrow.toISOString(),
-          endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString(),
+          startTime: slot.startTime,
+          endTime: slot.endTime,
           promoCode: 'SUMMER10',
         },
         { headers: authHeaders() }
       );
 
       expect(res.status).toBe(200);
+      expect(res.data.canBook).toBe(true);
       expect(res.data.priceBreakdown.promoCode).toBe('SUMMER10');
       expect(res.data.priceBreakdown.promoDiscount).toBeGreaterThan(0);
     });

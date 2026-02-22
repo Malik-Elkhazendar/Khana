@@ -67,6 +67,8 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async register(
     @Body() dto: RegisterDto,
     @TenantId() tenantId?: string,
@@ -97,6 +99,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(
     @Body() dto: LoginDto,
     @TenantId() tenantId?: string,

@@ -1,6 +1,16 @@
-import { Controller, Get, Post, Body, Version } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Version,
+  UseGuards,
+} from '@nestjs/common';
 import { AppService } from './app.service';
 import { EmailService } from '@khana/notifications';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
+import { Roles } from './auth/decorators/roles.decorator';
 
 @Controller()
 export class AppController {
@@ -16,10 +26,12 @@ export class AppController {
 
   /**
    * TEST ENDPOINT: Send a test email to verify SMTP configuration
-   * Usage: POST /api/v1/test-email with body: { email: 'your@email.com' }
-   * Check Mailtrap inbox after calling this
+   * Usage: POST /api/v1/test-email (OWNER or MANAGER only)
+   * Body: { email: 'your@email.com' }
    */
   @Version('1')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'MANAGER')
   @Post('test-email')
   async testEmail(@Body() body: { email?: string }) {
     const testEmail = body.email || 'test@example.com';

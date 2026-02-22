@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   displayName: 'api-e2e',
   preset: '../../jest.preset.js',
   globalSetup: '<rootDir>/src/support/global-setup.ts',
@@ -12,6 +12,9 @@ export default {
         tsconfig: '<rootDir>/tsconfig.spec.json',
       },
     ],
+  },
+  moduleNameMapper: {
+    '^@khana/(.*)$': '<rootDir>/../../libs/$1/src',
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/api-e2e',
