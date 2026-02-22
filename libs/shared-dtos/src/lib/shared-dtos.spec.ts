@@ -43,8 +43,8 @@ describe('shared-dtos', () => {
       expect(SlotStatus.MAINTENANCE).toBe('MAINTENANCE');
       // AVAILABLE should not exist (critical design decision)
       expect(
-        (SlotStatus as Record<string, string>)['AVAILABLE']
-      ).toBeUndefined();
+        Object.prototype.hasOwnProperty.call(SlotStatus, 'AVAILABLE')
+      ).toBe(false);
     });
 
     it('should export BookingStatus enum', () => {
@@ -58,8 +58,8 @@ describe('shared-dtos', () => {
       expect(PaymentStatus.PAID).toBe('PAID');
       expect(PaymentStatus.REFUNDED).toBe('REFUNDED');
       expect(
-        (PaymentStatus as Record<string, string>)['UNPAID']
-      ).toBeUndefined();
+        Object.prototype.hasOwnProperty.call(PaymentStatus, 'UNPAID')
+      ).toBe(false);
     });
 
     it('should export ConflictType enum', () => {
