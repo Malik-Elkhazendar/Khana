@@ -1,11 +1,27 @@
 import { TestBed } from '@angular/core/testing';
 import { RouterModule } from '@angular/router';
 import { App } from './app';
+import { AuthService } from './shared/services/auth.service';
+import { LanguageService } from './shared/services/language.service';
 
 describe('App', () => {
+  const authServiceMock = {
+    restoreSession: jest.fn(),
+  };
+
+  const languageServiceMock = {
+    init: jest.fn(),
+    getCurrentLanguage: jest.fn(() => 'en'),
+    setLanguage: jest.fn(),
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App, RouterModule.forRoot([])],
+      providers: [
+        { provide: AuthService, useValue: authServiceMock },
+        { provide: LanguageService, useValue: languageServiceMock },
+      ],
     }).compileComponents();
   });
 

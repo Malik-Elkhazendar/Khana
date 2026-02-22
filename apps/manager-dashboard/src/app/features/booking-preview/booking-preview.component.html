@@ -1,20 +1,33 @@
-<a class="skip-link" href="#booking-preview-main">Skip to booking preview</a>
-<main class="booking-preview" id="booking-preview-main" role="main">
-  <h1>Booking Preview</h1>
-  <p class="subtitle">
-    Check availability and pricing before creating a booking
-  </p>
+<a class="skip-link dashboard-skip-link" href="#booking-preview-main">{{
+  text('BOOKING_PREVIEW.PAGE.SKIP_LINK', 'Skip to booking preview')
+}}</a>
+<main
+  class="booking-preview dashboard-page"
+  id="booking-preview-main"
+  role="main"
+>
+  <header class="dashboard-page__header">
+    <div class="dashboard-page__title-group">
+      <h1 class="dashboard-page__title">
+        {{ text('BOOKING_PREVIEW.PAGE.TITLE', 'Booking Preview') }}
+      </h1>
+      <p class="subtitle dashboard-page__subtitle">
+        {{
+          text(
+            'BOOKING_PREVIEW.PAGE.SUBTITLE',
+            'Check availability and pricing before creating a booking'
+          )
+        }}
+      </p>
+    </div>
+  </header>
 
   @if (toast(); as toast) {
-  <div
-    class="toast"
-    role="status"
-    aria-live="polite"
-    [class.toast--success]="toast.tone === 'success'"
-    [class.toast--info]="toast.tone === 'info'"
-  >
-    {{ toast.message }}
-  </div>
+  <app-ui-toast
+    [message]="toast.message"
+    [tone]="toast.tone"
+    mode="inline"
+  ></app-ui-toast>
   } @if (!isOnline()) {
   <div class="connection-banner" role="status" aria-live="polite">
     {{ connectionMessage() }}
@@ -23,7 +36,7 @@
 
   <!-- Booking Form -->
   <form
-    class="booking-form"
+    class="booking-form dashboard-card"
     (ngSubmit)="onSubmit()"
     [attr.aria-busy]="loading() || facilitiesLoading()"
     [attr.aria-describedby]="
@@ -52,7 +65,9 @@
 
     <!-- Facility Selection -->
     <div class="form-group">
-      <label for="facility">Facility</label>
+      <label for="facility">{{
+        text('BOOKING_PREVIEW.FORM.FACILITY_LABEL', 'Facility')
+      }}</label>
       <select
         id="facility"
         [ngModel]="selectedFacilityId()"
@@ -60,23 +75,31 @@
         name="facility"
         required
         autocomplete="organization"
+        dir="auto"
+        [attr.lang]="inputLang()"
         [disabled]="loading() || facilitiesLoading()"
         [attr.aria-invalid]="
           selectedFacilityId().trim().length === 0 && !facilitiesLoading()
         "
       >
         @for (facility of facilities(); track facility.id) {
-        <option [value]="facility.id">
-          {{ facility.name }} -
-          {{ formatPrice(facility.basePrice, facility.currency) }}/hour
+        <option [value]="facility.id" dir="auto" [attr.lang]="inputLang()">
+          {{ facilityOptionLabel(facility) }}
         </option>
         }
       </select>
+      @if (selectedFacilityRateLabel()) {
+      <p class="facility-rate-hint" dir="auto" [attr.lang]="inputLang()">
+        {{ selectedFacilityRateLabel() }}
+      </p>
+      }
     </div>
 
     <!-- Date Selection -->
     <div class="form-group">
-      <label for="date">Date</label>
+      <label for="date">{{
+        text('BOOKING_PREVIEW.FORM.DATE_LABEL', 'Date')
+      }}</label>
       <input
         type="date"
         id="date"
@@ -84,6 +107,7 @@
         (ngModelChange)="selectedDate.set($event)"
         name="date"
         required
+        [attr.lang]="inputLang()"
         autocomplete="off"
         [disabled]="loading() || facilitiesLoading()"
         [attr.aria-invalid]="selectedDate().trim().length === 0"
@@ -93,7 +117,9 @@
     <!-- Time Selection -->
     <div class="form-row">
       <div class="form-group">
-        <label for="startTime">Start Time</label>
+        <label for="startTime">{{
+          text('BOOKING_PREVIEW.FORM.START_TIME_LABEL', 'Start Time')
+        }}</label>
         <input
           type="time"
           id="startTime"
@@ -101,6 +127,7 @@
           (ngModelChange)="startTime.set($event)"
           name="startTime"
           required
+          [attr.lang]="inputLang()"
           autocomplete="off"
           [disabled]="loading() || facilitiesLoading()"
           [attr.aria-invalid]="
@@ -110,7 +137,9 @@
         />
       </div>
       <div class="form-group">
-        <label for="endTime">End Time</label>
+        <label for="endTime">{{
+          text('BOOKING_PREVIEW.FORM.END_TIME_LABEL', 'End Time')
+        }}</label>
         <input
           type="time"
           id="endTime"
@@ -118,6 +147,7 @@
           (ngModelChange)="endTime.set($event)"
           name="endTime"
           required
+          [attr.lang]="inputLang()"
           autocomplete="off"
           [disabled]="loading() || facilitiesLoading()"
           [attr.aria-invalid]="
@@ -127,18 +157,28 @@
         />
       </div>
     </div>
-    <p class="timezone-hint">Times shown in {{ timezoneLabel }}</p>
+    <p class="timezone-hint">
+      {{
+        text(
+          'BOOKING_PREVIEW.FORM.TIMEZONE_HINT',
+          'Times shown in {{timezone
+      }}', { timezone: timezoneLabel } ) }}
+    </p>
 
     <!-- Promo Code -->
     <div class="form-group">
-      <label for="promoCode">Promo Code (Optional)</label>
+      <label for="promoCode">{{
+        text('BOOKING_PREVIEW.FORM.PROMO_LABEL', 'Promo Code (Optional)')
+      }}</label>
       <input
         type="text"
         id="promoCode"
         [ngModel]="promoCode()"
         (ngModelChange)="promoCode.set($event)"
         name="promoCode"
-        placeholder="Enter promo code"
+        [attr.placeholder]="
+          text('BOOKING_PREVIEW.FORM.PROMO_PLACEHOLDER', 'Enter promo code')
+        "
         autocomplete="off"
         [disabled]="loading() || facilitiesLoading()"
       />
@@ -146,7 +186,16 @@
 
     <!-- Submit Button -->
     <button type="submit" class="btn-primary" [disabled]="!canSubmit()">
-      @if (loading()) { Checking... } @else { Check Availability }
+      @if (loading()) {
+      {{ text('BOOKING_PREVIEW.FORM.SUBMIT_CHECKING', 'Checking...') }}
+      } @else {
+      {{
+        text(
+          'BOOKING_PREVIEW.FORM.SUBMIT_CHECK_AVAILABILITY',
+          'Check Availability'
+        )
+      }}
+      }
     </button>
   </form>
 
@@ -154,7 +203,11 @@
   @if (!loading() && !facilitiesLoading() && !error() && facilities().length ===
   0) {
   <div class="empty-state preview-empty" role="status">
-    <p>No facilities available.</p>
+    <p>
+      {{
+        text('BOOKING_PREVIEW.EMPTY.NO_FACILITIES', 'No facilities available.')
+      }}
+    </p>
   </div>
   }
 
@@ -171,7 +224,7 @@
       <span>{{ err.message }}</span>
       @if (retryCountdown(); as seconds) {
       <div class="retry-info">
-        Retrying in {{ seconds }}s - {{ retryAttemptMessage() }}
+        {{ retryCountdownMessage(seconds) }}
       </div>
       }
     </div>
@@ -205,17 +258,21 @@
     [class.conflict]="!result.canBook"
     role="region"
     aria-live="polite"
-    aria-label="Booking preview result"
+    [attr.aria-label]="
+      text('BOOKING_PREVIEW.PAGE.RESULT_REGION_LABEL', 'Booking preview result')
+    "
   >
     @if (previewStale() || isPreviewStale()) {
     <div class="stale-banner" role="status" aria-live="polite">
-      <span>Preview data may be outdated.</span>
+      <span>{{
+        text('BOOKING_PREVIEW.STALE.MESSAGE', 'Preview data may be outdated.')
+      }}</span>
       <button
         type="button"
         class="btn-secondary"
         (click)="handleErrorRecovery('refresh')"
       >
-        Refresh
+        {{ text('BOOKING_PREVIEW.STALE.REFRESH', 'Refresh') }}
       </button>
     </div>
     }
@@ -223,17 +280,23 @@
     <div class="result-header">
       @if (result.canBook) {
       <span class="status-icon success" aria-hidden="true">✓</span>
-      <h2>Available!</h2>
+      <h2>{{ text('BOOKING_PREVIEW.STATUS.AVAILABLE', 'Available!') }}</h2>
       } @else {
       <span class="status-icon conflict" aria-hidden="true">✗</span>
-      <h2>Not Available</h2>
+      <h2>
+        {{ text('BOOKING_PREVIEW.STATUS.NOT_AVAILABLE', 'Not Available') }}
+      </h2>
       }
     </div>
 
     <!-- Validation Errors -->
     @if (result.validationErrors && result.validationErrors.length > 0) {
     <div class="validation-errors">
-      <h3>Validation Issues:</h3>
+      <h3>
+        {{
+          text('BOOKING_PREVIEW.VALIDATION.ISSUES_TITLE', 'Validation Issues:')
+        }}
+      </h3>
       <ul>
         @for (error of result.validationErrors; track error) {
         <li>{{ error }}</li>
@@ -251,12 +314,30 @@
         {{ formatConflictType(result.conflict.conflictType) }}
       </p>
       } @if (result.conflict.conflictingSlots.length > 0) {
-      <div class="conflicting-slots">
-        <h4>Conflicting Slots:</h4>
-        @for (slot of result.conflict.conflictingSlots; track slot.startTime) {
-        <div class="slot">
-          {{ formatTime(slot.startTime) }} - {{ formatTime(slot.endTime) }}
-          <span class="status">{{ slot.status }}</span>
+      <div class="conflicting-slots" role="list">
+        <h4>
+          {{
+            text(
+              'BOOKING_PREVIEW.CONFLICT.CONFLICTING_SLOTS_TITLE',
+              'Conflicting Slots:'
+            )
+          }}
+        </h4>
+        @for (slot of result.conflict.conflictingSlots; track
+        trackConflictSlot($index, slot)) {
+        <div
+          class="slot"
+          role="listitem"
+          [attr.aria-label]="conflictSlotAriaLabel(slot)"
+        >
+          <span class="slot-time"
+            >{{ formatTime(slot.startTime) }} -
+            {{ formatTime(slot.endTime) }}</span
+          >
+          <app-ui-status-badge
+            [tone]="conflictSlotStatusTone(slot.status)"
+            [label]="conflictSlotStatusLabel(slot.status)"
+          ></app-ui-status-badge>
           @if (slot.bookingReference) {
           <span class="ref">({{ slot.bookingReference }})</span>
           }
@@ -269,10 +350,16 @@
 
     <!-- Price Breakdown -->
     <div class="price-breakdown">
-      <h3>Price Breakdown</h3>
-      <table aria-label="Price breakdown">
+      <h3>{{ text('BOOKING_PREVIEW.PRICING.TITLE', 'Price Breakdown') }}</h3>
+      <table
+        [attr.aria-label]="
+          text('BOOKING_PREVIEW.PRICING.TABLE_ARIA_LABEL', 'Price breakdown')
+        "
+      >
         <tr>
-          <td>Base Price</td>
+          <td>
+            {{ text('BOOKING_PREVIEW.PRICING.BASE_PRICE', 'Base Price') }}
+          </td>
           <td>
             {{
               formatPrice(
@@ -284,17 +371,33 @@
         </tr>
         @if (result.priceBreakdown.timeMultiplier !== 1) {
         <tr>
-          <td>Peak Hours ({{ result.priceBreakdown.timeMultiplier }}x)</td>
-          <td class="modifier">Applied</td>
+          <td>
+            {{
+              text(
+                'BOOKING_PREVIEW.PRICING.PEAK_HOURS_RATE',
+                'Peak Hours ({{multiplier
+            }}x)', { multiplier: result.priceBreakdown.timeMultiplier } ) }}
+          </td>
+          <td class="modifier">
+            {{ text('BOOKING_PREVIEW.PRICING.APPLIED', 'Applied') }}
+          </td>
         </tr>
         } @if (result.priceBreakdown.dayMultiplier !== 1) {
         <tr>
-          <td>Weekend Rate ({{ result.priceBreakdown.dayMultiplier }}x)</td>
-          <td class="modifier">Applied</td>
+          <td>
+            {{
+              text(
+                'BOOKING_PREVIEW.PRICING.WEEKEND_RATE',
+                'Weekend Rate ({{multiplier
+            }}x)', { multiplier: result.priceBreakdown.dayMultiplier } ) }}
+          </td>
+          <td class="modifier">
+            {{ text('BOOKING_PREVIEW.PRICING.APPLIED', 'Applied') }}
+          </td>
         </tr>
         }
         <tr>
-          <td>Subtotal</td>
+          <td>{{ text('BOOKING_PREVIEW.PRICING.SUBTOTAL', 'Subtotal') }}</td>
           <td>
             {{
               formatPrice(
@@ -306,7 +409,7 @@
         </tr>
         @if (result.priceBreakdown.discountAmount > 0) {
         <tr class="discount">
-          <td>Discount</td>
+          <td>{{ text('BOOKING_PREVIEW.PRICING.DISCOUNT', 'Discount') }}</td>
           <td>
             -{{
               formatPrice(
@@ -318,7 +421,13 @@
         </tr>
         } @if (result.priceBreakdown.promoCode) {
         <tr class="promo">
-          <td>Promo ({{ result.priceBreakdown.promoCode }})</td>
+          <td>
+            {{
+              text(
+                'BOOKING_PREVIEW.PRICING.PROMO_CODE',
+                'Promo ({{code
+            }})', { code: result.priceBreakdown.promoCode } ) }}
+          </td>
           <td>
             -{{
               formatPrice(
@@ -330,7 +439,11 @@
         </tr>
         }
         <tr class="total">
-          <td><strong>Total</strong></td>
+          <td>
+            <strong>{{
+              text('BOOKING_PREVIEW.PRICING.TOTAL', 'Total')
+            }}</strong>
+          </td>
           <td>
             <strong>{{
               formatPrice(
@@ -347,7 +460,11 @@
     @if (alternativesCount() > 0) {
     <div class="alternatives">
       <div class="alternatives-header">
-        <h3>Available Alternatives</h3>
+        <h3>
+          {{
+            text('BOOKING_PREVIEW.ALTERNATIVES.TITLE', 'Available Alternatives')
+          }}
+        </h3>
         @if (showAlternativesToggle()) {
         <button
           type="button"
@@ -362,7 +479,12 @@
       <div
         class="alternatives-scroll"
         role="region"
-        aria-label="Alternative booking slots"
+        [attr.aria-label]="
+          text(
+            'BOOKING_PREVIEW.ALTERNATIVES.REGION_LABEL',
+            'Alternative booking slots'
+          )
+        "
         (scroll)="onAlternativesScroll($event)"
       >
         <div
@@ -376,12 +498,7 @@
             class="alt-slot alt-slot--list"
             type="button"
             (click)="selectAlternative(alt)"
-            [attr.aria-label]="
-              'Select alternative slot ' +
-              formatTime(alt.startTime) +
-              ' to ' +
-              formatTime(alt.endTime)
-            "
+            [attr.aria-label]="alternativeSlotAriaLabel(alt)"
           >
             <span class="time"
               >{{ formatTime(alt.startTime) }} -
@@ -401,12 +518,7 @@
           class="alt-slot"
           type="button"
           (click)="selectAlternative(alt)"
-          [attr.aria-label]="
-            'Select alternative slot ' +
-            formatTime(alt.startTime) +
-            ' to ' +
-            formatTime(alt.endTime)
-          "
+          [attr.aria-label]="alternativeSlotAriaLabel(alt)"
         >
           <span class="time"
             >{{ formatTime(alt.startTime) }} -
@@ -417,7 +529,14 @@
         }
       </div>
       } } @else {
-      <p class="alternatives-hint">Tap to view alternative slots.</p>
+      <p class="alternatives-hint">
+        {{
+          text(
+            'BOOKING_PREVIEW.ALTERNATIVES.HINT',
+            'Tap to view alternative slots.'
+          )
+        }}
+      </p>
       }
     </div>
     }
@@ -425,31 +544,45 @@
     <!-- Customer Details (show when available) -->
     @if (result.canBook) {
     <div class="customer-details">
-      <h3>Customer Details</h3>
+      <h3>{{ text('BOOKING_PREVIEW.CUSTOMER.TITLE', 'Customer Details') }}</h3>
       <div class="form-row">
         <div class="form-group">
-          <label for="customerName">Your Name</label>
+          <label for="customerName">{{
+            text('BOOKING_PREVIEW.CUSTOMER.NAME_LABEL', 'Your Name')
+          }}</label>
           <input
             type="text"
             id="customerName"
             [ngModel]="customerName()"
             (ngModelChange)="customerName.set($event)"
             name="customerName"
-            placeholder="Enter your full name"
+            [attr.placeholder]="
+              text(
+                'BOOKING_PREVIEW.CUSTOMER.NAME_PLACEHOLDER',
+                'Enter your full name'
+              )
+            "
             required
             autocomplete="name"
             [disabled]="bookingInProgress()"
           />
         </div>
         <div class="form-group">
-          <label for="customerPhone">Phone Number</label>
+          <label for="customerPhone">{{
+            text('BOOKING_PREVIEW.CUSTOMER.PHONE_LABEL', 'Phone Number')
+          }}</label>
           <input
             type="tel"
             id="customerPhone"
             [ngModel]="customerPhone()"
             (ngModelChange)="customerPhone.set($event)"
             name="customerPhone"
-            placeholder="+966 5XX XXX XXXX"
+            [attr.placeholder]="
+              text(
+                'BOOKING_PREVIEW.CUSTOMER.PHONE_PLACEHOLDER',
+                '+966 5XX XXX XXXX'
+              )
+            "
             required
             autocomplete="tel"
             inputmode="tel"
@@ -468,21 +601,36 @@
             aria-describedby="hold-hint"
             [disabled]="bookingInProgress()"
           />
-          Reserve as hold (pending)
+          {{
+            text(
+              'BOOKING_PREVIEW.CUSTOMER.HOLD_LABEL',
+              'Reserve as hold (pending)'
+            )
+          }}
         </label>
         <p class="hold-hint" id="hold-hint">
-          Temporarily reserve this slot until confirmation.
+          {{
+            text(
+              'BOOKING_PREVIEW.CUSTOMER.HOLD_HINT',
+              'Temporarily reserve this slot until confirmation.'
+            )
+          }}
         </p>
       </div>
     </div>
 
     <!-- Confirm Booking Button -->
     <button
+      type="button"
       class="btn-book"
       [disabled]="!canBook()"
       (click)="openConfirmDialog()"
     >
-      @if (bookingInProgress()) { Confirming... } @else { Confirm Booking }
+      @if (bookingInProgress()) {
+      {{ text('BOOKING_PREVIEW.ACTIONS.CONFIRMING', 'Confirming...') }}
+      } @else {
+      {{ text('BOOKING_PREVIEW.ACTIONS.CONFIRM_BOOKING', 'Confirm Booking') }}
+      }
     </button>
     }
   </div>
@@ -501,22 +649,36 @@
   >
     <div class="confirm-summary">
       <div class="confirm-row">
-        <span class="label">Facility</span>
-        <span class="value">{{ facility?.name ?? 'Selected facility' }}</span>
+        <span class="label">{{
+          text('BOOKING_PREVIEW.CONFIRM_SUMMARY.FACILITY_LABEL', 'Facility')
+        }}</span>
+        <span class="value">{{
+          facility?.name ??
+            text(
+              'BOOKING_PREVIEW.CONFIRM_SUMMARY.SELECTED_FACILITY_FALLBACK',
+              'Selected facility'
+            )
+        }}</span>
       </div>
       <div class="confirm-row">
-        <span class="label">Date</span>
+        <span class="label">{{
+          text('BOOKING_PREVIEW.CONFIRM_SUMMARY.DATE_LABEL', 'Date')
+        }}</span>
         <span class="value">{{ selectedDate() }}</span>
       </div>
       <div class="confirm-row">
-        <span class="label">Time</span>
+        <span class="label">{{
+          text('BOOKING_PREVIEW.CONFIRM_SUMMARY.TIME_LABEL', 'Time')
+        }}</span>
         <span class="value">
           {{ formatTime(selectedDate() + 'T' + startTime()) }} -
           {{ formatTime(selectedDate() + 'T' + endTime()) }}
         </span>
       </div>
       <div class="confirm-row">
-        <span class="label">Total</span>
+        <span class="label">{{
+          text('BOOKING_PREVIEW.CONFIRM_SUMMARY.TOTAL_LABEL', 'Total')
+        }}</span>
         <span class="value">{{
           formatPrice(
             result.priceBreakdown.total,
@@ -526,8 +688,15 @@
       </div>
       @if (holdAsPending()) {
       <div class="confirm-row">
-        <span class="label">Hold</span>
-        <span class="value">Reserve as pending</span>
+        <span class="label">{{
+          text('BOOKING_PREVIEW.CONFIRM_SUMMARY.HOLD_LABEL', 'Hold')
+        }}</span>
+        <span class="value">{{
+          text(
+            'BOOKING_PREVIEW.CONFIRM_SUMMARY.HOLD_PENDING_VALUE',
+            'Reserve as pending'
+          )
+        }}</span>
       </div>
       }
     </div>
@@ -539,13 +708,23 @@
   @if (bookingSuccess()) {
   <div class="success-message" role="status" aria-live="polite">
     <span class="success-icon" aria-hidden="true">✓</span>
-    <p>Booking Confirmed!</p>
+    <p>{{ text('BOOKING_PREVIEW.SUCCESS.TITLE', 'Booking Confirmed!') }}</p>
     @if (bookingReference()) {
-    <p class="success-reference">Reference: {{ bookingReference() }}</p>
+    <p class="success-reference">
+      {{ text('BOOKING_PREVIEW.SUCCESS.REFERENCE_PREFIX', 'Reference:') }}
+      {{ bookingReference() }}
+    </p>
     }
-    <p class="success-subtitle">You will receive a confirmation shortly.</p>
-    <button class="btn-secondary" (click)="resetBooking()">
-      Make Another Booking
+    <p class="success-subtitle">
+      {{
+        text(
+          'BOOKING_PREVIEW.SUCCESS.SUBTITLE',
+          'You will receive a confirmation shortly.'
+        )
+      }}
+    </p>
+    <button type="button" class="btn-secondary" (click)="resetBooking()">
+      {{ text('BOOKING_PREVIEW.SUCCESS.CTA_ANOTHER', 'Make Another Booking') }}
     </button>
   </div>
   }

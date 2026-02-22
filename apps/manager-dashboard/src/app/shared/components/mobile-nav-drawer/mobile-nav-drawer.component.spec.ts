@@ -1,11 +1,40 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
+import { RouterTestingModule } from '@angular/router/testing';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MobileNavDrawerComponent } from './mobile-nav-drawer.component';
 import { LayoutStore } from '../../state/layout.store';
+
+@Component({
+  template: '',
+  standalone: true,
+})
+class StubRouteComponent {}
+
+const EN_TRANSLATIONS = {
+  DASHBOARD: {
+    NAV: {
+      MOBILE_NAVIGATION: 'Mobile navigation',
+      MOBILE_NAVIGATION_LINKS: 'Mobile navigation links',
+      NAVIGATION_TITLE: 'Navigation',
+      CLOSE_NAVIGATION: 'Close navigation',
+      CLOSE: 'Close',
+      ITEMS: {
+        BOOKINGS: 'Bookings',
+        CALENDAR: 'Calendar',
+        NEW_BOOKING: 'New Booking',
+      },
+    },
+  },
+};
 
 describe('MobileNavDrawerComponent', () => {
   let fixture: ComponentFixture<MobileNavDrawerComponent>;
   let component: MobileNavDrawerComponent;
   let store: InstanceType<typeof LayoutStore>;
+  let router: Router;
+  let translateService: TranslateService;
 
   const openDrawer = () => {
     store.openMobileDrawer();
@@ -13,20 +42,31 @@ describe('MobileNavDrawerComponent', () => {
   };
 
   beforeEach(async () => {
-    jest.useFakeTimers();
     await TestBed.configureTestingModule({
-      imports: [MobileNavDrawerComponent],
+      imports: [
+        MobileNavDrawerComponent,
+        TranslateModule.forRoot(),
+        RouterTestingModule.withRoutes([
+          { path: 'dashboard/bookings', component: StubRouteComponent },
+          { path: 'dashboard/calendar', component: StubRouteComponent },
+          { path: 'dashboard/new', component: StubRouteComponent },
+        ]),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(MobileNavDrawerComponent);
     component = fixture.componentInstance;
     store = TestBed.inject(LayoutStore);
+    router = TestBed.inject(Router);
+    translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', EN_TRANSLATIONS);
+    translateService.use('en');
     fixture.detectChanges();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
     jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   it('creates the component', () => {
@@ -78,16 +118,17 @@ describe('MobileNavDrawerComponent', () => {
     expect(store.mobileDrawerOpen()).toBe(false);
   });
 
-  it('emits navigate and closes on nav click', () => {
+  it('navigates and closes on nav click', async () => {
     openDrawer();
-    const navigateSpy = jest.spyOn(component.navigate, 'emit');
-    const navButton = fixture.nativeElement.querySelector(
-      '.mobile-drawer__link:not([disabled])'
-    ) as HTMLButtonElement | null;
-    navButton?.click();
-    fixture.detectChanges();
 
-    expect(navigateSpy).toHaveBeenCalledWith('/bookings');
+    const navLink = fixture.nativeElement.querySelector(
+      '.mobile-drawer__link'
+    ) as HTMLAnchorElement | null;
+    navLink?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(router.url).toBe('/dashboard/bookings');
     expect(store.mobileDrawerOpen()).toBe(false);
   });
 
@@ -99,6 +140,7 @@ describe('MobileNavDrawerComponent', () => {
   });
 
   it('focuses the close button on open', () => {
+    jest.useFakeTimers();
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
     trigger.focus();
@@ -116,6 +158,7 @@ describe('MobileNavDrawerComponent', () => {
   });
 
   it('traps focus on Tab from last element to first', () => {
+    jest.useFakeTimers();
     openDrawer();
     jest.runOnlyPendingTimers();
     fixture.detectChanges();
@@ -124,8 +167,8 @@ describe('MobileNavDrawerComponent', () => {
       '.mobile-drawer'
     ) as HTMLElement | null;
     const focusables = panel?.querySelectorAll(
-      'button:not([disabled])'
-    ) as NodeListOf<HTMLButtonElement>;
+      'button:not([disabled]), a[href]'
+    ) as NodeListOf<HTMLElement>;
     const first = focusables[0];
     const last = focusables[focusables.length - 1];
 
@@ -136,6 +179,7 @@ describe('MobileNavDrawerComponent', () => {
   });
 
   it('traps focus on Shift+Tab from first element to last', () => {
+    jest.useFakeTimers();
     openDrawer();
     jest.runOnlyPendingTimers();
     fixture.detectChanges();
@@ -144,8 +188,8 @@ describe('MobileNavDrawerComponent', () => {
       '.mobile-drawer'
     ) as HTMLElement | null;
     const focusables = panel?.querySelectorAll(
-      'button:not([disabled])'
-    ) as NodeListOf<HTMLButtonElement>;
+      'button:not([disabled]), a[href]'
+    ) as NodeListOf<HTMLElement>;
     const first = focusables[0];
     const last = focusables[focusables.length - 1];
 
@@ -158,6 +202,7 @@ describe('MobileNavDrawerComponent', () => {
   });
 
   it('restores focus to the previously focused element on close', () => {
+    jest.useFakeTimers();
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
     trigger.focus();

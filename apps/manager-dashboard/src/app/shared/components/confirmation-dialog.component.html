@@ -2,7 +2,7 @@
   type="button"
   class="dialog-backdrop"
   (click)="onBackdropClick()"
-  aria-label="Close dialog"
+  [attr.aria-label]="closeDialogAriaLabel"
   tabindex="-1"
 ></button>
 
@@ -23,9 +23,9 @@
       class="confirmation-dialog__close"
       (click)="onCancelClick()"
       [disabled]="busy"
-      aria-label="Close"
+      [attr.aria-label]="closeLabel"
     >
-      Close
+      {{ closeLabel }}
     </button>
   </header>
 
@@ -47,7 +47,7 @@
       (click)="onCancelClick()"
       [disabled]="busy"
     >
-      {{ cancelLabel }}
+      {{ resolvedCancelLabel }}
     </button>
     <button
       type="button"
@@ -55,7 +55,7 @@
       (click)="onConfirmClick()"
       [disabled]="busy || confirmDisabled"
     >
-      {{ confirmLabel }}
+      {{ resolvedConfirmLabel }}
     </button>
   </div>
 </section>

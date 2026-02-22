@@ -1,19 +1,30 @@
-<a class="skip-link" href="#booking-calendar-main">Skip to calendar</a>
+<a class="skip-link dashboard-skip-link" href="#booking-calendar-main">{{
+  text('BOOKING_CALENDAR.PAGE.SKIP_LINK', 'Skip to calendar')
+}}</a>
 <main
-  class="calendar"
+  class="calendar dashboard-page"
   id="booking-calendar-main"
   role="main"
   [attr.aria-busy]="loading() ? 'true' : null"
   [attr.aria-describedby]="error() ? errorDescriptionId : null"
 >
   <!-- Header -->
-  <header class="calendar__header">
-    <div class="calendar__nav">
+  <header class="calendar__header dashboard-page__header">
+    <div class="calendar__title-group dashboard-page__title-group">
+      <h1 class="dashboard-page__title">
+        {{ text('BOOKING_CALENDAR.PAGE.TITLE', 'Calendar') }}
+      </h1>
+      <p class="dashboard-page__subtitle">{{ weekRange() }}</p>
+    </div>
+
+    <div class="calendar__nav dashboard-page__actions">
       <button
         type="button"
         class="calendar__nav-btn"
         (click)="previousWeek()"
-        aria-label="Previous week"
+        [attr.aria-label]="
+          text('BOOKING_CALENDAR.NAV.PREVIOUS_WEEK', 'Previous week')
+        "
         [disabled]="!canNavigate()"
         [attr.aria-disabled]="!canNavigate()"
       >
@@ -33,14 +44,14 @@
         [disabled]="!canNavigate()"
         [attr.aria-disabled]="!canNavigate()"
       >
-        Today
+        {{ text('BOOKING_CALENDAR.NAV.TODAY', 'Today') }}
       </button>
 
       <button
         type="button"
         class="calendar__nav-btn"
         (click)="nextWeek()"
-        aria-label="Next week"
+        [attr.aria-label]="text('BOOKING_CALENDAR.NAV.NEXT_WEEK', 'Next week')"
         [disabled]="!canNavigate()"
         [attr.aria-disabled]="!canNavigate()"
       >
@@ -53,8 +64,6 @@
         </svg>
       </button>
     </div>
-
-    <h2 class="calendar__title">{{ weekRange() }}</h2>
   </header>
 
   <!-- Loading State -->
@@ -66,7 +75,9 @@
     aria-atomic="true"
   >
     <div class="calendar__spinner"></div>
-    <span>Loading bookings...</span>
+    <span>{{
+      text('BOOKING_CALENDAR.STATE.LOADING', 'Loading bookings...')
+    }}</span>
   </div>
   }
 
@@ -83,14 +94,29 @@
       @if (errorCategoryLabel()) {
       <p class="calendar__error-meta">{{ errorCategoryLabel() }}</p>
       } @if (autoRetryEligible()) {
-      <p class="calendar__error-meta">Auto-retrying with backoff.</p>
+      <p class="calendar__error-meta">
+        {{
+          text(
+            'BOOKING_CALENDAR.ERRORS.AUTO_RETRYING',
+            'Auto-retrying with backoff.'
+          )
+        }}
+      </p>
       } @if (retryScheduledAt()) {
       <p class="calendar__error-meta">
-        Next retry at {{ formatLastUpdated(retryScheduledAt()) }}
+        {{
+          text(
+            'BOOKING_CALENDAR.ERRORS.NEXT_RETRY_AT',
+            'Next retry at {{time
+        }}', { time: formatLastUpdated(retryScheduledAt()) } ) }}
       </p>
       } @if (lastSuccessfulAt()) {
       <p class="calendar__error-meta">
-        Showing last updated {{ formatLastUpdated(lastSuccessfulAt()) }}
+        {{
+          text(
+            'BOOKING_CALENDAR.ERRORS.SHOWING_LAST_UPDATED',
+            'Showing last updated {{time
+        }}', { time: formatLastUpdated(lastSuccessfulAt()) } ) }}
       </p>
       }
     </div>
@@ -117,19 +143,113 @@
   </div>
   }
 
-  <!-- Empty State -->
-  @if (showEmptyState()) {
-  <div class="empty-state calendar__empty" role="status">
-    <p>No bookings found for this week.</p>
+  <!-- Mobile Day View -->
+  @if (showContent()) {
+  <div class="calendar__day-view">
+    <!-- Day Strip -->
+    <div
+      class="calendar__day-strip"
+      role="tablist"
+      [attr.aria-label]="text('BOOKING_CALENDAR.ARIA.SELECT_DAY', 'Select day')"
+    >
+      @for (day of weekDays(); track trackByDay($index, day)) {
+      <button
+        type="button"
+        class="calendar__day-pill"
+        [class.calendar__day-pill--active]="isSelectedDay(day)"
+        [class.calendar__day-pill--today]="isToday(day)"
+        role="tab"
+        [attr.aria-selected]="isSelectedDay(day)"
+        (click)="selectDay(day)"
+      >
+        <span class="calendar__day-pill-name">{{ dayName(day) }}</span>
+        <span class="calendar__day-pill-number">{{
+          formatDayNumber(day)
+        }}</span>
+      </button>
+      }
+    </div>
+
+    <!-- Day Timeline -->
+    @if (selectedDayBookings().length > 0) {
+    <div
+      class="calendar__timeline"
+      role="list"
+      [attr.aria-label]="
+        text(
+          'BOOKING_CALENDAR.ARIA.BOOKINGS_FOR_SELECTED_DAY',
+          'Bookings for selected day'
+        )
+      "
+    >
+      @for (segment of selectedDayBookings(); track trackByBooking($index,
+      segment)) { @let booking = segment.booking;
+      <button
+        type="button"
+        class="calendar__timeline-card {{ getStatusClass(booking.status) }}"
+        [class.calendar__timeline-card--hold]="isHoldActive(booking)"
+        role="listitem"
+        [attr.aria-label]="timelineBookingAriaLabel(booking)"
+        (click)="openBooking(booking, $event)"
+      >
+        <div class="calendar__timeline-time">
+          {{ formatTime(booking.startTime) }} –
+          {{ formatTime(booking.endTime) }}
+        </div>
+        <div class="calendar__timeline-details">
+          <span class="calendar__timeline-name">{{
+            booking.customerName
+          }}</span>
+          <span class="calendar__timeline-meta">
+            {{ booking.facility.name }}
+            <app-ui-status-badge
+              [tone]="statusTone(booking.status)"
+              [label]="statusLabel(booking.status)"
+            ></app-ui-status-badge>
+          </span>
+        </div>
+        @if (isHoldActive(booking)) {
+        <span class="calendar__timeline-hold">{{
+          text('BOOKING_CALENDAR.ACTION_SHEET.HOLD', 'Hold')
+        }}</span>
+        }
+      </button>
+      }
+    </div>
+    } @else if (!loading() && !error()) {
+    <div class="calendar__day-empty" role="status">
+      <p>
+        {{
+        text('BOOKING_CALENDAR.STATE.NO_BOOKINGS_FOR_DAY', 'No bookings for {{day
+        }}', { day: selectedDayLabel() }) }}
+      </p>
+    </div>
+    }
   </div>
   }
 
-  <!-- Calendar Grid -->
+  <!-- Empty State (desktop) -->
+  @if (showEmptyState()) {
+  <div class="empty-state calendar__empty calendar__grid-view" role="status">
+    <p>
+      {{
+        text(
+          'BOOKING_CALENDAR.STATE.NO_BOOKINGS_THIS_WEEK',
+          'No bookings found for this week.'
+        )
+      }}
+    </p>
+  </div>
+  }
+
+  <!-- Calendar Grid (desktop) -->
   @if (showGrid()) {
   <div
-    class="calendar__grid"
+    class="calendar__grid calendar__grid-view"
     role="grid"
-    aria-label="Weekly booking calendar"
+    [attr.aria-label]="
+      text('BOOKING_CALENDAR.ARIA.WEEKLY_GRID', 'Weekly booking calendar')
+    "
     [attr.aria-rowcount]="hours.length"
     [attr.aria-colcount]="weekDays().length"
   >
@@ -141,7 +261,7 @@
       [class.calendar__day-header--today]="isToday(day)"
       role="columnheader"
     >
-      <span class="calendar__day-name">{{ dayNames[day.getDay()] }}</span>
+      <span class="calendar__day-name">{{ dayName(day) }}</span>
       <span class="calendar__day-number">{{ formatDayNumber(day) }}</span>
     </div>
     }
@@ -174,11 +294,9 @@
         class="calendar__booking {{ getStatusClass(booking.status) }}"
         [class.calendar__booking--hold]="isHoldActive(booking)"
         [ngStyle]="getBookingStyle(segment, layout.column, layout.columns)"
-        [attr.aria-label]="'Booking: ' + booking.customerName"
+        [attr.aria-label]="gridBookingAriaLabel(booking)"
         [attr.title]="
-          isHoldActive(booking)
-            ? 'Reserved until ' + formatTime(booking.holdUntil)
-            : null
+          isHoldActive(booking) ? holdUntilTitle(booking.holdUntil) : null
         "
         (click)="openBooking(booking, $event)"
       >
@@ -187,7 +305,9 @@
           booking.facility.name
         }}</span>
         @if (isHoldActive(booking)) {
-        <span class="calendar__booking-hold">Hold</span>
+        <span class="calendar__booking-hold">{{
+          text('BOOKING_CALENDAR.ACTION_SHEET.HOLD', 'Hold')
+        }}</span>
         }
       </button>
       }
@@ -202,7 +322,9 @@
   type="button"
   class="sheet-backdrop"
   (click)="closePanel()"
-  aria-label="Close booking actions"
+  [attr.aria-label]="
+    text('BOOKING_CALENDAR.ACTION_SHEET.CLOSE_ACTIONS', 'Close booking actions')
+  "
   tabindex="-1"
 ></button>
 
@@ -218,7 +340,9 @@
 >
   <header class="action-sheet__header">
     <div>
-      <h3 id="booking-actions-title">Booking Actions</h3>
+      <h3 id="booking-actions-title">
+        {{ text('BOOKING_CALENDAR.ACTION_SHEET.TITLE', 'Booking Actions') }}
+      </h3>
       <p class="action-sheet__meta">
         {{ booking.customerName }} - {{ booking.facility.name }}
       </p>
@@ -229,53 +353,72 @@
       class="action-sheet__close"
       (click)="closePanel()"
     >
-      Close
+      {{ text('BOOKING_CALENDAR.ACTION_SHEET.CLOSE', 'Close') }}
     </button>
   </header>
 
   <div class="action-sheet__body">
     <div class="action-sheet__row">
-      <span class="label">Date</span>
+      <span class="label">{{
+        text('BOOKING_CALENDAR.ACTION_SHEET.DATE', 'Date')
+      }}</span>
       <span class="value">{{ formatDate(booking.startTime) }}</span>
     </div>
     <div class="action-sheet__row">
-      <span class="label">Time</span>
+      <span class="label">{{
+        text('BOOKING_CALENDAR.ACTION_SHEET.TIME', 'Time')
+      }}</span>
       <span class="value"
         >{{ formatTime(booking.startTime) }} -
         {{ formatTime(booking.endTime) }}</span
       >
     </div>
     <div class="action-sheet__row">
-      <span class="label">Customer Phone</span>
+      <span class="label">{{
+        text('BOOKING_CALENDAR.ACTION_SHEET.CUSTOMER_PHONE', 'Customer Phone')
+      }}</span>
       <a class="value link" [href]="'tel:' + booking.customerPhone">
         {{ booking.customerPhone }}
       </a>
     </div>
     <div class="action-sheet__row">
-      <span class="label">Status</span>
+      <span class="label">{{
+        text('BOOKING_CALENDAR.ACTION_SHEET.STATUS', 'Status')
+      }}</span>
       <span class="value">
-        <span class="status-pill status-pill--{{ statusTone(booking.status) }}">
-          {{ statusLabel(booking.status) }}
-        </span>
+        <app-ui-status-badge
+          [tone]="statusTone(booking.status)"
+          [label]="statusLabel(booking.status)"
+        ></app-ui-status-badge>
       </span>
     </div>
     <div class="action-sheet__row">
-      <span class="label">Payment</span>
+      <span class="label">{{
+        text('BOOKING_CALENDAR.ACTION_SHEET.PAYMENT', 'Payment')
+      }}</span>
       <span class="value">
-        <span
-          class="status-pill status-pill--{{
-            paymentTone(booking.paymentStatus)
-          }}"
-        >
-          {{ paymentLabel(booking.paymentStatus) }}
-        </span>
+        <app-ui-status-badge
+          [tone]="paymentTone(booking.paymentStatus)"
+          [label]="paymentLabel(booking.paymentStatus)"
+        ></app-ui-status-badge>
       </span>
     </div>
     @if (booking.status === BookingStatus.PENDING && booking.holdUntil) {
     <div class="action-sheet__row action-sheet__row--hold">
-      <span class="label">Hold</span>
+      <span class="label">{{
+        text('BOOKING_CALENDAR.ACTION_SHEET.HOLD', 'Hold')
+      }}</span>
       <span class="value">
-        <app-hold-timer [holdUntil]="booking.holdUntil"></app-hold-timer>
+        <app-hold-timer
+          [holdUntil]="booking.holdUntil"
+          [prefix]="text('BOOKING_CALENDAR.HOLD_TIMER.PREFIX', 'Expires in')"
+          [expiredLabel]="
+            text('BOOKING_CALENDAR.HOLD_TIMER.EXPIRED', 'Expired')
+          "
+          [emptyLabel]="
+            text('BOOKING_CALENDAR.HOLD_TIMER.UNAVAILABLE', 'Unavailable')
+          "
+        ></app-hold-timer>
         <span class="hold-time">{{ formatTime(booking.holdUntil) }}</span>
       </span>
     </div>
@@ -289,7 +432,7 @@
       (click)="openConfirmDialog()"
       [disabled]="!dialogAvailable()"
     >
-      Confirm
+      {{ text('BOOKING_CALENDAR.ACTIONS.CONFIRM', 'Confirm') }}
     </button>
     <button
       type="button"
@@ -297,7 +440,7 @@
       (click)="openPayDialog()"
       [disabled]="!dialogAvailable()"
     >
-      Mark Paid
+      {{ text('BOOKING_CALENDAR.ACTIONS.MARK_PAID', 'Mark Paid') }}
     </button>
     <button
       type="button"
@@ -309,22 +452,32 @@
         booking.paymentStatus === PaymentStatus.PARTIALLY_PAID
       "
     >
-      Cancel
+      {{ text('BOOKING_CALENDAR.ACTIONS.CANCEL', 'Cancel') }}
     </button>
     @if ( booking.paymentStatus === PaymentStatus.PAID || booking.paymentStatus
     === PaymentStatus.PARTIALLY_PAID ) {
     <p class="action-sheet__note">
-      Paid booking - cancellation will require refund once payment gateway is
-      integrated.
+      {{
+        text(
+          'BOOKING_CALENDAR.ACTIONS.PAID_BOOKING_NOTE',
+          'Paid booking - cancellation will require refund once payment gateway is integrated.'
+        )
+      }}
     </p>
     }
   </div>
 </section>
 } @if (actionDialog(); as dialog) { @let copy = dialogCopy();
 <app-confirmation-dialog
-  [title]="copy?.title ?? 'Confirm action'"
+  [title]="
+    copy?.title ??
+    text('BOOKING_CALENDAR.DIALOG.FALLBACK_TITLE', 'Confirm action')
+  "
   [message]="copy?.message ?? ''"
-  [confirmLabel]="copy?.confirmLabel ?? 'Confirm'"
+  [confirmLabel]="
+    copy?.confirmLabel ??
+    text('BOOKING_CALENDAR.DIALOG.FALLBACK_CONFIRM', 'Confirm')
+  "
   [confirmTone]="copy?.confirmTone ?? 'primary'"
   [confirmDisabled]="dialog.type === 'cancel' && !cancelReasonValid()"
   [busy]="actionInProgress()"
@@ -340,7 +493,9 @@
   }
 </app-confirmation-dialog>
 } @if (toast(); as notice) {
-<div class="toast toast--{{ notice.tone }}" role="status" aria-live="polite">
-  {{ notice.message }}
-</div>
+<app-ui-toast
+  [message]="notice.message"
+  [tone]="notice.tone"
+  mode="fixed-bottom"
+></app-ui-toast>
 }

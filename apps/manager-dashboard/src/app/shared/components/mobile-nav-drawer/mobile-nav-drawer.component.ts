@@ -2,43 +2,39 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  EventEmitter,
   HostListener,
   OnDestroy,
-  Output,
   ViewChild,
   effect,
   inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { LayoutStore } from '../../state/layout.store';
-
-type NavItem = {
-  label: string;
-  route: string | null;
-};
+import { DASHBOARD_NAV_ITEMS } from '../../navigation/dashboard-nav';
+import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
+import { UiIconComponent } from '../ui';
 
 @Component({
   selector: 'app-mobile-nav-drawer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [
+    CommonModule,
+    RouterModule,
+    TranslateModule,
+    UiIconComponent,
+    LanguageSwitcherComponent,
+  ],
   templateUrl: './mobile-nav-drawer.component.html',
   styleUrl: './mobile-nav-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MobileNavDrawerComponent implements OnDestroy {
-  @Output() navigate = new EventEmitter<string>();
-
   @ViewChild('drawerPanel') drawerPanel?: ElementRef<HTMLElement>;
   @ViewChild('closeButton') closeButton?: ElementRef<HTMLButtonElement>;
 
-  readonly navItems: NavItem[] = [
-    { label: 'Dashboard', route: '/bookings' },
-    { label: 'Bookings', route: '/calendar' },
-    { label: 'Facilities', route: null },
-    { label: 'Settings', route: null },
-  ];
-
+  readonly navItems = DASHBOARD_NAV_ITEMS;
   readonly layoutStore = inject(LayoutStore);
 
   private lastFocusedElement: HTMLElement | null = null;
@@ -74,11 +70,12 @@ export class MobileNavDrawerComponent implements OnDestroy {
     this.closeDrawer();
   }
 
-  onNavClick(item: NavItem, event: Event): void {
-    if (!item.route) return;
-    event.preventDefault();
-    this.navigate.emit(item.route);
+  onNavClick(): void {
     this.closeDrawer();
+  }
+
+  trackByRoute(_: number, item: { route: string }): string {
+    return item.route;
   }
 
   @HostListener('document:keydown', ['$event'])

@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { SidebarComponent } from './sidebar.component';
@@ -12,10 +13,25 @@ import { SidebarComponent } from './sidebar.component';
 })
 class StubRouteComponent {}
 
+const EN_TRANSLATIONS = {
+  DASHBOARD: {
+    NAV: {
+      MAIN_NAVIGATION: 'Main navigation',
+      TOGGLE_SIDEBAR: 'Toggle sidebar',
+      ITEMS: {
+        BOOKINGS: 'Bookings',
+        CALENDAR: 'Calendar',
+        NEW_BOOKING: 'New Booking',
+      },
+    },
+  },
+};
+
 describe('SidebarComponent', () => {
   let fixture: ComponentFixture<SidebarComponent>;
   let component: SidebarComponent;
   let router: Router;
+  let translateService: TranslateService;
 
   const getStyles = () =>
     readFileSync(
@@ -30,10 +46,11 @@ describe('SidebarComponent', () => {
     await TestBed.configureTestingModule({
       imports: [
         SidebarComponent,
+        TranslateModule.forRoot(),
         RouterTestingModule.withRoutes([
-          { path: 'calendar', component: StubRouteComponent },
-          { path: 'bookings', component: StubRouteComponent },
-          { path: 'new', component: StubRouteComponent },
+          { path: 'dashboard/calendar', component: StubRouteComponent },
+          { path: 'dashboard/bookings', component: StubRouteComponent },
+          { path: 'dashboard/new', component: StubRouteComponent },
         ]),
       ],
     }).compileComponents();
@@ -41,6 +58,9 @@ describe('SidebarComponent', () => {
     fixture = TestBed.createComponent(SidebarComponent);
     component = fixture.componentInstance;
     router = TestBed.inject(Router);
+    translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', EN_TRANSLATIONS);
+    translateService.use('en');
     fixture.detectChanges();
   });
 
@@ -107,7 +127,7 @@ describe('SidebarComponent', () => {
   });
 
   it('sets aria-current="page" on active link', async () => {
-    await router.navigateByUrl('/calendar');
+    await router.navigateByUrl('/dashboard/calendar');
     await fixture.whenStable();
     fixture.detectChanges();
 

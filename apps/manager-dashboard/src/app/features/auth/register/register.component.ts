@@ -15,10 +15,12 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { Observable, of, startWith } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
+import { LanguageService } from '../../../shared/services/language.service';
 import { CreateUserDto } from '@khana/shared-dtos';
 import {
   PasswordStrengthResult,
@@ -34,6 +36,7 @@ import { PasswordStrengthIndicatorComponent } from '../shared';
     ReactiveFormsModule,
     RouterModule,
     PasswordStrengthIndicatorComponent,
+    TranslateModule,
   ],
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss',
@@ -44,6 +47,7 @@ export class RegisterComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly passwordStrengthService = inject(PasswordStrengthService);
+  public readonly languageService = inject(LanguageService);
 
   readonly authStore = inject(AuthStore);
 
@@ -67,10 +71,7 @@ export class RegisterComponent implements OnInit {
 
   readonly registerForm = this.fb.nonNullable.group(
     {
-      email: [
-        '',
-        [Validators.required, Validators.email],
-      ],
+      email: ['', [Validators.required, Validators.email]],
       password: [
         '',
         [

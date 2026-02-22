@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import {
   HeaderComponent,
   MobileNavDrawerComponent,
@@ -24,6 +25,7 @@ const DESKTOP_BREAKPOINT = 1024;
   imports: [
     CommonModule,
     RouterModule,
+    TranslateModule,
     HeaderComponent,
     SidebarComponent,
     MobileNavDrawerComponent,

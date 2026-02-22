@@ -2,40 +2,51 @@
   <div class="header-inner">
     <a
       class="brand"
-      href="/bookings"
-      aria-label="Khana home"
-      (click)="navigate('/bookings', $event)"
+      routerLink="/dashboard/bookings"
+      [attr.aria-label]="'DASHBOARD.NAV.BRAND_LABEL' | translate"
+      (click)="onNavClick()"
     >
       Khana
     </a>
 
-    <nav class="primary-nav" role="navigation" aria-label="Primary navigation">
+    <nav
+      class="primary-nav"
+      role="navigation"
+      [attr.aria-label]="'DASHBOARD.NAV.PRIMARY_NAVIGATION' | translate"
+    >
       <ul class="nav-list">
-        <li class="nav-item" *ngFor="let item of navItems">
+        <li
+          class="nav-item"
+          *ngFor="let item of navItems; trackBy: trackByRoute"
+        >
           <a
-            *ngIf="item.route; else navPlaceholder"
             class="nav-link"
-            [attr.href]="item.route"
-            (click)="navigate(item.route, $event)"
+            [routerLink]="item.route"
+            routerLinkActive="nav-link--active"
+            [routerLinkActiveOptions]="{ exact: item.exact }"
+            (click)="onNavClick()"
           >
-            {{ item.label }}
+            <app-ui-icon
+              class="nav-link__icon"
+              [name]="item.icon"
+            ></app-ui-icon>
+            <span>{{ item.labelKey | translate }}</span>
           </a>
-          <ng-template #navPlaceholder>
-            <span class="nav-link nav-link--disabled" aria-disabled="true">
-              {{ item.label }}
-            </span>
-          </ng-template>
         </li>
       </ul>
     </nav>
 
     <div class="header-actions">
+      <app-language-switcher
+        tone="dark"
+        [useShortLabel]="true"
+      ></app-language-switcher>
+
       <button
         class="menu-toggle"
         type="button"
-        aria-label="Toggle navigation"
-        [attr.aria-expanded]="mobileMenuOpen()"
-        [attr.aria-controls]="mobileMenuId"
+        [attr.aria-label]="'DASHBOARD.NAV.TOGGLE_NAVIGATION' | translate"
+        [attr.aria-expanded]="mobileDrawerOpen()"
         (click)="toggleMobileMenu()"
       >
         <span class="menu-icon" aria-hidden="true">
@@ -49,7 +60,7 @@
         <button
           class="user-button"
           type="button"
-          aria-label="Toggle user menu"
+          [attr.aria-label]="'DASHBOARD.NAV.TOGGLE_USER_MENU' | translate"
           aria-haspopup="menu"
           [attr.aria-expanded]="userMenuOpen()"
           [attr.aria-controls]="userMenuId"
@@ -75,53 +86,22 @@
             class="user-menu__item"
             type="button"
             role="menuitem"
-            disabled
-            aria-disabled="true"
-          >
-            Settings
-          </button>
-          <button
-            class="user-menu__item"
-            type="button"
-            role="menuitem"
             (click)="logout()"
           >
-            Logout
+            {{ 'DASHBOARD.USER.LOGOUT' | translate }}
           </button>
         </div>
       </div>
+
       <ng-template #guestUser>
-        <button
+        <a
           class="user-button user-button--ghost"
-          type="button"
-          disabled
-          aria-disabled="true"
+          routerLink="/login"
+          (click)="onNavClick()"
         >
-          Sign in
-        </button>
+          {{ 'DASHBOARD.USER.SIGN_IN' | translate }}
+        </a>
       </ng-template>
     </div>
-  </div>
-
-  <div class="mobile-panel" *ngIf="mobileMenuOpen()" [attr.id]="mobileMenuId">
-    <nav class="mobile-nav" role="navigation" aria-label="Primary navigation">
-      <ul class="nav-list nav-list--mobile">
-        <li class="nav-item" *ngFor="let item of navItems">
-          <a
-            *ngIf="item.route; else mobileNavPlaceholder"
-            class="nav-link"
-            [attr.href]="item.route"
-            (click)="navigate(item.route, $event)"
-          >
-            {{ item.label }}
-          </a>
-          <ng-template #mobileNavPlaceholder>
-            <span class="nav-link nav-link--disabled" aria-disabled="true">
-              {{ item.label }}
-            </span>
-          </ng-template>
-        </li>
-      </ul>
-    </nav>
   </div>
 </header>

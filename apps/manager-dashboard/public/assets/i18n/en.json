@@ -1,0 +1,557 @@
+{
+  "AUTH": {
+    "ACCESSIBILITY": {
+      "SKIP_TO_MAIN_CONTENT": "Skip to main content",
+      "REQUIRED_FIELD": "required"
+    },
+    "LOGIN": {
+      "TITLE": "Sign in to Khana",
+      "SUBTITLE": "Welcome back. Please enter your details to access your dashboard.",
+      "EMAIL_LABEL": "Email",
+      "EMAIL_PLACEHOLDER": "you@example.com",
+      "PASSWORD_LABEL": "Password",
+      "PASSWORD_PLACEHOLDER": "••••••••",
+      "SUBMIT_BUTTON": "Sign In",
+      "LOADING_BUTTON": "Logging in...",
+      "NO_ACCOUNT": "Don't have an account?",
+      "REGISTER_LINK": "Register here",
+      "FORGOT_PASSWORD": "Forgot your password?",
+      "RESET_LINK": "Reset it",
+      "SWITCH_TO_ARABIC": "Switch to Arabic",
+      "SWITCH_TO_ENGLISH": "Switch to English",
+      "LANGUAGE_ARABIC": "العربية",
+      "LANGUAGE_ENGLISH": "English",
+      "VISUAL_TITLE": "Bank-Grade Security",
+      "VISUAL_TEXT": "Your business data is protected by enterprise-level encryption, role-based access control, and continuous monitoring."
+    },
+    "REGISTER": {
+      "TITLE": "Create Account",
+      "SUBTITLE": "Join Khana Booking Platform",
+      "HAVE_ACCOUNT": "Already have an account?",
+      "SIGNIN_LINK": "Sign in",
+      "EMAIL_LABEL": "Email",
+      "EMAIL_PLACEHOLDER": "business@example.com",
+      "NAME_LABEL": "Full Name",
+      "NAME_PLACEHOLDER": "Full Name",
+      "PHONE_LABEL": "Phone (optional)",
+      "PHONE_PLACEHOLDER": "+966 50 123 4567",
+      "PASSWORD_LABEL": "Password",
+      "PASSWORD_PLACEHOLDER": "********",
+      "CONFIRM_PASSWORD_LABEL": "Confirm Password",
+      "CONFIRM_PASSWORD_PLACEHOLDER": "********",
+      "AGREE_TERMS_TEXT": "I agree to the",
+      "TERMS_LINK": "Terms",
+      "SUBMIT_BUTTON": "Create Account",
+      "LOADING_BUTTON": "Creating account...",
+      "CANCEL_BUTTON": "Cancel",
+      "BACK_LOGIN_LINK": "Back to login",
+      "BACK_HOME_LINK": "Go to landing page",
+      "VISUAL_TITLE": "Power Your Business",
+      "VISUAL_TEXT": "Join the Khana ecosystem. Streamline your operations, eliminate double bookings, and deliver flawless customer experiences."
+    },
+    "FORGOT_PASSWORD": {
+      "TITLE": "Forgot Password",
+      "SUBTITLE": "Enter your account email to receive a secure password reset link",
+      "EMAIL_LABEL": "Email",
+      "EMAIL_PLACEHOLDER": "you@example.com",
+      "SUBMIT_BUTTON": "Send Reset Link",
+      "LOADING_BUTTON": "Sending...",
+      "BACK_TO_LOGIN": "Remembered your password?",
+      "BACK_TO_LOGIN_LINK": "Back to login"
+    },
+    "RESET_PASSWORD": {
+      "TITLE": "Reset Password",
+      "SUBTITLE": "Choose your new password to complete the reset",
+      "NEW_PASSWORD_LABEL": "New Password",
+      "NEW_PASSWORD_PLACEHOLDER": "********",
+      "CONFIRM_PASSWORD_LABEL": "Confirm New Password",
+      "CONFIRM_PASSWORD_PLACEHOLDER": "********",
+      "SUBMIT_BUTTON": "Reset Password",
+      "LOADING_BUTTON": "Resetting...",
+      "BACK_TO_LOGIN": "Back to account login?",
+      "BACK_TO_LOGIN_LINK": "Sign in",
+      "REQUEST_NEW_LINK": "Request a new reset link",
+      "RESET_LINK_INVALID": "Reset link is missing or invalid. Please request a new password reset email."
+    },
+    "CHANGE_PASSWORD": {
+      "TITLE": "Change Password",
+      "SUBTITLE": "Update your account password",
+      "CURRENT_PASSWORD_LABEL": "Current Password",
+      "CURRENT_PASSWORD_PLACEHOLDER": "********",
+      "NEW_PASSWORD_LABEL": "New Password",
+      "NEW_PASSWORD_PLACEHOLDER": "********",
+      "CONFIRM_PASSWORD_LABEL": "Confirm New Password",
+      "CONFIRM_PASSWORD_PLACEHOLDER": "********",
+      "SUBMIT_BUTTON": "Change Password",
+      "LOADING_BUTTON": "Updating password...",
+      "CANCEL_BUTTON": "Cancel",
+      "SUCCESS_MESSAGE": "Password changed successfully. Other sessions are now logged out."
+    },
+    "VALIDATION": {
+      "EMAIL_REQUIRED": "Email is required",
+      "EMAIL_INVALID": "Please enter a valid email address",
+      "EMAIL_DUPLICATE": "Email already in use",
+      "NAME_REQUIRED": "Full name is required",
+      "NAME_MINLENGTH": "Name must be at least 2 characters",
+      "PHONE_INVALID": "Please enter a valid phone number",
+      "PASSWORD_REQUIRED": "Password is required",
+      "PASSWORD_MINLENGTH": "Password must be at least 8 characters",
+      "PASSWORD_STRENGTH": "Password must include uppercase, lowercase, and a number",
+      "CONFIRM_REQUIRED": "Confirmation is required",
+      "PASSWORD_MISMATCH": "Passwords do not match",
+      "TERMS_REQUIRED": "You must accept the terms to continue",
+      "CURRENT_PASSWORD_REQUIRED": "Current password is required",
+      "CURRENT_PASSWORD_INCORRECT": "Current password is incorrect",
+      "NEW_PASSWORD_REQUIRED": "New password is required",
+      "PASSWORD_REUSE": "New password must be different from current password",
+      "CONFIRM_PASSWORD_REQUIRED": "Confirmation is required",
+      "RESET_LINK_INVALID": "Reset link is missing or invalid. Please request a new password reset email."
+    }
+  },
+  "DASHBOARD": {
+    "ACCESSIBILITY": {
+      "SKIP_TO_MAIN_CONTENT": "Skip to main content"
+    },
+    "NAV": {
+      "BRAND_LABEL": "Khana dashboard",
+      "MAIN_NAVIGATION": "Main navigation",
+      "PRIMARY_NAVIGATION": "Primary navigation",
+      "TOGGLE_SIDEBAR": "Toggle sidebar",
+      "TOGGLE_NAVIGATION": "Toggle navigation",
+      "TOGGLE_USER_MENU": "Toggle user menu",
+      "MOBILE_NAVIGATION": "Mobile navigation",
+      "MOBILE_NAVIGATION_LINKS": "Mobile navigation links",
+      "NAVIGATION_TITLE": "Navigation",
+      "CLOSE_NAVIGATION": "Close navigation",
+      "CLOSE": "Close",
+      "ITEMS": {
+        "BOOKINGS": "Bookings",
+        "CALENDAR": "Calendar",
+        "NEW_BOOKING": "New Booking"
+      }
+    },
+    "USER": {
+      "LOGOUT": "Logout",
+      "SIGN_IN": "Sign in"
+    },
+    "LAYOUT": {
+      "PRIMARY_SIDEBAR": "Primary sidebar",
+      "CONTENT_REGION": "Dashboard content"
+    }
+  },
+  "SHARED": {
+    "CONFIRMATION_DIALOG": {
+      "CONFIRM": "Confirm",
+      "CANCEL": "Cancel",
+      "CLOSE": "Close",
+      "CLOSE_DIALOG": "Close dialog"
+    },
+    "CANCELLATION_FORM": {
+      "LABEL": "Cancellation reason",
+      "PLACEHOLDER": "Add a cancellation reason",
+      "MINIMUM_HINT": "Minimum {{minLength}} characters"
+    },
+    "LANGUAGE": {
+      "SWITCH_TO_ARABIC": "Switch to Arabic",
+      "SWITCH_TO_ENGLISH": "Switch to English",
+      "LANGUAGE_ARABIC": "العربية",
+      "LANGUAGE_ENGLISH": "English",
+      "SHORT_ARABIC": "ع",
+      "SHORT_ENGLISH": "EN"
+    }
+  },
+  "BOOKING_LIST": {
+    "PAGE": {
+      "SKIP_LINK": "Skip to bookings list",
+      "TITLE": "Bookings",
+      "SUBTITLE": "All bookings for your facilities"
+    },
+    "ACTIONS": {
+      "TRY_AGAIN": "Try Again",
+      "EXPORT_CSV": "Export CSV",
+      "CANCEL_SELECTED": "Cancel Selected",
+      "CLEAR": "Clear",
+      "CANCEL_BOOKING": "Cancel Booking",
+      "MARK_AS_PAID": "Mark as Paid",
+      "CANCEL": "Cancel",
+      "MARK_PAID": "Mark Paid",
+      "PAID_BOOKING_NOTE": "Paid booking - cancellation will require refund once payment gateway is integrated."
+    },
+    "ARIA": {
+      "SELECT_ALL_PAGE": "Select all bookings on this page",
+      "SELECT_BOOKING": "Select booking for {{name}}",
+      "CANCEL_BOOKING_FOR": "Cancel booking for {{name}}",
+      "MARK_PAID_FOR": "Mark booking as paid for {{name}}"
+    },
+    "TOOLBAR": {
+      "SELECTED_COUNT": "{{count}} selected"
+    },
+    "DIALOG": {
+      "CANCEL_TITLE": "Cancel booking",
+      "CANCEL_MESSAGE": "This action is permanent and cannot be undone.",
+      "CANCEL_CONFIRM": "Cancel booking",
+      "BULK_CANCEL_TITLE": "Cancel selected bookings",
+      "BULK_CANCEL_MESSAGE": "This action will cancel all selected bookings and cannot be undone.",
+      "BULK_CANCEL_CONFIRM": "Cancel bookings"
+    },
+    "STATE": {
+      "LOADING": "Loading bookings...",
+      "NO_BOOKINGS": "No bookings yet.",
+      "CREATE_FIRST_BOOKING": "Create your first booking",
+      "NO_RESULTS": "No bookings found."
+    },
+    "TABLE": {
+      "ARIA_LABEL": "Bookings list",
+      "CAPTION": "Bookings list",
+      "DATE": "Date",
+      "TIME_RANGE": "Time Range",
+      "CUSTOMER_NAME": "Customer Name",
+      "PHONE": "Phone",
+      "STATUS": "Status",
+      "PRICE": "Price",
+      "ACTIONS": "Actions",
+      "HOLD_UNTIL": "Reserved until {{time}}",
+      "NOT_AVAILABLE": "N/A"
+    },
+    "CARD": {
+      "CUSTOMER": "Customer",
+      "PHONE": "Phone",
+      "FACILITY": "Facility",
+      "PRICE": "Price",
+      "REFERENCE": "Reference",
+      "HOLD": "Hold"
+    },
+    "STATUS": {
+      "ALL": "All",
+      "PENDING": "Pending",
+      "CONFIRMED": "Confirmed",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled",
+      "NO_SHOW": "No show"
+    },
+    "PAYMENT": {
+      "ALL": "All",
+      "UNPAID": "Unpaid",
+      "PARTIAL": "Partial",
+      "PAID": "Paid",
+      "REFUNDED": "Refunded"
+    },
+    "FILTERS": {
+      "ARIA_LABEL": "Booking filters",
+      "SEARCH_LABEL": "Search",
+      "SEARCH_PLACEHOLDER": "Customer, phone, reference",
+      "SEARCH_ARIA_LABEL": "Search bookings",
+      "FACILITY_LABEL": "Facility",
+      "STATUS_LABEL": "Status",
+      "PAYMENT_LABEL": "Payment",
+      "DATE_RANGE_LABEL": "Date Range",
+      "ALL": "All",
+      "DATE_RANGE_ERROR": "Start date must be before end date."
+    },
+    "PAGINATION": {
+      "SHOWING_ZERO": "Showing 0",
+      "SHOWING_RANGE": "Showing {{start}}-{{end}} of {{total}}",
+      "PREVIOUS": "Previous",
+      "NEXT": "Next",
+      "PAGE_OF": "Page {{current}} of {{total}}",
+      "ROWS": "Rows"
+    },
+    "ERRORS": {
+      "ERROR_PREFIX": "Error:",
+      "LOAD_FACILITIES": "Failed to load facilities. Please try again.",
+      "CANCELLATION_FAILED": "Cancellation failed. Please try again.",
+      "CANCELLATION_REASON_REQUIRED": "Cancellation reason is required.",
+      "NO_CANCELLABLE_SELECTED": "No cancellable bookings selected.",
+      "BULK_CANCELLATIONS_FAILED_COUNT": "{{failures}} of {{total}} cancellations failed.",
+      "SOME_CANCELLATIONS_FAILED": "Some cancellations failed. Please retry.",
+      "BULK_CANCELLATION_FAILED": "Bulk cancellation failed. Please try again.",
+      "MARK_PAID_FAILED": "Failed to mark booking as paid."
+    },
+    "TOAST": {
+      "SELECTED_BOOKINGS_CANCELLED": "Selected bookings cancelled.",
+      "BOOKING_CANCELLED": "Booking cancelled.",
+      "BOOKING_MARKED_PAID": "Booking marked as paid."
+    },
+    "CSV": {
+      "HEADERS": {
+        "BOOKING_REFERENCE": "Booking Reference",
+        "CUSTOMER_NAME": "Customer Name",
+        "CUSTOMER_PHONE": "Customer Phone",
+        "FACILITY": "Facility",
+        "STATUS": "Status",
+        "PAYMENT_STATUS": "Payment Status",
+        "START_TIME": "Start Time",
+        "END_TIME": "End Time",
+        "PRICE": "Price",
+        "CURRENCY": "Currency"
+      }
+    }
+  },
+  "BOOKING_CALENDAR": {
+    "PAGE": {
+      "SKIP_LINK": "Skip to calendar",
+      "TITLE": "Calendar"
+    },
+    "NAV": {
+      "PREVIOUS_WEEK": "Previous week",
+      "NEXT_WEEK": "Next week",
+      "TODAY": "Today"
+    },
+    "DIALOG": {
+      "CONFIRM_TITLE": "Confirm booking",
+      "CONFIRM_MESSAGE": "This will confirm the booking and notify the customer.",
+      "CONFIRM_LABEL": "Confirm booking",
+      "PAY_TITLE": "Mark as paid",
+      "PAY_MESSAGE": "This will mark the booking as paid.",
+      "PAY_LABEL": "Mark paid",
+      "CANCEL_TITLE": "Cancel booking",
+      "CANCEL_MESSAGE": "This action is permanent and cannot be undone.",
+      "CANCEL_LABEL": "Cancel booking",
+      "FALLBACK_TITLE": "Confirm action",
+      "FALLBACK_CONFIRM": "Confirm"
+    },
+    "STATE": {
+      "LOADING": "Loading bookings...",
+      "NO_BOOKINGS_FOR_DAY": "No bookings for {{day}}",
+      "NO_BOOKINGS_THIS_WEEK": "No bookings found for this week."
+    },
+    "ACTIONS": {
+      "CONFIRM": "Confirm",
+      "MARK_PAID": "Mark Paid",
+      "CANCEL": "Cancel",
+      "PAID_BOOKING_NOTE": "Paid booking - cancellation will require refund once payment gateway is integrated."
+    },
+    "ACTION_SHEET": {
+      "CLOSE_ACTIONS": "Close booking actions",
+      "TITLE": "Booking Actions",
+      "CLOSE": "Close",
+      "DATE": "Date",
+      "TIME": "Time",
+      "CUSTOMER_PHONE": "Customer Phone",
+      "STATUS": "Status",
+      "PAYMENT": "Payment",
+      "HOLD": "Hold",
+      "HOLD_UNTIL": "Reserved until {{time}}"
+    },
+    "HOLD_TIMER": {
+      "PREFIX": "Expires in",
+      "EXPIRED": "Expired",
+      "UNAVAILABLE": "Unavailable"
+    },
+    "TOAST": {
+      "BOOKING_CONFIRMED": "Booking confirmed",
+      "PAYMENT_MARKED_PAID": "Payment marked as paid",
+      "BOOKING_CANCELLED": "Booking cancelled"
+    },
+    "ERRORS": {
+      "ACTION_FAILED": "Action failed. Please try again.",
+      "AUTO_RETRYING": "Auto-retrying with backoff.",
+      "NEXT_RETRY_AT": "Next retry at {{time}}",
+      "SHOWING_LAST_UPDATED": "Showing last updated {{time}}"
+    },
+    "STATUS": {
+      "CONFIRMED": "Confirmed",
+      "PENDING": "Pending",
+      "CANCELLED": "Cancelled",
+      "COMPLETED": "Completed",
+      "NO_SHOW": "No Show"
+    },
+    "PAYMENT": {
+      "PAID": "Paid",
+      "PARTIAL": "Partial",
+      "REFUNDED": "Refunded",
+      "UNPAID": "Unpaid"
+    },
+    "ARIA": {
+      "SLOT_NO_BOOKINGS": "{{day}} at {{time}}. No bookings.",
+      "SLOT_BOOKING_COUNT": "{{day}} at {{time}}. {{count}} bookings.",
+      "SELECT_DAY": "Select day",
+      "BOOKINGS_FOR_SELECTED_DAY": "Bookings for selected day",
+      "WEEKLY_GRID": "Weekly booking calendar",
+      "TIMELINE_BOOKING": "Booking: {{name}}, {{start}} to {{end}}",
+      "GRID_BOOKING": "Booking: {{name}}"
+    },
+    "ERROR_CATEGORY": {
+      "NETWORK": "Network issue",
+      "SERVER": "Server error",
+      "VALIDATION": "Validation issue",
+      "CONFLICT": "Conflict detected",
+      "AUTH": "Authorization issue",
+      "NOT_FOUND": "Booking not found",
+      "UNKNOWN": "Unexpected error"
+    },
+    "ERROR_RECOVERY": {
+      "RETRY_NOW": "Retry now",
+      "DISMISS": "Dismiss",
+      "REFRESH_DATA": "Refresh data",
+      "REFRESH_BOOKINGS": "Refresh bookings",
+      "REFRESH_SESSION": "Refresh session",
+      "KEEP_LAST_DATA": "Keep the last loaded calendar data.",
+      "NETWORK_RETRY_DESCRIPTION": "Reconnect and try loading bookings again.",
+      "SERVER_RETRY_DESCRIPTION": "Attempt to reload when the server responds.",
+      "SERVER_REFRESH_DESCRIPTION": "Fetch the latest bookings once available.",
+      "VALIDATION_DISMISS_DESCRIPTION": "Review the inputs and try again.",
+      "CONFLICT_REFRESH_DESCRIPTION": "Reload to resolve conflicting updates.",
+      "AUTH_REFRESH_DESCRIPTION": "Refresh data after signing in again.",
+      "AUTH_DISMISS_DESCRIPTION": "Return to the last loaded calendar data.",
+      "NOT_FOUND_REFRESH_DESCRIPTION": "Reload to find an updated booking list.",
+      "UNKNOWN_RETRY_DESCRIPTION": "Try loading bookings again."
+    }
+  },
+  "BOOKING_PREVIEW": {
+    "PAGE": {
+      "SKIP_LINK": "Skip to booking preview",
+      "TITLE": "Booking Preview",
+      "SUBTITLE": "Check availability and pricing before creating a booking",
+      "RESULT_REGION_LABEL": "Booking preview result"
+    },
+    "FORM": {
+      "FACILITY_LABEL": "Facility",
+      "DATE_LABEL": "Date",
+      "START_TIME_LABEL": "Start Time",
+      "END_TIME_LABEL": "End Time",
+      "TIMEZONE_HINT": "Times shown in {{timezone}}",
+      "PROMO_LABEL": "Promo Code (Optional)",
+      "PROMO_PLACEHOLDER": "Enter promo code",
+      "HOUR_SUFFIX": "hour",
+      "SUBMIT_CHECKING": "Checking...",
+      "SUBMIT_CHECK_AVAILABILITY": "Check Availability"
+    },
+    "EMPTY": {
+      "NO_FACILITIES": "No facilities available."
+    },
+    "STALE": {
+      "MESSAGE": "Preview data may be outdated.",
+      "REFRESH": "Refresh"
+    },
+    "STATUS": {
+      "AVAILABLE": "Available!",
+      "NOT_AVAILABLE": "Not Available"
+    },
+    "SLOT_STATUS": {
+      "BOOKED": "Booked",
+      "BLOCKED": "Blocked",
+      "MAINTENANCE": "Maintenance",
+      "UNKNOWN": "Occupied"
+    },
+    "DIALOG": {
+      "CONFIRM_TITLE": "Confirm booking",
+      "CONFIRM_MESSAGE": "Review the details before creating this booking.",
+      "CONFIRM_LABEL": "Confirm booking",
+      "CANCEL_LABEL": "Go back",
+      "CANCELLATION_POLICY_NOTE": "Cancellations follow the facility policy. Please review before confirming."
+    },
+    "VALIDATION": {
+      "FACILITY_REQUIRED": "Facility is required",
+      "DATE_REQUIRED": "Date is required",
+      "START_TIME_REQUIRED": "Start time is required",
+      "END_TIME_REQUIRED": "End time is required",
+      "START_BEFORE_END": "Start time must be before end time",
+      "ISSUES_TITLE": "Validation Issues:"
+    },
+    "ALTERNATIVES": {
+      "HIDE": "Hide alternatives",
+      "VIEW_COUNT": "View {{count}} alternatives",
+      "TITLE": "Available Alternatives",
+      "REGION_LABEL": "Alternative booking slots",
+      "SELECT_SLOT_ARIA": "Select alternative slot {{start}} to {{end}}",
+      "HINT": "Tap to view alternative slots."
+    },
+    "CONNECTION": {
+      "OFFLINE_QUEUED": "Offline. {{count}} request(s) queued for retry.",
+      "OFFLINE_RETRY": "Offline. We will retry when you are back online.",
+      "BACK_ONLINE_CONFIRM": "You are back online. Please confirm the booking."
+    },
+    "RETRY": {
+      "ATTEMPT_OF_MAX": "Attempt {{attempt}} of {{max}}",
+      "COUNTDOWN": "Retrying in {{seconds}}s - {{attempt}}"
+    },
+    "ERROR_CATEGORY": {
+      "NETWORK": "Network issue",
+      "SERVER": "Server error",
+      "VALIDATION": "Validation issue",
+      "UNKNOWN": "Unexpected error"
+    },
+    "RECOVERY": {
+      "RETRY_NOW": "Retry now",
+      "DISMISS": "Dismiss",
+      "REFRESH_DATA": "Refresh data",
+      "KEEP_LAST_DATA": "Keep the last available data for reference.",
+      "NETWORK_RETRY_DESCRIPTION": "Attempt the request again when the connection stabilizes.",
+      "SERVER_RETRY_DESCRIPTION": "Try again shortly in case the server recovered.",
+      "SERVER_REFRESH_DESCRIPTION": "Fetch the latest information from the server.",
+      "VALIDATION_DISMISS_DESCRIPTION": "Review the inputs and try again.",
+      "UNKNOWN_RETRY_DESCRIPTION": "Try the request again."
+    },
+    "ERRORS": {
+      "LOAD_FACILITIES_FAILED": "Failed to load facilities. Please try again.",
+      "PREVIEW_FAILED": "Failed to preview booking. Please try again.",
+      "BOOKING_CREATE_FAILED": "Failed to create booking. Please try again.",
+      "REQUEST_TIMEOUT": "Request timed out. Please try again.",
+      "FACILITY_NOT_FOUND": "Facility not found.",
+      "OFFLINE_BOOKING": "You are offline. Please reconnect to complete the booking.",
+      "OFFLINE_RETRY": "You are offline. We will retry when you are back online."
+    },
+    "TOAST": {
+      "BOOKING_CONFIRMED": "Booking confirmed"
+    },
+    "CONFLICT": {
+      "EXACT_OVERLAP": "Exact overlap with an existing booking",
+      "CONTAINED_WITHIN": "Requested time falls within an existing booking",
+      "PARTIAL_START_OVERLAP": "Requested start overlaps an existing booking",
+      "PARTIAL_END_OVERLAP": "Requested end overlaps an existing booking",
+      "CONTAINS_EXISTING": "Requested time contains an existing booking",
+      "DEFAULT": "Conflict detected",
+      "CONFLICTING_SLOTS_TITLE": "Conflicting Slots:",
+      "SLOT_ARIA": "{{status}} slot from {{start}} to {{end}}"
+    },
+    "PRICING": {
+      "TITLE": "Price Breakdown",
+      "TABLE_ARIA_LABEL": "Price breakdown",
+      "BASE_PRICE": "Base Price",
+      "PEAK_HOURS_RATE": "Peak Hours ({{multiplier}}x)",
+      "WEEKEND_RATE": "Weekend Rate ({{multiplier}}x)",
+      "APPLIED": "Applied",
+      "SUBTOTAL": "Subtotal",
+      "DISCOUNT": "Discount",
+      "PROMO_CODE": "Promo ({{code}})",
+      "TOTAL": "Total"
+    },
+    "CUSTOMER": {
+      "TITLE": "Customer Details",
+      "NAME_LABEL": "Your Name",
+      "NAME_PLACEHOLDER": "Enter your full name",
+      "PHONE_LABEL": "Phone Number",
+      "PHONE_PLACEHOLDER": "+966 5XX XXX XXXX",
+      "HOLD_LABEL": "Reserve as hold (pending)",
+      "HOLD_HINT": "Temporarily reserve this slot until confirmation."
+    },
+    "ACTIONS": {
+      "CONFIRMING": "Confirming...",
+      "CONFIRM_BOOKING": "Confirm Booking"
+    },
+    "CONFIRM_SUMMARY": {
+      "FACILITY_LABEL": "Facility",
+      "SELECTED_FACILITY_FALLBACK": "Selected facility",
+      "DATE_LABEL": "Date",
+      "TIME_LABEL": "Time",
+      "TOTAL_LABEL": "Total",
+      "HOLD_LABEL": "Hold",
+      "HOLD_PENDING_VALUE": "Reserve as pending"
+    },
+    "SUCCESS": {
+      "TITLE": "Booking Confirmed!",
+      "REFERENCE_PREFIX": "Reference:",
+      "SUBTITLE": "You will receive a confirmation shortly.",
+      "CTA_ANOTHER": "Make Another Booking"
+    }
+  },
+  "API_ERRORS": {
+    "UNAUTHORIZED": "Session expired or invalid credentials. Please log in again.",
+    "SERVER_ERROR": "The server encountered an error. Please try again later.",
+    "NOT_FOUND": "The requested resource could not be found.",
+    "USER_EXISTS": "A user with these credentials already exists.",
+    "INVALID_CREDENTIALS": "The email or password you entered is incorrect.",
+    "VERIFICATION_FAILED": "Identity verification failed."
+  }
+}

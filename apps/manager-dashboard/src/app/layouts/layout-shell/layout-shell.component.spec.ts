@@ -1,12 +1,49 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterModule } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { LayoutShellComponent } from './layout-shell.component';
 import { LayoutStore } from '../../shared/state/layout.store';
+import { AuthService } from '../../shared/services/auth.service';
+
+const EN_TRANSLATIONS = {
+  DASHBOARD: {
+    ACCESSIBILITY: {
+      SKIP_TO_MAIN_CONTENT: 'Skip to main content',
+    },
+    NAV: {
+      BRAND_LABEL: 'Khana dashboard',
+      MAIN_NAVIGATION: 'Main navigation',
+      PRIMARY_NAVIGATION: 'Primary navigation',
+      TOGGLE_SIDEBAR: 'Toggle sidebar',
+      TOGGLE_NAVIGATION: 'Toggle navigation',
+      TOGGLE_USER_MENU: 'Toggle user menu',
+      MOBILE_NAVIGATION: 'Mobile navigation',
+      MOBILE_NAVIGATION_LINKS: 'Mobile navigation links',
+      NAVIGATION_TITLE: 'Navigation',
+      CLOSE_NAVIGATION: 'Close navigation',
+      CLOSE: 'Close',
+      ITEMS: {
+        BOOKINGS: 'Bookings',
+        CALENDAR: 'Calendar',
+        NEW_BOOKING: 'New Booking',
+      },
+    },
+    USER: {
+      LOGOUT: 'Logout',
+      SIGN_IN: 'Sign in',
+    },
+    LAYOUT: {
+      PRIMARY_SIDEBAR: 'Primary sidebar',
+      CONTENT_REGION: 'Dashboard content',
+    },
+  },
+};
 
 describe('LayoutShellComponent', () => {
   let fixture: ComponentFixture<LayoutShellComponent>;
   let component: LayoutShellComponent;
   let store: InstanceType<typeof LayoutStore>;
+  let translateService: TranslateService;
 
   const setWindowWidth = (width: number) => {
     Object.defineProperty(window, 'innerWidth', {
@@ -19,12 +56,27 @@ describe('LayoutShellComponent', () => {
   beforeEach(async () => {
     setWindowWidth(1200);
     await TestBed.configureTestingModule({
-      imports: [LayoutShellComponent, RouterModule.forRoot([])],
+      imports: [
+        LayoutShellComponent,
+        RouterModule.forRoot([]),
+        TranslateModule.forRoot(),
+      ],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            logout: jest.fn(),
+          },
+        },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LayoutShellComponent);
     component = fixture.componentInstance;
     store = component.layoutStore;
+    translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', EN_TRANSLATIONS);
+    translateService.use('en');
     fixture.detectChanges();
   });
 
@@ -85,9 +137,11 @@ describe('LayoutShellComponent', () => {
   });
 
   it('renders skip link pointing to main content', () => {
-    const skipLink = fixture.nativeElement.querySelector('.skip-link');
+    const skipLink = fixture.nativeElement.querySelector(
+      '.dashboard-skip-link'
+    );
     expect(skipLink).toBeTruthy();
-    expect(skipLink?.getAttribute('href')).toBe('#main-content');
+    expect(skipLink?.getAttribute('href')).toBe('#dashboard-route-content');
   });
 
   it('closes the drawer when switching to desktop', () => {

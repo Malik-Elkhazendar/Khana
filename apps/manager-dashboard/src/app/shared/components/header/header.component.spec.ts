@@ -1,20 +1,62 @@
 import { TestBed } from '@angular/core/testing';
-import { Router, RouterModule } from '@angular/router';
-import { patchState } from '@ngrx/signals';
+import { RouterTestingModule } from '@angular/router/testing';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { UserRole } from '@khana/shared-dtos';
+import { AuthStore } from '../../state/auth.store';
+import { AuthService } from '../../services/auth.service';
+import { LayoutStore } from '../../state/layout.store';
 import { HeaderComponent } from './header.component';
 
+const EN_TRANSLATIONS = {
+  DASHBOARD: {
+    NAV: {
+      BRAND_LABEL: 'Khana dashboard',
+      PRIMARY_NAVIGATION: 'Primary navigation',
+      TOGGLE_NAVIGATION: 'Toggle navigation',
+      TOGGLE_USER_MENU: 'Toggle user menu',
+      ITEMS: {
+        BOOKINGS: 'Bookings',
+        CALENDAR: 'Calendar',
+        NEW_BOOKING: 'New Booking',
+      },
+    },
+    USER: {
+      LOGOUT: 'Logout',
+      SIGN_IN: 'Sign in',
+    },
+  },
+};
+
 describe('HeaderComponent', () => {
+  const authServiceMock = {
+    logout: jest.fn(),
+  };
+  let translateService: TranslateService;
+
   const setup = () => {
     const fixture = TestBed.createComponent(HeaderComponent);
     const component = fixture.componentInstance;
+    const authStore = TestBed.inject(AuthStore);
+    const layoutStore = TestBed.inject(LayoutStore);
     fixture.detectChanges();
-    return { fixture, component };
+    return { fixture, component, authStore, layoutStore };
   };
 
   beforeEach(async () => {
+    authServiceMock.logout.mockReset();
+
     await TestBed.configureTestingModule({
-      imports: [HeaderComponent, RouterModule.forRoot([])],
+      imports: [
+        HeaderComponent,
+        RouterTestingModule.withRoutes([]),
+        TranslateModule.forRoot(),
+      ],
+      providers: [{ provide: AuthService, useValue: authServiceMock }],
     }).compileComponents();
+
+    translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', EN_TRANSLATIONS);
+    translateService.use('en');
   });
 
   it('creates the component', () => {
@@ -22,74 +64,42 @@ describe('HeaderComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('toggles the mobile menu state', () => {
-    const { component } = setup();
-
-    expect(component.mobileMenuOpen()).toBe(false);
-
-    component.toggleMobileMenu();
-    expect(component.mobileMenuOpen()).toBe(true);
-
-    component.toggleMobileMenu();
-    expect(component.mobileMenuOpen()).toBe(false);
-  });
-
-  it('toggles the user menu state', () => {
-    const { component } = setup();
-
-    expect(component.userMenuOpen()).toBe(false);
+  it('toggles mobile drawer and closes user menu', () => {
+    const { component, layoutStore } = setup();
+    const toggleSpy = jest.spyOn(layoutStore, 'toggleMobileDrawer');
 
     component.toggleUserMenu();
     expect(component.userMenuOpen()).toBe(true);
 
-    component.toggleUserMenu();
+    component.toggleMobileMenu();
+
+    expect(toggleSpy).toHaveBeenCalled();
     expect(component.userMenuOpen()).toBe(false);
   });
 
-  it('navigates with the router and closes menus', () => {
-    const { component } = setup();
-    const router = TestBed.inject(Router);
-    const navigateSpy = jest
-      .spyOn(router, 'navigateByUrl')
-      .mockResolvedValue(true);
-
-    component.toggleMobileMenu();
-    component.navigate('/bookings');
-
-    expect(navigateSpy).toHaveBeenCalledWith('/bookings');
-    expect(component.mobileMenuOpen()).toBe(false);
+  it('closes user menu and mobile drawer on nav click', () => {
+    const { component, layoutStore } = setup();
+    const closeSpy = jest.spyOn(layoutStore, 'closeMobileDrawer');
 
     component.toggleUserMenu();
-    component.navigate('/calendar');
+    expect(component.userMenuOpen()).toBe(true);
 
-    expect(navigateSpy).toHaveBeenCalledWith('/calendar');
+    component.onNavClick();
+
+    expect(closeSpy).toHaveBeenCalled();
     expect(component.userMenuOpen()).toBe(false);
   });
 
-  it('does not navigate when the route is null', () => {
-    const { component } = setup();
-    const router = TestBed.inject(Router);
-    const navigateSpy = jest
-      .spyOn(router, 'navigateByUrl')
-      .mockResolvedValue(true);
-    const preventDefault = jest.fn();
-
-    component.navigate(null, { preventDefault } as unknown as Event);
-
-    expect(preventDefault).toHaveBeenCalled();
-    expect(navigateSpy).not.toHaveBeenCalled();
-  });
-
-  it('closes menus on logout', () => {
-    const { component } = setup();
-
-    component.toggleMobileMenu();
-    component.logout();
-    expect(component.mobileMenuOpen()).toBe(false);
+  it('closes menus and logs out', () => {
+    const { component, layoutStore } = setup();
+    const closeSpy = jest.spyOn(layoutStore, 'closeMobileDrawer');
 
     component.toggleUserMenu();
     component.logout();
+
+    expect(closeSpy).toHaveBeenCalled();
     expect(component.userMenuOpen()).toBe(false);
+    expect(authServiceMock.logout).toHaveBeenCalled();
   });
 
   it('renders the guest button when no user is set', () => {
@@ -97,7 +107,7 @@ describe('HeaderComponent', () => {
 
     const guestButton = fixture.nativeElement.querySelector(
       '.user-button--ghost'
-    ) as HTMLButtonElement | null;
+    ) as HTMLAnchorElement | null;
     const userName = fixture.nativeElement.querySelector('.user-name');
 
     expect(guestButton).toBeTruthy();
@@ -105,10 +115,17 @@ describe('HeaderComponent', () => {
   });
 
   it('renders the user name and role when currentUser is set', () => {
-    const { fixture, component } = setup();
+    const { fixture, authStore } = setup();
 
-    patchState((component as { state: unknown }).state as any, {
-      currentUser: { name: 'Ava Hassan', role: 'Manager' },
+    authStore.setUser({
+      id: 'user-1',
+      email: 'ava@example.com',
+      name: 'Ava Hassan',
+      role: UserRole.MANAGER,
+      tenantId: 'tenant-1',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     fixture.detectChanges();
 
@@ -120,6 +137,6 @@ describe('HeaderComponent', () => {
 
     expect(guestButton).toBeNull();
     expect(userName?.textContent).toContain('Ava Hassan');
-    expect(userRole?.textContent).toContain('Manager');
+    expect(userRole?.textContent).toContain('MANAGER');
   });
 });

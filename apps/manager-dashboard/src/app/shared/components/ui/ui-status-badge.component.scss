@@ -1,0 +1,38 @@
+.ui-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: var(--space-1);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ui-status-badge--success {
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border-color: rgba(45, 125, 111, 0.25);
+}
+
+.ui-status-badge--warning {
+  background: var(--color-warning-light);
+  color: var(--color-accent-dark);
+  border-color: rgba(212, 168, 85, 0.28);
+}
+
+.ui-status-badge--danger {
+  background: var(--color-error-light);
+  color: var(--color-error);
+  border-color: rgba(196, 69, 54, 0.25);
+}
+
+.ui-status-badge--neutral {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}

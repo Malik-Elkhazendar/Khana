@@ -1,15 +1,22 @@
+<a href="#dashboard-route-content" class="skip-link dashboard-skip-link">{{
+  'DASHBOARD.ACCESSIBILITY.SKIP_TO_MAIN_CONTENT' | translate
+}}</a>
+
 <div
   class="layout-wrapper"
   [class.sidebar-collapsed]="layoutStore.sidebarCollapsed()"
   [class.is-desktop]="isDesktop()"
 >
-  <app-header></app-header>
+  <app-header
+    [class.sidebar-collapsed]="layoutStore.sidebarCollapsed()"
+    [class.sidebar-hidden]="!showSidebar()"
+  ></app-header>
 
   <aside
     class="sidebar"
     [class.collapsed]="layoutStore.sidebarCollapsed()"
     *ngIf="showSidebar()"
-    aria-label="Primary sidebar"
+    [attr.aria-label]="'DASHBOARD.LAYOUT.PRIMARY_SIDEBAR' | translate"
   >
     <app-sidebar
       [isCollapsed]="layoutStore.sidebarCollapsed()"
@@ -18,10 +25,15 @@
     </app-sidebar>
   </aside>
 
-  <main id="main-content" class="main-content" role="main" tabindex="-1">
-    <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div
+    id="dashboard-route-content"
+    class="main-content"
+    role="region"
+    [attr.aria-label]="'DASHBOARD.LAYOUT.CONTENT_REGION' | translate"
+    tabindex="-1"
+  >
     <router-outlet></router-outlet>
-  </main>
+  </div>
 
   <app-mobile-nav-drawer></app-mobile-nav-drawer>
 </div>

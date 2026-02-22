@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { BookingListComponent } from './booking-list.component';
 import { ApiService } from '../../shared/services/api.service';
@@ -74,6 +75,7 @@ describe('BookingListComponent', () => {
     await TestBed.configureTestingModule({
       imports: [BookingListComponent],
       providers: [
+        provideRouter([]),
         { provide: BookingStore, useValue: storeMock },
         { provide: ApiService, useValue: apiMock },
       ],
@@ -581,7 +583,7 @@ describe('BookingListComponent', () => {
     const link = emptyState?.querySelector('a');
 
     expect(emptyState?.textContent).toContain('No bookings yet');
-    expect(link?.getAttribute('href')).toBe('/new');
+    expect(link?.getAttribute('href')).toBe('/dashboard/new');
   });
 
   it('renders error banner and retries loading bookings', () => {

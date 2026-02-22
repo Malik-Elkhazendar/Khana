@@ -1,9 +1,45 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ChangePasswordComponent } from './change-password.component';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
+
+const EN_TRANSLATIONS = {
+  AUTH: {
+    ACCESSIBILITY: {
+      SKIP_TO_MAIN_CONTENT: 'Skip to main content',
+      REQUIRED_FIELD: 'required',
+    },
+    CHANGE_PASSWORD: {
+      TITLE: 'Change Password',
+      SUBTITLE: 'Update your account password',
+      CURRENT_PASSWORD_LABEL: 'Current Password',
+      CURRENT_PASSWORD_PLACEHOLDER: '********',
+      NEW_PASSWORD_LABEL: 'New Password',
+      NEW_PASSWORD_PLACEHOLDER: '********',
+      CONFIRM_PASSWORD_LABEL: 'Confirm New Password',
+      CONFIRM_PASSWORD_PLACEHOLDER: '********',
+      SUBMIT_BUTTON: 'Change Password',
+      LOADING_BUTTON: 'Updating password...',
+      CANCEL_BUTTON: 'Cancel',
+      SUCCESS_MESSAGE:
+        'Password changed successfully. Other sessions are now logged out.',
+    },
+    VALIDATION: {
+      CURRENT_PASSWORD_REQUIRED: 'Current password is required',
+      CURRENT_PASSWORD_INCORRECT: 'Current password is incorrect',
+      NEW_PASSWORD_REQUIRED: 'New password is required',
+      PASSWORD_MINLENGTH: 'Password must be at least 8 characters',
+      PASSWORD_STRENGTH:
+        'Password must include uppercase, lowercase, and a number',
+      PASSWORD_REUSE: 'New password must be different from current password',
+      CONFIRM_PASSWORD_REQUIRED: 'Confirmation is required',
+      PASSWORD_MISMATCH: 'Passwords do not match',
+    },
+  },
+};
 
 describe('ChangePasswordComponent', () => {
   let component: ChangePasswordComponent;
@@ -11,6 +47,7 @@ describe('ChangePasswordComponent', () => {
   let authService: jest.Mocked<AuthService>;
   let authStore: InstanceType<typeof AuthStore>;
   let router: jest.Mocked<Router>;
+  let translateService: TranslateService;
 
   beforeEach(async () => {
     authService = {
@@ -22,7 +59,7 @@ describe('ChangePasswordComponent', () => {
     } as unknown as jest.Mocked<Router>;
 
     await TestBed.configureTestingModule({
-      imports: [ChangePasswordComponent],
+      imports: [ChangePasswordComponent, TranslateModule.forRoot()],
       providers: [
         { provide: AuthService, useValue: authService },
         { provide: Router, useValue: router },
@@ -33,6 +70,9 @@ describe('ChangePasswordComponent', () => {
     fixture = TestBed.createComponent(ChangePasswordComponent);
     component = fixture.componentInstance;
     authStore = TestBed.inject(AuthStore);
+    translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', EN_TRANSLATIONS);
+    translateService.use('en');
     fixture.detectChanges();
   });
 
@@ -151,7 +191,9 @@ describe('ChangePasswordComponent', () => {
       component.onSubmit();
       fixture.detectChanges();
 
-      expect(component.successMessage()).toContain('Password changed successfully');
+      expect(component.successMessage()).toContain(
+        'Password changed successfully'
+      );
     });
 
     it('should set incorrect error on 401 response', () => {
@@ -197,13 +239,11 @@ describe('ChangePasswordComponent', () => {
 
   describe('password fields', () => {
     it('should keep all password inputs masked', () => {
-      const currentInput = fixture.nativeElement.querySelector(
-        '#currentPassword'
-      );
+      const currentInput =
+        fixture.nativeElement.querySelector('#currentPassword');
       const newInput = fixture.nativeElement.querySelector('#newPassword');
-      const confirmInput = fixture.nativeElement.querySelector(
-        '#confirmPassword'
-      );
+      const confirmInput =
+        fixture.nativeElement.querySelector('#confirmPassword');
 
       expect(currentInput.getAttribute('type')).toBe('password');
       expect(newInput.getAttribute('type')).toBe('password');
@@ -211,9 +251,8 @@ describe('ChangePasswordComponent', () => {
     });
 
     it('should not render password visibility toggle buttons', () => {
-      const toggleButtons = fixture.nativeElement.querySelectorAll(
-        '.toggle-button'
-      );
+      const toggleButtons =
+        fixture.nativeElement.querySelectorAll('.toggle-button');
 
       expect(toggleButtons.length).toBe(0);
     });

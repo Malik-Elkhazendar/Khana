@@ -1,0 +1,557 @@
+{
+  "AUTH": {
+    "ACCESSIBILITY": {
+      "SKIP_TO_MAIN_CONTENT": "تخطي إلى المحتوى الرئيسي",
+      "REQUIRED_FIELD": "مطلوب"
+    },
+    "LOGIN": {
+      "TITLE": "تسجيل الدخول إلى خانة",
+      "SUBTITLE": "مرحباً بك مجدداً. يرجى إدخال بياناتك للوصول إلى لوحة التحكم.",
+      "EMAIL_LABEL": "البريد الإلكتروني",
+      "EMAIL_PLACEHOLDER": "you@example.com",
+      "PASSWORD_LABEL": "كلمة المرور",
+      "PASSWORD_PLACEHOLDER": "••••••••",
+      "SUBMIT_BUTTON": "تسجيل الدخول",
+      "LOADING_BUTTON": "جاري تسجيل الدخول...",
+      "NO_ACCOUNT": "ليس لديك حساب؟",
+      "REGISTER_LINK": "سجل هنا",
+      "FORGOT_PASSWORD": "هل نسيت كلمة المرور؟",
+      "RESET_LINK": "إعادة تعيين",
+      "SWITCH_TO_ARABIC": "التبديل إلى العربية",
+      "SWITCH_TO_ENGLISH": "التبديل إلى الإنجليزية",
+      "LANGUAGE_ARABIC": "العربية",
+      "LANGUAGE_ENGLISH": "English",
+      "VISUAL_TITLE": "حماية على مستوى البنوك",
+      "VISUAL_TEXT": "بيانات عملك محمية بتشفير من مستوى المؤسسات، وتحكم في الوصول يعتمد على الأدوار، ومراقبة مستمرة."
+    },
+    "REGISTER": {
+      "TITLE": "إنشاء حساب",
+      "SUBTITLE": "انضم إلى منصة خانة للحجوزات",
+      "HAVE_ACCOUNT": "هل لديك حساب بالفعل؟",
+      "SIGNIN_LINK": "تسجيل الدخول",
+      "EMAIL_LABEL": "البريد الإلكتروني",
+      "EMAIL_PLACEHOLDER": "business@example.com",
+      "NAME_LABEL": "الاسم الكامل",
+      "NAME_PLACEHOLDER": "الاسم الكامل",
+      "PHONE_LABEL": "رقم الهاتف (اختياري)",
+      "PHONE_PLACEHOLDER": "+966 50 123 4567",
+      "PASSWORD_LABEL": "كلمة المرور",
+      "PASSWORD_PLACEHOLDER": "********",
+      "CONFIRM_PASSWORD_LABEL": "تأكيد كلمة المرور",
+      "CONFIRM_PASSWORD_PLACEHOLDER": "********",
+      "AGREE_TERMS_TEXT": "أوافق على",
+      "TERMS_LINK": "الشروط",
+      "SUBMIT_BUTTON": "إنشاء حساب",
+      "LOADING_BUTTON": "جاري إنشاء الحساب...",
+      "CANCEL_BUTTON": "إلغاء",
+      "BACK_LOGIN_LINK": "العودة لتسجيل الدخول",
+      "BACK_HOME_LINK": "العودة للرئيسية",
+      "VISUAL_TITLE": "طوّر أعمالك بقوة",
+      "VISUAL_TEXT": "انضم إلى نظام خانة البيئي. بسّط عملياتك، وتخلص من الحجوزات المزدوجة، وقدم تجارب عملاء خالية من العيوب."
+    },
+    "FORGOT_PASSWORD": {
+      "TITLE": "نسيت كلمة المرور",
+      "SUBTITLE": "أدخل بريد حسابك الإلكتروني لاستلام رابط آمن لإعادة تعيين كلمة المرور",
+      "EMAIL_LABEL": "البريد الإلكتروني",
+      "EMAIL_PLACEHOLDER": "you@example.com",
+      "SUBMIT_BUTTON": "إرسال رابط إعادة التعيين",
+      "LOADING_BUTTON": "جارٍ الإرسال...",
+      "BACK_TO_LOGIN": "تذكّرت كلمة المرور؟",
+      "BACK_TO_LOGIN_LINK": "العودة لتسجيل الدخول"
+    },
+    "RESET_PASSWORD": {
+      "TITLE": "إعادة تعيين كلمة المرور",
+      "SUBTITLE": "اختر كلمة مرور جديدة لإكمال عملية إعادة التعيين",
+      "NEW_PASSWORD_LABEL": "كلمة المرور الجديدة",
+      "NEW_PASSWORD_PLACEHOLDER": "********",
+      "CONFIRM_PASSWORD_LABEL": "تأكيد كلمة المرور الجديدة",
+      "CONFIRM_PASSWORD_PLACEHOLDER": "********",
+      "SUBMIT_BUTTON": "إعادة تعيين كلمة المرور",
+      "LOADING_BUTTON": "جارٍ إعادة التعيين...",
+      "BACK_TO_LOGIN": "العودة إلى تسجيل الدخول؟",
+      "BACK_TO_LOGIN_LINK": "تسجيل الدخول",
+      "REQUEST_NEW_LINK": "طلب رابط إعادة تعيين جديد",
+      "RESET_LINK_INVALID": "رابط إعادة التعيين مفقود أو غير صالح. يرجى طلب رسالة إعادة تعيين جديدة."
+    },
+    "CHANGE_PASSWORD": {
+      "TITLE": "تغيير كلمة المرور",
+      "SUBTITLE": "حدّث كلمة مرور حسابك",
+      "CURRENT_PASSWORD_LABEL": "كلمة المرور الحالية",
+      "CURRENT_PASSWORD_PLACEHOLDER": "********",
+      "NEW_PASSWORD_LABEL": "كلمة المرور الجديدة",
+      "NEW_PASSWORD_PLACEHOLDER": "********",
+      "CONFIRM_PASSWORD_LABEL": "تأكيد كلمة المرور الجديدة",
+      "CONFIRM_PASSWORD_PLACEHOLDER": "********",
+      "SUBMIT_BUTTON": "تغيير كلمة المرور",
+      "LOADING_BUTTON": "جارٍ تحديث كلمة المرور...",
+      "CANCEL_BUTTON": "إلغاء",
+      "SUCCESS_MESSAGE": "تم تغيير كلمة المرور بنجاح. تم تسجيل خروج الجلسات الأخرى الآن."
+    },
+    "VALIDATION": {
+      "EMAIL_REQUIRED": "البريد الإلكتروني مطلوب",
+      "EMAIL_INVALID": "يرجى إدخال عنوان بريد إلكتروني صالح",
+      "EMAIL_DUPLICATE": "البريد الإلكتروني مستخدم بالفعل",
+      "NAME_REQUIRED": "الاسم الكامل مطلوب",
+      "NAME_MINLENGTH": "يجب أن يكون الاسم من حرفين على الأقل",
+      "PHONE_INVALID": "يرجى إدخال رقم هاتف صالح",
+      "PASSWORD_REQUIRED": "كلمة المرور مطلوبة",
+      "PASSWORD_MINLENGTH": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
+      "PASSWORD_STRENGTH": "يجب أن تتضمن كلمة المرور حرفاً كبيراً وحرفاً صغيراً ورقماً",
+      "CONFIRM_REQUIRED": "التأكيد مطلوب",
+      "PASSWORD_MISMATCH": "كلمات المرور غير متطابقة",
+      "TERMS_REQUIRED": "يجب عليك قبول الشروط للمتابعة",
+      "CURRENT_PASSWORD_REQUIRED": "كلمة المرور الحالية مطلوبة",
+      "CURRENT_PASSWORD_INCORRECT": "كلمة المرور الحالية غير صحيحة",
+      "NEW_PASSWORD_REQUIRED": "كلمة المرور الجديدة مطلوبة",
+      "PASSWORD_REUSE": "يجب أن تختلف كلمة المرور الجديدة عن الحالية",
+      "CONFIRM_PASSWORD_REQUIRED": "تأكيد كلمة المرور مطلوب",
+      "RESET_LINK_INVALID": "رابط إعادة التعيين مفقود أو غير صالح. يرجى طلب رسالة إعادة تعيين جديدة."
+    }
+  },
+  "DASHBOARD": {
+    "ACCESSIBILITY": {
+      "SKIP_TO_MAIN_CONTENT": "تخطي إلى المحتوى الرئيسي"
+    },
+    "NAV": {
+      "BRAND_LABEL": "لوحة تحكم خانة",
+      "MAIN_NAVIGATION": "التنقل الرئيسي",
+      "PRIMARY_NAVIGATION": "التنقل الأساسي",
+      "TOGGLE_SIDEBAR": "تبديل الشريط الجانبي",
+      "TOGGLE_NAVIGATION": "تبديل التنقل",
+      "TOGGLE_USER_MENU": "تبديل قائمة المستخدم",
+      "MOBILE_NAVIGATION": "تنقل الجوال",
+      "MOBILE_NAVIGATION_LINKS": "روابط تنقل الجوال",
+      "NAVIGATION_TITLE": "التنقل",
+      "CLOSE_NAVIGATION": "إغلاق التنقل",
+      "CLOSE": "إغلاق",
+      "ITEMS": {
+        "BOOKINGS": "الحجوزات",
+        "CALENDAR": "التقويم",
+        "NEW_BOOKING": "حجز جديد"
+      }
+    },
+    "USER": {
+      "LOGOUT": "تسجيل الخروج",
+      "SIGN_IN": "تسجيل الدخول"
+    },
+    "LAYOUT": {
+      "PRIMARY_SIDEBAR": "الشريط الجانبي الرئيسي",
+      "CONTENT_REGION": "محتوى لوحة التحكم"
+    }
+  },
+  "SHARED": {
+    "CONFIRMATION_DIALOG": {
+      "CONFIRM": "تأكيد",
+      "CANCEL": "إلغاء",
+      "CLOSE": "إغلاق",
+      "CLOSE_DIALOG": "إغلاق الحوار"
+    },
+    "CANCELLATION_FORM": {
+      "LABEL": "سبب الإلغاء",
+      "PLACEHOLDER": "أضف سبب الإلغاء",
+      "MINIMUM_HINT": "الحد الأدنى {{minLength}} أحرف"
+    },
+    "LANGUAGE": {
+      "SWITCH_TO_ARABIC": "التبديل إلى العربية",
+      "SWITCH_TO_ENGLISH": "التبديل إلى الإنجليزية",
+      "LANGUAGE_ARABIC": "العربية",
+      "LANGUAGE_ENGLISH": "English",
+      "SHORT_ARABIC": "ع",
+      "SHORT_ENGLISH": "EN"
+    }
+  },
+  "BOOKING_LIST": {
+    "PAGE": {
+      "SKIP_LINK": "تخطي إلى قائمة الحجوزات",
+      "TITLE": "الحجوزات",
+      "SUBTITLE": "جميع حجوزات مرافقك"
+    },
+    "ACTIONS": {
+      "TRY_AGAIN": "حاول مرة أخرى",
+      "EXPORT_CSV": "تصدير CSV",
+      "CANCEL_SELECTED": "إلغاء المحدد",
+      "CLEAR": "مسح",
+      "CANCEL_BOOKING": "إلغاء الحجز",
+      "MARK_AS_PAID": "تحديث إلى مدفوع",
+      "CANCEL": "إلغاء",
+      "MARK_PAID": "تحديث إلى مدفوع",
+      "PAID_BOOKING_NOTE": "الحجز مدفوع، وسيستلزم الإلغاء إجراء استرداد عند دمج بوابة الدفع."
+    },
+    "ARIA": {
+      "SELECT_ALL_PAGE": "تحديد جميع حجوزات هذه الصفحة",
+      "SELECT_BOOKING": "تحديد الحجز للعميل {{name}}",
+      "CANCEL_BOOKING_FOR": "إلغاء الحجز للعميل {{name}}",
+      "MARK_PAID_FOR": "تحديث حجز {{name}} إلى مدفوع"
+    },
+    "TOOLBAR": {
+      "SELECTED_COUNT": "{{count}} محدد"
+    },
+    "DIALOG": {
+      "CANCEL_TITLE": "إلغاء الحجز",
+      "CANCEL_MESSAGE": "هذا الإجراء نهائي ولا يمكن التراجع عنه.",
+      "CANCEL_CONFIRM": "إلغاء الحجز",
+      "BULK_CANCEL_TITLE": "إلغاء الحجوزات المحددة",
+      "BULK_CANCEL_MESSAGE": "سيتم إلغاء جميع الحجوزات المحددة ولا يمكن التراجع عن هذا الإجراء.",
+      "BULK_CANCEL_CONFIRM": "إلغاء الحجوزات"
+    },
+    "STATE": {
+      "LOADING": "جارٍ تحميل الحجوزات...",
+      "NO_BOOKINGS": "لا توجد حجوزات بعد.",
+      "CREATE_FIRST_BOOKING": "أنشئ أول حجز",
+      "NO_RESULTS": "لم يتم العثور على حجوزات."
+    },
+    "TABLE": {
+      "ARIA_LABEL": "قائمة الحجوزات",
+      "CAPTION": "قائمة الحجوزات",
+      "DATE": "التاريخ",
+      "TIME_RANGE": "الفترة الزمنية",
+      "CUSTOMER_NAME": "اسم العميل",
+      "PHONE": "الهاتف",
+      "STATUS": "الحالة",
+      "PRICE": "السعر",
+      "ACTIONS": "الإجراءات",
+      "HOLD_UNTIL": "محجوز حتى {{time}}",
+      "NOT_AVAILABLE": "غير متوفر"
+    },
+    "CARD": {
+      "CUSTOMER": "العميل",
+      "PHONE": "الهاتف",
+      "FACILITY": "المرفق",
+      "PRICE": "السعر",
+      "REFERENCE": "المرجع",
+      "HOLD": "حجز مبدئي"
+    },
+    "STATUS": {
+      "ALL": "الكل",
+      "PENDING": "معلّق",
+      "CONFIRMED": "مؤكد",
+      "COMPLETED": "مكتمل",
+      "CANCELLED": "ملغي",
+      "NO_SHOW": "عدم حضور"
+    },
+    "PAYMENT": {
+      "ALL": "الكل",
+      "UNPAID": "غير مدفوع",
+      "PARTIAL": "جزئي",
+      "PAID": "مدفوع",
+      "REFUNDED": "مسترد"
+    },
+    "FILTERS": {
+      "ARIA_LABEL": "فلاتر الحجوزات",
+      "SEARCH_LABEL": "بحث",
+      "SEARCH_PLACEHOLDER": "العميل، الهاتف، المرجع",
+      "SEARCH_ARIA_LABEL": "البحث في الحجوزات",
+      "FACILITY_LABEL": "المرفق",
+      "STATUS_LABEL": "الحالة",
+      "PAYMENT_LABEL": "الدفع",
+      "DATE_RANGE_LABEL": "نطاق التاريخ",
+      "ALL": "الكل",
+      "DATE_RANGE_ERROR": "يجب أن يكون تاريخ البداية قبل تاريخ النهاية."
+    },
+    "PAGINATION": {
+      "SHOWING_ZERO": "عرض 0",
+      "SHOWING_RANGE": "عرض {{start}} إلى {{end}} من {{total}}",
+      "PREVIOUS": "السابق",
+      "NEXT": "التالي",
+      "PAGE_OF": "صفحة {{current}} من {{total}}",
+      "ROWS": "الصفوف"
+    },
+    "ERRORS": {
+      "ERROR_PREFIX": "خطأ:",
+      "LOAD_FACILITIES": "فشل تحميل المرافق. يرجى المحاولة مرة أخرى.",
+      "CANCELLATION_FAILED": "فشل إلغاء الحجز. يرجى المحاولة مرة أخرى.",
+      "CANCELLATION_REASON_REQUIRED": "سبب الإلغاء مطلوب.",
+      "NO_CANCELLABLE_SELECTED": "لا توجد حجوزات قابلة للإلغاء ضمن المحدد.",
+      "BULK_CANCELLATIONS_FAILED_COUNT": "فشل {{failures}} من أصل {{total}} عمليات إلغاء.",
+      "SOME_CANCELLATIONS_FAILED": "فشلت بعض عمليات الإلغاء. يرجى إعادة المحاولة.",
+      "BULK_CANCELLATION_FAILED": "فشل الإلغاء الجماعي. يرجى المحاولة مرة أخرى.",
+      "MARK_PAID_FAILED": "فشل تحديث الحجز إلى مدفوع."
+    },
+    "TOAST": {
+      "SELECTED_BOOKINGS_CANCELLED": "تم إلغاء الحجوزات المحددة.",
+      "BOOKING_CANCELLED": "تم إلغاء الحجز.",
+      "BOOKING_MARKED_PAID": "تم تحديث الحجز إلى مدفوع."
+    },
+    "CSV": {
+      "HEADERS": {
+        "BOOKING_REFERENCE": "مرجع الحجز",
+        "CUSTOMER_NAME": "اسم العميل",
+        "CUSTOMER_PHONE": "هاتف العميل",
+        "FACILITY": "المرفق",
+        "STATUS": "الحالة",
+        "PAYMENT_STATUS": "حالة الدفع",
+        "START_TIME": "وقت البداية",
+        "END_TIME": "وقت النهاية",
+        "PRICE": "السعر",
+        "CURRENCY": "العملة"
+      }
+    }
+  },
+  "BOOKING_CALENDAR": {
+    "PAGE": {
+      "SKIP_LINK": "تخطي إلى التقويم",
+      "TITLE": "التقويم"
+    },
+    "NAV": {
+      "PREVIOUS_WEEK": "الأسبوع السابق",
+      "NEXT_WEEK": "الأسبوع التالي",
+      "TODAY": "اليوم"
+    },
+    "DIALOG": {
+      "CONFIRM_TITLE": "تأكيد الحجز",
+      "CONFIRM_MESSAGE": "سيتم تأكيد الحجز وإشعار العميل.",
+      "CONFIRM_LABEL": "تأكيد الحجز",
+      "PAY_TITLE": "تحديث إلى مدفوع",
+      "PAY_MESSAGE": "سيتم تحديث الحجز إلى مدفوع.",
+      "PAY_LABEL": "تحديث إلى مدفوع",
+      "CANCEL_TITLE": "إلغاء الحجز",
+      "CANCEL_MESSAGE": "هذا الإجراء نهائي ولا يمكن التراجع عنه.",
+      "CANCEL_LABEL": "إلغاء الحجز",
+      "FALLBACK_TITLE": "تأكيد الإجراء",
+      "FALLBACK_CONFIRM": "تأكيد"
+    },
+    "STATE": {
+      "LOADING": "جارٍ تحميل الحجوزات...",
+      "NO_BOOKINGS_FOR_DAY": "لا توجد حجوزات ليوم {{day}}",
+      "NO_BOOKINGS_THIS_WEEK": "لا توجد حجوزات لهذا الأسبوع."
+    },
+    "ACTIONS": {
+      "CONFIRM": "تأكيد",
+      "MARK_PAID": "تحديث إلى مدفوع",
+      "CANCEL": "إلغاء",
+      "PAID_BOOKING_NOTE": "الحجز مدفوع، وسيستلزم الإلغاء إجراء استرداد عند دمج بوابة الدفع."
+    },
+    "ACTION_SHEET": {
+      "CLOSE_ACTIONS": "إغلاق إجراءات الحجز",
+      "TITLE": "إجراءات الحجز",
+      "CLOSE": "إغلاق",
+      "DATE": "التاريخ",
+      "TIME": "الوقت",
+      "CUSTOMER_PHONE": "هاتف العميل",
+      "STATUS": "الحالة",
+      "PAYMENT": "الدفع",
+      "HOLD": "حجز مبدئي",
+      "HOLD_UNTIL": "محجوز حتى {{time}}"
+    },
+    "HOLD_TIMER": {
+      "PREFIX": "ينتهي خلال",
+      "EXPIRED": "منتهي",
+      "UNAVAILABLE": "غير متاح"
+    },
+    "TOAST": {
+      "BOOKING_CONFIRMED": "تم تأكيد الحجز",
+      "PAYMENT_MARKED_PAID": "تم تحديث الدفع إلى مدفوع",
+      "BOOKING_CANCELLED": "تم إلغاء الحجز"
+    },
+    "ERRORS": {
+      "ACTION_FAILED": "فشل تنفيذ الإجراء. يرجى المحاولة مرة أخرى.",
+      "AUTO_RETRYING": "تتم إعادة المحاولة تلقائيًا بتدرج زمني.",
+      "NEXT_RETRY_AT": "إعادة المحاولة التالية عند {{time}}",
+      "SHOWING_LAST_UPDATED": "عرض آخر تحديث عند {{time}}"
+    },
+    "STATUS": {
+      "CONFIRMED": "مؤكد",
+      "PENDING": "معلّق",
+      "CANCELLED": "ملغي",
+      "COMPLETED": "مكتمل",
+      "NO_SHOW": "عدم حضور"
+    },
+    "PAYMENT": {
+      "PAID": "مدفوع",
+      "PARTIAL": "جزئي",
+      "REFUNDED": "مسترد",
+      "UNPAID": "غير مدفوع"
+    },
+    "ARIA": {
+      "SLOT_NO_BOOKINGS": "{{day}} عند {{time}}. لا توجد حجوزات.",
+      "SLOT_BOOKING_COUNT": "{{day}} عند {{time}}. {{count}} حجوزات.",
+      "SELECT_DAY": "اختر اليوم",
+      "BOOKINGS_FOR_SELECTED_DAY": "حجوزات اليوم المحدد",
+      "WEEKLY_GRID": "تقويم الحجوزات الأسبوعي",
+      "TIMELINE_BOOKING": "حجز: {{name}}، من {{start}} إلى {{end}}",
+      "GRID_BOOKING": "حجز: {{name}}"
+    },
+    "ERROR_CATEGORY": {
+      "NETWORK": "مشكلة في الشبكة",
+      "SERVER": "خطأ في الخادم",
+      "VALIDATION": "مشكلة في التحقق",
+      "CONFLICT": "تم اكتشاف تعارض",
+      "AUTH": "مشكلة في الصلاحيات",
+      "NOT_FOUND": "لم يتم العثور على الحجز",
+      "UNKNOWN": "خطأ غير متوقع"
+    },
+    "ERROR_RECOVERY": {
+      "RETRY_NOW": "إعادة المحاولة الآن",
+      "DISMISS": "إخفاء",
+      "REFRESH_DATA": "تحديث البيانات",
+      "REFRESH_BOOKINGS": "تحديث الحجوزات",
+      "REFRESH_SESSION": "تحديث الجلسة",
+      "KEEP_LAST_DATA": "الاحتفاظ بآخر بيانات تقويم تم تحميلها.",
+      "NETWORK_RETRY_DESCRIPTION": "أعد الاتصال وحاول تحميل الحجوزات مرة أخرى.",
+      "SERVER_RETRY_DESCRIPTION": "حاول إعادة التحميل عند استجابة الخادم.",
+      "SERVER_REFRESH_DESCRIPTION": "اجلب أحدث الحجوزات عندما تصبح متاحة.",
+      "VALIDATION_DISMISS_DESCRIPTION": "راجع المدخلات وحاول مرة أخرى.",
+      "CONFLICT_REFRESH_DESCRIPTION": "أعد التحميل لحل التعارضات.",
+      "AUTH_REFRESH_DESCRIPTION": "حدّث البيانات بعد تسجيل الدخول مرة أخرى.",
+      "AUTH_DISMISS_DESCRIPTION": "العودة إلى آخر بيانات تقويم تم تحميلها.",
+      "NOT_FOUND_REFRESH_DESCRIPTION": "أعد التحميل للحصول على قائمة حجوزات محدثة.",
+      "UNKNOWN_RETRY_DESCRIPTION": "حاول تحميل الحجوزات مرة أخرى."
+    }
+  },
+  "BOOKING_PREVIEW": {
+    "PAGE": {
+      "SKIP_LINK": "تخطي إلى معاينة الحجز",
+      "TITLE": "معاينة الحجز",
+      "SUBTITLE": "تحقق من التوفر والتسعير قبل إنشاء الحجز",
+      "RESULT_REGION_LABEL": "نتيجة معاينة الحجز"
+    },
+    "FORM": {
+      "FACILITY_LABEL": "المرفق",
+      "DATE_LABEL": "التاريخ",
+      "START_TIME_LABEL": "وقت البداية",
+      "END_TIME_LABEL": "وقت النهاية",
+      "TIMEZONE_HINT": "الأوقات المعروضة حسب {{timezone}}",
+      "PROMO_LABEL": "رمز الخصم (اختياري)",
+      "PROMO_PLACEHOLDER": "أدخل رمز الخصم",
+      "HOUR_SUFFIX": "ساعة",
+      "SUBMIT_CHECKING": "جاري التحقق...",
+      "SUBMIT_CHECK_AVAILABILITY": "تحقق من التوفر"
+    },
+    "EMPTY": {
+      "NO_FACILITIES": "لا توجد مرافق متاحة."
+    },
+    "STALE": {
+      "MESSAGE": "قد تكون بيانات المعاينة قديمة.",
+      "REFRESH": "تحديث"
+    },
+    "STATUS": {
+      "AVAILABLE": "متاح!",
+      "NOT_AVAILABLE": "غير متاح"
+    },
+    "SLOT_STATUS": {
+      "BOOKED": "محجوز",
+      "BLOCKED": "محجوب",
+      "MAINTENANCE": "صيانة",
+      "UNKNOWN": "مشغول"
+    },
+    "DIALOG": {
+      "CONFIRM_TITLE": "تأكيد الحجز",
+      "CONFIRM_MESSAGE": "راجع التفاصيل قبل إنشاء هذا الحجز.",
+      "CONFIRM_LABEL": "تأكيد الحجز",
+      "CANCEL_LABEL": "الرجوع",
+      "CANCELLATION_POLICY_NOTE": "تخضع الإلغاءات لسياسة المرفق. يرجى المراجعة قبل التأكيد."
+    },
+    "VALIDATION": {
+      "FACILITY_REQUIRED": "المرفق مطلوب",
+      "DATE_REQUIRED": "التاريخ مطلوب",
+      "START_TIME_REQUIRED": "وقت البداية مطلوب",
+      "END_TIME_REQUIRED": "وقت النهاية مطلوب",
+      "START_BEFORE_END": "يجب أن يكون وقت البداية قبل وقت النهاية",
+      "ISSUES_TITLE": "مشكلات التحقق:"
+    },
+    "ALTERNATIVES": {
+      "HIDE": "إخفاء البدائل",
+      "VIEW_COUNT": "عرض {{count}} بدائل",
+      "TITLE": "البدائل المتاحة",
+      "REGION_LABEL": "الفترات البديلة للحجز",
+      "SELECT_SLOT_ARIA": "اختر فترة بديلة من {{start}} إلى {{end}}",
+      "HINT": "اضغط لعرض الفترات البديلة."
+    },
+    "CONNECTION": {
+      "OFFLINE_QUEUED": "أنت غير متصل. تم وضع {{count}} طلب/طلبات في قائمة إعادة المحاولة.",
+      "OFFLINE_RETRY": "أنت غير متصل. سنعيد المحاولة عند عودة الاتصال.",
+      "BACK_ONLINE_CONFIRM": "تم استعادة الاتصال. يرجى تأكيد الحجز."
+    },
+    "RETRY": {
+      "ATTEMPT_OF_MAX": "المحاولة {{attempt}} من {{max}}",
+      "COUNTDOWN": "إعادة المحاولة خلال {{seconds}}ث - {{attempt}}"
+    },
+    "ERROR_CATEGORY": {
+      "NETWORK": "مشكلة في الشبكة",
+      "SERVER": "خطأ في الخادم",
+      "VALIDATION": "مشكلة في التحقق",
+      "UNKNOWN": "خطأ غير متوقع"
+    },
+    "RECOVERY": {
+      "RETRY_NOW": "إعادة المحاولة الآن",
+      "DISMISS": "إخفاء",
+      "REFRESH_DATA": "تحديث البيانات",
+      "KEEP_LAST_DATA": "الاحتفاظ بآخر بيانات متاحة للرجوع إليها.",
+      "NETWORK_RETRY_DESCRIPTION": "أعد تنفيذ الطلب عندما يستقر الاتصال.",
+      "SERVER_RETRY_DESCRIPTION": "حاول مرة أخرى بعد قليل في حال تعافى الخادم.",
+      "SERVER_REFRESH_DESCRIPTION": "اجلب أحدث المعلومات من الخادم.",
+      "VALIDATION_DISMISS_DESCRIPTION": "راجع المدخلات وحاول مرة أخرى.",
+      "UNKNOWN_RETRY_DESCRIPTION": "حاول تنفيذ الطلب مرة أخرى."
+    },
+    "ERRORS": {
+      "LOAD_FACILITIES_FAILED": "فشل تحميل المرافق. يرجى المحاولة مرة أخرى.",
+      "PREVIEW_FAILED": "فشل عرض معاينة الحجز. يرجى المحاولة مرة أخرى.",
+      "BOOKING_CREATE_FAILED": "فشل إنشاء الحجز. يرجى المحاولة مرة أخرى.",
+      "REQUEST_TIMEOUT": "انتهت مهلة الطلب. يرجى المحاولة مرة أخرى.",
+      "FACILITY_NOT_FOUND": "لم يتم العثور على المرفق.",
+      "OFFLINE_BOOKING": "أنت غير متصل. يرجى إعادة الاتصال لإتمام الحجز.",
+      "OFFLINE_RETRY": "أنت غير متصل. سنعيد المحاولة عند عودة الاتصال."
+    },
+    "TOAST": {
+      "BOOKING_CONFIRMED": "تم تأكيد الحجز"
+    },
+    "CONFLICT": {
+      "EXACT_OVERLAP": "تداخل كامل مع حجز موجود",
+      "CONTAINED_WITHIN": "الوقت المطلوب يقع ضمن حجز موجود",
+      "PARTIAL_START_OVERLAP": "بداية الوقت المطلوب تتداخل مع حجز موجود",
+      "PARTIAL_END_OVERLAP": "نهاية الوقت المطلوب تتداخل مع حجز موجود",
+      "CONTAINS_EXISTING": "الوقت المطلوب يحتوي حجزًا موجودًا",
+      "DEFAULT": "تم اكتشاف تعارض",
+      "CONFLICTING_SLOTS_TITLE": "الفترات المتعارضة:",
+      "SLOT_ARIA": "فترة {{status}} من {{start}} إلى {{end}}"
+    },
+    "PRICING": {
+      "TITLE": "تفصيل السعر",
+      "TABLE_ARIA_LABEL": "تفصيل السعر",
+      "BASE_PRICE": "السعر الأساسي",
+      "PEAK_HOURS_RATE": "ساعات الذروة ({{multiplier}}x)",
+      "WEEKEND_RATE": "سعر عطلة نهاية الأسبوع ({{multiplier}}x)",
+      "APPLIED": "مطبق",
+      "SUBTOTAL": "المجموع الفرعي",
+      "DISCOUNT": "الخصم",
+      "PROMO_CODE": "رمز الخصم ({{code}})",
+      "TOTAL": "الإجمالي"
+    },
+    "CUSTOMER": {
+      "TITLE": "بيانات العميل",
+      "NAME_LABEL": "الاسم",
+      "NAME_PLACEHOLDER": "أدخل الاسم الكامل",
+      "PHONE_LABEL": "رقم الهاتف",
+      "PHONE_PLACEHOLDER": "+966 5XX XXX XXXX",
+      "HOLD_LABEL": "حجز مبدئي (معلّق)",
+      "HOLD_HINT": "احتفظ بهذه الفترة مؤقتًا حتى التأكيد."
+    },
+    "ACTIONS": {
+      "CONFIRMING": "جاري التأكيد...",
+      "CONFIRM_BOOKING": "تأكيد الحجز"
+    },
+    "CONFIRM_SUMMARY": {
+      "FACILITY_LABEL": "المرفق",
+      "SELECTED_FACILITY_FALLBACK": "المرفق المحدد",
+      "DATE_LABEL": "التاريخ",
+      "TIME_LABEL": "الوقت",
+      "TOTAL_LABEL": "الإجمالي",
+      "HOLD_LABEL": "حجز مبدئي",
+      "HOLD_PENDING_VALUE": "حجز كمعلّق"
+    },
+    "SUCCESS": {
+      "TITLE": "تم تأكيد الحجز!",
+      "REFERENCE_PREFIX": "المرجع:",
+      "SUBTITLE": "ستتلقى رسالة تأكيد قريبًا.",
+      "CTA_ANOTHER": "إنشاء حجز آخر"
+    }
+  },
+  "API_ERRORS": {
+    "UNAUTHORIZED": "انتهت الجلسة أو بيانات الاعتماد غير صالحة. يرجى تسجيل الدخول مرة أخرى.",
+    "SERVER_ERROR": "واجه الخادم خطأ. يرجى المحاولة مرة أخرى لاحقًا.",
+    "NOT_FOUND": "تعذر العثور على المورد المطلوب.",
+    "USER_EXISTS": "يوجد مستخدم بهذه البيانات بالفعل.",
+    "INVALID_CREDENTIALS": "البريد الإلكتروني أو كلمة المرور التي أدخلتها غير صحيحة.",
+    "VERIFICATION_FAILED": "فشل التحقق من الهوية."
+  }
+}

@@ -1,19 +1,60 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { RouterTestingModule } from '@angular/router/testing';
 import { of, throwError } from 'rxjs';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
 import { setupStorageMock } from '../../../shared/testing/mocks/storage.mock';
 import { createMockLoginResponse } from '../../../shared/testing/fixtures/auth-response.fixture';
 
+const EN_TRANSLATIONS = {
+  AUTH: {
+    ACCESSIBILITY: {
+      SKIP_TO_MAIN_CONTENT: 'Skip to main content',
+      REQUIRED_FIELD: 'required',
+    },
+    LOGIN: {
+      TITLE: 'Sign in to Khana',
+      SUBTITLE:
+        'Welcome back. Please enter your details to access your dashboard.',
+      EMAIL_LABEL: 'Email',
+      EMAIL_PLACEHOLDER: 'you@example.com',
+      PASSWORD_LABEL: 'Password',
+      PASSWORD_PLACEHOLDER: '••••••••',
+      SUBMIT_BUTTON: 'Sign In',
+      LOADING_BUTTON: 'Logging in...',
+      NO_ACCOUNT: "Don't have an account?",
+      REGISTER_LINK: 'Register here',
+      FORGOT_PASSWORD: 'Forgot your password?',
+      RESET_LINK: 'Reset it',
+      SWITCH_TO_ARABIC: 'Switch to Arabic',
+      SWITCH_TO_ENGLISH: 'Switch to English',
+      LANGUAGE_ARABIC: 'العربية',
+      LANGUAGE_ENGLISH: 'English',
+      VISUAL_TITLE: 'Bank-Grade Security',
+      VISUAL_TEXT:
+        'Your business data is protected by enterprise-level encryption, role-based access control, and continuous monitoring.',
+    },
+    VALIDATION: {
+      EMAIL_REQUIRED: 'Email is required',
+      EMAIL_INVALID: 'Please enter a valid email address',
+      PASSWORD_REQUIRED: 'Password is required',
+      PASSWORD_MINLENGTH: 'Password must be at least 8 characters',
+    },
+  },
+};
+
 describe('LoginComponent', () => {
   let component: LoginComponent;
   let fixture: ComponentFixture<LoginComponent>;
   let authService: jest.Mocked<AuthService>;
   let authStore: InstanceType<typeof AuthStore>;
-  let router: jest.Mocked<Router>;
+  let router: Router;
+  let navigateByUrlSpy: jest.SpyInstance;
   let storageMock: ReturnType<typeof setupStorageMock>;
+  let translateService: TranslateService;
 
   beforeEach(async () => {
     storageMock = setupStorageMock();
@@ -23,18 +64,22 @@ describe('LoginComponent', () => {
       login: jest.fn(),
     } as unknown as jest.Mocked<AuthService>;
 
-    router = {
-      navigateByUrl: jest.fn(),
-    } as unknown as jest.Mocked<Router>;
-
     await TestBed.configureTestingModule({
-      imports: [LoginComponent],
-      providers: [
-        { provide: AuthService, useValue: authService },
-        { provide: Router, useValue: router },
-        AuthStore,
+      imports: [
+        LoginComponent,
+        TranslateModule.forRoot(),
+        RouterTestingModule.withRoutes([]),
       ],
+      providers: [{ provide: AuthService, useValue: authService }, AuthStore],
     }).compileComponents();
+
+    translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', EN_TRANSLATIONS);
+    translateService.use('en');
+    router = TestBed.inject(Router);
+    navigateByUrlSpy = jest
+      .spyOn(router, 'navigateByUrl')
+      .mockResolvedValue(true);
 
     fixture = TestBed.createComponent(LoginComponent);
     component = fixture.componentInstance;
@@ -260,7 +305,7 @@ describe('LoginComponent', () => {
       component.onSubmit();
 
       setTimeout(() => {
-        expect(router.navigateByUrl).toHaveBeenCalledWith('/dashboard');
+        expect(navigateByUrlSpy).toHaveBeenCalledWith('/dashboard');
         done();
       }, 100);
     });
@@ -280,7 +325,7 @@ describe('LoginComponent', () => {
       component.onSubmit();
 
       setTimeout(() => {
-        expect(router.navigateByUrl).toHaveBeenCalledWith(returnUrl);
+        expect(navigateByUrlSpy).toHaveBeenCalledWith(returnUrl);
         expect(storageMock.getItem('returnUrl')).toBeNull();
         done();
       }, 100);
@@ -300,7 +345,7 @@ describe('LoginComponent', () => {
       component.onSubmit();
 
       setTimeout(() => {
-        expect(router.navigateByUrl).not.toHaveBeenCalled();
+        expect(navigateByUrlSpy).not.toHaveBeenCalled();
         done();
       }, 100);
     });
@@ -326,7 +371,7 @@ describe('LoginComponent', () => {
         'button[type="submit"]'
       );
       expect(submitButton.disabled).toBe(false);
-      expect(submitButton.textContent).toContain('Login');
+      expect(submitButton.textContent).toContain('Sign In');
     });
 
     it('should hide spinner when not loading', () => {
@@ -377,7 +422,9 @@ describe('LoginComponent', () => {
 
   describe('RTL support', () => {
     it('should render correctly in LTR direction', () => {
-      const container = fixture.nativeElement.querySelector('.login-container');
+      const container = fixture.nativeElement.querySelector(
+        '.auth-form-container'
+      );
       expect(container).toBeTruthy();
       // Component should use CSS logical properties internally
     });

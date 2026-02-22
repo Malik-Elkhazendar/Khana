@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslateService } from '@ngx-translate/core';
 import {
   Subject,
   TimeoutError,
@@ -20,6 +21,8 @@ import {
 } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiService } from '../../shared/services/api.service';
+import { LanguageService } from '../../shared/services/language.service';
+import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import {
   FacilityListItemDto,
   BookingPreviewResponseDto,
@@ -28,6 +31,10 @@ import {
   ConflictType,
 } from '@khana/shared-dtos';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
+import {
+  UiStatusBadgeComponent,
+  UiToastComponent,
+} from '../../shared/components';
 
 type PreviewAction = 'facilities' | 'preview' | 'booking';
 type PreviewErrorCategory = 'network' | 'validation' | 'server' | 'unknown';
@@ -68,6 +75,9 @@ type PreviewStateSnapshot = {
   hasPreview: boolean;
   confirmDialogOpen: boolean;
 };
+type ConflictSlotDto = NonNullable<
+  BookingPreviewResponseDto['conflict']
+>['conflictingSlots'][number];
 
 const PREVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -81,87 +91,66 @@ const ALTERNATIVES_EAGER_THRESHOLD = 6;
 const ALTERNATIVES_VIRTUAL_THRESHOLD = 100;
 const ALTERNATIVES_ROW_HEIGHT_PX = 72;
 const ALTERNATIVES_WINDOW_SIZE = 18;
-const PREVIEW_ERROR_MESSAGES: Record<PreviewAction, string> = {
-  facilities: 'Failed to load facilities. Please try again.',
-  preview: 'Failed to preview booking. Please try again.',
-  booking: 'Failed to create booking. Please try again.',
-};
-const CONFIRM_COPY = {
-  title: 'Confirm booking',
-  message: 'Review the details before creating this booking.',
-  confirmLabel: 'Confirm booking',
-  cancelLabel: 'Go back',
-};
-const CANCELLATION_POLICY_NOTE =
-  'Cancellations follow the facility policy. Please review before confirming.';
-
-const ERROR_RECOVERY_OPTIONS: Record<
-  PreviewErrorCategory,
-  ErrorRecoveryOption[]
-> = {
-  network: [
-    {
-      action: 'retry',
-      label: 'Retry now',
-      description: 'Attempt the request again when the connection stabilizes.',
-    },
-    {
-      action: 'dismiss',
-      label: 'Dismiss',
-      description: 'Keep the last available data for reference.',
-    },
-  ],
-  server: [
-    {
-      action: 'retry',
-      label: 'Retry now',
-      description: 'Try again shortly in case the server recovered.',
-    },
-    {
-      action: 'refresh',
-      label: 'Refresh data',
-      description: 'Fetch the latest information from the server.',
-    },
-  ],
-  validation: [
-    {
-      action: 'dismiss',
-      label: 'Dismiss',
-      description: 'Review the inputs and try again.',
-    },
-  ],
-  unknown: [
-    {
-      action: 'retry',
-      label: 'Retry now',
-      description: 'Try the request again.',
-    },
-    {
-      action: 'dismiss',
-      label: 'Dismiss',
-      description: 'Keep the last available data for reference.',
-    },
-  ],
-};
 
 @Component({
   selector: 'app-booking-preview',
   standalone: true,
-  imports: [CommonModule, FormsModule, ConfirmationDialogComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ConfirmationDialogComponent,
+    UiStatusBadgeComponent,
+    UiToastComponent,
+  ],
   templateUrl: './booking-preview.component.html',
   styleUrl: './booking-preview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BookingPreviewComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly languageService = inject(LanguageService, {
+    optional: true,
+  });
+  private readonly localeFormat = inject(LocaleFormatService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly translateService = inject(TranslateService, {
+    optional: true,
+  });
   private readonly previewCache = new Map<
     string,
     { result: BookingPreviewResponseDto; expiresAt: number }
   >();
   readonly timezoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  readonly confirmCopy = CONFIRM_COPY;
-  readonly cancellationPolicyNote = CANCELLATION_POLICY_NOTE;
+  readonly inputLang = computed(() =>
+    this.localeFormat.getCurrentLocale() === 'ar-SA' ? 'ar' : 'en'
+  );
+
+  get confirmCopy(): {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    cancelLabel: string;
+  } {
+    return {
+      title: this.t('BOOKING_PREVIEW.DIALOG.CONFIRM_TITLE', 'Confirm booking'),
+      message: this.t(
+        'BOOKING_PREVIEW.DIALOG.CONFIRM_MESSAGE',
+        'Review the details before creating this booking.'
+      ),
+      confirmLabel: this.t(
+        'BOOKING_PREVIEW.DIALOG.CONFIRM_LABEL',
+        'Confirm booking'
+      ),
+      cancelLabel: this.t('BOOKING_PREVIEW.DIALOG.CANCEL_LABEL', 'Go back'),
+    };
+  }
+
+  get cancellationPolicyNote(): string {
+    return this.t(
+      'BOOKING_PREVIEW.DIALOG.CANCELLATION_POLICY_NOTE',
+      'Cancellations follow the facility policy. Please review before confirming.'
+    );
+  }
 
   private readonly previewAbort$ = new Subject<void>();
   private readonly facilitiesAbort$ = new Subject<void>();
@@ -248,7 +237,7 @@ export class BookingPreviewComponent implements OnInit {
   readonly errorRecoveryOptions = computed(() => {
     const error = this.error();
     if (!error) return [];
-    return ERROR_RECOVERY_OPTIONS[error.category] ?? [];
+    return this.getErrorRecoveryOptions(error.category);
   });
 
   readonly errorCategoryLabel = computed(() => {
@@ -256,13 +245,22 @@ export class BookingPreviewComponent implements OnInit {
     if (!error) return '';
     switch (error.category) {
       case 'network':
-        return 'Network issue';
+        return this.t(
+          'BOOKING_PREVIEW.ERROR_CATEGORY.NETWORK',
+          'Network issue'
+        );
       case 'server':
-        return 'Server error';
+        return this.t('BOOKING_PREVIEW.ERROR_CATEGORY.SERVER', 'Server error');
       case 'validation':
-        return 'Validation issue';
+        return this.t(
+          'BOOKING_PREVIEW.ERROR_CATEGORY.VALIDATION',
+          'Validation issue'
+        );
       default:
-        return 'Unexpected error';
+        return this.t(
+          'BOOKING_PREVIEW.ERROR_CATEGORY.UNKNOWN',
+          'Unexpected error'
+        );
     }
   });
 
@@ -270,9 +268,16 @@ export class BookingPreviewComponent implements OnInit {
     if (this.isOnline()) return '';
     const queuedCount = this.pendingActions().length;
     if (queuedCount > 0) {
-      return `Offline. ${queuedCount} request(s) queued for retry.`;
+      return this.t(
+        'BOOKING_PREVIEW.CONNECTION.OFFLINE_QUEUED',
+        `Offline. ${queuedCount} request(s) queued for retry.`,
+        { count: queuedCount }
+      );
     }
-    return 'Offline. We will retry when you are back online.';
+    return this.t(
+      'BOOKING_PREVIEW.CONNECTION.OFFLINE_RETRY',
+      'Offline. We will retry when you are back online.'
+    );
   });
 
   readonly retryCountdown = computed(() => {
@@ -288,7 +293,11 @@ export class BookingPreviewComponent implements OnInit {
       this.retryAttempt() + 1,
       AUTO_RETRY_MAX_ATTEMPTS
     );
-    return `Attempt ${nextAttempt} of ${AUTO_RETRY_MAX_ATTEMPTS}`;
+    return this.t(
+      'BOOKING_PREVIEW.RETRY.ATTEMPT_OF_MAX',
+      `Attempt ${nextAttempt} of ${AUTO_RETRY_MAX_ATTEMPTS}`,
+      { attempt: nextAttempt, max: AUTO_RETRY_MAX_ATTEMPTS }
+    );
   });
 
   readonly isPreviewStale = computed(() => {
@@ -309,8 +318,12 @@ export class BookingPreviewComponent implements OnInit {
 
   readonly alternativesToggleLabel = computed(() => {
     return this.alternativesExpanded()
-      ? 'Hide alternatives'
-      : `View ${this.alternativesCount()} alternatives`;
+      ? this.t('BOOKING_PREVIEW.ALTERNATIVES.HIDE', 'Hide alternatives')
+      : this.t(
+          'BOOKING_PREVIEW.ALTERNATIVES.VIEW_COUNT',
+          `View ${this.alternativesCount()} alternatives`,
+          { count: this.alternativesCount() }
+        );
   });
 
   readonly showAlternatives = computed(() => {
@@ -357,23 +370,45 @@ export class BookingPreviewComponent implements OnInit {
   readonly validationErrors = computed(() => {
     const errors: string[] = [];
     if (this.selectedFacilityId().trim().length === 0) {
-      errors.push('Facility is required');
+      errors.push(
+        this.t(
+          'BOOKING_PREVIEW.VALIDATION.FACILITY_REQUIRED',
+          'Facility is required'
+        )
+      );
     }
     if (this.selectedDate().trim().length === 0) {
-      errors.push('Date is required');
+      errors.push(
+        this.t('BOOKING_PREVIEW.VALIDATION.DATE_REQUIRED', 'Date is required')
+      );
     }
     if (this.startTime().trim().length === 0) {
-      errors.push('Start time is required');
+      errors.push(
+        this.t(
+          'BOOKING_PREVIEW.VALIDATION.START_TIME_REQUIRED',
+          'Start time is required'
+        )
+      );
     }
     if (this.endTime().trim().length === 0) {
-      errors.push('End time is required');
+      errors.push(
+        this.t(
+          'BOOKING_PREVIEW.VALIDATION.END_TIME_REQUIRED',
+          'End time is required'
+        )
+      );
     }
     if (
       this.startTime().trim().length > 0 &&
       this.endTime().trim().length > 0 &&
       !this.isValidTimeRange()
     ) {
-      errors.push('Start time must be before end time');
+      errors.push(
+        this.t(
+          'BOOKING_PREVIEW.VALIDATION.START_BEFORE_END',
+          'Start time must be before end time'
+        )
+      );
     }
     return errors;
   });
@@ -605,7 +640,7 @@ export class BookingPreviewComponent implements OnInit {
    */
   formatTime(isoString: string | null | undefined): string {
     if (!isoString) return '';
-    return new Date(isoString).toLocaleTimeString('en-SA', {
+    return this.localeFormat.formatDate(isoString, {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
@@ -619,10 +654,98 @@ export class BookingPreviewComponent implements OnInit {
    * @returns Formatted currency string
    */
   formatPrice(amount: number, currency: string): string {
-    return new Intl.NumberFormat('en-SA', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount);
+    return this.localeFormat.formatCurrency(amount, currency);
+  }
+
+  facilityOptionLabel(facility: FacilityListItemDto): string {
+    // Keep native select option labels single-direction to avoid bidi reordering glitches.
+    return facility.name;
+  }
+
+  selectedFacilityRateLabel(): string {
+    const facility = this.selectedFacility();
+    if (!facility) return '';
+    return `${this.formatPrice(
+      facility.basePrice,
+      facility.currency
+    )}/${this.text('BOOKING_PREVIEW.FORM.HOUR_SUFFIX', 'hour')}`;
+  }
+
+  text(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number>
+  ): string {
+    return this.t(key, fallback, params);
+  }
+
+  retryCountdownMessage(seconds: number): string {
+    return this.t(
+      'BOOKING_PREVIEW.RETRY.COUNTDOWN',
+      `Retrying in ${seconds}s - ${this.retryAttemptMessage()}`,
+      {
+        seconds,
+        attempt: this.retryAttemptMessage(),
+      }
+    );
+  }
+
+  alternativeSlotAriaLabel(alt: AlternativeSlotDto): string {
+    const start = this.formatTime(alt.startTime);
+    const end = this.formatTime(alt.endTime);
+    return this.t(
+      'BOOKING_PREVIEW.ALTERNATIVES.SELECT_SLOT_ARIA',
+      `Select alternative slot ${start} to ${end}`,
+      {
+        start,
+        end,
+      }
+    );
+  }
+
+  trackConflictSlot(_: number, slot: ConflictSlotDto): string {
+    return `${slot.startTime}|${slot.endTime}|${slot.status}|${
+      slot.bookingReference ?? ''
+    }`;
+  }
+
+  conflictSlotStatusTone(
+    status: string
+  ): 'success' | 'warning' | 'danger' | 'neutral' {
+    switch (status) {
+      case 'BOOKED':
+        return 'warning';
+      case 'BLOCKED':
+        return 'danger';
+      case 'MAINTENANCE':
+        return 'neutral';
+      default:
+        return 'neutral';
+    }
+  }
+
+  conflictSlotStatusLabel(status: string): string {
+    switch (status) {
+      case 'BOOKED':
+        return this.t('BOOKING_PREVIEW.SLOT_STATUS.BOOKED', 'Booked');
+      case 'BLOCKED':
+        return this.t('BOOKING_PREVIEW.SLOT_STATUS.BLOCKED', 'Blocked');
+      case 'MAINTENANCE':
+        return this.t('BOOKING_PREVIEW.SLOT_STATUS.MAINTENANCE', 'Maintenance');
+      default:
+        return this.t('BOOKING_PREVIEW.SLOT_STATUS.UNKNOWN', 'Occupied');
+    }
+  }
+
+  conflictSlotAriaLabel(slot: ConflictSlotDto): string {
+    const start = this.formatTime(slot.startTime);
+    const end = this.formatTime(slot.endTime);
+    const status = this.conflictSlotStatusLabel(slot.status);
+    return this.t(
+      'BOOKING_PREVIEW.CONFLICT.SLOT_ARIA',
+      `${status} slot from ${start} to ${end}`,
+      { status, start, end }
+    );
   }
 
   /**
@@ -745,17 +868,32 @@ export class BookingPreviewComponent implements OnInit {
   formatConflictType(type: ConflictType | undefined): string {
     switch (type) {
       case ConflictType.EXACT_OVERLAP:
-        return 'Exact overlap with an existing booking';
+        return this.t(
+          'BOOKING_PREVIEW.CONFLICT.EXACT_OVERLAP',
+          'Exact overlap with an existing booking'
+        );
       case ConflictType.CONTAINED_WITHIN:
-        return 'Requested time falls within an existing booking';
+        return this.t(
+          'BOOKING_PREVIEW.CONFLICT.CONTAINED_WITHIN',
+          'Requested time falls within an existing booking'
+        );
       case ConflictType.PARTIAL_START_OVERLAP:
-        return 'Requested start overlaps an existing booking';
+        return this.t(
+          'BOOKING_PREVIEW.CONFLICT.PARTIAL_START_OVERLAP',
+          'Requested start overlaps an existing booking'
+        );
       case ConflictType.PARTIAL_END_OVERLAP:
-        return 'Requested end overlaps an existing booking';
+        return this.t(
+          'BOOKING_PREVIEW.CONFLICT.PARTIAL_END_OVERLAP',
+          'Requested end overlaps an existing booking'
+        );
       case ConflictType.CONTAINS_EXISTING:
-        return 'Requested time contains an existing booking';
+        return this.t(
+          'BOOKING_PREVIEW.CONFLICT.CONTAINS_EXISTING',
+          'Requested time contains an existing booking'
+        );
       default:
-        return 'Conflict detected';
+        return this.t('BOOKING_PREVIEW.CONFLICT.DEFAULT', 'Conflict detected');
     }
   }
 
@@ -814,7 +952,13 @@ export class BookingPreviewComponent implements OnInit {
             this.bookingSuccess.set(true);
             this.bookingReference.set(createdBooking.bookingReference ?? null);
             this.confirmDialogOpen.set(false);
-            this.showToast('Booking confirmed', 'success');
+            this.showToast(
+              this.t(
+                'BOOKING_PREVIEW.TOAST.BOOKING_CONFIRMED',
+                'Booking confirmed'
+              ),
+              'success'
+            );
             // Reset form for next booking
             this.customerName.set('');
             this.customerPhone.set('');
@@ -883,6 +1027,116 @@ export class BookingPreviewComponent implements OnInit {
       this.toast.set(null);
       this.toastTimer = null;
     }, 2500);
+  }
+
+  private getErrorRecoveryOptions(
+    category: PreviewErrorCategory
+  ): ErrorRecoveryOption[] {
+    switch (category) {
+      case 'network':
+        return [
+          {
+            action: 'retry',
+            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW', 'Retry now'),
+            description: this.t(
+              'BOOKING_PREVIEW.RECOVERY.NETWORK_RETRY_DESCRIPTION',
+              'Attempt the request again when the connection stabilizes.'
+            ),
+          },
+          {
+            action: 'dismiss',
+            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS', 'Dismiss'),
+            description: this.t(
+              'BOOKING_PREVIEW.RECOVERY.KEEP_LAST_DATA',
+              'Keep the last available data for reference.'
+            ),
+          },
+        ];
+      case 'server':
+        return [
+          {
+            action: 'retry',
+            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW', 'Retry now'),
+            description: this.t(
+              'BOOKING_PREVIEW.RECOVERY.SERVER_RETRY_DESCRIPTION',
+              'Try again shortly in case the server recovered.'
+            ),
+          },
+          {
+            action: 'refresh',
+            label: this.t(
+              'BOOKING_PREVIEW.RECOVERY.REFRESH_DATA',
+              'Refresh data'
+            ),
+            description: this.t(
+              'BOOKING_PREVIEW.RECOVERY.SERVER_REFRESH_DESCRIPTION',
+              'Fetch the latest information from the server.'
+            ),
+          },
+        ];
+      case 'validation':
+        return [
+          {
+            action: 'dismiss',
+            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS', 'Dismiss'),
+            description: this.t(
+              'BOOKING_PREVIEW.RECOVERY.VALIDATION_DISMISS_DESCRIPTION',
+              'Review the inputs and try again.'
+            ),
+          },
+        ];
+      case 'unknown':
+      default:
+        return [
+          {
+            action: 'retry',
+            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW', 'Retry now'),
+            description: this.t(
+              'BOOKING_PREVIEW.RECOVERY.UNKNOWN_RETRY_DESCRIPTION',
+              'Try the request again.'
+            ),
+          },
+          {
+            action: 'dismiss',
+            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS', 'Dismiss'),
+            description: this.t(
+              'BOOKING_PREVIEW.RECOVERY.KEEP_LAST_DATA',
+              'Keep the last available data for reference.'
+            ),
+          },
+        ];
+    }
+  }
+
+  private getPreviewErrorMessage(action: PreviewAction): string {
+    switch (action) {
+      case 'facilities':
+        return this.t(
+          'BOOKING_PREVIEW.ERRORS.LOAD_FACILITIES_FAILED',
+          'Failed to load facilities. Please try again.'
+        );
+      case 'preview':
+        return this.t(
+          'BOOKING_PREVIEW.ERRORS.PREVIEW_FAILED',
+          'Failed to preview booking. Please try again.'
+        );
+      case 'booking':
+      default:
+        return this.t(
+          'BOOKING_PREVIEW.ERRORS.BOOKING_CREATE_FAILED',
+          'Failed to create booking. Please try again.'
+        );
+    }
+  }
+
+  private t(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number>
+  ): string {
+    this.languageService?.languageVersion();
+    const translated = this.translateService?.instant(key, params);
+    return translated && translated !== key ? translated : fallback;
   }
 
   private registerEffects(): void {
@@ -1029,7 +1283,10 @@ export class BookingPreviewComponent implements OnInit {
     }
     if (this.lastAction() === 'booking') {
       this.showToast(
-        'You are back online. Please confirm the booking.',
+        this.t(
+          'BOOKING_PREVIEW.CONNECTION.BACK_ONLINE_CONFIRM',
+          'You are back online. Please confirm the booking.'
+        ),
         'info'
       );
     }
@@ -1123,8 +1380,14 @@ export class BookingPreviewComponent implements OnInit {
   private buildOfflineError(action: PreviewAction): PreviewError {
     const baseMessage =
       action === 'booking'
-        ? 'You are offline. Please reconnect to complete the booking.'
-        : 'You are offline. We will retry when you are back online.';
+        ? this.t(
+            'BOOKING_PREVIEW.ERRORS.OFFLINE_BOOKING',
+            'You are offline. Please reconnect to complete the booking.'
+          )
+        : this.t(
+            'BOOKING_PREVIEW.ERRORS.OFFLINE_RETRY',
+            'You are offline. We will retry when you are back online.'
+          );
     return {
       action,
       category: 'network',
@@ -1142,12 +1405,18 @@ export class BookingPreviewComponent implements OnInit {
     const status = this.extractStatus(err);
     const category = isTimeout ? 'network' : this.resolveCategory(status);
 
-    let message = PREVIEW_ERROR_MESSAGES[action];
+    let message = this.getPreviewErrorMessage(action);
     if (isTimeout) {
-      message = 'Request timed out. Please try again.';
+      message = this.t(
+        'BOOKING_PREVIEW.ERRORS.REQUEST_TIMEOUT',
+        'Request timed out. Please try again.'
+      );
     }
     if (action === 'preview' && status === 404) {
-      message = 'Facility not found.';
+      message = this.t(
+        'BOOKING_PREVIEW.ERRORS.FACILITY_NOT_FOUND',
+        'Facility not found.'
+      );
     }
     if (action === 'booking') {
       const apiMessage = this.extractApiMessage(err);

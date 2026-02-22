@@ -13,7 +13,10 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslateService } from '@ngx-translate/core';
 import { BookingStore } from '../../state/bookings/booking.store';
+import { LanguageService } from '../../shared/services/language.service';
+import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import {
   BookingListItemDto,
   BookingStatus,
@@ -22,6 +25,10 @@ import {
 import { HoldTimerComponent } from './hold-timer.component';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
+import {
+  UiStatusBadgeComponent,
+  UiToastComponent,
+} from '../../shared/components';
 
 type ToastNotice = { message: string; tone: 'success' | 'error' };
 
@@ -86,37 +93,12 @@ type BookingSegment = {
 type SlotFocus = { dayIndex: number; hourIndex: number };
 
 const CANCEL_REASON_MIN_LENGTH = 5;
-const ACTION_TOASTS: Record<ActionDialogType, string> = {
-  confirm: 'Booking confirmed',
-  pay: 'Payment marked as paid',
-  cancel: 'Booking cancelled',
-};
-const ACTION_FAILURE_MESSAGE = 'Action failed. Please try again.';
 const AUTO_RETRY_MAX_ATTEMPTS = 3;
 const AUTO_RETRY_BASE_DELAY_MS = 800;
 const AUTO_RETRY_MAX_DELAY_MS = 8000;
 const NAVIGATION_THROTTLE_MS = 200;
 const ERROR_DESCRIPTION_ID = 'calendar-error';
-const DIALOG_COPY: Record<ActionDialogType, DialogCopy> = {
-  confirm: {
-    title: 'Confirm booking',
-    message: 'This will confirm the booking and notify the customer.',
-    confirmLabel: 'Confirm booking',
-    confirmTone: 'primary',
-  },
-  pay: {
-    title: 'Mark as paid',
-    message: 'This will mark the booking as paid.',
-    confirmLabel: 'Mark paid',
-    confirmTone: 'secondary',
-  },
-  cancel: {
-    title: 'Cancel booking',
-    message: 'This action is permanent and cannot be undone.',
-    confirmLabel: 'Cancel booking',
-    confirmTone: 'danger',
-  },
-};
+const DAYS_IN_WEEK = 7;
 
 const ERROR_CATEGORY_BY_CODE: Record<BookingErrorCode, ErrorCategory> = {
   NETWORK: 'network',
@@ -127,93 +109,6 @@ const ERROR_CATEGORY_BY_CODE: Record<BookingErrorCode, ErrorCategory> = {
   FORBIDDEN: 'auth',
   NOT_FOUND: 'not_found',
   UNKNOWN: 'unknown',
-};
-
-const ERROR_RECOVERY_OPTIONS: Record<ErrorCategory, ErrorRecoveryOption[]> = {
-  network: [
-    {
-      action: 'retry',
-      label: 'Retry now',
-      description: 'Reconnect and try loading bookings again.',
-    },
-    {
-      action: 'dismiss',
-      label: 'Dismiss',
-      description: 'Keep the last loaded calendar data.',
-    },
-  ],
-  server: [
-    {
-      action: 'retry',
-      label: 'Retry now',
-      description: 'Attempt to reload when the server responds.',
-    },
-    {
-      action: 'refresh',
-      label: 'Refresh data',
-      description: 'Fetch the latest bookings once available.',
-    },
-  ],
-  validation: [
-    {
-      action: 'dismiss',
-      label: 'Dismiss',
-      description: 'Review the inputs and try again.',
-    },
-  ],
-  conflict: [
-    {
-      action: 'refresh',
-      label: 'Refresh bookings',
-      description: 'Reload to resolve conflicting updates.',
-    },
-    {
-      action: 'dismiss',
-      label: 'Dismiss',
-      description: 'Keep the last loaded calendar data.',
-    },
-  ],
-  auth: [
-    {
-      action: 'refresh',
-      label: 'Refresh session',
-      description: 'Refresh data after signing in again.',
-    },
-    {
-      action: 'dismiss',
-      label: 'Dismiss',
-      description: 'Return to the last loaded calendar data.',
-    },
-  ],
-  not_found: [
-    {
-      action: 'refresh',
-      label: 'Refresh bookings',
-      description: 'Reload to find an updated booking list.',
-    },
-  ],
-  unknown: [
-    {
-      action: 'retry',
-      label: 'Retry now',
-      description: 'Try loading bookings again.',
-    },
-    {
-      action: 'dismiss',
-      label: 'Dismiss',
-      description: 'Keep the last loaded calendar data.',
-    },
-  ],
-};
-
-const ERROR_CATEGORY_LABELS: Record<ErrorCategory, string> = {
-  network: 'Network issue',
-  server: 'Server error',
-  validation: 'Validation issue',
-  conflict: 'Conflict detected',
-  auth: 'Authorization issue',
-  not_found: 'Booking not found',
-  unknown: 'Unexpected error',
 };
 
 /**
@@ -230,6 +125,8 @@ const ERROR_CATEGORY_LABELS: Record<ErrorCategory, string> = {
     HoldTimerComponent,
     ConfirmationDialogComponent,
     CancellationFormComponent,
+    UiStatusBadgeComponent,
+    UiToastComponent,
   ],
   templateUrl: './booking-calendar.component.html',
   styleUrl: './booking-calendar.component.scss',
@@ -237,6 +134,13 @@ const ERROR_CATEGORY_LABELS: Record<ErrorCategory, string> = {
 })
 export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly store = inject(BookingStore);
+  private readonly languageService = inject(LanguageService, {
+    optional: true,
+  });
+  private readonly localeFormat = inject(LocaleFormatService);
+  private readonly translateService = inject(TranslateService, {
+    optional: true,
+  });
   readonly BookingStatus = BookingStatus;
   readonly PaymentStatus = PaymentStatus;
 
@@ -260,6 +164,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly retryScheduledAt = signal<number | null>(null);
   readonly navigationLocked = signal<boolean>(false);
   readonly focusedSlot = signal<SlotFocus>({ dayIndex: 0, hourIndex: 0 });
+  readonly selectedDay = signal<Date>(new Date());
   readonly errorDescriptionId = ERROR_DESCRIPTION_ID;
 
   @ViewChild('actionPanel') actionPanel?: ElementRef<HTMLElement>;
@@ -273,29 +178,11 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   private focusTimer: number | null = null;
   private panelCloseTimer: number | null = null;
 
-  private readonly weekRangeFormatter = new Intl.DateTimeFormat('en-SA', {
-    month: 'short',
-    day: 'numeric',
-  });
-  private readonly dateFormatter = new Intl.DateTimeFormat('en-SA', {
-    weekday: 'short',
-    month: 'short',
-    day: '2-digit',
-  });
-  private readonly timeFormatter = new Intl.DateTimeFormat('en-SA', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-
   // Operating hours (00:00 - 23:00)
   readonly hours: string[] = Array.from(
     { length: 24 },
     (_, i) => `${i.toString().padStart(2, '0')}:00`
   );
-
-  // Day names for header
-  readonly dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   readonly selectedBookingLive = computed(() => {
     const selected = this.selectedBooking();
@@ -312,7 +199,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly dialogCopy = computed<DialogCopy | null>(() => {
     const dialog = this.actionDialog();
     if (!dialog) return null;
-    return DIALOG_COPY[dialog.type];
+    return this.getDialogCopy(dialog.type);
   });
 
   readonly cancelReasonValid = computed(() => {
@@ -329,15 +216,15 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly errorRecoveryOptions = computed<ErrorRecoveryOption[]>(() => {
     const category = this.errorCategory();
     if (!category) {
-      return this.error() ? ERROR_RECOVERY_OPTIONS.unknown : [];
+      return this.error() ? this.getErrorRecoveryOptions('unknown') : [];
     }
-    return ERROR_RECOVERY_OPTIONS[category];
+    return this.getErrorRecoveryOptions(category);
   });
 
   readonly errorCategoryLabel = computed(() => {
     const category = this.errorCategory();
-    if (category) return ERROR_CATEGORY_LABELS[category];
-    return this.error() ? ERROR_CATEGORY_LABELS.unknown : '';
+    if (category) return this.getErrorCategoryLabel(category);
+    return this.error() ? this.getErrorCategoryLabel('unknown') : '';
   });
 
   readonly autoRetryEligible = computed(() => {
@@ -373,6 +260,25 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     );
   });
 
+  readonly showContent = computed(() => {
+    return (
+      !this.loading() && (this.displayBookings().length > 0 || !this.error())
+    );
+  });
+
+  readonly selectedDayBookings = computed<BookingSegment[]>(() => {
+    const day = this.selectedDay();
+    const dayKey = this.getDayKey(day);
+    return this.bookingSegments()
+      .filter((segment) => segment.dayKey === dayKey)
+      .sort((a, b) => a.startMs - b.startMs);
+  });
+
+  readonly selectedDayLabel = computed(() => {
+    const day = this.selectedDay();
+    return `${this.dayName(day)} ${this.formatDayNumber(day)}`;
+  });
+
   private readonly defaultLayout: BookingLayout = { column: 0, columns: 1 };
 
   // Computed: 7 days of the current week (starting Sunday)
@@ -384,7 +290,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     sunday.setHours(0, 0, 0, 0);
 
     const days: Date[] = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < DAYS_IN_WEEK; i++) {
       const day = new Date(sunday);
       day.setDate(sunday.getDate() + i);
       days.push(day);
@@ -403,9 +309,16 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     const days = this.weekDays();
     const start = days[0];
     const end = days[6];
-    return `${this.weekRangeFormatter.format(
-      start
-    )} - ${this.weekRangeFormatter.format(end)}, ${end.getFullYear()}`;
+    const startLabel = this.localeFormat.formatDate(start, {
+      month: 'short',
+      day: 'numeric',
+    });
+    const endLabel = this.localeFormat.formatDate(end, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return `${startLabel} - ${endLabel}`;
   });
 
   /**
@@ -607,7 +520,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
 
     switch (event.key) {
       case 'ArrowRight':
-        nextDay = Math.min(this.dayNames.length - 1, dayIndex + 1);
+        nextDay = Math.min(this.weekDays().length - 1, dayIndex + 1);
         break;
       case 'ArrowLeft':
         nextDay = Math.max(0, dayIndex - 1);
@@ -660,7 +573,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
       const booking = this.selectedBookingLive();
       if (!booking) return false;
       return await this.store.confirmBooking(booking.id);
-    }, 'Booking confirmed');
+    }, this.getActionSuccessMessage('confirm'));
   }
 
   /**
@@ -671,7 +584,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
       const booking = this.selectedBookingLive();
       if (!booking) return false;
       return await this.store.markBookingPaid(booking.id);
-    }, 'Payment marked as paid');
+    }, this.getActionSuccessMessage('pay'));
   }
 
   /**
@@ -685,7 +598,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
         booking.id,
         this.cancelReason().trim()
       );
-    }, 'Booking cancelled');
+    }, this.getActionSuccessMessage('cancel'));
   }
 
   /**
@@ -757,9 +670,269 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
       }
     };
 
-    await this.runAction(action, ACTION_TOASTS[dialog.type], () => {
-      this.closeDialog();
-    });
+    await this.runAction(
+      action,
+      this.getActionSuccessMessage(dialog.type),
+      () => {
+        this.closeDialog();
+      }
+    );
+  }
+
+  private getDialogCopy(type: ActionDialogType): DialogCopy {
+    switch (type) {
+      case 'confirm':
+        return {
+          title: this.t(
+            'BOOKING_CALENDAR.DIALOG.CONFIRM_TITLE',
+            'Confirm booking'
+          ),
+          message: this.t(
+            'BOOKING_CALENDAR.DIALOG.CONFIRM_MESSAGE',
+            'This will confirm the booking and notify the customer.'
+          ),
+          confirmLabel: this.t(
+            'BOOKING_CALENDAR.DIALOG.CONFIRM_LABEL',
+            'Confirm booking'
+          ),
+          confirmTone: 'primary',
+        };
+      case 'pay':
+        return {
+          title: this.t('BOOKING_CALENDAR.DIALOG.PAY_TITLE', 'Mark as paid'),
+          message: this.t(
+            'BOOKING_CALENDAR.DIALOG.PAY_MESSAGE',
+            'This will mark the booking as paid.'
+          ),
+          confirmLabel: this.t(
+            'BOOKING_CALENDAR.DIALOG.PAY_LABEL',
+            'Mark paid'
+          ),
+          confirmTone: 'secondary',
+        };
+      case 'cancel':
+      default:
+        return {
+          title: this.t(
+            'BOOKING_CALENDAR.DIALOG.CANCEL_TITLE',
+            'Cancel booking'
+          ),
+          message: this.t(
+            'BOOKING_CALENDAR.DIALOG.CANCEL_MESSAGE',
+            'This action is permanent and cannot be undone.'
+          ),
+          confirmLabel: this.t(
+            'BOOKING_CALENDAR.DIALOG.CANCEL_LABEL',
+            'Cancel booking'
+          ),
+          confirmTone: 'danger',
+        };
+    }
+  }
+
+  private getActionSuccessMessage(type: ActionDialogType): string {
+    switch (type) {
+      case 'confirm':
+        return this.t(
+          'BOOKING_CALENDAR.TOAST.BOOKING_CONFIRMED',
+          'Booking confirmed'
+        );
+      case 'pay':
+        return this.t(
+          'BOOKING_CALENDAR.TOAST.PAYMENT_MARKED_PAID',
+          'Payment marked as paid'
+        );
+      case 'cancel':
+      default:
+        return this.t(
+          'BOOKING_CALENDAR.TOAST.BOOKING_CANCELLED',
+          'Booking cancelled'
+        );
+    }
+  }
+
+  private getErrorRecoveryOptions(
+    category: ErrorCategory
+  ): ErrorRecoveryOption[] {
+    switch (category) {
+      case 'network':
+        return [
+          {
+            action: 'retry',
+            label: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.RETRY_NOW',
+              'Retry now'
+            ),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.NETWORK_RETRY_DESCRIPTION',
+              'Reconnect and try loading bookings again.'
+            ),
+          },
+          {
+            action: 'dismiss',
+            label: this.t('BOOKING_CALENDAR.ERROR_RECOVERY.DISMISS', 'Dismiss'),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.KEEP_LAST_DATA',
+              'Keep the last loaded calendar data.'
+            ),
+          },
+        ];
+      case 'server':
+        return [
+          {
+            action: 'retry',
+            label: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.RETRY_NOW',
+              'Retry now'
+            ),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.SERVER_RETRY_DESCRIPTION',
+              'Attempt to reload when the server responds.'
+            ),
+          },
+          {
+            action: 'refresh',
+            label: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.REFRESH_DATA',
+              'Refresh data'
+            ),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.SERVER_REFRESH_DESCRIPTION',
+              'Fetch the latest bookings once available.'
+            ),
+          },
+        ];
+      case 'validation':
+        return [
+          {
+            action: 'dismiss',
+            label: this.t('BOOKING_CALENDAR.ERROR_RECOVERY.DISMISS', 'Dismiss'),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.VALIDATION_DISMISS_DESCRIPTION',
+              'Review the inputs and try again.'
+            ),
+          },
+        ];
+      case 'conflict':
+        return [
+          {
+            action: 'refresh',
+            label: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.REFRESH_BOOKINGS',
+              'Refresh bookings'
+            ),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.CONFLICT_REFRESH_DESCRIPTION',
+              'Reload to resolve conflicting updates.'
+            ),
+          },
+          {
+            action: 'dismiss',
+            label: this.t('BOOKING_CALENDAR.ERROR_RECOVERY.DISMISS', 'Dismiss'),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.KEEP_LAST_DATA',
+              'Keep the last loaded calendar data.'
+            ),
+          },
+        ];
+      case 'auth':
+        return [
+          {
+            action: 'refresh',
+            label: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.REFRESH_SESSION',
+              'Refresh session'
+            ),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.AUTH_REFRESH_DESCRIPTION',
+              'Refresh data after signing in again.'
+            ),
+          },
+          {
+            action: 'dismiss',
+            label: this.t('BOOKING_CALENDAR.ERROR_RECOVERY.DISMISS', 'Dismiss'),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.AUTH_DISMISS_DESCRIPTION',
+              'Return to the last loaded calendar data.'
+            ),
+          },
+        ];
+      case 'not_found':
+        return [
+          {
+            action: 'refresh',
+            label: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.REFRESH_BOOKINGS',
+              'Refresh bookings'
+            ),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.NOT_FOUND_REFRESH_DESCRIPTION',
+              'Reload to find an updated booking list.'
+            ),
+          },
+        ];
+      case 'unknown':
+      default:
+        return [
+          {
+            action: 'retry',
+            label: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.RETRY_NOW',
+              'Retry now'
+            ),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.UNKNOWN_RETRY_DESCRIPTION',
+              'Try loading bookings again.'
+            ),
+          },
+          {
+            action: 'dismiss',
+            label: this.t('BOOKING_CALENDAR.ERROR_RECOVERY.DISMISS', 'Dismiss'),
+            description: this.t(
+              'BOOKING_CALENDAR.ERROR_RECOVERY.KEEP_LAST_DATA',
+              'Keep the last loaded calendar data.'
+            ),
+          },
+        ];
+    }
+  }
+
+  private getErrorCategoryLabel(category: ErrorCategory): string {
+    switch (category) {
+      case 'network':
+        return this.t(
+          'BOOKING_CALENDAR.ERROR_CATEGORY.NETWORK',
+          'Network issue'
+        );
+      case 'server':
+        return this.t('BOOKING_CALENDAR.ERROR_CATEGORY.SERVER', 'Server error');
+      case 'validation':
+        return this.t(
+          'BOOKING_CALENDAR.ERROR_CATEGORY.VALIDATION',
+          'Validation issue'
+        );
+      case 'conflict':
+        return this.t(
+          'BOOKING_CALENDAR.ERROR_CATEGORY.CONFLICT',
+          'Conflict detected'
+        );
+      case 'auth':
+        return this.t(
+          'BOOKING_CALENDAR.ERROR_CATEGORY.AUTH',
+          'Authorization issue'
+        );
+      case 'not_found':
+        return this.t(
+          'BOOKING_CALENDAR.ERROR_CATEGORY.NOT_FOUND',
+          'Booking not found'
+        );
+      case 'unknown':
+      default:
+        return this.t(
+          'BOOKING_CALENDAR.ERROR_CATEGORY.UNKNOWN',
+          'Unexpected error'
+        );
+    }
   }
 
   private async runAction(
@@ -792,7 +965,13 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
         this.panelCloseTimer = null;
       }, 650);
     } else {
-      this.showToast(ACTION_FAILURE_MESSAGE, 'error');
+      this.showToast(
+        this.t(
+          'BOOKING_CALENDAR.ERRORS.ACTION_FAILED',
+          'Action failed. Please try again.'
+        ),
+        'error'
+      );
     }
   }
 
@@ -805,6 +984,53 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
       this.toast.set(null);
       this.toastTimer = null;
     }, 2000);
+  }
+
+  text(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number>
+  ): string {
+    return this.t(key, fallback, params);
+  }
+
+  timelineBookingAriaLabel(booking: BookingListItemDto): string {
+    return this.t(
+      'BOOKING_CALENDAR.ARIA.TIMELINE_BOOKING',
+      'Booking: {{name}}, {{start}} to {{end}}',
+      {
+        name: booking.customerName,
+        start: this.formatTime(booking.startTime),
+        end: this.formatTime(booking.endTime),
+      }
+    );
+  }
+
+  gridBookingAriaLabel(booking: BookingListItemDto): string {
+    return this.t('BOOKING_CALENDAR.ARIA.GRID_BOOKING', 'Booking: {{name}}', {
+      name: booking.customerName,
+    });
+  }
+
+  holdUntilTitle(holdUntil: string | null | undefined): string | null {
+    if (!holdUntil) return null;
+    return this.t(
+      'BOOKING_CALENDAR.ACTION_SHEET.HOLD_UNTIL',
+      'Reserved until {{time}}',
+      {
+        time: this.formatTime(holdUntil),
+      }
+    );
+  }
+
+  private t(
+    key: string,
+    fallback: string,
+    params?: Record<string, string | number>
+  ): string {
+    this.languageService?.languageVersion();
+    const translated = this.translateService?.instant(key, params);
+    return translated && translated !== key ? translated : fallback;
   }
 
   private getFocusableElements(container: HTMLElement): HTMLElement[] {
@@ -845,6 +1071,19 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
       }
       this.scheduleAutoRetry();
     });
+
+    // Clamp selectedDay to the new week when navigating
+    effect(() => {
+      const days = this.weekDays();
+      const selected = this.selectedDay();
+      const selectedDow = selected.getDay();
+      const matchingDay = days.find((d) => d.getDay() === selectedDow);
+      if (matchingDay && matchingDay.getTime() !== selected.getTime()) {
+        this.selectedDay.set(matchingDay);
+      } else if (!matchingDay && days.length > 0) {
+        this.selectedDay.set(days[0]);
+      }
+    });
   }
 
   private setInitialSlotFocus(): void {
@@ -856,13 +1095,13 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   }
 
   private focusSlot(dayIndex: number, hourIndex: number): void {
-    const maxDay = this.dayNames.length - 1;
+    const maxDay = this.weekDays().length - 1;
     const maxHour = this.hours.length - 1;
     const nextDay = Math.min(Math.max(dayIndex, 0), maxDay);
     const nextHour = Math.min(Math.max(hourIndex, 0), maxHour);
     this.focusedSlot.set({ dayIndex: nextDay, hourIndex: nextHour });
 
-    const index = nextHour * this.dayNames.length + nextDay;
+    const index = nextHour * this.weekDays().length + nextDay;
     const slots = this.slotCells?.toArray();
     if (!slots || index < 0 || index >= slots.length) return;
 
@@ -1141,7 +1380,29 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   goToToday(): void {
     if (!this.canNavigate()) return;
     this.currentDate.set(new Date());
+    this.selectedDay.set(new Date());
     this.lockNavigation();
+  }
+
+  /**
+   * Select a day for the mobile day view.
+   * @param day Day to select.
+   */
+  selectDay(day: Date): void {
+    this.selectedDay.set(day);
+  }
+
+  /**
+   * Check if a day matches the currently selected day.
+   * @param day Day to compare.
+   */
+  isSelectedDay(day: Date): boolean {
+    const selected = this.selectedDay();
+    return (
+      day.getFullYear() === selected.getFullYear() &&
+      day.getMonth() === selected.getMonth() &&
+      day.getDate() === selected.getDate()
+    );
   }
 
   /**
@@ -1208,15 +1469,15 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   statusLabel(status: BookingStatus): string {
     switch (status) {
       case BookingStatus.CONFIRMED:
-        return 'Confirmed';
+        return this.t('BOOKING_CALENDAR.STATUS.CONFIRMED', 'Confirmed');
       case BookingStatus.PENDING:
-        return 'Pending';
+        return this.t('BOOKING_CALENDAR.STATUS.PENDING', 'Pending');
       case BookingStatus.CANCELLED:
-        return 'Cancelled';
+        return this.t('BOOKING_CALENDAR.STATUS.CANCELLED', 'Cancelled');
       case BookingStatus.COMPLETED:
-        return 'Completed';
+        return this.t('BOOKING_CALENDAR.STATUS.COMPLETED', 'Completed');
       case BookingStatus.NO_SHOW:
-        return 'No Show';
+        return this.t('BOOKING_CALENDAR.STATUS.NO_SHOW', 'No Show');
       default:
         return status;
     }
@@ -1229,13 +1490,13 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   paymentLabel(status: PaymentStatus): string {
     switch (status) {
       case PaymentStatus.PAID:
-        return 'Paid';
+        return this.t('BOOKING_CALENDAR.PAYMENT.PAID', 'Paid');
       case PaymentStatus.PARTIALLY_PAID:
-        return 'Partial';
+        return this.t('BOOKING_CALENDAR.PAYMENT.PARTIAL', 'Partial');
       case PaymentStatus.REFUNDED:
-        return 'Refunded';
+        return this.t('BOOKING_CALENDAR.PAYMENT.REFUNDED', 'Refunded');
       case PaymentStatus.PENDING:
-        return 'Unpaid';
+        return this.t('BOOKING_CALENDAR.PAYMENT.UNPAID', 'Unpaid');
       default:
         return status;
     }
@@ -1246,7 +1507,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * @param day Day to format.
    */
   formatDayNumber(day: Date): string {
-    return day.getDate().toString();
+    return this.localeFormat.formatDate(day, { day: 'numeric' });
   }
 
   /**
@@ -1255,9 +1516,11 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    */
   formatHour(hour: string): string {
     const [h] = hour.split(':').map(Number);
-    const period = h >= 12 ? 'PM' : 'AM';
-    const hour12 = h % 12 || 12;
-    return `${hour12} ${period}`;
+    return this.localeFormat.formatHourLabel(h);
+  }
+
+  dayName(day: Date): string {
+    return this.localeFormat.formatDate(day, { weekday: 'short' });
   }
 
   /**
@@ -1267,15 +1530,20 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * @param bookingCount Count of bookings in the slot.
    */
   slotAriaLabel(day: Date, hour: string, bookingCount: number): string {
-    const dayLabel = `${this.dayNames[day.getDay()]} ${this.formatDayNumber(
-      day
-    )}`;
+    const dayLabel = `${this.dayName(day)} ${this.formatDayNumber(day)}`;
     const timeLabel = this.formatHour(hour);
     if (bookingCount === 0) {
-      return `${dayLabel} at ${timeLabel}. No bookings.`;
+      return this.t(
+        'BOOKING_CALENDAR.ARIA.SLOT_NO_BOOKINGS',
+        `${dayLabel} at ${timeLabel}. No bookings.`,
+        { day: dayLabel, time: timeLabel }
+      );
     }
-    const plural = bookingCount === 1 ? 'booking' : 'bookings';
-    return `${dayLabel} at ${timeLabel}. ${bookingCount} ${plural}.`;
+    return this.t(
+      'BOOKING_CALENDAR.ARIA.SLOT_BOOKING_COUNT',
+      `${dayLabel} at ${timeLabel}. ${bookingCount} bookings.`,
+      { day: dayLabel, time: timeLabel, count: bookingCount }
+    );
   }
 
   /**
@@ -1283,7 +1551,11 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * @param isoString ISO timestamp to format.
    */
   formatDate(isoString: string): string {
-    return this.dateFormatter.format(new Date(isoString));
+    return this.localeFormat.formatDate(isoString, {
+      weekday: 'short',
+      month: 'short',
+      day: '2-digit',
+    });
   }
 
   /**
@@ -1292,7 +1564,11 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    */
   formatTime(isoString: string | null | undefined): string {
     if (!isoString) return '';
-    return this.timeFormatter.format(new Date(isoString));
+    return this.localeFormat.formatDate(isoString, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
   }
 
   /**
@@ -1301,7 +1577,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    */
   formatLastUpdated(timestamp: number | null): string {
     if (!timestamp) return '';
-    return new Date(timestamp).toLocaleString('en-SA', {
+    return this.localeFormat.formatDate(timestamp, {
       month: 'short',
       day: '2-digit',
       hour: '2-digit',

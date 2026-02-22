@@ -14,6 +14,7 @@ import {
 import { createMockUser } from '../testing/fixtures/user.fixture';
 import { CreateUserDto } from '@khana/shared-dtos';
 import { provideHttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -23,9 +24,11 @@ describe('AuthService', () => {
   let storageMock: ReturnType<typeof setupStorageMock>;
 
   const API_URL = '/api/v1/auth';
+  const DEFAULT_TENANT_ID = 'd74e2910-8ea8-4df7-a4a2-435aca4d649e';
 
   beforeEach(() => {
     storageMock = setupStorageMock();
+    environment.auth.tenantId = DEFAULT_TENANT_ID;
 
     TestBed.configureTestingModule({
       providers: [
@@ -82,6 +85,37 @@ describe('AuthService', () => {
       expect(req.request.body).toEqual({ email, password });
 
       req.flush(mockResponse);
+    });
+
+    it('should attach tenant header automatically on login', () => {
+      service.login('test@example.com', 'password123').subscribe();
+
+      const req = httpMock.expectOne(`${API_URL}/login`);
+      expect(req.request.headers.get('x-tenant-id')).toBe(DEFAULT_TENANT_ID);
+
+      req.flush(createMockLoginResponse());
+    });
+
+    it('should resolve tenant from API when no tenant id is configured', () => {
+      const originalTenantId = environment.auth.tenantId;
+      const resolvedTenantId = 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      try {
+        environment.auth.tenantId = '';
+
+        service.login('test@example.com', 'password123').subscribe();
+
+        const tenantReq = httpMock.expectOne(`${API_URL}/tenant`);
+        expect(tenantReq.request.method).toBe('GET');
+        tenantReq.flush({ id: resolvedTenantId, name: 'Elite Padel' });
+
+        const loginReq = httpMock.expectOne(`${API_URL}/login`);
+        expect(loginReq.request.headers.get('x-tenant-id')).toBe(
+          resolvedTenantId
+        );
+        loginReq.flush(createMockLoginResponse());
+      } finally {
+        environment.auth.tenantId = originalTenantId;
+      }
     });
 
     it('should handle 401 unauthorized error', (done) => {

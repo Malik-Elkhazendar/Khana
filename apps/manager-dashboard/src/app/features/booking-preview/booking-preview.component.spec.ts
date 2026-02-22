@@ -509,6 +509,28 @@ describe('BookingPreviewComponent', () => {
     expect(component.formatConflictType(type)).toBe(label);
   });
 
+  it.each([
+    ['BOOKED', 'Booked'],
+    ['BLOCKED', 'Blocked'],
+    ['MAINTENANCE', 'Maintenance'],
+    ['UNKNOWN_STATUS', 'Occupied'],
+  ])('maps conflict slot status %s to %s', (status, label) => {
+    const { component } = setupComponent();
+
+    expect(component.conflictSlotStatusLabel(status)).toBe(label);
+  });
+
+  it('builds an aria label for conflicting slots', () => {
+    const { component } = setupComponent();
+    const slot = {
+      startTime: '2025-03-01T10:00:00Z',
+      endTime: '2025-03-01T11:00:00Z',
+      status: 'BOOKED',
+    };
+
+    expect(component.conflictSlotAriaLabel(slot)).toContain('Booked slot');
+  });
+
   it('returns empty string when formatting a null time', () => {
     const { component } = setupComponent();
 

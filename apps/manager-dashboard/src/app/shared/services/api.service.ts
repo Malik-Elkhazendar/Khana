@@ -22,7 +22,7 @@ import {
 })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:3000/api';
+  private readonly baseUrl = '/api';
 
   private handleError(operation: string) {
     return (err: unknown) => {

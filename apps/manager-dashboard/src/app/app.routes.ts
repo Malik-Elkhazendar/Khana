@@ -57,6 +57,24 @@ export const appRoutes: Route[] = [
     canActivate: [authGuard],
     title: 'Change Password | Khana',
   },
+  // Legacy auth path aliases (keep old email links working)
+  {
+    path: 'auth',
+    children: [
+      {
+        path: 'forgot-password',
+        component: ForgotPasswordComponent,
+        canActivate: [publicGuard],
+        title: 'Forgot Password | Khana',
+      },
+      {
+        path: 'reset-password',
+        component: ResetPasswordComponent,
+        canActivate: [publicGuard],
+        title: 'Reset Password | Khana',
+      },
+    ],
+  },
   // Dashboard routes - authenticated area
   {
     path: 'dashboard',

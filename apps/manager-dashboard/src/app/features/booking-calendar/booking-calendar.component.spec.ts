@@ -940,4 +940,139 @@ describe('BookingCalendarComponent', () => {
 
     expect(component.trackByBooking(0, segment)).toBe('booking-99-0');
   });
+
+  // ===========================================
+  // Mobile Day View
+  // ===========================================
+
+  it('defaults selectedDay to today', () => {
+    const { component } = setupComponent();
+    const selected = component.selectedDay();
+
+    expect(selected.getFullYear()).toBe(baseDate.getFullYear());
+    expect(selected.getMonth()).toBe(baseDate.getMonth());
+    expect(selected.getDate()).toBe(baseDate.getDate());
+  });
+
+  it('returns only bookings matching the selected day', () => {
+    const booking1 = createTimedBooking({
+      id: 'booking-1',
+      startTime: '2025-03-05T10:00:00Z',
+      endTime: '2025-03-05T11:00:00Z',
+    });
+    const booking2 = createTimedBooking({
+      id: 'booking-2',
+      startTime: '2025-03-06T14:00:00Z',
+      endTime: '2025-03-06T15:00:00Z',
+    });
+    const { component } = setupComponent([booking1, booking2]);
+
+    // selectedDay defaults to baseDate (Mar 5)
+    const result = component.selectedDayBookings();
+
+    expect(result.length).toBe(1);
+    expect(result[0].booking.id).toBe('booking-1');
+  });
+
+  it('returns empty array for days without bookings', () => {
+    const booking = createTimedBooking({
+      startTime: '2025-03-05T10:00:00Z',
+      endTime: '2025-03-05T11:00:00Z',
+    });
+    const { component } = setupComponent([booking]);
+
+    component.selectDay(new Date('2025-03-04T00:00:00Z'));
+
+    expect(component.selectedDayBookings()).toEqual([]);
+  });
+
+  it('sorts selectedDayBookings by start time', () => {
+    const early = createTimedBooking({
+      id: 'booking-early',
+      startTime: '2025-03-05T08:00:00Z',
+      endTime: '2025-03-05T09:00:00Z',
+    });
+    const late = createTimedBooking({
+      id: 'booking-late',
+      startTime: '2025-03-05T14:00:00Z',
+      endTime: '2025-03-05T15:00:00Z',
+    });
+    const mid = createTimedBooking({
+      id: 'booking-mid',
+      startTime: '2025-03-05T11:00:00Z',
+      endTime: '2025-03-05T12:00:00Z',
+    });
+    // Pass in non-sorted order
+    const { component } = setupComponent([late, early, mid]);
+
+    const ids = component.selectedDayBookings().map((s) => s.booking.id);
+
+    expect(ids).toEqual(['booking-early', 'booking-mid', 'booking-late']);
+  });
+
+  it('updates selectedDay when selectDay is called', () => {
+    const { component } = setupComponent();
+    const newDay = new Date('2025-03-07T00:00:00Z');
+
+    component.selectDay(newDay);
+
+    expect(component.selectedDay()).toBe(newDay);
+  });
+
+  it('detects the selected day correctly', () => {
+    const { component } = setupComponent();
+    const today = new Date(baseDate);
+    const otherDay = new Date('2025-03-08T00:00:00Z');
+
+    expect(component.isSelectedDay(today)).toBe(true);
+    expect(component.isSelectedDay(otherDay)).toBe(false);
+  });
+
+  it('includes multi-day bookings on both days', () => {
+    const booking = createTimedBooking({
+      id: 'booking-multi',
+      startTime: '2025-03-05T22:00:00',
+      endTime: '2025-03-06T02:00:00',
+    });
+    const { component } = setupComponent([booking]);
+
+    // Day 1: Mar 5 (baseDate)
+    const day1Results = component.selectedDayBookings();
+    expect(day1Results.length).toBe(1);
+
+    // Day 2: Mar 6
+    component.selectDay(new Date('2025-03-06T00:00:00'));
+    const day2Results = component.selectedDayBookings();
+    expect(day2Results.length).toBe(1);
+  });
+
+  it('clamps selectedDay to the same weekday on week navigation', () => {
+    const { component, fixture } = setupComponent();
+    // baseDate is Wednesday Mar 5
+    expect(component.selectedDay().getDay()).toBe(3); // Wednesday
+
+    component.nextWeek();
+    fixture.detectChanges();
+
+    // Should still be Wednesday but in the next week
+    const updated = component.selectedDay();
+    expect(updated.getDay()).toBe(3);
+    expect(updated.getDate()).toBe(12); // Mar 12
+  });
+
+  it('auto-selects today when goToToday is called', () => {
+    const { component } = setupComponent();
+    // Navigate away
+    component.selectDay(new Date('2025-03-08T00:00:00Z'));
+    expect(component.isSelectedDay(new Date(baseDate))).toBe(false);
+
+    // Unlock navigation first
+    jest.runOnlyPendingTimers();
+    component.goToToday();
+
+    const selected = component.selectedDay();
+    expect(selected.getFullYear()).toBe(baseDate.getFullYear());
+    expect(selected.getMonth()).toBe(baseDate.getMonth());
+    expect(selected.getDate()).toBe(baseDate.getDate());
+  });
 });

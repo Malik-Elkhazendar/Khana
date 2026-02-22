@@ -17,6 +17,7 @@ import {
 import { Router, RouterModule } from '@angular/router';
 import { Observable, of, startWith } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
 import { ChangePasswordDto } from '@khana/shared-dtos';
@@ -33,6 +34,7 @@ import { PasswordStrengthIndicatorComponent } from '../shared';
     CommonModule,
     ReactiveFormsModule,
     RouterModule,
+    TranslateModule,
     PasswordStrengthIndicatorComponent,
   ],
   templateUrl: './change-password.component.html',
@@ -42,6 +44,7 @@ export class ChangePasswordComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly translateService = inject(TranslateService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly passwordStrengthService = inject(PasswordStrengthService);
 
@@ -133,7 +136,7 @@ export class ChangePasswordComponent implements OnInit {
       next: () => {
         this.changePasswordForm.reset();
         this.successMessage.set(
-          'Password changed successfully. Other sessions are now logged out.'
+          this.translateService.instant('AUTH.CHANGE_PASSWORD.SUCCESS_MESSAGE')
         );
       },
       error: (error) => {

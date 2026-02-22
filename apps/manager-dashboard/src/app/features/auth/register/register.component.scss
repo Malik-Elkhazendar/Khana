@@ -1,317 +1,125 @@
-/**
- * RegisterComponent Styles
- *
- * Uses Desert Night theme and logical properties for RTL support.
- */
-
-.skip-link {
-  position: absolute;
-  inset-block-start: -40px;
-  inset-inline-start: 0;
-  padding: 8px;
-  background: var(--navy);
-  color: var(--sand);
-  z-index: 100;
-
-  &:focus {
-    inset-block-start: 0;
-  }
-}
-
-.register-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-block-size: 100vh;
-  background: linear-gradient(135deg, #1a1f3c 0%, #2a2f4c 100%);
-  padding-inline: var(--space-4);
-  padding-block: var(--space-8);
-}
-
-.register-card {
-  background: var(--sand);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  inline-size: 100%;
-  max-inline-size: 500px;
-  padding-inline: var(--space-6);
-  padding-block: var(--space-8);
-}
-
-.register-header {
-  text-align: center;
-  margin-block-end: var(--space-6);
-}
-
-.register-title {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 700;
-  color: var(--navy);
-  margin-block-end: var(--space-2);
-}
-
-.register-subtitle {
-  font-size: 16px;
-  color: var(--text-secondary);
-  margin: 0 0 var(--space-2) 0;
+:host {
+  display: block;
 }
 
 .register-signin {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.register-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.form-label {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.required {
-  color: var(--error);
-  margin-inline-start: var(--space-1);
-}
-
-.form-input {
-  padding-inline: var(--space-3);
-  padding-block: 12px;
-  border: 2px solid var(--border-color);
-  border-radius: 8px;
-  font-size: 16px;
-  color: var(--text-primary);
-  background: var(--surface);
-  transition: all 0.2s ease;
-  min-block-size: 48px;
-
-  &::placeholder {
-    color: var(--text-tertiary);
-  }
-
-  &:hover {
-    border-color: var(--gold);
-  }
-
-  &:focus {
-    outline: none;
-    border-color: var(--gold);
-    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
-  }
-
-  &[aria-invalid='true'] {
-    border-color: var(--error);
-
-    &:focus {
-      box-shadow: 0 0 0 3px rgba(199, 93, 74, 0.1);
-    }
-  }
-}
-
-.form-error {
-  font-size: 14px;
-  color: var(--error);
-  margin-block-start: var(--space-1);
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-
-  &::before {
-    content: '!';
-    font-size: 16px;
-  }
-}
-
-.alert-error {
-  padding-inline: var(--space-4);
-  padding-block: var(--space-3);
-  background: rgba(199, 93, 74, 0.1);
-  border: 1px solid var(--error);
-  border-radius: 8px;
-  color: var(--error);
-  font-size: 14px;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.checkbox-input {
-  inline-size: 18px;
-  block-size: 18px;
-}
-
-.form-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.btn-primary {
-  padding-inline: var(--space-6);
-  padding-block: 14px;
-  background: var(--gold);
-  color: var(--navy);
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-block-size: 48px;
-
-  &:hover:not(:disabled) {
-    background: #c49d2f;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
-  }
-
-  &:focus {
-    outline: 3px solid rgba(212, 175, 55, 0.5);
-    outline-offset: 2px;
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
-
-.btn-secondary {
-  padding-inline: var(--space-6);
-  padding-block: 12px;
-  background: transparent;
-  color: var(--navy);
-  border: 2px solid var(--navy);
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  min-block-size: 48px;
-
-  &:hover {
-    background: rgba(26, 31, 60, 0.08);
-  }
-
-  &:focus {
-    outline: 3px solid rgba(26, 31, 60, 0.3);
-    outline-offset: 2px;
-  }
-}
-
-.btn-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-}
-
-.spinner {
-  inline-size: 16px;
-  block-size: 16px;
-  border: 2px solid transparent;
-  border-block-start-color: var(--navy);
-  border-inline-end-color: var(--navy);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.register-footer {
-  margin-block-start: var(--space-4);
-  text-align: center;
-}
-
-.text-muted {
-  color: var(--text-secondary);
-  font-size: 14px;
-  margin: 0;
+  margin-block-start: var(--space-2);
 }
 
 .footer-separator {
   margin-inline: var(--space-2);
-  color: var(--text-tertiary);
+  color: var(--color-text-muted);
 }
 
-.link {
-  color: var(--gold);
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.2s ease;
+.network-visual {
+  position: relative;
+  inline-size: 16.25rem;
+  block-size: 16.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-  &:hover {
-    color: #c49d2f;
-    text-decoration: underline;
+.network-visual .n-node {
+  position: absolute;
+  border-radius: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.network-visual .n-node.core {
+  inline-size: 4rem;
+  block-size: 4rem;
+  background: var(--color-accent);
+  box-shadow: 0 0 30px rgba(212, 168, 85, 0.35);
+  animation: register-core-pulse 3s ease-in-out infinite alternate;
+}
+
+.network-visual .n-pulse {
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--color-accent);
+  animation: register-pulse-out 2s linear infinite;
+}
+
+.network-visual .n-node.satellite {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  background: var(--color-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.network-visual .n-node.satellite.s-top {
+  inset-block-start: 10%;
+  animation: register-float 6s ease-in-out infinite;
+}
+
+.network-visual .n-node.satellite.s-right {
+  inset-inline-end: 5%;
+  inset-block-start: 45%;
+  animation: register-float 5s ease-in-out infinite 1s;
+}
+
+.network-visual .n-node.satellite.s-left {
+  inset-inline-start: 5%;
+  inset-block-end: 25%;
+  animation: register-float 7s ease-in-out infinite 2s;
+}
+
+.network-visual .n-lines {
+  position: absolute;
+  inline-size: 12.5rem;
+  block-size: 12.5rem;
+  z-index: 1;
+}
+
+.network-visual .n-line {
+  stroke: rgba(250, 248, 245, 0.22);
+  stroke-width: 2;
+  stroke-dasharray: 6;
+  animation: register-dash 20s linear infinite;
+}
+
+@keyframes register-core-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(212, 168, 85, 0.3);
   }
 
-  &:focus {
-    outline: 2px solid var(--gold);
-    outline-offset: 2px;
+  100% {
+    transform: scale(1.05);
+    box-shadow: 0 0 40px rgba(212, 168, 85, 0.55);
   }
 }
 
-@media (max-width: 480px) {
-  .register-card {
-    padding-inline: var(--space-4);
-    padding-block: var(--space-6);
+@keyframes register-pulse-out {
+  0% {
+    transform: scale(1);
+    opacity: 0.85;
   }
 
-  .register-title {
-    font-size: 26px;
+  100% {
+    transform: scale(2);
+    opacity: 0;
   }
 }
 
-:host {
-  --navy: #1a1f3c;
-  --gold: #d4af37;
-  --sand: #faf8f5;
-  --sand-dark: #f5f0e8;
+@keyframes register-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
 
-  --success: #2d9d8f;
-  --error: #c75d4a;
-  --warning: #d4a855;
-  --info: #5b8dd9;
+  50% {
+    transform: translateY(-10px);
+  }
+}
 
-  --text-primary: #1a1f3c;
-  --text-secondary: #6b7280;
-  --text-tertiary: #9ca3af;
-
-  --surface: #ffffff;
-  --border-color: #e5e7eb;
-
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-
-  --font-display: 'Plus Jakarta Sans', sans-serif;
-  --font-body: 'IBM Plex Sans', sans-serif;
+@keyframes register-dash {
+  to {
+    stroke-dashoffset: 200;
+  }
 }

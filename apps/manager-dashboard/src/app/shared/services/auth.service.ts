@@ -1,8 +1,15 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, throwError } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { Observable, of, throwError } from 'rxjs';
+import {
+  tap,
+  catchError,
+  finalize,
+  map,
+  shareReplay,
+  switchMap,
+} from 'rxjs/operators';
 import {
   LoginDto,
   LoginResponseDto,
@@ -11,6 +18,7 @@ import {
   ChangePasswordDto,
 } from '@khana/shared-dtos';
 import { AuthStore } from '../state/auth.store';
+import { environment } from '../../../environments/environment';
 
 type ForgotPasswordResponse = {
   message: string;
@@ -18,6 +26,11 @@ type ForgotPasswordResponse = {
 
 type ResetPasswordResponse = {
   message: string;
+};
+
+type TenantContextResponse = {
+  id: string;
+  name: string;
 };
 
 /**
@@ -41,6 +54,11 @@ export class AuthService {
   private readonly API_URL = '/api/v1/auth';
   private readonly TOKEN_KEY = 'khana_access_token';
   private readonly REFRESH_TOKEN_KEY = 'khana_refresh_token';
+  private readonly TENANT_KEY = 'khana_tenant_id';
+  private readonly TENANT_HEADER = 'x-tenant-id';
+  private readonly UUID_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  private tenantContextRequest$?: Observable<string>;
 
   /**
    * Login with email and password
@@ -51,9 +69,15 @@ export class AuthService {
     this.authStore.setLoading(true);
     this.authStore.setError(null);
 
-    return this.http.post<LoginResponseDto>(`${this.API_URL}/login`, dto).pipe(
+    return this.resolveTenantHeaders().pipe(
+      switchMap((headers) =>
+        this.http.post<LoginResponseDto>(`${this.API_URL}/login`, dto, {
+          headers,
+        })
+      ),
       tap((response) => {
         this.storeTokens(response.accessToken, response.refreshToken);
+        this.storeTenantId(response.user?.tenantId);
         this.authStore.setUser(response.user);
         this.authStore.setAuthenticated(true);
         this.authStore.setLoading(false);
@@ -74,39 +98,45 @@ export class AuthService {
     this.authStore.setLoading(true);
     this.authStore.setError(null);
 
-    return this.http
-      .post<LoginResponseDto>(`${this.API_URL}/register`, dto)
-      .pipe(
-        tap((response) => {
-          this.storeTokens(response.accessToken, response.refreshToken);
-          this.authStore.setUser(response.user);
-          this.authStore.setAuthenticated(true);
-          this.authStore.setLoading(false);
-        }),
-        catchError((error) => {
-          const message = error.error?.message || 'Registration failed';
-          this.authStore.setError(message);
-          this.authStore.setLoading(false);
-          return throwError(() => error);
+    return this.resolveTenantHeaders().pipe(
+      switchMap((headers) =>
+        this.http.post<LoginResponseDto>(`${this.API_URL}/register`, dto, {
+          headers,
         })
-      );
+      ),
+      tap((response) => {
+        this.storeTokens(response.accessToken, response.refreshToken);
+        this.storeTenantId(response.user?.tenantId);
+        this.authStore.setUser(response.user);
+        this.authStore.setAuthenticated(true);
+        this.authStore.setLoading(false);
+      }),
+      catchError((error) => {
+        const message = error.error?.message || 'Registration failed';
+        this.authStore.setError(message);
+        this.authStore.setLoading(false);
+        return throwError(() => error);
+      })
+    );
   }
 
   /**
    * Logout (invalidate tokens)
    */
   logout(): void {
-    this.http.post(`${this.API_URL}/logout`, {}).subscribe({
-      next: () => {
-        this.clearAuthState();
-        this.router.navigate(['/login']);
-      },
-      error: () => {
-        // Even if logout API fails, clear local state
-        this.clearAuthState();
-        this.router.navigate(['/login']);
-      },
-    });
+    this.http
+      .post(`${this.API_URL}/logout`, {}, { headers: this.getTenantHeaders() })
+      .subscribe({
+        next: () => {
+          this.clearAuthState();
+          this.router.navigate(['/login']);
+        },
+        error: () => {
+          // Even if logout API fails, clear local state
+          this.clearAuthState();
+          this.router.navigate(['/login']);
+        },
+      });
   }
 
   /**
@@ -121,7 +151,11 @@ export class AuthService {
     }
 
     return this.http
-      .post<LoginResponseDto>(`${this.API_URL}/refresh`, { refreshToken })
+      .post<LoginResponseDto>(
+        `${this.API_URL}/refresh`,
+        { refreshToken },
+        { headers: this.getTenantHeaders() }
+      )
       .pipe(
         tap((response) => {
           this.storeTokens(response.accessToken, response.refreshToken);
@@ -140,16 +174,19 @@ export class AuthService {
    * Get current user info
    */
   getCurrentUser(): Observable<UserDto> {
-    return this.http.get<UserDto>(`${this.API_URL}/me`).pipe(
-      tap((user) => {
-        this.authStore.setUser(user);
-        this.authStore.setAuthenticated(true);
-      }),
-      catchError((error) => {
-        this.clearAuthState();
-        return throwError(() => error);
-      })
-    );
+    return this.http
+      .get<UserDto>(`${this.API_URL}/me`, { headers: this.getTenantHeaders() })
+      .pipe(
+        tap((user) => {
+          this.storeTenantId(user.tenantId);
+          this.authStore.setUser(user);
+          this.authStore.setAuthenticated(true);
+        }),
+        catchError((error) => {
+          this.clearAuthState();
+          return throwError(() => error);
+        })
+      );
   }
 
   /**
@@ -159,17 +196,21 @@ export class AuthService {
     this.authStore.setLoading(true);
     this.authStore.setError(null);
 
-    return this.http.post<void>(`${this.API_URL}/change-password`, dto).pipe(
-      tap(() => {
-        this.authStore.setLoading(false);
-      }),
-      catchError((error) => {
-        const message = error.error?.message || 'Password change failed';
-        this.authStore.setError(message);
-        this.authStore.setLoading(false);
-        return throwError(() => error);
+    return this.http
+      .post<void>(`${this.API_URL}/change-password`, dto, {
+        headers: this.getTenantHeaders(),
       })
-    );
+      .pipe(
+        tap(() => {
+          this.authStore.setLoading(false);
+        }),
+        catchError((error) => {
+          const message = error.error?.message || 'Password change failed';
+          this.authStore.setError(message);
+          this.authStore.setLoading(false);
+          return throwError(() => error);
+        })
+      );
   }
 
   /**
@@ -180,22 +221,28 @@ export class AuthService {
     this.authStore.setLoading(true);
     this.authStore.setError(null);
 
-    return this.http
-      .post<ForgotPasswordResponse>(`${this.API_URL}/forgot-password`, {
-        email: email.trim(),
+    return this.resolveTenantHeaders().pipe(
+      switchMap((headers) =>
+        this.http.post<ForgotPasswordResponse>(
+          `${this.API_URL}/forgot-password`,
+          {
+            email: email.trim(),
+          },
+          {
+            headers,
+          }
+        )
+      ),
+      tap(() => {
+        this.authStore.setLoading(false);
+      }),
+      catchError((error) => {
+        const message = error.error?.message || 'Password reset request failed';
+        this.authStore.setError(message);
+        this.authStore.setLoading(false);
+        return throwError(() => error);
       })
-      .pipe(
-        tap(() => {
-          this.authStore.setLoading(false);
-        }),
-        catchError((error) => {
-          const message =
-            error.error?.message || 'Password reset request failed';
-          this.authStore.setError(message);
-          this.authStore.setLoading(false);
-          return throwError(() => error);
-        })
-      );
+    );
   }
 
   /**
@@ -208,22 +255,29 @@ export class AuthService {
     this.authStore.setLoading(true);
     this.authStore.setError(null);
 
-    return this.http
-      .post<ResetPasswordResponse>(`${this.API_URL}/reset-password`, {
-        token: token.trim(),
-        newPassword,
+    return this.resolveTenantHeaders().pipe(
+      switchMap((headers) =>
+        this.http.post<ResetPasswordResponse>(
+          `${this.API_URL}/reset-password`,
+          {
+            token: token.trim(),
+            newPassword,
+          },
+          {
+            headers,
+          }
+        )
+      ),
+      tap(() => {
+        this.authStore.setLoading(false);
+      }),
+      catchError((error) => {
+        const message = error.error?.message || 'Password reset failed';
+        this.authStore.setError(message);
+        this.authStore.setLoading(false);
+        return throwError(() => error);
       })
-      .pipe(
-        tap(() => {
-          this.authStore.setLoading(false);
-        }),
-        catchError((error) => {
-          const message = error.error?.message || 'Password reset failed';
-          this.authStore.setError(message);
-          this.authStore.setLoading(false);
-          return throwError(() => error);
-        })
-      );
+    );
   }
 
   /**
@@ -277,6 +331,110 @@ export class AuthService {
   private storeTokens(accessToken: string, refreshToken: string): void {
     sessionStorage.setItem(this.TOKEN_KEY, accessToken);
     sessionStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
+  }
+
+  private resolveTenantHeaders(): Observable<HttpHeaders> {
+    const tenantId = this.resolveTenantId();
+    if (tenantId) {
+      return of(this.buildTenantHeaders(tenantId));
+    }
+
+    return this.fetchTenantContext().pipe(
+      map((resolvedTenantId) => this.buildTenantHeaders(resolvedTenantId))
+    );
+  }
+
+  private getTenantHeaders(): HttpHeaders {
+    const tenantId = this.resolveTenantId();
+
+    if (!tenantId) {
+      return new HttpHeaders();
+    }
+
+    return this.buildTenantHeaders(tenantId);
+  }
+
+  private buildTenantHeaders(tenantId: string): HttpHeaders {
+    return new HttpHeaders({
+      [this.TENANT_HEADER]: tenantId,
+    });
+  }
+
+  private fetchTenantContext(): Observable<string> {
+    if (this.tenantContextRequest$) {
+      return this.tenantContextRequest$;
+    }
+
+    this.tenantContextRequest$ = this.http
+      .get<TenantContextResponse>(`${this.API_URL}/tenant`)
+      .pipe(
+        map((tenant) => tenant?.id?.trim() ?? ''),
+        map((tenantId) => {
+          if (!this.isUuid(tenantId)) {
+            throw new Error('Invalid tenant context received from API');
+          }
+          return tenantId;
+        }),
+        tap((tenantId) => {
+          this.storeTenantId(tenantId);
+        }),
+        finalize(() => {
+          this.tenantContextRequest$ = undefined;
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
+      );
+
+    return this.tenantContextRequest$;
+  }
+
+  private resolveTenantId(): string {
+    const fromStorage = sessionStorage.getItem(this.TENANT_KEY)?.trim() ?? '';
+    if (this.isUuid(fromStorage)) {
+      return fromStorage;
+    }
+
+    const fromEnv = environment.auth.tenantId?.trim() ?? '';
+    if (this.isUuid(fromEnv)) {
+      this.storeTenantId(fromEnv);
+      return fromEnv;
+    }
+
+    const fromQuery = this.getTenantIdFromQueryParam();
+    if (this.isUuid(fromQuery)) {
+      this.storeTenantId(fromQuery);
+      return fromQuery;
+    }
+
+    const fromHostname = this.getTenantIdFromHostname();
+    if (this.isUuid(fromHostname)) {
+      this.storeTenantId(fromHostname);
+      return fromHostname;
+    }
+
+    return '';
+  }
+
+  private getTenantIdFromQueryParam(): string {
+    const tenantId = new URLSearchParams(window.location.search).get(
+      'tenantId'
+    );
+    return tenantId?.trim() ?? '';
+  }
+
+  private getTenantIdFromHostname(): string {
+    const [subdomain] = window.location.hostname.split('.');
+    return subdomain?.trim() ?? '';
+  }
+
+  private isUuid(value: string): boolean {
+    return this.UUID_PATTERN.test(value);
+  }
+
+  private storeTenantId(tenantId?: string | null): void {
+    if (!tenantId?.trim()) {
+      return;
+    }
+    sessionStorage.setItem(this.TENANT_KEY, tenantId);
   }
 
   /**

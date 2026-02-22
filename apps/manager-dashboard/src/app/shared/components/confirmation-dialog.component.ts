@@ -8,8 +8,10 @@ import {
   OnDestroy,
   Output,
   ViewChild,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslateService } from '@ngx-translate/core';
 
 type ConfirmTone = 'primary' | 'secondary' | 'danger';
 
@@ -24,8 +26,8 @@ type ConfirmTone = 'primary' | 'secondary' | 'danger';
 export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
   @Input() title = '';
   @Input() message = '';
-  @Input() confirmLabel = 'Confirm';
-  @Input() cancelLabel = 'Cancel';
+  @Input() confirmLabel = '';
+  @Input() cancelLabel = '';
   @Input() confirmTone: ConfirmTone = 'primary';
   @Input() confirmDisabled = false;
   @Input() busy = false;
@@ -37,9 +39,37 @@ export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
   @ViewChild('cancelButton') cancelButton?: ElementRef<HTMLButtonElement>;
 
   private lastFocusedElement: HTMLElement | null = null;
+  private readonly translateService = inject(TranslateService, {
+    optional: true,
+  });
 
   readonly titleId = 'confirmation-dialog-title';
   readonly descriptionId = 'confirmation-dialog-description';
+
+  get resolvedConfirmLabel(): string {
+    if (this.confirmLabel.trim()) {
+      return this.confirmLabel;
+    }
+    return this.translate('SHARED.CONFIRMATION_DIALOG.CONFIRM', 'Confirm');
+  }
+
+  get resolvedCancelLabel(): string {
+    if (this.cancelLabel.trim()) {
+      return this.cancelLabel;
+    }
+    return this.translate('SHARED.CONFIRMATION_DIALOG.CANCEL', 'Cancel');
+  }
+
+  get closeLabel(): string {
+    return this.translate('SHARED.CONFIRMATION_DIALOG.CLOSE', 'Close');
+  }
+
+  get closeDialogAriaLabel(): string {
+    return this.translate(
+      'SHARED.CONFIRMATION_DIALOG.CLOSE_DIALOG',
+      'Close dialog'
+    );
+  }
 
   ngAfterViewInit(): void {
     this.lastFocusedElement = document.activeElement as HTMLElement | null;
@@ -130,5 +160,14 @@ export class ConfirmationDialogComponent implements AfterViewInit, OnDestroy {
     return Array.from(
       container.querySelectorAll<HTMLElement>(selectors.join(','))
     );
+  }
+
+  private translate(
+    key: string,
+    fallback: string,
+    params?: Record<string, unknown>
+  ): string {
+    const translated = this.translateService?.instant(key, params);
+    return translated && translated !== key ? translated : fallback;
   }
 }

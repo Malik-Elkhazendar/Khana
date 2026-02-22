@@ -2,7 +2,7 @@
   class="sidebar"
   [class.collapsed]="isCollapsed"
   role="navigation"
-  aria-label="Main navigation"
+  [attr.aria-label]="'DASHBOARD.NAV.MAIN_NAVIGATION' | translate"
 >
   <div class="sidebar__header">
     <span class="sidebar__logo" *ngIf="!isCollapsed">Khana</span>
@@ -10,7 +10,7 @@
       class="sidebar__toggle"
       type="button"
       [attr.aria-expanded]="!isCollapsed"
-      aria-label="Toggle sidebar"
+      [attr.aria-label]="'DASHBOARD.NAV.TOGGLE_SIDEBAR' | translate"
       (click)="onToggleClick()"
     >
       <span class="sidebar__toggle-icon" aria-hidden="true">
@@ -29,15 +29,15 @@
         [routerLink]="item.route"
         routerLinkActive="sidebar__nav-link--active"
         #linkActive="routerLinkActive"
-        [routerLinkActiveOptions]="{ exact: false }"
+        [routerLinkActiveOptions]="{ exact: item.exact }"
         [attr.aria-current]="linkActive.isActive ? 'page' : null"
-        [attr.aria-label]="isCollapsed ? item.label : null"
+        [attr.aria-label]="isCollapsed ? (item.labelKey | translate) : null"
       >
         <span class="sidebar__nav-icon" aria-hidden="true">
-          {{ item.icon }}
+          <app-ui-icon [name]="item.icon"></app-ui-icon>
         </span>
         <span class="sidebar__nav-label" *ngIf="!isCollapsed">
-          {{ item.label }}
+          {{ item.labelKey | translate }}
         </span>
       </a>
     </li>

@@ -152,25 +152,25 @@ describe('roleGuard', () => {
   });
 
   describe('role hierarchy scenarios', () => {
-    it('should allow OWNER access to all routes', () => {
+    it('should require explicit role membership for OWNER', () => {
       const ownerUser = createOwnerUser();
       authStore.setUser(ownerUser);
 
       const testCases = [
-        [UserRole.OWNER],
-        [UserRole.MANAGER],
-        [UserRole.STAFF],
-        [UserRole.VIEWER],
-        [UserRole.OWNER, UserRole.MANAGER],
+        { roles: [UserRole.OWNER], expected: true },
+        { roles: [UserRole.MANAGER], expected: ['/403'] },
+        { roles: [UserRole.STAFF], expected: ['/403'] },
+        { roles: [UserRole.VIEWER], expected: ['/403'] },
+        { roles: [UserRole.OWNER, UserRole.MANAGER], expected: true },
       ];
 
-      testCases.forEach((roles) => {
+      testCases.forEach(({ roles, expected }) => {
         const guard = roleGuard(roles);
         const result = TestBed.runInInjectionContext(() =>
           guard(mockRoute, mockState)
         );
 
-        expect(result).toBe(true);
+        expect(result).toEqual(expected);
       });
     });
 

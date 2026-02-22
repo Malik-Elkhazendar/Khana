@@ -1,11 +1,62 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { RegisterComponent } from './register.component';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
 import { setupStorageMock } from '../../../shared/testing/mocks/storage.mock';
 import { createMockLoginResponse } from '../../../shared/testing/fixtures/auth-response.fixture';
+
+const EN_TRANSLATIONS = {
+  AUTH: {
+    ACCESSIBILITY: {
+      SKIP_TO_MAIN_CONTENT: 'Skip to main content',
+      REQUIRED_FIELD: 'required',
+    },
+    REGISTER: {
+      TITLE: 'Create Account',
+      SUBTITLE: 'Join Khana Booking Platform',
+      HAVE_ACCOUNT: 'Already have an account?',
+      SIGNIN_LINK: 'Sign in',
+      EMAIL_LABEL: 'Email',
+      EMAIL_PLACEHOLDER: 'business@example.com',
+      NAME_LABEL: 'Full Name',
+      NAME_PLACEHOLDER: 'Full Name',
+      PHONE_LABEL: 'Phone (optional)',
+      PHONE_PLACEHOLDER: '+966 50 123 4567',
+      PASSWORD_LABEL: 'Password',
+      PASSWORD_PLACEHOLDER: '********',
+      CONFIRM_PASSWORD_LABEL: 'Confirm Password',
+      CONFIRM_PASSWORD_PLACEHOLDER: '********',
+      AGREE_TERMS_TEXT: 'I agree to the',
+      TERMS_LINK: 'Terms',
+      SUBMIT_BUTTON: 'Create Account',
+      LOADING_BUTTON: 'Creating account...',
+      CANCEL_BUTTON: 'Cancel',
+      BACK_LOGIN_LINK: 'Back to login',
+      BACK_HOME_LINK: 'Go to landing page',
+      VISUAL_TITLE: 'Power Your Business',
+      VISUAL_TEXT:
+        'Join the Khana ecosystem. Streamline your operations, eliminate double bookings, and deliver flawless customer experiences.',
+    },
+    VALIDATION: {
+      EMAIL_REQUIRED: 'Email is required',
+      EMAIL_INVALID: 'Please enter a valid email address',
+      EMAIL_DUPLICATE: 'Email already in use',
+      NAME_REQUIRED: 'Full name is required',
+      NAME_MINLENGTH: 'Name must be at least 2 characters',
+      PHONE_INVALID: 'Please enter a valid phone number',
+      PASSWORD_REQUIRED: 'Password is required',
+      PASSWORD_MINLENGTH: 'Password must be at least 8 characters',
+      PASSWORD_STRENGTH:
+        'Password must include uppercase, lowercase, and a number',
+      CONFIRM_REQUIRED: 'Confirmation is required',
+      PASSWORD_MISMATCH: 'Passwords do not match',
+      TERMS_REQUIRED: 'You must accept the terms to continue',
+    },
+  },
+};
 
 describe('RegisterComponent', () => {
   let component: RegisterComponent;
@@ -15,6 +66,7 @@ describe('RegisterComponent', () => {
   let router: Router;
   let navigateByUrlSpy: jest.SpyInstance;
   let storageMock: ReturnType<typeof setupStorageMock>;
+  let translateService: TranslateService;
 
   beforeEach(async () => {
     storageMock = setupStorageMock();
@@ -24,13 +76,17 @@ describe('RegisterComponent', () => {
     } as unknown as jest.Mocked<AuthService>;
 
     await TestBed.configureTestingModule({
-      imports: [RegisterComponent],
+      imports: [RegisterComponent, TranslateModule.forRoot()],
       providers: [
         provideRouter([]),
         { provide: AuthService, useValue: authService },
         AuthStore,
       ],
     }).compileComponents();
+
+    translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', EN_TRANSLATIONS);
+    translateService.use('en');
 
     fixture = TestBed.createComponent(RegisterComponent);
     component = fixture.componentInstance;
@@ -76,12 +132,10 @@ describe('RegisterComponent', () => {
     });
 
     it('should have proper labels', () => {
-      const emailLabel = fixture.nativeElement.querySelector(
-        'label[for="email"]'
-      );
-      const nameLabel = fixture.nativeElement.querySelector(
-        'label[for="name"]'
-      );
+      const emailLabel =
+        fixture.nativeElement.querySelector('label[for="email"]');
+      const nameLabel =
+        fixture.nativeElement.querySelector('label[for="name"]');
 
       expect(emailLabel).toBeTruthy();
       expect(nameLabel).toBeTruthy();
@@ -262,9 +316,7 @@ describe('RegisterComponent', () => {
     });
 
     it('should set duplicate error on 409 conflict', () => {
-      authService.register.mockReturnValue(
-        throwError(() => ({ status: 409 }))
-      );
+      authService.register.mockReturnValue(throwError(() => ({ status: 409 })));
 
       component.registerForm.setValue({
         email: 'existing@example.com',
@@ -306,18 +358,16 @@ describe('RegisterComponent', () => {
   describe('password fields', () => {
     it('should keep password inputs masked', () => {
       const passwordInput = fixture.nativeElement.querySelector('#password');
-      const confirmInput = fixture.nativeElement.querySelector(
-        '#confirmPassword'
-      );
+      const confirmInput =
+        fixture.nativeElement.querySelector('#confirmPassword');
 
       expect(passwordInput.getAttribute('type')).toBe('password');
       expect(confirmInput.getAttribute('type')).toBe('password');
     });
 
     it('should not render password visibility toggle buttons', () => {
-      const toggleButtons = fixture.nativeElement.querySelectorAll(
-        '.toggle-button'
-      );
+      const toggleButtons =
+        fixture.nativeElement.querySelectorAll('.toggle-button');
 
       expect(toggleButtons.length).toBe(0);
     });
