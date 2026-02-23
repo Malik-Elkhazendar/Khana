@@ -7,7 +7,6 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/apps/api',
-  passWithNoTests: true,
   moduleNameMapper: {
     '^@khana/(.*)$': '<rootDir>/../../libs/$1/src',
   },

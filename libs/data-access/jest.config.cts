@@ -7,5 +7,4 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/libs/data-access',
-  passWithNoTests: true,
 };

@@ -1,7 +1,7 @@
-import { waitForPortOpen } from '@nx/node/utils';
 import { existsSync } from 'fs';
 import { config as loadDotenv } from 'dotenv';
 import { Client } from 'pg';
+import axios from 'axios';
 // Jest global setup runs outside Nx path mapping; keep this import runtime-resolvable.
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { resolveEnvFilePaths } from '../../../../libs/shared-utils/src/lib/env-files';
@@ -25,7 +25,7 @@ module.exports = async function () {
   const port = process.env.PORT
     ? Number(process.env.PORT)
     : Number(process.env.API_PORT || '3000');
-  await waitForPortOpen(port, { host });
+  await waitForApiReady(host, port);
 
   // Reset bookings to keep e2e deterministic (keep tenants/facilities seeded).
   if (process.env.DATABASE_URL) {
@@ -44,3 +44,33 @@ module.exports = async function () {
   // Hint: Use `globalThis` to pass variables to global teardown.
   globalThis.__TEARDOWN_MESSAGE__ = '\nTearing down...\n';
 };
+
+async function waitForApiReady(
+  host: string,
+  port: number,
+  timeoutMs = 120000,
+  retryDelayMs = 1000
+): Promise<void> {
+  const url = `http://${host}:${port}/api`;
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+
+  while (Date.now() < deadline) {
+    try {
+      await axios.get(url, {
+        timeout: 2000,
+        validateStatus: () => true,
+      });
+      return;
+    } catch (error: unknown) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+  }
+
+  const reason =
+    lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `API not ready at ${url} within ${timeoutMs}ms. Last error: ${reason}`
+  );
+}

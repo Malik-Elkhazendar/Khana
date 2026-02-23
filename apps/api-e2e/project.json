@@ -8,8 +8,7 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
       "options": {
-        "jestConfig": "apps/api-e2e/jest.config.cjs",
-        "passWithNoTests": true
+        "jestConfig": "apps/api-e2e/jest.config.cjs"
       },
       "dependsOn": ["api:build", "api:serve"]
     }
