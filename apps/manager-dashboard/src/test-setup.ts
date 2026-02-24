@@ -15,11 +15,17 @@ if (typeof window !== 'undefined' && !('IntersectionObserver' in window)) {
       void this.options;
     }
 
-    observe(): void {}
+    observe(): void {
+      void this.callback;
+    }
 
-    unobserve(): void {}
+    unobserve(): void {
+      void this.options;
+    }
 
-    disconnect(): void {}
+    disconnect(): void {
+      void this.callback;
+    }
 
     takeRecords(): IntersectionObserverEntry[] {
       return [];
@@ -32,6 +38,7 @@ if (typeof window !== 'undefined' && !('IntersectionObserver' in window)) {
 
   win.IntersectionObserver =
     MockIntersectionObserver as unknown as typeof IntersectionObserver;
-  (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
-    win.IntersectionObserver;
+  (
+    globalThis as { IntersectionObserver?: typeof IntersectionObserver }
+  ).IntersectionObserver = win.IntersectionObserver;
 }

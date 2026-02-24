@@ -32,6 +32,8 @@ const REDACTED_FIELDS = new Set([
   'authorization',
   'cookie',
   'resettoken',
+  'tokenhash',
+  'passwordhash',
   'secret',
   'apikey',
 ]);

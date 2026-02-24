@@ -46,9 +46,14 @@ export class LoginComponent {
       return;
     }
 
-    const { email, password } = this.loginForm.value;
+    const email = this.emailControl?.value ?? '';
+    const password = this.passwordControl?.value ?? '';
+    if (!email || !password) {
+      this.loginForm.markAllAsTouched();
+      return;
+    }
 
-    this.authService.login(email!, password!).subscribe({
+    this.authService.login(email, password).subscribe({
       next: () => {
         const returnUrl = sessionStorage.getItem('returnUrl') || '/dashboard';
         sessionStorage.removeItem('returnUrl');

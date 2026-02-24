@@ -69,6 +69,8 @@ describe('LoggerService', () => {
     logger.error('client.test.error', 'Sensitive context', {
       password: 'secret',
       token: 'abc123',
+      tokenHash: 'hash-token',
+      passwordHash: 'hash-password',
       email: 'user@example.com',
       phone: '+966501234567',
       nested: { refreshToken: 'refresh' },
@@ -82,6 +84,8 @@ describe('LoggerService', () => {
 
     expect(context['password']).toBe('[REDACTED]');
     expect(context['token']).toBe('[REDACTED]');
+    expect(context['tokenHash']).toBe('[REDACTED]');
+    expect(context['passwordHash']).toBe('[REDACTED]');
     expect(context['email']).toBe('u***@example.com');
     expect(context['phone']).toBe('+966***4567');
     expect((context['nested'] as Record<string, unknown>)['refreshToken']).toBe(

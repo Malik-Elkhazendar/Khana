@@ -47,20 +47,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
    *
    * @param err - Error from validation
    * @param user - User from JwtStrategy.validate()
-   * @param info - Additional info from Passport
    * @returns User - Attached to request.user
    * @throws UnauthorizedException if validation failed
    */
-  handleRequest<TUser = any>(
-    err: any,
-    user: any,
-    info: any,
-    context: ExecutionContext,
-    status?: any
-  ): TUser {
+  handleRequest<TUser>(err: unknown, user: TUser | null | false): TUser {
     if (err || !user) {
       throw err || new UnauthorizedException('Authentication required');
     }
-    return user as TUser;
+    return user;
   }
 }

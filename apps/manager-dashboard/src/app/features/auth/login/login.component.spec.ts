@@ -477,7 +477,6 @@ describe('LoginComponent', () => {
       const submitButton = fixture.nativeElement.querySelector(
         'button[type="submit"]'
       );
-      const rect = submitButton.getBoundingClientRect();
 
       // Note: Actual size depends on CSS, we're just checking the element exists
       expect(submitButton).toBeTruthy();

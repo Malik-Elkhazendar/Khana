@@ -2,10 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   Input,
-  signal,
   computed,
-  OnInit,
-  afterNextRender,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -18,7 +15,7 @@ import { RouterModule } from '@angular/router';
   styleUrl: './hero-section.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HeroSectionArComponent implements OnInit {
+export class HeroSectionArComponent {
   @Input() scrollY = 0;
 
   readonly parallaxOffset = computed(() => this.scrollY * -0.3);
@@ -47,8 +44,4 @@ export class HeroSectionArComponent implements OnInit {
     { date: '١١', booked: false, today: true },
     { date: '١٢', booked: true, today: false },
   ];
-
-  ngOnInit(): void {
-    // Component initialized
-  }
 }

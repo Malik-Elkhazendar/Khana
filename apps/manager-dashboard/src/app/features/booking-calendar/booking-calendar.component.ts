@@ -946,7 +946,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     let success = false;
     try {
       success = await action();
-    } catch (error) {
+    } catch {
       success = false;
     } finally {
       this.actionInProgress.set(false);

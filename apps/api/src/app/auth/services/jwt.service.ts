@@ -132,7 +132,7 @@ export class JwtTokenService {
       return this.jwtService.verify(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       }) as JwtPayload;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
   }
@@ -151,7 +151,7 @@ export class JwtTokenService {
           this.configService.get<string>('JWT_REFRESH_SECRET') ||
           this.configService.get<string>('JWT_SECRET'),
       }) as JwtPayload;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }

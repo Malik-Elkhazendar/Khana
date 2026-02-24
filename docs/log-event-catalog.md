@@ -58,9 +58,15 @@ Defined in `apps/api/src/app/logging/logging.constants.ts`.
 Current dashboard events (emitted by `LoggerService` call sites):
 
 - `client.api.request_failed`
+- `client.auth.request.unauthorized`
+- `client.auth.refresh.started`
+- `client.auth.refresh.succeeded`
+- `client.auth.refresh.reused_inflight`
+- `client.auth.refresh.failed`
 - `client.booking.status_update.rollback`
 - `client.booking.load.failed`
 - `client.booking.facilities.load_failed`
+- `client.http.response.failed`
 - `client.landing.initialization.failed`
 - `client.landing.intersection_observer.unsupported`
 - `client.landing.scroll_observer.failed`
