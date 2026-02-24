@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { SeedService } from './seed.service';
 import { Facility, Tenant, User, AuditLog } from '@khana/data-access';
 import { NotificationModule } from '@khana/notifications';
+import { LoggingModule } from './logging';
 import { normalizeNodeEnv, resolveEnvFilePaths } from './config/env-files';
 
 const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
@@ -22,6 +23,7 @@ const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
       envFilePath: resolveEnvFilePaths(NODE_ENV),
       // Removed skipProcessEnv - was preventing env file loading
     }),
+    LoggingModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({

@@ -32,6 +32,9 @@ import {
   parseBookingReference,
   isValidBookingReferenceFormat,
   generateConfirmationCode,
+  // Masking
+  maskEmail,
+  maskPhone,
 } from './shared-utils';
 
 describe('shared-utils', () => {
@@ -388,6 +391,26 @@ describe('shared-utils', () => {
         }
         expect(codes.size).toBe(100); // All unique
       });
+    });
+  });
+
+  describe('Masking', () => {
+    it('should mask email for logging', () => {
+      expect(maskEmail('test@example.com')).toBe('t***@example.com');
+      expect(maskEmail('invalid')).toBe('invalid');
+    });
+
+    it('should mask short phones fully', () => {
+      expect(maskPhone('1234567')).toBe('***');
+    });
+
+    it('should mask medium phones with first and last two chars', () => {
+      expect(maskPhone('12345678')).toBe('12***78');
+      expect(maskPhone('1234567890')).toBe('12***90');
+    });
+
+    it('should mask long phones with first four and last four chars', () => {
+      expect(maskPhone('+966501234567')).toBe('+966***4567');
     });
   });
 });

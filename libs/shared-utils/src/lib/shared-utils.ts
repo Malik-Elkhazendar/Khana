@@ -7,3 +7,4 @@ export * from './formatters';
 export * from './booking-reference';
 export * from './filters/http-exception.filter';
 export * from './env-files';
+export * from './mask.util';

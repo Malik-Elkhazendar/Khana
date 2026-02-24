@@ -1,18 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { RefreshToken } from '@khana/data-access';
+import { AppLoggerService, LOG_EVENTS } from '../../logging';
 
 @Injectable()
 export class CleanupService {
-  private readonly logger = new Logger(CleanupService.name);
-
   constructor(
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly appLogger: AppLoggerService
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
@@ -31,8 +31,10 @@ export class CleanupService {
       revokedAt: LessThan(cutoffDate),
     });
 
-    this.logger.log(
-      `Cleanup: deleted ${result.affected ?? 0} revoked refresh tokens`
+    this.appLogger.info(
+      LOG_EVENTS.SYSTEM_CLEANUP_COMPLETE,
+      'Cleanup completed',
+      { deletedCount: result.affected ?? 0, retentionDays }
     );
   }
 }

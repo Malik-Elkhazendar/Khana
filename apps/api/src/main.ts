@@ -5,16 +5,24 @@
 
 import 'reflect-metadata';
 import { existsSync } from 'fs';
-import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
-import { NestFactory, HttpAdapterHost } from '@nestjs/core';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app/app.module';
-import { HttpExceptionFilter } from '@khana/shared-utils';
 import { normalizeNodeEnv, resolveEnvFilePaths } from '@khana/shared-utils';
+import {
+  AppLoggerService,
+  HttpLoggingInterceptor,
+  ContextHttpExceptionFilter,
+  LOG_EVENTS,
+} from './app/logging';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const httpAdapterHost = app.get(HttpAdapterHost);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+
+  const appLogger = app.get(AppLoggerService);
+  app.useLogger(appLogger);
+
   const configService = app.get(ConfigService);
   const nodeEnv = normalizeNodeEnv(configService.get<string>('NODE_ENV'));
 
@@ -27,8 +35,13 @@ async function bootstrap() {
     type: VersioningType.URI,
   });
 
-  // Global HTTP exception filter (sanitizes 5xx responses)
-  app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
+  // Global HTTP exception filter (context-aware, structured logging)
+  const exceptionFilter = app.get(ContextHttpExceptionFilter);
+  app.useGlobalFilters(exceptionFilter);
+
+  // Global HTTP logging interceptor
+  const httpLoggingInterceptor = app.get(HttpLoggingInterceptor);
+  app.useGlobalInterceptors(httpLoggingInterceptor);
 
   // Enable CORS for frontend (environment-aware)
   const corsOrigins =
@@ -60,17 +73,12 @@ async function bootstrap() {
     .filter((path) => existsSync(path))
     .map((path) => path.replace(`${process.cwd()}\\`, ''));
 
-  Logger.log(`Environment: ${nodeEnv}`);
-  Logger.log(
-    `Env file order: ${
-      loadedEnvFiles.length ? loadedEnvFiles.join(' -> ') : 'none'
-    }`
-  );
-  Logger.log(
+  appLogger.info(LOG_EVENTS.SYSTEM_STARTUP, `Environment: ${nodeEnv}`, {
+    envFiles: loadedEnvFiles.length ? loadedEnvFiles : ['none'],
+  });
+  appLogger.info(
+    LOG_EVENTS.SYSTEM_STARTUP,
     `Khana API is running on: http://localhost:${port}/${globalPrefix}`
-  );
-  Logger.log(
-    `Preview endpoint: POST http://localhost:${port}/${globalPrefix}/v1/bookings/preview`
   );
 }
 

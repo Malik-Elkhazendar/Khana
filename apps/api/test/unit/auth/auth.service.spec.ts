@@ -21,16 +21,17 @@ import { JwtTokenService } from '../../../src/app/auth/services/jwt.service';
 import { DataSource } from 'typeorm';
 import { EmailService } from '@khana/notifications';
 import { MetricsService } from '../../../src/app/auth/services/metrics.service';
+import { AppLoggerService } from '../../../src/app/logging';
 import { createHmac } from 'crypto';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let userRepository: any;
-  let auditLogRepository: any;
-  let refreshTokenRepository: any;
-  let passwordResetTokenRepository: any;
-  let tenantRepository: any;
-  let dataSource: any;
+  let userRepository: Record<string, jest.Mock>;
+  let auditLogRepository: Record<string, jest.Mock>;
+  let refreshTokenRepository: Record<string, jest.Mock>;
+  let passwordResetTokenRepository: Record<string, jest.Mock>;
+  let tenantRepository: Record<string, jest.Mock>;
+  let dataSource: { transaction: jest.Mock };
   let passwordService: PasswordService;
   let jwtTokenService: JwtTokenService;
   let emailService: EmailService;
@@ -161,6 +162,16 @@ describe('AuthService', () => {
           },
         },
         {
+          provide: AppLoggerService,
+          useValue: {
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+            debug: jest.fn(),
+            log: jest.fn(),
+          },
+        },
+        {
           provide: ConfigService,
           useValue: {
             get: jest.fn().mockImplementation((key: string) => {
@@ -238,7 +249,7 @@ describe('AuthService', () => {
       auditLogRepository.create.mockReturnValue({});
       auditLogRepository.save.mockResolvedValue({});
 
-      const result = await service.register(registerDto, tenantId);
+      await service.register(registerDto, tenantId);
 
       expect(userRepository.count).toHaveBeenCalledWith({
         where: { tenantId },
@@ -281,7 +292,7 @@ describe('AuthService', () => {
       auditLogRepository.create.mockReturnValue({});
       auditLogRepository.save.mockResolvedValue({});
 
-      await service.register(dtoWithRole as any, tenantId);
+      await service.register(dtoWithRole, tenantId);
 
       expect(userRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -292,22 +303,22 @@ describe('AuthService', () => {
 
     it('should require tenant id for registration', async () => {
       await expect(
-        service.register(registerDto as any, undefined)
+        service.register(registerDto, undefined as unknown as string)
       ).rejects.toThrow(BadRequestException);
       await expect(
-        service.register(registerDto as any, undefined)
+        service.register(registerDto, undefined as unknown as string)
       ).rejects.toThrow('Tenant ID is required');
     });
 
     it('should reject unknown tenant id for registration', async () => {
       tenantRepository.exists.mockResolvedValue(false);
 
-      await expect(
-        service.register(registerDto as any, tenantId)
-      ).rejects.toThrow(BadRequestException);
-      await expect(
-        service.register(registerDto as any, tenantId)
-      ).rejects.toThrow('Invalid tenant ID');
+      await expect(service.register(registerDto, tenantId)).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.register(registerDto, tenantId)).rejects.toThrow(
+        'Invalid tenant ID'
+      );
     });
 
     it('should throw ConflictException if email exists', async () => {
@@ -494,7 +505,13 @@ describe('AuthService', () => {
     it('should refresh token successfully', async () => {
       refreshTokenRepository.findOne.mockResolvedValue(makeTokenRecord());
       dataSource.transaction.mockImplementation(
-        async (_level: string, cb: any) =>
+        async (
+          _level: string,
+          cb: (transactionManager: {
+            update: jest.Mock;
+            save: jest.Mock;
+          }) => Promise<unknown>
+        ) =>
           cb({
             update: jest.fn().mockResolvedValue({ affected: 1 }),
             save: jest.fn().mockResolvedValue({}),
@@ -553,7 +570,13 @@ describe('AuthService', () => {
       auditLogRepository.save.mockResolvedValue({});
       auditLogRepository.count.mockResolvedValue(0);
       dataSource.transaction.mockImplementation(
-        async (_level: string, cb: any) =>
+        async (
+          _level: string,
+          cb: (transactionManager: {
+            update: jest.Mock;
+            save: jest.Mock;
+          }) => Promise<unknown>
+        ) =>
           cb({
             update: jest.fn().mockResolvedValue({ affected: 0 }),
             save: jest.fn().mockResolvedValue({}),
@@ -567,7 +590,10 @@ describe('AuthService', () => {
     });
 
     it('should reject refresh token if user is soft-deleted', async () => {
-      const deletedUser = { ...mockUser, deletedAt: new Date() } as any;
+      const deletedUser = {
+        ...mockUser,
+        deletedAt: new Date(),
+      } as unknown as User;
       refreshTokenRepository.findOne.mockResolvedValue(
         makeTokenRecord({ user: deletedUser })
       );
@@ -751,14 +777,18 @@ describe('AuthService', () => {
     it('should throw BadRequestException if oldPassword is null (defensive)', async () => {
       // Note: ValidationPipe should prevent this, but service has defensive guard
       await expect(
-        service.changePassword(userId, null as any, newPassword)
+        service.changePassword(userId, null as unknown as string, newPassword)
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException if oldPassword is undefined (defensive)', async () => {
       // Note: ValidationPipe should prevent this, but service has defensive guard
       await expect(
-        service.changePassword(userId, undefined as any, newPassword)
+        service.changePassword(
+          userId,
+          undefined as unknown as string,
+          newPassword
+        )
       ).rejects.toThrow(BadRequestException);
     });
 

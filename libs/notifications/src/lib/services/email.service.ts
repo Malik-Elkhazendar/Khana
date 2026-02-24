@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
+import { maskEmail } from '@khana/shared-utils';
 import {
   SecurityAlertData,
   PasswordChangedData,
@@ -154,10 +155,10 @@ export class EmailService {
   ): Promise<void> {
     try {
       await this.mailerService.sendMail({ to, subject, html });
-      this.logger.log(`email.sent type=${emailType} to=${to}`);
+      this.logger.log(`email.sent type=${emailType} to=${maskEmail(to)}`);
     } catch (error) {
       this.logger.error(
-        `email.failed type=${emailType} to=${to} error=${
+        `email.failed type=${emailType} to=${maskEmail(to)} error=${
           (error as Error).message
         }`
       );

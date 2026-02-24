@@ -3,7 +3,6 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,6 +18,7 @@ import { Booking, Facility, User } from '@khana/data-access';
 import { BookingStatus, PaymentStatus, SlotStatus } from '@khana/shared-dtos';
 import { addMinutes } from '@khana/shared-utils';
 import { EmailService } from '@khana/notifications';
+import { AppLoggerService, LOG_EVENTS } from '../logging';
 import {
   BookingPreviewRequestDto,
   BookingPreviewResponseDto,
@@ -55,8 +55,6 @@ const ALLOWED_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
  */
 @Injectable()
 export class BookingsService {
-  private readonly logger = new Logger(BookingsService.name);
-
   constructor(
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
@@ -64,7 +62,8 @@ export class BookingsService {
     private readonly facilityRepository: Repository<Facility>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly emailService: EmailService
+    private readonly emailService: EmailService,
+    private readonly appLogger: AppLoggerService
   ) {}
 
   async findAll(tenantId: string, facilityId?: string): Promise<Booking[]> {
@@ -202,7 +201,7 @@ export class BookingsService {
   /**
    * Create a booking
    *
-   * Pattern: Repository → Domain Engine → Repository
+   * Pattern: Repository -> Domain Engine -> Repository
    * 1. Fetch facility and conflicting bookings from DB
    * 2. Use domain logic to check availability and calculate price
    * 3. Save booking to DB if available
@@ -276,6 +275,14 @@ export class BookingsService {
         });
 
         if (conflictResult.hasConflict) {
+          this.appLogger.warn(
+            LOG_EVENTS.BOOKING_CREATE_CONFLICT,
+            'Booking conflict detected',
+            {
+              facilityId: dto.facilityId,
+              conflictType: conflictResult.conflictType,
+            }
+          );
           throw new ConflictException({
             message: conflictResult.message,
             conflictType: conflictResult.conflictType,
@@ -330,9 +337,21 @@ export class BookingsService {
       }
     );
 
+    this.appLogger.info(LOG_EVENTS.BOOKING_CREATE_SUCCESS, 'Booking created', {
+      bookingId: saved.id,
+      facilityId: saved.facility?.id,
+      status: saved.status,
+    });
+
     // 7. Send notification emails (fire-and-forget, never block)
     this.sendBookingCreatedEmails(saved, facility, resolvedUserId).catch(
-      (err) => this.logger.error('Failed to send booking creation emails', err)
+      (err) =>
+        this.appLogger.error(
+          LOG_EVENTS.EMAIL_FAILED,
+          'Failed to send booking creation emails',
+          { bookingId: saved.id },
+          err
+        )
     );
 
     return saved;
@@ -350,6 +369,7 @@ export class BookingsService {
     const booking = await this.validateBookingOwnership(id, resolvedTenantId);
 
     const effectiveStatus = dto.status ?? booking.status;
+    const previousStatus = booking.status;
     if (dto.status) {
       this.validateStatusTransition(booking.status, dto.status);
     }
@@ -394,10 +414,21 @@ export class BookingsService {
 
     await this.bookingRepository.save(booking);
 
+    this.appLogger.info(
+      LOG_EVENTS.BOOKING_STATUS_UPDATED,
+      'Booking status updated',
+      { bookingId: id, previousStatus, newStatus: booking.status }
+    );
+
     // Send cancellation email (fire-and-forget)
     if (dto.status === BookingStatus.CANCELLED) {
       this.sendCancellationEmail(booking).catch((err) =>
-        this.logger.error('Failed to send cancellation email', err)
+        this.appLogger.error(
+          LOG_EVENTS.EMAIL_FAILED,
+          'Failed to send cancellation email',
+          { bookingId: id },
+          err
+        )
       );
     }
 
@@ -470,6 +501,11 @@ export class BookingsService {
 
     const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[currentStatus] ?? [];
     if (!allowedTransitions.includes(nextStatus)) {
+      this.appLogger.warn(
+        LOG_EVENTS.BOOKING_STATUS_INVALID_TRANSITION,
+        'Invalid booking status transition',
+        { currentStatus, nextStatus }
+      );
       throw new BadRequestException('Invalid booking status transition.');
     }
   }
@@ -530,7 +566,12 @@ export class BookingsService {
           currency: booking.currency,
         });
       } catch (err) {
-        this.logger.error('Failed to send booking confirmation', err);
+        this.appLogger.error(
+          LOG_EVENTS.EMAIL_FAILED,
+          'Failed to send booking confirmation',
+          { bookingId: booking.id },
+          err
+        );
       }
     }
 
@@ -559,8 +600,10 @@ export class BookingsService {
           currency: booking.currency,
         });
       } catch (err) {
-        this.logger.error(
-          `Failed to send new booking alert to ${manager.email}`,
+        this.appLogger.error(
+          LOG_EVENTS.EMAIL_FAILED,
+          'Failed to send new booking alert',
+          { bookingId: booking.id },
           err
         );
       }
@@ -593,7 +636,12 @@ export class BookingsService {
         reason: booking.cancellationReason ?? 'No reason provided',
       });
     } catch (err) {
-      this.logger.error('Failed to send cancellation email', err);
+      this.appLogger.error(
+        LOG_EVENTS.EMAIL_FAILED,
+        'Failed to send cancellation email',
+        { bookingId: booking.id },
+        err
+      );
     }
   }
 

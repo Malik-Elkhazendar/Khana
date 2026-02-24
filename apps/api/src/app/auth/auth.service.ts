@@ -17,11 +17,12 @@ import {
   PasswordResetToken,
   Tenant,
 } from '@khana/data-access';
-import { UserDto } from '@khana/shared-dtos';
+import { UserDto, UserRole } from '@khana/shared-dtos';
 import { PasswordService } from './services/password.service';
 import { JwtTokenService, JwtPayload } from './services/jwt.service';
 import { EmailService } from '@khana/notifications';
 import { MetricsService } from './services/metrics.service';
+import { AppLoggerService, LOG_EVENTS } from '../logging';
 import {
   hashDeviceFingerprint,
   hashRefreshToken,
@@ -59,7 +60,8 @@ export class AuthService {
     private readonly jwtTokenService: JwtTokenService,
     private readonly emailService: EmailService,
     private readonly metricsService: MetricsService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly appLogger: AppLoggerService
   ) {}
 
   async getTenantContext(): Promise<{ id: string; name: string }> {
@@ -148,6 +150,12 @@ export class AuthService {
       userAgent,
     });
 
+    this.appLogger.info(LOG_EVENTS.AUTH_REGISTER_SUCCESS, 'User registered', {
+      userId: saved.id,
+      tenantId: resolvedTenantId,
+      role: initialRole,
+    });
+
     // Auto-login after registration
     const tokens = await this.issueTokenPair(saved, ipAddress, userAgent);
 
@@ -198,10 +206,25 @@ export class AuthService {
     });
 
     if (!user) {
+      this.appLogger.warn(
+        LOG_EVENTS.AUTH_LOGIN_FAILED,
+        'Login failed: user not found',
+        {
+          tenantId: resolvedTenantId,
+        }
+      );
       throw new UnauthorizedException('Invalid email or password');
     }
 
     if (!user.isActive) {
+      this.appLogger.warn(
+        LOG_EVENTS.AUTH_LOGIN_FAILED,
+        'Login failed: user inactive',
+        {
+          tenantId: resolvedTenantId,
+          userId: user.id,
+        }
+      );
       throw new UnauthorizedException('User account is inactive');
     }
 
@@ -212,6 +235,14 @@ export class AuthService {
     );
 
     if (!passwordValid) {
+      this.appLogger.warn(
+        LOG_EVENTS.AUTH_LOGIN_FAILED,
+        'Login failed: invalid password',
+        {
+          tenantId: resolvedTenantId,
+          userId: user.id,
+        }
+      );
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -232,6 +263,11 @@ export class AuthService {
       description: `User logged in: ${user.email}`,
       ipAddress,
       userAgent,
+    });
+
+    this.appLogger.info(LOG_EVENTS.AUTH_LOGIN_SUCCESS, 'User logged in', {
+      userId: user.id,
+      tenantId: user.tenantId,
     });
 
     return {
@@ -387,6 +423,11 @@ export class AuthService {
         Date.now() - startTime
       );
 
+      this.appLogger.info(LOG_EVENTS.AUTH_REFRESH_ROTATED, 'Token rotated', {
+        userId: refreshTokenRecord.userId,
+        sessionId: payload.sid,
+      });
+
       return result;
     } catch (error) {
       if (error instanceof Error && error.message === reuseErrorMessage) {
@@ -427,7 +468,7 @@ export class AuthService {
           targetSessionId = payload.sid;
           targetTokenId = payload.jti;
         }
-      } catch (error) {
+      } catch {
         // Ignore invalid refresh token on logout
       }
     }
@@ -461,6 +502,11 @@ export class AuthService {
       ipAddress,
       userAgent,
     });
+
+    this.appLogger.info(LOG_EVENTS.AUTH_LOGOUT, 'User logged out', {
+      userId: user.id,
+      tenantId: user.tenantId,
+    });
   }
 
   /**
@@ -489,6 +535,15 @@ export class AuthService {
       entityId: user.id,
       description: `User logged out device session: ${sessionId}`,
     });
+
+    this.appLogger.info(
+      LOG_EVENTS.AUTH_LOGOUT_DEVICE,
+      'Device session logged out',
+      {
+        userId: user.id,
+        sessionId,
+      }
+    );
   }
 
   /**
@@ -526,6 +581,16 @@ export class AuthService {
       entityId: user.id,
       description: `User logged out all devices`,
     });
+
+    this.appLogger.info(
+      LOG_EVENTS.AUTH_LOGOUT_ALL_DEVICES,
+      'All devices logged out',
+      {
+        userId: user.id,
+        tenantId: user.tenantId,
+        exceptSessionId,
+      }
+    );
   }
 
   /**
@@ -603,6 +668,11 @@ export class AuthService {
       entityType: 'User',
       entityId: user.id,
       description: `User changed password: ${user.email}`,
+    });
+
+    this.appLogger.info(LOG_EVENTS.AUTH_PASSWORD_CHANGED, 'Password changed', {
+      userId: user.id,
+      tenantId: user.tenantId,
     });
 
     // Notify user of password change
@@ -691,6 +761,15 @@ export class AuthService {
       userAgent,
     });
 
+    this.appLogger.info(
+      LOG_EVENTS.AUTH_PASSWORD_RESET_REQUESTED,
+      'Password reset requested',
+      {
+        userId: user.id,
+        tenantId: user.tenantId,
+      }
+    );
+
     return { message: genericMessage };
   }
 
@@ -755,6 +834,15 @@ export class AuthService {
       userAgent,
     });
 
+    this.appLogger.info(
+      LOG_EVENTS.AUTH_PASSWORD_RESET_COMPLETED,
+      'Password reset completed',
+      {
+        userId: user.id,
+        tenantId: user.tenantId,
+      }
+    );
+
     // Notify user of password change
     try {
       await this.emailService.sendPasswordChangedNotification({
@@ -794,7 +882,7 @@ export class AuthService {
       email: user.email,
       name: user.name,
       phone: user.phone,
-      role: user.role as any,
+      role: user.role as UserRole,
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
@@ -878,9 +966,26 @@ export class AuthService {
 
     this.metricsService.trackReuseDetection(token.userId, token.sessionId);
 
+    this.appLogger.warn(
+      LOG_EVENTS.AUTH_REFRESH_REUSE_DETECTED,
+      'Refresh token reuse detected',
+      {
+        userId: token.userId,
+        sessionId: token.sessionId,
+      }
+    );
+
     const incidentCount = await this.getRecentSecurityIncidents(token.userId);
     if (incidentCount >= 3) {
       this.metricsService.trackSecurityEscalation(token.userId, incidentCount);
+      this.appLogger.error(
+        LOG_EVENTS.AUTH_SECURITY_ESCALATION,
+        'Security escalation threshold exceeded',
+        {
+          userId: token.userId,
+          incidentCount,
+        }
+      );
     }
   }
 

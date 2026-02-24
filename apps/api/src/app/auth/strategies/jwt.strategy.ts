@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { User } from '@khana/data-access';
 import { JwtPayload } from '../services/jwt.service';
+import { RequestContextService } from '../../logging';
 
 /**
  * JWT Strategy
@@ -24,7 +25,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly requestContextService: RequestContextService
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -62,6 +64,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user.isActive) {
       throw new UnauthorizedException('User account is inactive');
     }
+
+    this.requestContextService.update({
+      userId: user.id,
+      tenantId: user.tenantId,
+      sessionId: payload.sid,
+    });
 
     return Object.assign(user, {
       sid: payload.sid,

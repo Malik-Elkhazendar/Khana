@@ -110,6 +110,19 @@ describe('API', () => {
 
       expect(res.status).toBe(200);
       expect(res.data).toEqual({ message: 'Hello API' });
+      expect(res.headers['x-request-id']).toBeTruthy();
+    });
+
+    it('should echo a valid custom x-request-id header', async () => {
+      const customRequestId = 'trace-id/e2e-123';
+      const res = await axios.get(`/api`, {
+        headers: {
+          'x-request-id': customRequestId,
+        },
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.headers['x-request-id']).toBe(customRequestId);
     });
   });
 
@@ -120,6 +133,53 @@ describe('API', () => {
         401
       );
     });
+  });
+
+  describe('Auth session security', () => {
+    it('should revoke session when a used refresh token is replayed', async () => {
+      const registerRes = await axios.post(
+        '/api/v1/auth/register',
+        {
+          email: `refresh-reuse-${Date.now()}@khana.dev`,
+          password: 'Password123',
+          name: 'Refresh Reuse Test',
+        },
+        { headers: tenantHeaders() }
+      );
+
+      const originalRefreshToken = registerRes.data.refreshToken as string;
+      expect(originalRefreshToken).toBeTruthy();
+
+      const rotated = await axios.post(
+        '/api/v1/auth/refresh',
+        { refreshToken: originalRefreshToken },
+        { headers: tenantHeaders() }
+      );
+      const rotatedRefreshToken = rotated.data.refreshToken as string;
+      expect(rotated.status).toBe(200);
+      expect(rotatedRefreshToken).toBeTruthy();
+      expect(rotatedRefreshToken).not.toBe(originalRefreshToken);
+
+      // Replaying the already-used token should trigger session revocation.
+      await expectHttpError(
+        axios.post(
+          '/api/v1/auth/refresh',
+          { refreshToken: originalRefreshToken },
+          { headers: tenantHeaders() }
+        ),
+        401
+      );
+
+      // The rotated token from the same session should also be invalid now.
+      await expectHttpError(
+        axios.post(
+          '/api/v1/auth/refresh',
+          { refreshToken: rotatedRefreshToken },
+          { headers: tenantHeaders() }
+        ),
+        401
+      );
+    }, 20000);
   });
 
   describe('Auth throttling', () => {
@@ -233,6 +293,19 @@ describe('API', () => {
       expect(facility).toHaveProperty('name');
       expect(facility).toHaveProperty('basePrice');
       expect(facility).toHaveProperty('currency');
+    });
+
+    it('should preserve custom x-request-id on authenticated requests', async () => {
+      const customRequestId = 'trace-id/facilities-echo-001';
+      const res = await axios.get(`/api/v1/bookings/facilities`, {
+        headers: {
+          ...authHeaders(),
+          'x-request-id': customRequestId,
+        },
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.headers['x-request-id']).toBe(customRequestId);
     });
   });
 
@@ -445,21 +518,17 @@ describe('API', () => {
 
   describe('PATCH /api/v1/bookings/:id/status', () => {
     it('should reject invalid status transitions', async () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(16, 0, 0, 0);
-
-      const startTime = tomorrow.toISOString();
-      const endTime = new Date(
-        tomorrow.getTime() + 60 * 60 * 1000
-      ).toISOString();
+      const transitionDay = new Date();
+      transitionDay.setDate(transitionDay.getDate() + 6);
+      transitionDay.setHours(8, 0, 0, 0);
+      const slot = await findAvailableSlot(transitionDay);
 
       const created = await axios.post(
         `/api/v1/bookings`,
         {
           facilityId,
-          startTime,
-          endTime,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
           customerName: 'Transition Test',
           customerPhone: '+966512345690',
         },
