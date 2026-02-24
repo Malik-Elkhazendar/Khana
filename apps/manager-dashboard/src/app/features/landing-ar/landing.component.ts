@@ -4,6 +4,7 @@ import {
   ElementRef,
   OnInit,
   OnDestroy,
+  inject,
   signal,
   viewChildren,
 } from '@angular/core';
@@ -17,6 +18,7 @@ import { HowItWorksArComponent } from './sections/how-it-works/how-it-works.comp
 import { SocialProofArComponent } from './sections/social-proof/social-proof.component';
 import { BottomCtaArComponent } from './sections/bottom-cta/bottom-cta.component';
 import { LandingFooterArComponent } from './sections/landing-footer/landing-footer.component';
+import { LoggerService } from '../../shared/services/logger.service';
 
 @Component({
   selector: 'app-landing-ar',
@@ -38,6 +40,7 @@ import { LandingFooterArComponent } from './sections/landing-footer/landing-foot
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LandingArabicComponent implements OnInit, OnDestroy {
+  private readonly logger = inject(LoggerService);
   private observer: IntersectionObserver | null = null;
   readonly animatedSections = viewChildren<ElementRef>('animatedSection');
 
@@ -52,7 +55,12 @@ export class LandingArabicComponent implements OnInit, OnDestroy {
         this.initScrollObserver();
       }
     } catch (error) {
-      console.error('Landing page initialization failed:', error);
+      this.logger.error(
+        'client.landing_ar.initialization.failed',
+        'Landing page initialization failed',
+        undefined,
+        error
+      );
       // Fallback: disable animations if observer fails
       this.handleInitializationError(error);
     }
@@ -82,7 +90,8 @@ export class LandingArabicComponent implements OnInit, OnDestroy {
   private initScrollObserver(): void {
     try {
       if (typeof IntersectionObserver === 'undefined') {
-        console.warn(
+        this.logger.warn(
+          'client.landing_ar.intersection_observer.unsupported',
           'IntersectionObserver not supported - animations disabled'
         );
         return;
@@ -109,7 +118,12 @@ export class LandingArabicComponent implements OnInit, OnDestroy {
         this.observer?.observe(el);
       });
     } catch (error) {
-      console.error('Failed to initialize scroll observer:', error);
+      this.logger.error(
+        'client.landing_ar.scroll_observer.failed',
+        'Failed to initialize scroll observer',
+        undefined,
+        error
+      );
       // Animations will simply not run - page still functional
     }
   }
@@ -120,22 +134,41 @@ export class LandingArabicComponent implements OnInit, OnDestroy {
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
-        console.warn(`Section with id "${sectionId}" not found`);
+        this.logger.warn(
+          'client.landing_ar.scroll_target.missing',
+          `Section with id "${sectionId}" not found`,
+          { sectionId }
+        );
       }
     } catch (error) {
-      console.error('Scroll to section failed:', error);
+      this.logger.error(
+        'client.landing_ar.scroll.failed',
+        'Scroll to section failed',
+        { sectionId },
+        error
+      );
       // Fallback: try instant scroll without smooth behavior
       try {
         document.getElementById(sectionId)?.scrollIntoView();
       } catch (fallbackError) {
-        console.error('Fallback scroll also failed:', fallbackError);
+        this.logger.error(
+          'client.landing_ar.scroll.fallback_failed',
+          'Fallback scroll also failed',
+          { sectionId },
+          fallbackError
+        );
       }
     }
   }
 
   private handleInitializationError(error: unknown): void {
     // Log error for monitoring
-    console.error('Landing component error:', error);
+    this.logger.error(
+      'client.landing_ar.component.error',
+      'Landing component error',
+      undefined,
+      error
+    );
 
     // Disable scroll animations gracefully
     if (this.observer) {

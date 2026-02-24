@@ -16,6 +16,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ApiService } from '../../shared/services/api.service';
 import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
+import { LoggerService } from '../../shared/services/logger.service';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
@@ -51,6 +52,7 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 })
 export class BookingListComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
+  private readonly logger = inject(LoggerService);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
@@ -388,7 +390,12 @@ export class BookingListComponent implements OnInit, OnDestroy {
                 )
               );
         this.facilityError.set(resolved);
-        console.error('Error loading facilities:', err);
+        this.logger.error(
+          'client.booking.facilities.load_failed',
+          'Error loading facilities',
+          undefined,
+          err
+        );
       },
     });
   }
@@ -754,7 +761,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
       );
       this.closeBulkCancelDialog();
       this.clearSelection();
-    } catch (error) {
+    } catch {
       this.bulkCancelError.set(
         this.t(
           'BOOKING_LIST.ERRORS.BULK_CANCELLATION_FAILED',
@@ -956,7 +963,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
         this.cancelError.set(failureMessage);
         this.showToast(failureMessage, 'error');
       }
-    } catch (error) {
+    } catch {
       const failureMessage = this.t(
         'BOOKING_LIST.ERRORS.CANCELLATION_FAILED',
         'Cancellation failed. Please try again.'
@@ -993,7 +1000,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
           'error'
         );
       }
-    } catch (error) {
+    } catch {
       this.showToast(
         this.t(
           'BOOKING_LIST.ERRORS.MARK_PAID_FAILED',

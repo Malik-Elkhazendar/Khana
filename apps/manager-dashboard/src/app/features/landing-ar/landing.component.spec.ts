@@ -1,7 +1,8 @@
-﻿import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { LandingArabicComponent } from './landing.component';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { LandingArabicComponent } from './landing.component';
+import { LoggerService } from '../../shared/services/logger.service';
 
 const AR_TRANSLATIONS = {
   SHARED: {
@@ -19,14 +20,23 @@ const AR_TRANSLATIONS = {
 describe('LandingArabicComponent', () => {
   let component: LandingArabicComponent;
   let fixture: ComponentFixture<LandingArabicComponent>;
+  let loggerMock: jest.Mocked<LoggerService>;
 
   beforeEach(async () => {
+    loggerMock = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+
     await TestBed.configureTestingModule({
       imports: [
         LandingArabicComponent,
         RouterModule.forRoot([]),
         TranslateModule.forRoot(),
       ],
+      providers: [{ provide: LoggerService, useValue: loggerMock }],
     }).compileComponents();
 
     const translateService = TestBed.inject(TranslateService);
@@ -81,7 +91,7 @@ describe('LandingArabicComponent', () => {
       disconnect: jest.fn(),
       observe: jest.fn(),
       unobserve: jest.fn(),
-    } as any;
+    } as unknown as IntersectionObserver;
 
     component['observer'] = mockObserver;
     component.ngOnDestroy();

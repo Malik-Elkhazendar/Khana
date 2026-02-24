@@ -10,6 +10,7 @@ import {
 } from '@angular/common/http';
 import { authInterceptor } from './auth.interceptor';
 import { AuthService } from '../services/auth.service';
+import { LoggerService } from '../services/logger.service';
 import { setupStorageMock } from '../testing/mocks/storage.mock';
 import { createMockRefreshResponse } from '../testing/fixtures/auth-response.fixture';
 import { of, Subject, throwError } from 'rxjs';
@@ -18,6 +19,7 @@ describe('authInterceptor', () => {
   let httpClient: HttpClient;
   let httpMock: HttpTestingController;
   let authService: jest.Mocked<AuthService>;
+  let logger: jest.Mocked<LoggerService>;
   let storageMock: ReturnType<typeof setupStorageMock>;
 
   beforeEach(() => {
@@ -28,12 +30,19 @@ describe('authInterceptor', () => {
       getAccessToken: jest.fn(),
       refreshToken: jest.fn(),
     } as unknown as jest.Mocked<AuthService>;
+    logger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
 
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         { provide: AuthService, useValue: authService },
+        { provide: LoggerService, useValue: logger },
       ],
     });
 

@@ -16,6 +16,7 @@ import {
   shareReplay,
 } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { LoggerService } from '../services/logger.service';
 
 /**
  * Auth Interceptor
@@ -41,6 +42,7 @@ export const authInterceptor: HttpInterceptorFn = (
   next: HttpHandlerFn
 ): Observable<HttpEvent<unknown>> => {
   const authService = inject(AuthService);
+  const logger = inject(LoggerService);
 
   // Skip auth endpoints
   if (isAuthEndpoint(req.url)) {
@@ -56,7 +58,12 @@ export const authInterceptor: HttpInterceptorFn = (
   return next(req).pipe(
     catchError((error) => {
       if (error instanceof HttpErrorResponse && error.status === 401) {
-        return handle401Error(req, next, authService);
+        logger.warn(
+          'client.auth.request.unauthorized',
+          'Received 401 response, attempting token refresh',
+          { method: req.method, url: req.url }
+        );
+        return handle401Error(req, next, authService, logger);
       }
 
       return throwError(() => error);
@@ -70,25 +77,44 @@ export const authInterceptor: HttpInterceptorFn = (
 function handle401Error(
   req: HttpRequest<unknown>,
   next: HttpHandlerFn,
-  authService: AuthService
+  authService: AuthService,
+  logger: LoggerService
 ): Observable<HttpEvent<unknown>> {
-  return getRefreshTokenInFlight(authService).pipe(
+  return getRefreshTokenInFlight(authService, logger).pipe(
     switchMap((token) => next(addTokenToRequest(req, token))),
     catchError((error) => {
       // Refresh failed, service will logout and pending requests fail fast.
+      logger.error(
+        'client.auth.refresh.failed',
+        'Token refresh failed while handling 401',
+        { method: req.method, url: req.url },
+        error
+      );
       return throwError(() => error);
     })
   );
 }
 
-function getRefreshTokenInFlight(authService: AuthService): Observable<string> {
+function getRefreshTokenInFlight(
+  authService: AuthService,
+  logger: LoggerService
+): Observable<string> {
   if (!refreshTokenInFlight$) {
+    logger.info('client.auth.refresh.started', 'Starting token refresh flow');
     refreshTokenInFlight$ = authService.refreshToken().pipe(
-      map((response) => response.accessToken),
+      map((response) => {
+        logger.info('client.auth.refresh.succeeded', 'Token refresh succeeded');
+        return response.accessToken;
+      }),
       finalize(() => {
         refreshTokenInFlight$ = null;
       }),
       shareReplay({ bufferSize: 1, refCount: false })
+    );
+  } else {
+    logger.debug(
+      'client.auth.refresh.reused_inflight',
+      'Joining existing in-flight token refresh'
     );
   }
 

@@ -1,9 +1,11 @@
+import { EnvironmentConfig } from './environment.model';
+
 /**
  * Development Environment Configuration
  * Used by: ng serve (default)
  * API: http://localhost:3000/api
  */
-export const environment = {
+export const environment: EnvironmentConfig = {
   production: false,
   apiBaseUrl: 'http://localhost:3000/api',
   apiVersion: 'v1',

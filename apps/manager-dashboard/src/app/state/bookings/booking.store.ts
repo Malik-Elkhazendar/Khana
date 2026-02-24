@@ -4,6 +4,7 @@ import { inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { pipe, tap, switchMap, catchError, of, firstValueFrom } from 'rxjs';
 import { ApiService } from '../../shared/services/api.service';
+import { LoggerService } from '../../shared/services/logger.service';
 import {
   BookingStatus,
   PaymentStatus,
@@ -81,180 +82,194 @@ const toBookingError = (message: string): Error => {
 export const BookingStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
-  withMethods((store, api = inject(ApiService)) => {
-    const inFlightActions = new Map<string, Promise<boolean>>();
+  withMethods(
+    (store, api = inject(ApiService), logger = inject(LoggerService)) => {
+      const inFlightActions = new Map<string, Promise<boolean>>();
 
-    const runStatusAction = async (
-      id: string,
-      updates: {
-        status?: BookingStatus;
-        paymentStatus?: PaymentStatus;
-        cancellationReason?: string | null;
-      }
-    ): Promise<boolean> => {
-      const existing = inFlightActions.get(id);
-      if (existing) {
-        return existing;
-      }
-
-      const actionPromise = (async (): Promise<boolean> => {
-        const booking = store.bookings().find((b) => b.id === id);
-
-        if (!booking) {
-          patchState(store, {
-            error: toBookingError(BOOKING_ERROR_MESSAGES.NOT_FOUND),
-            errorCode: 'NOT_FOUND',
-          });
-          return false;
+      const runStatusAction = async (
+        id: string,
+        updates: {
+          status?: BookingStatus;
+          paymentStatus?: PaymentStatus;
+          cancellationReason?: string | null;
+        }
+      ): Promise<boolean> => {
+        const existing = inFlightActions.get(id);
+        if (existing) {
+          return existing;
         }
 
-        const previousBooking = { ...booking };
-        const trimmedReason = updates.cancellationReason?.trim();
-        if (updates.status === BookingStatus.CANCELLED && !trimmedReason) {
-          patchState(store, {
-            error: toBookingError('Cancellation reason is required'),
-            errorCode: 'VALIDATION',
-            actionErrorsById: {
-              ...store.actionErrorsById(),
-              [id]: 'Cancellation reason is required',
-            },
-          });
-          return false;
-        }
-        if (trimmedReason && updates.status !== BookingStatus.CANCELLED) {
-          patchState(store, {
-            error: toBookingError(
-              'Cancellation reason is only allowed when cancelling'
-            ),
-            errorCode: 'VALIDATION',
-            actionErrorsById: {
-              ...store.actionErrorsById(),
-              [id]: 'Cancellation reason is only allowed when cancelling',
-            },
-          });
-          return false;
-        }
+        const actionPromise = (async (): Promise<boolean> => {
+          const booking = store.bookings().find((b) => b.id === id);
 
-        const optimistic = {
-          ...booking,
-          status: updates.status ?? booking.status,
-          paymentStatus: updates.paymentStatus ?? booking.paymentStatus,
-          cancellationReason:
-            updates.status === BookingStatus.CANCELLED
-              ? trimmedReason ?? booking.cancellationReason ?? null
-              : updates.status
-              ? null
-              : booking.cancellationReason ?? null,
-        };
+          if (!booking) {
+            patchState(store, {
+              error: toBookingError(BOOKING_ERROR_MESSAGES.NOT_FOUND),
+              errorCode: 'NOT_FOUND',
+            });
+            return false;
+          }
 
-        patchState(store, (state) => ({
-          bookings: state.bookings.map((b) => (b.id === id ? optimistic : b)),
-          error: null,
-          errorCode: null,
-          actionLoadingById: { ...state.actionLoadingById, [id]: true },
-          actionErrorsById: { ...state.actionErrorsById, [id]: null },
-        }));
-
-        try {
-          const updated = await firstValueFrom(
-            api.updateBookingStatus(
-              id,
-              updates.status,
-              updates.paymentStatus,
-              trimmedReason ?? undefined
-            )
-          );
-
-          patchState(store, (state) => ({
-            bookings: state.bookings.map((b) =>
-              b.id === id
-                ? {
-                    ...b,
-                    status: updated?.status ?? b.status,
-                    paymentStatus: updated?.paymentStatus ?? b.paymentStatus,
-                    cancellationReason:
-                      updated?.cancellationReason ??
-                      b.cancellationReason ??
-                      null,
-                    updatedAt: updated?.updatedAt ?? b.updatedAt,
-                  }
-                : b
-            ),
-          }));
-          return true;
-        } catch (err) {
-          const resolved = resolveBookingError(err);
-          console.error('Update failed, rolling back', err);
-          patchState(store, (state) => ({
-            bookings: state.bookings.map((b) =>
-              b.id === id ? previousBooking : b
-            ),
-            error: toBookingError(resolved.message),
-            errorCode: resolved.code,
-            actionErrorsById: {
-              ...state.actionErrorsById,
-              [id]: resolved.message,
-            },
-          }));
-          return false;
-        } finally {
-          patchState(store, (state) => ({
-            actionLoadingById: { ...state.actionLoadingById, [id]: false },
-          }));
-        }
-      })();
-
-      inFlightActions.set(id, actionPromise);
-      actionPromise.finally(() => {
-        inFlightActions.delete(id);
-      });
-
-      return actionPromise;
-    };
-
-    return {
-      confirmBooking: async (id: string): Promise<boolean> => {
-        return await runStatusAction(id, { status: BookingStatus.CONFIRMED });
-      },
-      markBookingPaid: async (id: string): Promise<boolean> => {
-        return await runStatusAction(id, { paymentStatus: PaymentStatus.PAID });
-      },
-      cancelBooking: async (id: string, reason: string): Promise<boolean> => {
-        return await runStatusAction(id, {
-          status: BookingStatus.CANCELLED,
-          cancellationReason: reason,
-        });
-      },
-      setFacilityFilter: (facilityId: string | null) => {
-        patchState(store, { filter: { facilityId } });
-      },
-      clearError: () => {
-        patchState(store, { error: null, errorCode: null });
-      },
-      loadBookings: rxMethod<string | null>(
-        pipe(
-          tap(() =>
-            patchState(store, { loading: true, error: null, errorCode: null })
-          ),
-          switchMap((facilityId) =>
-            api.getBookings(facilityId ?? undefined).pipe(
-              tap((bookings) =>
-                patchState(store, { bookings, loading: false })
+          const previousBooking = { ...booking };
+          const trimmedReason = updates.cancellationReason?.trim();
+          if (updates.status === BookingStatus.CANCELLED && !trimmedReason) {
+            patchState(store, {
+              error: toBookingError('Cancellation reason is required'),
+              errorCode: 'VALIDATION',
+              actionErrorsById: {
+                ...store.actionErrorsById(),
+                [id]: 'Cancellation reason is required',
+              },
+            });
+            return false;
+          }
+          if (trimmedReason && updates.status !== BookingStatus.CANCELLED) {
+            patchState(store, {
+              error: toBookingError(
+                'Cancellation reason is only allowed when cancelling'
               ),
-              catchError((err) => {
-                const resolved = resolveBookingError(err);
-                patchState(store, {
-                  loading: false,
-                  error: toBookingError(resolved.message),
-                  errorCode: resolved.code,
-                });
-                console.error(err);
-                return of([]);
-              })
+              errorCode: 'VALIDATION',
+              actionErrorsById: {
+                ...store.actionErrorsById(),
+                [id]: 'Cancellation reason is only allowed when cancelling',
+              },
+            });
+            return false;
+          }
+
+          const optimistic = {
+            ...booking,
+            status: updates.status ?? booking.status,
+            paymentStatus: updates.paymentStatus ?? booking.paymentStatus,
+            cancellationReason:
+              updates.status === BookingStatus.CANCELLED
+                ? trimmedReason ?? booking.cancellationReason ?? null
+                : updates.status
+                ? null
+                : booking.cancellationReason ?? null,
+          };
+
+          patchState(store, (state) => ({
+            bookings: state.bookings.map((b) => (b.id === id ? optimistic : b)),
+            error: null,
+            errorCode: null,
+            actionLoadingById: { ...state.actionLoadingById, [id]: true },
+            actionErrorsById: { ...state.actionErrorsById, [id]: null },
+          }));
+
+          try {
+            const updated = await firstValueFrom(
+              api.updateBookingStatus(
+                id,
+                updates.status,
+                updates.paymentStatus,
+                trimmedReason ?? undefined
+              )
+            );
+
+            patchState(store, (state) => ({
+              bookings: state.bookings.map((b) =>
+                b.id === id
+                  ? {
+                      ...b,
+                      status: updated?.status ?? b.status,
+                      paymentStatus: updated?.paymentStatus ?? b.paymentStatus,
+                      cancellationReason:
+                        updated?.cancellationReason ??
+                        b.cancellationReason ??
+                        null,
+                      updatedAt: updated?.updatedAt ?? b.updatedAt,
+                    }
+                  : b
+              ),
+            }));
+            return true;
+          } catch (err) {
+            const resolved = resolveBookingError(err);
+            logger.error(
+              'client.booking.status_update.rollback',
+              'Update failed, rolling back optimistic booking status',
+              { bookingId: id },
+              err
+            );
+            patchState(store, (state) => ({
+              bookings: state.bookings.map((b) =>
+                b.id === id ? previousBooking : b
+              ),
+              error: toBookingError(resolved.message),
+              errorCode: resolved.code,
+              actionErrorsById: {
+                ...state.actionErrorsById,
+                [id]: resolved.message,
+              },
+            }));
+            return false;
+          } finally {
+            patchState(store, (state) => ({
+              actionLoadingById: { ...state.actionLoadingById, [id]: false },
+            }));
+          }
+        })();
+
+        inFlightActions.set(id, actionPromise);
+        actionPromise.finally(() => {
+          inFlightActions.delete(id);
+        });
+
+        return actionPromise;
+      };
+
+      return {
+        confirmBooking: async (id: string): Promise<boolean> => {
+          return await runStatusAction(id, { status: BookingStatus.CONFIRMED });
+        },
+        markBookingPaid: async (id: string): Promise<boolean> => {
+          return await runStatusAction(id, {
+            paymentStatus: PaymentStatus.PAID,
+          });
+        },
+        cancelBooking: async (id: string, reason: string): Promise<boolean> => {
+          return await runStatusAction(id, {
+            status: BookingStatus.CANCELLED,
+            cancellationReason: reason,
+          });
+        },
+        setFacilityFilter: (facilityId: string | null) => {
+          patchState(store, { filter: { facilityId } });
+        },
+        clearError: () => {
+          patchState(store, { error: null, errorCode: null });
+        },
+        loadBookings: rxMethod<string | null>(
+          pipe(
+            tap(() =>
+              patchState(store, { loading: true, error: null, errorCode: null })
+            ),
+            switchMap((facilityId) =>
+              api.getBookings(facilityId ?? undefined).pipe(
+                tap((bookings) =>
+                  patchState(store, { bookings, loading: false })
+                ),
+                catchError((err) => {
+                  const resolved = resolveBookingError(err);
+                  patchState(store, {
+                    loading: false,
+                    error: toBookingError(resolved.message),
+                    errorCode: resolved.code,
+                  });
+                  logger.error(
+                    'client.booking.load.failed',
+                    'Failed to load bookings',
+                    { facilityId: facilityId ?? null },
+                    err
+                  );
+                  return of([]);
+                })
+              )
             )
           )
-        )
-      ),
-    };
-  })
+        ),
+      };
+    }
+  )
 );

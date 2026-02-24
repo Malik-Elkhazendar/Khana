@@ -39,4 +39,21 @@ export default [
     // Override or add rules here
     rules: {},
   },
+  {
+    files: [
+      'apps/api/src/**/*.ts',
+      'apps/api/src/**/*.js',
+      'apps/manager-dashboard/src/**/*.ts',
+      'apps/manager-dashboard/src/**/*.js',
+    ],
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.spec.js',
+      'apps/manager-dashboard/src/test-setup.ts',
+      'apps/manager-dashboard/src/app/shared/services/logger.service.ts',
+    ],
+    rules: {
+      'no-console': 'error',
+    },
+  },
 ];

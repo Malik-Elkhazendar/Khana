@@ -11,6 +11,7 @@ import {
   PaymentStatus,
 } from '@khana/shared-dtos';
 import { environment } from '../../../environments/environment';
+import { LoggerService } from './logger.service';
 
 /**
  * Centralized API Service
@@ -23,11 +24,17 @@ import { environment } from '../../../environments/environment';
 })
 export class ApiService {
   private readonly http = inject(HttpClient);
+  private readonly logger = inject(LoggerService);
   private readonly baseUrl = environment.apiBaseUrl.replace(/\/+$/, '');
 
   private handleError(operation: string) {
     return (err: unknown) => {
-      console.error(`Failed to ${operation}`, err);
+      this.logger.error(
+        'client.api.request_failed',
+        `Failed to ${operation}`,
+        { operation },
+        err
+      );
       return throwError(() => err);
     };
   }

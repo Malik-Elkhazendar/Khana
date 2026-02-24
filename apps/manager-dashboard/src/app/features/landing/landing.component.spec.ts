@@ -1,7 +1,8 @@
-﻿import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { LandingComponent } from './landing.component';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { LandingComponent } from './landing.component';
+import { LoggerService } from '../../shared/services/logger.service';
 
 const EN_TRANSLATIONS = {
   SHARED: {
@@ -19,14 +20,23 @@ const EN_TRANSLATIONS = {
 describe('LandingComponent', () => {
   let component: LandingComponent;
   let fixture: ComponentFixture<LandingComponent>;
+  let loggerMock: jest.Mocked<LoggerService>;
 
   beforeEach(async () => {
+    loggerMock = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+
     await TestBed.configureTestingModule({
       imports: [
         LandingComponent,
         RouterModule.forRoot([]),
         TranslateModule.forRoot(),
       ],
+      providers: [{ provide: LoggerService, useValue: loggerMock }],
     }).compileComponents();
 
     const translateService = TestBed.inject(TranslateService);
@@ -84,14 +94,13 @@ describe('LandingComponent', () => {
   });
 
   it('should handle scrollToSection safely when element does not exist', () => {
-    const warnSpy = jest
-      .spyOn(console, 'warn')
-      .mockImplementation(() => undefined);
     component.scrollToSection('non-existent');
-    expect(console.warn).toHaveBeenCalledWith(
-      'Section with id "non-existent" not found'
+
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      'client.landing.scroll_target.missing',
+      'Section with id "non-existent" not found',
+      { sectionId: 'non-existent' }
     );
-    warnSpy.mockRestore();
   });
 
   it('should disconnect observer on destroy', () => {
@@ -99,7 +108,7 @@ describe('LandingComponent', () => {
       disconnect: jest.fn(),
       observe: jest.fn(),
       unobserve: jest.fn(),
-    } as any;
+    } as unknown as IntersectionObserver;
 
     component['observer'] = mockObserver;
     component.ngOnDestroy();

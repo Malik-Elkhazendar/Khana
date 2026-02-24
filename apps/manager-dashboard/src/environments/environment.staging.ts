@@ -1,9 +1,11 @@
+import { EnvironmentConfig } from './environment.model';
+
 /**
  * Staging Environment Configuration
  * Used by: ng build --configuration staging
  * API: https://api.staging.khana.app
  */
-export const environment = {
+export const environment: EnvironmentConfig = {
   production: false,
   apiBaseUrl: 'https://api.staging.khana.app',
   apiVersion: 'v1',

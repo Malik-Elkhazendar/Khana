@@ -1,9 +1,11 @@
+import { EnvironmentConfig } from './environment.model';
+
 /**
  * Production Environment Configuration
  * Used by: ng build --configuration production
  * API: https://api.khana.app
  */
-export const environment = {
+export const environment: EnvironmentConfig = {
   production: true,
   apiBaseUrl: 'https://api.khana.app',
   apiVersion: 'v1',
