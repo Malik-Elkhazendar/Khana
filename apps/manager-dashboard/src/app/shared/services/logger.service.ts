@@ -9,6 +9,8 @@ interface ClientLogEntry {
   env: 'development' | 'production';
   event: string;
   message: string;
+  clientSessionId: string;
+  requestId?: string;
   route?: string;
   context?: Record<string, unknown>;
   error?: { name: string; message: string; stack?: string };
@@ -40,6 +42,8 @@ const REDACTED_FIELDS = new Set([
 
 @Injectable({ providedIn: 'root' })
 export class LoggerService {
+  private readonly clientSessionId = this.generateSessionId();
+
   debug(
     event: string,
     message: string,
@@ -91,11 +95,24 @@ export class LoggerService {
         env: environment.production ? 'production' : 'development',
         event,
         message,
+        clientSessionId: this.clientSessionId,
         route: this.resolveRoute(),
       };
 
       if (context) {
-        entry.context = this.redact(context, new WeakSet<object>());
+        const requestId = this.extractRequestId(context);
+        if (requestId) {
+          entry.requestId = requestId;
+        }
+
+        const contextWithoutRequestId = this.withoutRequestId(context);
+        const redactedContext = this.redact(
+          contextWithoutRequestId,
+          new WeakSet<object>()
+        );
+        if (Object.keys(redactedContext).length > 0) {
+          entry.context = redactedContext;
+        }
       }
 
       if (error) {
@@ -135,6 +152,32 @@ export class LoggerService {
   private resolveRoute(): string | undefined {
     if (typeof window === 'undefined') return undefined;
     return window.location?.pathname || '/';
+  }
+
+  private generateSessionId(): string {
+    const randomUuid = globalThis.crypto?.randomUUID?.();
+    if (randomUuid) {
+      return randomUuid;
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private extractRequestId(
+    context: Record<string, unknown>
+  ): string | undefined {
+    const value = context['requestId'];
+    if (typeof value !== 'string') return undefined;
+    const requestId = value.trim();
+    return requestId.length > 0 ? requestId : undefined;
+  }
+
+  private withoutRequestId(
+    context: Record<string, unknown>
+  ): Record<string, unknown> {
+    const rest = { ...context };
+    delete rest['requestId'];
+    return rest;
   }
 
   private normalizeError(error: unknown): {

@@ -39,7 +39,31 @@ describe('LoggerService', () => {
     expect(payload['level']).toBe('info');
     expect(payload['event']).toBe('client.test.info');
     expect(payload['message']).toBe('Test info message');
+    expect(payload['clientSessionId']).toEqual(expect.any(String));
     expect(payload['context']).toEqual({ feature: 'booking' });
+  });
+
+  it('uses a stable clientSessionId across logs from one service instance', () => {
+    const spy = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    const logger = new LoggerService();
+
+    logger.info('client.test.info', 'First message');
+    logger.info('client.test.info', 'Second message');
+
+    expect(spy).toHaveBeenCalledTimes(2);
+    const firstPayload = JSON.parse(spy.mock.calls[0][0] as string) as Record<
+      string,
+      unknown
+    >;
+    const secondPayload = JSON.parse(spy.mock.calls[1][0] as string) as Record<
+      string,
+      unknown
+    >;
+
+    expect(firstPayload['clientSessionId']).toEqual(expect.any(String));
+    expect(secondPayload['clientSessionId']).toBe(
+      firstPayload['clientSessionId']
+    );
   });
 
   it('honors minimum log level filtering', () => {
@@ -91,6 +115,26 @@ describe('LoggerService', () => {
     expect((context['nested'] as Record<string, unknown>)['refreshToken']).toBe(
       '[REDACTED]'
     );
+  });
+
+  it('promotes requestId to top-level and removes it from context', () => {
+    const spy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const logger = new LoggerService();
+
+    logger.error('client.test.error', 'Request-scoped error', {
+      requestId: 'req-123',
+      operation: 'load bookings',
+    });
+
+    const payload = JSON.parse(spy.mock.calls[0][0] as string) as Record<
+      string,
+      unknown
+    >;
+
+    expect(payload['requestId']).toBe('req-123');
+    expect(payload['context']).toEqual({ operation: 'load bookings' });
   });
 
   it('suppresses stack traces in production mode', () => {

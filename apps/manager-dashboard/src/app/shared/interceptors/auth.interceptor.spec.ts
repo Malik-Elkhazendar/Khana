@@ -169,6 +169,11 @@ describe('authInterceptor', () => {
         next: (response) => {
           expect(response).toEqual({ data: 'success' });
           expect(authService.refreshToken).toHaveBeenCalled();
+          expect(logger.warn).toHaveBeenCalledWith(
+            'client.auth.request.unauthorized',
+            'Received 401 response, attempting token refresh',
+            { method: 'GET', url: '/api/v1/bookings', requestId: 'req-123' }
+          );
           done();
         },
       });
@@ -180,7 +185,11 @@ describe('authInterceptor', () => {
       );
       req1.flush(
         { message: 'Unauthorized' },
-        { status: 401, statusText: 'Unauthorized' }
+        {
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: { 'x-request-id': 'req-123' },
+        }
       );
 
       // Retry with new token
@@ -203,6 +212,17 @@ describe('authInterceptor', () => {
         error: (error) => {
           expect(error.message).toBe('Refresh failed');
           expect(authService.refreshToken).toHaveBeenCalled();
+          expect(logger.warn).toHaveBeenCalledWith(
+            'client.auth.request.unauthorized',
+            'Received 401 response, attempting token refresh',
+            { method: 'GET', url: '/api/v1/bookings', requestId: 'req-401' }
+          );
+          expect(logger.error).toHaveBeenCalledWith(
+            'client.auth.refresh.failed',
+            'Token refresh failed while handling 401',
+            { method: 'GET', url: '/api/v1/bookings', requestId: 'req-401' },
+            expect.any(Error)
+          );
           done();
         },
       });
@@ -210,7 +230,11 @@ describe('authInterceptor', () => {
       const req = httpMock.expectOne('/api/v1/bookings');
       req.flush(
         { message: 'Unauthorized' },
-        { status: 401, statusText: 'Unauthorized' }
+        {
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: { 'x-request-id': 'req-401' },
+        }
       );
     });
 

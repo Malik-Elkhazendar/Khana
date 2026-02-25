@@ -54,6 +54,8 @@ Core implementation:
 - Runtime code logs through `LoggerService` only.
 - `environment.logging` controls level and console output.
 - Sensitive fields are redacted/masked before emission.
+- `clientSessionId` is generated once per page load and attached to every client log.
+- `requestId` is propagated to frontend error logs when backend responses include `x-request-id`.
 
 ## Redaction Policy
 

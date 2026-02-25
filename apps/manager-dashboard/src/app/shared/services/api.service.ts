@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, throwError } from 'rxjs';
 import {
   FacilityListItemDto,
@@ -29,10 +29,19 @@ export class ApiService {
 
   private handleError(operation: string) {
     return (err: unknown) => {
+      const requestId =
+        err instanceof HttpErrorResponse
+          ? err.headers?.get('x-request-id') ?? undefined
+          : undefined;
+      const context: Record<string, unknown> = { operation };
+      if (requestId) {
+        context['requestId'] = requestId;
+      }
+
       this.logger.error(
         'client.api.request_failed',
         `Failed to ${operation}`,
-        { operation },
+        context,
         err
       );
       return throwError(() => err);

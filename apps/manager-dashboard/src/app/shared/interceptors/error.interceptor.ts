@@ -26,6 +26,7 @@ export const errorInterceptor: HttpInterceptorFn = (
   return next(req).pipe(
     catchError((error: unknown) => {
       if (error instanceof HttpErrorResponse) {
+        const requestId = error.headers?.get('x-request-id') ?? undefined;
         if (error.error) {
           // Assume API sends specific error codes in `error.errorCode` or uses generic fallback
           const backEndErrorCode = error.error?.code || error.error?.errorCode;
@@ -56,17 +57,33 @@ export const errorInterceptor: HttpInterceptorFn = (
         }
 
         if (error.status >= 500) {
-          logger.error(
-            'client.http.response.failed',
-            'HTTP request failed with server error',
-            { method: req.method, url: req.url, statusCode: error.status },
-            error
-          );
-        } else {
-          logger.warn('client.http.response.failed', 'HTTP request failed', {
+          const context: Record<string, unknown> = {
             method: req.method,
             url: req.url,
             statusCode: error.status,
+          };
+          if (requestId) {
+            context['requestId'] = requestId;
+          }
+
+          logger.error(
+            'client.http.response.failed',
+            'HTTP request failed with server error',
+            context,
+            error
+          );
+        } else {
+          const context: Record<string, unknown> = {
+            method: req.method,
+            url: req.url,
+            statusCode: error.status,
+          };
+          if (requestId) {
+            context['requestId'] = requestId;
+          }
+
+          logger.warn('client.http.response.failed', 'HTTP request failed', {
+            ...context,
           });
         }
       }

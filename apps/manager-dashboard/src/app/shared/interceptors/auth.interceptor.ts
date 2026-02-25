@@ -58,12 +58,21 @@ export const authInterceptor: HttpInterceptorFn = (
   return next(req).pipe(
     catchError((error) => {
       if (error instanceof HttpErrorResponse && error.status === 401) {
+        const requestId = error.headers?.get('x-request-id') ?? undefined;
+        const context: Record<string, unknown> = {
+          method: req.method,
+          url: req.url,
+        };
+        if (requestId) {
+          context['requestId'] = requestId;
+        }
+
         logger.warn(
           'client.auth.request.unauthorized',
           'Received 401 response, attempting token refresh',
-          { method: req.method, url: req.url }
+          context
         );
-        return handle401Error(req, next, authService, logger);
+        return handle401Error(req, next, authService, logger, requestId);
       }
 
       return throwError(() => error);
@@ -78,16 +87,25 @@ function handle401Error(
   req: HttpRequest<unknown>,
   next: HttpHandlerFn,
   authService: AuthService,
-  logger: LoggerService
+  logger: LoggerService,
+  requestId?: string
 ): Observable<HttpEvent<unknown>> {
   return getRefreshTokenInFlight(authService, logger).pipe(
     switchMap((token) => next(addTokenToRequest(req, token))),
     catchError((error) => {
       // Refresh failed, service will logout and pending requests fail fast.
+      const context: Record<string, unknown> = {
+        method: req.method,
+        url: req.url,
+      };
+      if (requestId) {
+        context['requestId'] = requestId;
+      }
+
       logger.error(
         'client.auth.refresh.failed',
         'Token refresh failed while handling 401',
-        { method: req.method, url: req.url },
+        context,
         error
       );
       return throwError(() => error);

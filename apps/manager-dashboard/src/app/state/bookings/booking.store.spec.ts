@@ -1,22 +1,31 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { patchState } from '@ngrx/signals';
 import { of, throwError, Subject } from 'rxjs';
 import { BookingStore } from './booking.store';
 import { ApiService } from '../../shared/services/api.service';
+import { LoggerService } from '../../shared/services/logger.service';
 import { BookingStatus, PaymentStatus } from '@khana/shared-dtos';
 import { createApiMock, ApiServiceMock } from '../../testing/api-mocks';
 import { createBooking } from '../../testing/factories';
 
-const createHttpError = (status: number, message?: string) =>
+const createHttpError = (
+  status: number,
+  message?: string,
+  requestId?: string
+) =>
   new HttpErrorResponse({
     status,
     error: message ? { message } : null,
+    headers: requestId
+      ? new HttpHeaders({ 'x-request-id': requestId })
+      : undefined,
   });
 
 describe('BookingStore', () => {
   let store: BookingStore;
   let apiMock: ApiServiceMock;
+  let logger: jest.Mocked<LoggerService>;
 
   const seedBooking = (overrides = {}) => {
     const booking = createBooking({ id: 'booking-1', ...overrides });
@@ -33,8 +42,17 @@ describe('BookingStore', () => {
 
   beforeEach(() => {
     apiMock = createApiMock();
+    logger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
     TestBed.configureTestingModule({
-      providers: [{ provide: ApiService, useValue: apiMock }],
+      providers: [
+        { provide: ApiService, useValue: apiMock },
+        { provide: LoggerService, useValue: logger },
+      ],
     });
     store = TestBed.inject(BookingStore);
   });
@@ -154,6 +172,21 @@ describe('BookingStore', () => {
     store.loadBookings(null);
 
     expect(store.bookings()).toEqual([booking]);
+  });
+
+  it('includes requestId in booking load failure logs when present', () => {
+    apiMock.getBookings.mockReturnValueOnce(
+      throwError(() => createHttpError(500, undefined, 'req-load-123'))
+    );
+
+    store.loadBookings('facility-77');
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'client.booking.load.failed',
+      'Failed to load bookings',
+      { facilityId: 'facility-77', requestId: 'req-load-123' },
+      expect.any(HttpErrorResponse)
+    );
   });
 
   it('returns false when confirming a missing booking', async () => {
@@ -384,6 +417,22 @@ describe('BookingStore', () => {
 
     expect(store.bookings()[0].status).toBe(BookingStatus.PENDING);
     expect(store.errorCode()).toBe('SERVER_ERROR');
+  });
+
+  it('includes requestId in status rollback logs when present', async () => {
+    const booking = seedBooking({ status: BookingStatus.PENDING });
+    apiMock.updateBookingStatus.mockReturnValueOnce(
+      throwError(() => createHttpError(409, undefined, 'req-status-456'))
+    );
+
+    await store.confirmBooking(booking.id);
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'client.booking.status_update.rollback',
+      'Update failed, rolling back optimistic booking status',
+      { bookingId: booking.id, requestId: 'req-status-456' },
+      expect.any(HttpErrorResponse)
+    );
   });
 
   it('uses UNKNOWN error code for non-HTTP action failures', async () => {

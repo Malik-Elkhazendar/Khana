@@ -79,6 +79,11 @@ const toBookingError = (message: string): Error => {
   return new Error(message);
 };
 
+const resolveRequestId = (err: unknown): string | undefined => {
+  if (!(err instanceof HttpErrorResponse)) return undefined;
+  return err.headers?.get('x-request-id') ?? undefined;
+};
+
 export const BookingStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
@@ -186,10 +191,16 @@ export const BookingStore = signalStore(
             return true;
           } catch (err) {
             const resolved = resolveBookingError(err);
+            const requestId = resolveRequestId(err);
+            const context: Record<string, unknown> = { bookingId: id };
+            if (requestId) {
+              context['requestId'] = requestId;
+            }
+
             logger.error(
               'client.booking.status_update.rollback',
               'Update failed, rolling back optimistic booking status',
-              { bookingId: id },
+              context,
               err
             );
             patchState(store, (state) => ({
@@ -252,6 +263,14 @@ export const BookingStore = signalStore(
                 ),
                 catchError((err) => {
                   const resolved = resolveBookingError(err);
+                  const requestId = resolveRequestId(err);
+                  const context: Record<string, unknown> = {
+                    facilityId: facilityId ?? null,
+                  };
+                  if (requestId) {
+                    context['requestId'] = requestId;
+                  }
+
                   patchState(store, {
                     loading: false,
                     error: toBookingError(resolved.message),
@@ -260,7 +279,7 @@ export const BookingStore = signalStore(
                   logger.error(
                     'client.booking.load.failed',
                     'Failed to load bookings',
-                    { facilityId: facilityId ?? null },
+                    context,
                     err
                   );
                   return of([]);

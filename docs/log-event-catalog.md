@@ -57,6 +57,11 @@ Defined in `apps/api/src/app/logging/logging.constants.ts`.
 
 Current dashboard events (emitted by `LoggerService` call sites):
 
+Standard frontend runtime log fields:
+
+- `ts`, `level`, `service`, `event`, `message`, `clientSessionId`
+- Optional: `requestId`, `route`, `context`, `error`
+
 - `client.api.request_failed`
 - `client.auth.request.unauthorized`
 - `client.auth.refresh.started`

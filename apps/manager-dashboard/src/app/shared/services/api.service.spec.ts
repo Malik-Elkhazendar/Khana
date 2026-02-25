@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -6,6 +7,7 @@ import {
 import { provideHttpClient } from '@angular/common/http';
 import { ApiService } from './api.service';
 import { environment } from '../../../environments/environment';
+import { LoggerService } from './logger.service';
 import {
   BookingPreviewRequestDto,
   BookingStatus,
@@ -15,12 +17,25 @@ import {
 describe('ApiService', () => {
   let service: ApiService;
   let httpMock: HttpTestingController;
+  let logger: jest.Mocked<LoggerService>;
 
   const API_BASE_URL = environment.apiBaseUrl.replace(/\/+$/, '');
 
   beforeEach(() => {
+    logger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), ApiService],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        ApiService,
+        { provide: LoggerService, useValue: logger },
+      ],
     });
 
     service = TestBed.inject(ApiService);
@@ -108,5 +123,28 @@ describe('ApiService', () => {
       cancellationReason: undefined,
     });
     req.flush({});
+  });
+
+  it('extracts requestId from error responses when logging failures', () => {
+    service.getFacilities().subscribe({
+      error: () => undefined,
+    });
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/bookings/facilities`);
+    req.flush(
+      { message: 'Server error' },
+      {
+        status: 500,
+        statusText: 'Internal Server Error',
+        headers: { 'x-request-id': 'req-123' },
+      }
+    );
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'client.api.request_failed',
+      'Failed to load facilities',
+      { operation: 'load facilities', requestId: 'req-123' },
+      expect.any(HttpErrorResponse)
+    );
   });
 });
