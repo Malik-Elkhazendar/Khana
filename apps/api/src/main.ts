@@ -20,6 +20,9 @@ import {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.disable('x-powered-by');
+
   const appLogger = app.get(AppLoggerService);
   app.useLogger(appLogger);
 
@@ -51,6 +54,7 @@ async function bootstrap() {
   app.enableCors({
     origin: corsOrigins.split(',').map((o) => o.trim()),
     credentials: true,
+    exposedHeaders: ['x-request-id'],
   });
 
   // Enable validation globally
