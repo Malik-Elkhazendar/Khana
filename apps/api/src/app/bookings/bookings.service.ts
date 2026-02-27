@@ -13,6 +13,7 @@ import {
   BookingPreviewResult,
   detectConflicts,
   calculatePrice,
+  validateBookingInput,
 } from '@khana/booking-engine';
 import { Booking, Facility, User } from '@khana/data-access';
 import {
@@ -36,6 +37,8 @@ const AUTO_CANCEL_REASON = 'Auto-cancelled: hold expired';
 const ACCESS_DENIED_MESSAGE =
   'Access denied: You do not have permission to access this resource.';
 const RESOURCE_NOT_FOUND_MESSAGE = 'Resource not found';
+const INACTIVE_FACILITY_MESSAGE =
+  'This facility is currently inactive and cannot be booked.';
 const BOOKING_REFERENCE_PREFIX = 'KHN';
 const BOOKING_REFERENCE_RANDOM_LENGTH = 6;
 const BOOKING_REFERENCE_ATTEMPTS = 5;
@@ -137,7 +140,8 @@ export class BookingsService {
     const now = new Date();
     const facility = await this.validateFacilityOwnership(
       dto.facilityId,
-      resolvedTenantId
+      resolvedTenantId,
+      true
     );
 
     const facilityConfig = {
@@ -198,7 +202,7 @@ export class BookingsService {
   async getFacilities(tenantId: string) {
     const resolvedTenantId = this.requireTenantId(tenantId);
     const facilities = await this.facilityRepository.find({
-      where: { tenant: { id: resolvedTenantId } },
+      where: { tenant: { id: resolvedTenantId }, isActive: true },
       order: { name: 'ASC' },
     });
 
@@ -238,7 +242,8 @@ export class BookingsService {
     // 1. Fetch facility with ownership validation
     const facility = await this.validateFacilityOwnership(
       dto.facilityId,
-      resolvedTenantId
+      resolvedTenantId,
+      true
     );
 
     // 2-6. Create inside a transaction and serialize by facility row lock to
@@ -258,7 +263,13 @@ export class BookingsService {
           throw new NotFoundException(RESOURCE_NOT_FOUND_MESSAGE);
         }
 
+        if (!lockedFacility.isActive) {
+          throw new ConflictException(INACTIVE_FACILITY_MESSAGE);
+        }
+
         const now = new Date();
+        const startTime = new Date(dto.startTime);
+        const endTime = new Date(dto.endTime);
         const existingBookings = await bookingRepo.find({
           where: [
             {
@@ -288,10 +299,37 @@ export class BookingsService {
           bookingReference: booking.bookingReference ?? booking.id,
         }));
 
+        const facilityConfig = {
+          id: lockedFacility.id,
+          name: lockedFacility.name,
+          openTime: lockedFacility.config.openTime,
+          closeTime: lockedFacility.config.closeTime,
+          slotDurationMinutes: 60,
+          pricing: {
+            basePrice: lockedFacility.config.pricePerHour,
+            currency: 'SAR',
+          },
+        };
+
+        const validationErrors = validateBookingInput(
+          {
+            facilityId: dto.facilityId,
+            startTime,
+            endTime,
+          },
+          facilityConfig
+        );
+        if (validationErrors.length > 0) {
+          throw new BadRequestException({
+            message: 'Booking validation failed.',
+            validationErrors,
+          });
+        }
+
         const conflictResult = detectConflicts({
           facilityId: dto.facilityId,
-          requestedStart: new Date(dto.startTime),
-          requestedEnd: new Date(dto.endTime),
+          requestedStart: startTime,
+          requestedEnd: endTime,
           occupiedSlots,
         });
 
@@ -311,28 +349,16 @@ export class BookingsService {
           });
         }
 
-        const facilityConfig = {
-          id: facility.id,
-          name: facility.name,
-          openTime: facility.config.openTime,
-          closeTime: facility.config.closeTime,
-          slotDurationMinutes: 60,
-          pricing: {
-            basePrice: facility.config.pricePerHour,
-            currency: 'SAR',
-          },
-        };
-
         const priceBreakdown = calculatePrice({
-          startTime: new Date(dto.startTime),
-          endTime: new Date(dto.endTime),
+          startTime,
+          endTime,
           pricingConfig: facilityConfig.pricing,
         });
 
         const bookingReference = await this.generateUniqueBookingReference(
           bookingRepo
         );
-        const status = dto.status ?? BookingStatus.CONFIRMED;
+        const status = this.resolveCreateStatus(dto.status);
         const holdUntil =
           status === BookingStatus.PENDING
             ? addMinutes(now, PENDING_HOLD_MINUTES)
@@ -341,12 +367,12 @@ export class BookingsService {
         const booking = bookingRepo.create({
           facility,
           createdByUserId: resolvedUserId,
-          startTime: new Date(dto.startTime),
-          endTime: new Date(dto.endTime),
+          startTime,
+          endTime,
           customerName: dto.customerName,
           customerPhone: dto.customerPhone,
           status,
-          paymentStatus: dto.paymentStatus ?? PaymentStatus.PENDING,
+          paymentStatus: PaymentStatus.PENDING,
           bookingReference,
           totalAmount: priceBreakdown.total,
           currency: priceBreakdown.currency,
@@ -514,7 +540,8 @@ export class BookingsService {
 
   private async validateFacilityOwnership(
     facilityId: string,
-    tenantId: string
+    tenantId: string,
+    activeOnly = false
   ): Promise<Facility> {
     const facility = await this.facilityRepository.findOne({
       where: { id: facilityId },
@@ -529,7 +556,25 @@ export class BookingsService {
       throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
     }
 
+    if (activeOnly && !facility.isActive) {
+      throw new ConflictException(INACTIVE_FACILITY_MESSAGE);
+    }
+
     return facility;
+  }
+
+  private resolveCreateStatus(status?: BookingStatus): BookingStatus {
+    if (typeof status === 'undefined') {
+      return BookingStatus.CONFIRMED;
+    }
+
+    if (status !== BookingStatus.PENDING) {
+      throw new BadRequestException(
+        'Only PENDING status may be provided during booking creation.'
+      );
+    }
+
+    return status;
   }
 
   private async validateBookingOwnership(

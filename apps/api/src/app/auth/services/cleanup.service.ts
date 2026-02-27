@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import { RefreshToken } from '@khana/data-access';
 import { AppLoggerService, LOG_EVENTS } from '../../logging';
 
@@ -26,10 +26,14 @@ export class CleanupService {
     );
     const now = new Date();
 
-    const result = await this.refreshTokenRepository.delete({
-      expiresAt: LessThan(now),
-      revokedAt: LessThan(cutoffDate),
-    });
+    const result = await this.refreshTokenRepository
+      .createQueryBuilder()
+      .delete()
+      .where('expiresAt < :now', { now })
+      .andWhere('(revokedAt IS NULL OR revokedAt < :cutoffDate)', {
+        cutoffDate,
+      })
+      .execute();
 
     this.appLogger.info(
       LOG_EVENTS.SYSTEM_CLEANUP_COMPLETE,

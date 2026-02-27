@@ -165,17 +165,47 @@
     "PAGES": {
       "FACILITIES": {
         "TITLE": "Facilities",
-        "SUBTITLE": "Manage available facilities and active context",
+        "SUBTITLE": "Create, update, and control court availability",
+        "NEW_FACILITY": "New Facility",
         "LOADING": "Loading facilities...",
-        "ERROR": "Unable to load facilities.",
         "EMPTY": "No facilities available for this tenant.",
-        "ACTIVE": "Active",
-        "OPEN_TIME": "Open time",
-        "CLOSE_TIME": "Close time",
-        "SLOT_DURATION": "Slot duration",
-        "SLOT_DURATION_VALUE": "{{minutes}} minutes",
-        "BASE_PRICE": "Base price",
-        "SET_ACTIVE": "Set Active"
+        "HOURS_VALUE": "{{open}} - {{close}}",
+        "READ_ONLY_HINT": "You have read-only access. Contact an owner or manager to change facility settings.",
+        "STATUS": {
+          "ACTIVE": "Active",
+          "INACTIVE": "Inactive"
+        },
+        "TABLE": {
+          "STATUS": "Status",
+          "NAME": "Name",
+          "TYPE": "Type",
+          "PRICE": "Price / Hour",
+          "HOURS": "Operating Hours",
+          "UPDATED": "Last Updated",
+          "ACTIONS": "Actions"
+        },
+        "CREATE_TITLE": "Create Facility",
+        "CREATE_SUBTITLE": "Add a new court, chalet, or other rentable unit.",
+        "EDIT_TITLE": "Edit Facility",
+        "EDIT_SUBTITLE": "Update pricing, hours, and availability.",
+        "FORM": {
+          "NAME": "Facility Name",
+          "TYPE": "Facility Type",
+          "PRICE": "Price Per Hour (SAR)",
+          "OPEN_TIME": "Open Time",
+          "CLOSE_TIME": "Close Time",
+          "ERROR_NAME": "Facility name is required.",
+          "ERROR_PRICE": "Price per hour must be greater than zero.",
+          "ERROR_INVALID_HOURS": "Open time must be before close time."
+        },
+        "ACTIONS": {
+          "CREATE": "Create Facility",
+          "SAVE": "Save Changes",
+          "EDIT": "Edit",
+          "DEACTIVATE": "Deactivate",
+          "REACTIVATE": "Reactivate",
+          "CANCEL": "Cancel"
+        }
       },
       "TEAM": {
         "TITLE": "Team",

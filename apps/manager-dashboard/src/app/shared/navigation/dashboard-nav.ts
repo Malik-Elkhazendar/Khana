@@ -41,6 +41,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     route: '/dashboard/facilities',
     icon: 'facilities',
     exact: true,
+    roles: [UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF],
   },
   {
     labelKey: 'DASHBOARD.NAV.ITEMS.TEAM',

@@ -1,12 +1,12 @@
 import {
   IsDateString,
-  IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
-import { BookingStatus, PaymentStatus } from '@khana/shared-dtos';
+import { BookingStatus } from '@khana/shared-dtos';
 
 export class CreateBookingDto {
   @IsUUID()
@@ -29,11 +29,7 @@ export class CreateBookingDto {
   @IsNotEmpty()
   customerPhone!: string;
 
-  @IsEnum(BookingStatus)
+  @IsIn([BookingStatus.PENDING])
   @IsOptional()
   status?: BookingStatus;
-
-  @IsEnum(PaymentStatus)
-  @IsOptional()
-  paymentStatus?: PaymentStatus;
 }

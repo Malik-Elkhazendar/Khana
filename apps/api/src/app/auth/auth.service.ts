@@ -105,38 +105,51 @@ export class AuthService {
     // Validate password strength
     this.validatePasswordStrength(dto.password);
 
-    // Check email uniqueness within tenant
-    const existingUser = await this.userRepository.findOne({
-      where: { email: dto.email, tenantId: resolvedTenantId },
-    });
-
-    if (existingUser) {
-      throw new ConflictException(
-        `Email ${dto.email} already registered in this tenant`
-      );
-    }
-
     // Hash password
     const passwordHash = await this.passwordService.hash(dto.password);
+    const { savedUser, initialRole } = await this.dataSource.transaction(
+      async (manager) => {
+        const transactionalUserRepository = manager.getRepository(User);
+        const transactionalTenantRepository = manager.getRepository(Tenant);
 
-    // Determine initial role (first user = OWNER, others = STAFF)
-    const userCount = await this.userRepository.count({
-      where: { tenantId: resolvedTenantId },
-    });
-    const initialRole = userCount === 0 ? 'OWNER' : 'STAFF';
+        const lockedTenant = await transactionalTenantRepository
+          .createQueryBuilder('tenant')
+          .where('tenant.id = :tenantId', { tenantId: resolvedTenantId })
+          .setLock('pessimistic_write')
+          .getOne();
 
-    // Create user
-    const user = this.userRepository.create({
-      email: dto.email,
-      name: dto.name,
-      phone: dto.phone,
-      passwordHash,
-      role: initialRole,
-      tenantId: resolvedTenantId,
-      isActive: true,
-    });
+        if (!lockedTenant) {
+          throw new BadRequestException('Invalid tenant ID');
+        }
 
-    const saved = await this.userRepository.save(user);
+        const existingUser = await transactionalUserRepository.findOne({
+          where: { email: dto.email, tenantId: resolvedTenantId },
+        });
+        if (existingUser) {
+          throw new ConflictException(
+            `Email ${dto.email} already registered in this tenant`
+          );
+        }
+
+        const userCount = await transactionalUserRepository.count({
+          where: { tenantId: resolvedTenantId },
+        });
+        const role = userCount === 0 ? UserRole.OWNER : UserRole.STAFF;
+
+        const user = transactionalUserRepository.create({
+          email: dto.email,
+          name: dto.name,
+          phone: dto.phone,
+          passwordHash,
+          role,
+          tenantId: resolvedTenantId,
+          isActive: true,
+        });
+        const saved = await transactionalUserRepository.save(user);
+        return { savedUser: saved, initialRole: role };
+      }
+    );
+    const saved = savedUser;
 
     // Log audit event
     await this.logAudit({

@@ -36,6 +36,8 @@
     "gen:nest-app": "nx g @nx/nest:app",
     "gen:angular-app": "nx g @nx/angular:app",
     "staff-engineer": "node -r @swc-node/register src/agents/run-analysis.ts next-feature",
+    "validate:kha14:baseline": "node -r @swc-node/register src/agents/validate-kha14-plan.agent.ts baseline",
+    "validate:kha14:target": "node -r @swc-node/register src/agents/validate-kha14-plan.agent.ts target",
     "prepare": "husky",
     "i18n:extract": "ngx-translate-extract --input ./apps/manager-dashboard/src/app --output ./apps/manager-dashboard/public/assets/i18n/en.json ./apps/manager-dashboard/public/assets/i18n/ar.json --clean --sort --format namespaced-json"
   },

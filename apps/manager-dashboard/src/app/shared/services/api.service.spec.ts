@@ -54,6 +54,65 @@ describe('ApiService', () => {
     req.flush([]);
   });
 
+  it('should request managed facilities with includeInactive=true', () => {
+    service.getManagedFacilities(true).subscribe();
+
+    const req = httpMock.expectOne(
+      `${API_BASE_URL}/v1/facilities?includeInactive=true`
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
+  it('should request a single managed facility', () => {
+    service.getManagedFacilityById('facility-1').subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/facilities/facility-1`);
+    expect(req.request.method).toBe('GET');
+    req.flush({});
+  });
+
+  it('should create a facility using configured API base URL', () => {
+    const request = {
+      name: 'Court 7',
+      type: 'PADEL_COURT',
+      config: {
+        pricePerHour: 220,
+        openTime: '08:00',
+        closeTime: '23:00',
+      },
+    };
+
+    service.createFacility(request).subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/facilities`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(request);
+    req.flush({});
+  });
+
+  it('should update a facility using configured API base URL', () => {
+    const request = {
+      config: { pricePerHour: 300 },
+      isActive: true,
+    };
+
+    service.updateFacility('facility-1', request).subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/facilities/facility-1`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual(request);
+    req.flush({});
+  });
+
+  it('should deactivate a facility using configured API base URL', () => {
+    service.deactivateFacility('facility-1').subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/facilities/facility-1`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush({});
+  });
+
   it('should request bookings with facilityId query param', () => {
     const facilityId = 'facility-1';
 

@@ -17,6 +17,48 @@ export interface FacilityListItemDto {
 }
 
 /**
+ * Facility management pricing and operating-hours config
+ */
+export interface FacilityManagementConfigDto {
+  pricePerHour: number;
+  openTime: string;
+  closeTime: string;
+}
+
+/**
+ * Facility item returned by management CRUD endpoints
+ */
+export interface FacilityManagementItemDto {
+  id: string;
+  tenantId?: string;
+  name: string;
+  type: string;
+  isActive: boolean;
+  config: FacilityManagementConfigDto;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Request body for creating a facility
+ */
+export interface CreateFacilityRequestDto {
+  name: string;
+  type: string;
+  config: FacilityManagementConfigDto;
+}
+
+/**
+ * Request body for updating facility details
+ */
+export interface UpdateFacilityRequestDto {
+  name?: string;
+  type?: string;
+  isActive?: boolean;
+  config?: Partial<FacilityManagementConfigDto>;
+}
+
+/**
  * Request DTO for booking preview
  */
 export interface BookingPreviewRequestDto {

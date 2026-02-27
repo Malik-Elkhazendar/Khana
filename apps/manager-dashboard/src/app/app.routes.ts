@@ -119,6 +119,9 @@ export const appRoutes: Route[] = [
       {
         path: 'facilities',
         component: FacilitiesComponent,
+        canActivate: [
+          roleGuard([UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF]),
+        ],
         title: 'Facilities | Khana',
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.FACILITIES',

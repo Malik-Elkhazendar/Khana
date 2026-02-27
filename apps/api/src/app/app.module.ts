@@ -11,6 +11,7 @@ import { Facility, Tenant, User, AuditLog } from '@khana/data-access';
 import { NotificationModule } from '@khana/notifications';
 import { LoggingModule } from './logging';
 import { normalizeNodeEnv, resolveEnvFilePaths } from './config/env-files';
+import { FacilitiesModule } from './facilities/facilities.module';
 
 const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
 
@@ -45,6 +46,7 @@ const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
     NotificationModule,
     AuthModule,
     BookingsModule,
+    FacilitiesModule,
   ],
   controllers: [AppController],
   providers: [AppService, SeedService],

@@ -395,6 +395,77 @@ describe('API', () => {
   });
 
   describe('POST /api/v1/bookings', () => {
+    it('should reject invalid time windows at create', async () => {
+      const invalidDay = new Date();
+      invalidDay.setDate(invalidDay.getDate() + 3);
+      invalidDay.setHours(10, 0, 0, 0);
+
+      await expectHttpError(
+        axios.post(
+          '/api/v1/bookings',
+          {
+            facilityId,
+            startTime: invalidDay.toISOString(),
+            endTime: new Date(
+              invalidDay.getTime() - 60 * 60 * 1000
+            ).toISOString(),
+            customerName: 'Invalid Window',
+            customerPhone: '+966500000001',
+          },
+          { headers: authHeaders() }
+        ),
+        400
+      );
+    });
+
+    it('should reject terminal status values at create', async () => {
+      const statusDay = new Date();
+      statusDay.setDate(statusDay.getDate() + 4);
+      statusDay.setHours(9, 0, 0, 0);
+
+      const slot = await findAvailableSlot(statusDay);
+
+      await expectHttpError(
+        axios.post(
+          '/api/v1/bookings',
+          {
+            facilityId,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            customerName: 'Terminal Status',
+            customerPhone: '+966500000002',
+            status: 'COMPLETED',
+          },
+          { headers: authHeaders() }
+        ),
+        400
+      );
+    });
+
+    it('should reject client-supplied paymentStatus at create', async () => {
+      const paymentDay = new Date();
+      paymentDay.setDate(paymentDay.getDate() + 4);
+      paymentDay.setHours(11, 0, 0, 0);
+
+      const slot = await findAvailableSlot(paymentDay);
+
+      await expectHttpError(
+        axios.post(
+          '/api/v1/bookings',
+          {
+            facilityId,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            customerName: 'Payment Status Injection',
+            customerPhone: '+966500000003',
+            paymentStatus: 'PAID',
+          },
+          { headers: authHeaders() }
+        ),
+        400
+      );
+    });
+
     it('should prevent double-booking for concurrent creates', async () => {
       const raceDay = new Date();
       raceDay.setDate(raceDay.getDate() + 5);

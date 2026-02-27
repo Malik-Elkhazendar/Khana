@@ -8,6 +8,15 @@
         {{ 'DASHBOARD.PAGES.FACILITIES.SUBTITLE' | translate }}
       </p>
     </div>
+
+    <button
+      type="button"
+      class="dashboard-btn dashboard-btn--primary"
+      *ngIf="canManage()"
+      (click)="startCreate()"
+    >
+      {{ 'DASHBOARD.PAGES.FACILITIES.NEW_FACILITY' | translate }}
+    </button>
   </header>
 
   <section class="dashboard-card facilities-panel">
@@ -18,8 +27,10 @@
     <div
       class="facilities-state facilities-state--error"
       *ngIf="error() && !loading()"
+      role="alert"
+      aria-live="assertive"
     >
-      <span>{{ 'DASHBOARD.PAGES.FACILITIES.ERROR' | translate }}</span>
+      <span>{{ error() }}</span>
       <button
         type="button"
         class="dashboard-btn dashboard-btn--secondary"
@@ -33,68 +44,213 @@
       {{ 'DASHBOARD.PAGES.FACILITIES.EMPTY' | translate }}
     </p>
 
-    <ul class="facility-grid" *ngIf="!loading() && facilities().length > 0">
-      <li
-        class="facility-card"
-        *ngFor="let facility of facilities(); trackBy: trackByFacilityId"
-      >
-        <div class="facility-card__header">
-          <h2>{{ facility.name }}</h2>
-          <span
-            class="facility-card__badge"
-            *ngIf="selectedFacilityId() === facility.id"
+    <div class="table-wrap" *ngIf="!loading() && facilities().length > 0">
+      <table class="facilities-table">
+        <thead>
+          <tr>
+            <th>{{ 'DASHBOARD.PAGES.FACILITIES.TABLE.STATUS' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.FACILITIES.TABLE.NAME' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.FACILITIES.TABLE.TYPE' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.FACILITIES.TABLE.PRICE' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.FACILITIES.TABLE.HOURS' | translate }}</th>
+            <th>
+              {{ 'DASHBOARD.PAGES.FACILITIES.TABLE.UPDATED' | translate }}
+            </th>
+            <th *ngIf="canManage()">
+              {{ 'DASHBOARD.PAGES.FACILITIES.TABLE.ACTIONS' | translate }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let facility of facilities(); trackBy: trackByFacilityId"
+            [class.facilities-table__row--inactive]="!facility.isActive"
           >
-            {{ 'DASHBOARD.PAGES.FACILITIES.ACTIVE' | translate }}
-          </span>
-        </div>
-
-        <dl class="facility-card__meta">
-          <div>
-            <dt>{{ 'DASHBOARD.PAGES.FACILITIES.OPEN_TIME' | translate }}</dt>
-            <dd>{{ facility.openTime }}</dd>
-          </div>
-          <div>
-            <dt>{{ 'DASHBOARD.PAGES.FACILITIES.CLOSE_TIME' | translate }}</dt>
-            <dd>{{ facility.closeTime }}</dd>
-          </div>
-          <div>
-            <dt>
-              {{ 'DASHBOARD.PAGES.FACILITIES.SLOT_DURATION' | translate }}
-            </dt>
-            <dd>
+            <td>
+              <app-ui-status-badge
+                [label]="
+                  (facility.isActive
+                    ? 'DASHBOARD.PAGES.FACILITIES.STATUS.ACTIVE'
+                    : 'DASHBOARD.PAGES.FACILITIES.STATUS.INACTIVE'
+                  ) | translate
+                "
+                [tone]="facility.isActive ? 'success' : 'neutral'"
+              ></app-ui-status-badge>
+            </td>
+            <td>{{ facility.name }}</td>
+            <td>{{ formatType(facility.type) }}</td>
+            <td>{{ formatPrice(facility.config.pricePerHour) }}</td>
+            <td>
               {{
-                'DASHBOARD.PAGES.FACILITIES.SLOT_DURATION_VALUE'
-                  | translate : { minutes: facility.slotDurationMinutes }
+                'DASHBOARD.PAGES.FACILITIES.HOURS_VALUE'
+                  | translate
+                    : {
+                        open: facility.config.openTime,
+                        close: facility.config.closeTime,
+                      }
               }}
-            </dd>
-          </div>
-          <div>
-            <dt>{{ 'DASHBOARD.PAGES.FACILITIES.BASE_PRICE' | translate }}</dt>
-            <dd>{{ formatPrice(facility.basePrice, facility.currency) }}</dd>
-          </div>
-        </dl>
+            </td>
+            <td>{{ formatDate(facility.updatedAt) }}</td>
+            <td *ngIf="canManage()">
+              <div class="facilities-actions">
+                <button
+                  type="button"
+                  class="dashboard-btn dashboard-btn--secondary"
+                  (click)="startEdit(facility)"
+                >
+                  {{ 'DASHBOARD.PAGES.FACILITIES.ACTIONS.EDIT' | translate }}
+                </button>
+                <button
+                  type="button"
+                  class="dashboard-btn dashboard-btn--ghost"
+                  [disabled]="isTogglePending(facility.id)"
+                  (click)="toggleFacilityStatus(facility)"
+                >
+                  {{
+                    (facility.isActive
+                      ? 'DASHBOARD.PAGES.FACILITIES.ACTIONS.DEACTIVATE'
+                      : 'DASHBOARD.PAGES.FACILITIES.ACTIONS.REACTIVATE'
+                    ) | translate
+                  }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-        <ng-container
-          *ngIf="
-            selectedFacilityId() !== facility.id;
-            else activeFacilityAction
-          "
+  <section class="dashboard-card facilities-form-panel" *ngIf="canManage()">
+    <header class="facilities-form-panel__header">
+      <h2>
+        {{
+          (isEditing()
+            ? 'DASHBOARD.PAGES.FACILITIES.EDIT_TITLE'
+            : 'DASHBOARD.PAGES.FACILITIES.CREATE_TITLE'
+          ) | translate
+        }}
+      </h2>
+      <p>
+        {{
+          (isEditing()
+            ? 'DASHBOARD.PAGES.FACILITIES.EDIT_SUBTITLE'
+            : 'DASHBOARD.PAGES.FACILITIES.CREATE_SUBTITLE'
+          ) | translate
+        }}
+      </p>
+    </header>
+
+    <form
+      class="facility-form"
+      [formGroup]="facilityForm"
+      (ngSubmit)="submit()"
+    >
+      <label>
+        <span>{{ 'DASHBOARD.PAGES.FACILITIES.FORM.NAME' | translate }}</span>
+        <input type="text" formControlName="name" maxlength="120" />
+      </label>
+
+      <label>
+        <span>{{ 'DASHBOARD.PAGES.FACILITIES.FORM.TYPE' | translate }}</span>
+        <select formControlName="type">
+          <option *ngFor="let type of facilityTypes" [value]="type">
+            {{ formatType(type) }}
+          </option>
+        </select>
+      </label>
+
+      <label>
+        <span>{{ 'DASHBOARD.PAGES.FACILITIES.FORM.PRICE' | translate }}</span>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          formControlName="pricePerHour"
+        />
+      </label>
+
+      <div class="facility-form__row">
+        <label>
+          <span>{{
+            'DASHBOARD.PAGES.FACILITIES.FORM.OPEN_TIME' | translate
+          }}</span>
+          <input type="time" formControlName="openTime" />
+        </label>
+
+        <label>
+          <span>{{
+            'DASHBOARD.PAGES.FACILITIES.FORM.CLOSE_TIME' | translate
+          }}</span>
+          <input type="time" formControlName="closeTime" />
+        </label>
+      </div>
+
+      <p
+        class="facility-form__error"
+        *ngIf="
+          facilityForm.hasError('invalidOperatingHours') &&
+          (facilityForm.controls.openTime.touched ||
+            facilityForm.controls.closeTime.touched)
+        "
+      >
+        {{ 'DASHBOARD.PAGES.FACILITIES.FORM.ERROR_INVALID_HOURS' | translate }}
+      </p>
+
+      <p
+        class="facility-form__error"
+        *ngIf="
+          facilityForm.controls.name.invalid &&
+          facilityForm.controls.name.touched
+        "
+      >
+        {{ 'DASHBOARD.PAGES.FACILITIES.FORM.ERROR_NAME' | translate }}
+      </p>
+
+      <p
+        class="facility-form__error"
+        *ngIf="
+          facilityForm.controls.pricePerHour.invalid &&
+          facilityForm.controls.pricePerHour.touched
+        "
+      >
+        {{ 'DASHBOARD.PAGES.FACILITIES.FORM.ERROR_PRICE' | translate }}
+      </p>
+
+      <div
+        class="facilities-state facilities-state--error"
+        *ngIf="actionError()"
+      >
+        <span>{{ actionError() }}</span>
+      </div>
+
+      <div class="facility-form__actions">
+        <button
+          type="submit"
+          class="dashboard-btn dashboard-btn--primary"
+          [disabled]="facilityForm.invalid || saving()"
         >
-          <button
-            type="button"
-            class="dashboard-btn dashboard-btn--primary facility-card__action"
-            (click)="selectFacility(facility.id)"
-          >
-            {{ 'DASHBOARD.PAGES.FACILITIES.SET_ACTIVE' | translate }}
-          </button>
-        </ng-container>
+          {{
+            (isEditing()
+              ? 'DASHBOARD.PAGES.FACILITIES.ACTIONS.SAVE'
+              : 'DASHBOARD.PAGES.FACILITIES.ACTIONS.CREATE'
+            ) | translate
+          }}
+        </button>
 
-        <ng-template #activeFacilityAction>
-          <span class="facility-card__active-action" aria-live="polite">
-            {{ 'DASHBOARD.PAGES.FACILITIES.ACTIVE' | translate }}
-          </span>
-        </ng-template>
-      </li>
-    </ul>
+        <button
+          type="button"
+          class="dashboard-btn dashboard-btn--secondary"
+          *ngIf="isEditing()"
+          (click)="cancelEdit()"
+        >
+          {{ 'DASHBOARD.PAGES.FACILITIES.ACTIONS.CANCEL' | translate }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="dashboard-card facilities-readonly" *ngIf="!canManage()">
+    {{ 'DASHBOARD.PAGES.FACILITIES.READ_ONLY_HINT' | translate }}
   </section>
 </main>

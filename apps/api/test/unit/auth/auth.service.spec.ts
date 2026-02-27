@@ -135,6 +135,7 @@ describe('AuthService', () => {
           useValue: {
             find: jest.fn(),
             exists: jest.fn(),
+            createQueryBuilder: jest.fn(),
           },
         },
         {
@@ -201,6 +202,27 @@ describe('AuthService', () => {
     metricsService = module.get<MetricsService>(MetricsService);
 
     tenantRepository.exists.mockResolvedValue(true);
+    const tenantLockQueryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      setLock: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue({ id: MOCK_TENANT_ID }),
+    };
+    tenantRepository.createQueryBuilder.mockReturnValue(tenantLockQueryBuilder);
+
+    const transactionalManager = {
+      getRepository: jest.fn((entity: unknown) => {
+        if (entity === User) return userRepository;
+        if (entity === Tenant) return tenantRepository;
+        return null;
+      }),
+    };
+    dataSource.transaction.mockImplementation(async (...args: unknown[]) => {
+      const callback =
+        typeof args[0] === 'function'
+          ? (args[0] as (manager: unknown) => Promise<unknown>)
+          : (args[1] as (manager: unknown) => Promise<unknown>);
+      return callback(transactionalManager);
+    });
   });
 
   afterEach(() => {

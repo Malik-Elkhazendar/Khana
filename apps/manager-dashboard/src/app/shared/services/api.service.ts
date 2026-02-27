@@ -2,13 +2,16 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, throwError } from 'rxjs';
 import {
-  FacilityListItemDto,
   BookingPreviewRequestDto,
   BookingPreviewResponseDto,
-  CreateBookingRequestDto,
   BookingListItemDto,
   BookingStatus,
+  CreateBookingRequestDto,
+  CreateFacilityRequestDto,
+  FacilityListItemDto,
+  FacilityManagementItemDto,
   PaymentStatus,
+  UpdateFacilityRequestDto,
 } from '@khana/shared-dtos';
 import { environment } from '../../../environments/environment';
 import { LoggerService } from './logger.service';
@@ -59,6 +62,63 @@ export class ApiService {
     return this.http
       .get<FacilityListItemDto[]>(`${this.baseUrl}/v1/bookings/facilities`)
       .pipe(catchError(this.handleError('load facilities')));
+  }
+
+  /**
+   * Get facilities from management endpoint
+   */
+  getManagedFacilities(
+    includeInactive = true
+  ): Observable<FacilityManagementItemDto[]> {
+    return this.http
+      .get<FacilityManagementItemDto[]>(`${this.baseUrl}/v1/facilities`, {
+        params: includeInactive ? { includeInactive: 'true' } : {},
+      })
+      .pipe(catchError(this.handleError('load managed facilities')));
+  }
+
+  /**
+   * Get a single managed facility by id
+   */
+  getManagedFacilityById(id: string): Observable<FacilityManagementItemDto> {
+    return this.http
+      .get<FacilityManagementItemDto>(`${this.baseUrl}/v1/facilities/${id}`)
+      .pipe(catchError(this.handleError('load managed facility')));
+  }
+
+  /**
+   * Create a facility
+   */
+  createFacility(
+    request: CreateFacilityRequestDto
+  ): Observable<FacilityManagementItemDto> {
+    return this.http
+      .post<FacilityManagementItemDto>(`${this.baseUrl}/v1/facilities`, request)
+      .pipe(catchError(this.handleError('create facility')));
+  }
+
+  /**
+   * Update a managed facility
+   */
+  updateFacility(
+    id: string,
+    request: UpdateFacilityRequestDto
+  ): Observable<FacilityManagementItemDto> {
+    return this.http
+      .patch<FacilityManagementItemDto>(
+        `${this.baseUrl}/v1/facilities/${id}`,
+        request
+      )
+      .pipe(catchError(this.handleError('update facility')));
+  }
+
+  /**
+   * Soft-delete (deactivate) a managed facility
+   */
+  deactivateFacility(id: string): Observable<FacilityManagementItemDto> {
+    return this.http
+      .delete<FacilityManagementItemDto>(`${this.baseUrl}/v1/facilities/${id}`)
+      .pipe(catchError(this.handleError('deactivate facility')));
   }
 
   // ============================================================
