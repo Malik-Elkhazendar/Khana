@@ -7,6 +7,7 @@ Make runtime configuration deterministic in development and explicit across envi
 ## API Env Precedence
 
 `apps/api/src/app/config/env-files.ts` defines env file order.
+All paths are resolved from the workspace root (`process.cwd()`), not from `apps/api/`.
 
 Priority (highest -> lowest):
 

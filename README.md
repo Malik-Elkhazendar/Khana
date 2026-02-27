@@ -83,3 +83,41 @@ npm run lint:fix && npm run format
 - [Daily Development Workflow](docs/DEVELOPMENT_GUIDE.md#daily-development-workflow)
 - [Testing Guide](docs/DEVELOPMENT_GUIDE.md#testing-guide)
 - [Troubleshooting](docs/DEVELOPMENT_GUIDE.md#troubleshooting)
+- [Secret Management Guide](docs/security-secrets.md)
+
+## Database Migrations (TypeORM)
+
+The repo now supports explicit TypeORM migrations for release environments.
+
+- Local development (`NODE_ENV=development`): entity `synchronize` stays enabled for fast iteration.
+- Staging/Production: `synchronize` is disabled; apply schema changes with migrations.
+
+### Scripts
+
+```bash
+# TypeORM CLI wrapper (uses apps/api/src/typeorm/data-source.ts)
+npm run typeorm -- <typeorm-command>
+
+# Generate migration from current entity metadata
+npm run migration:generate -- libs/data-access/src/lib/migrations/<MigrationName>
+
+# Create empty migration file
+npm run migration:create -- libs/data-access/src/lib/migrations/<MigrationName>
+
+# Apply or rollback migrations
+npm run migration:run
+npm run migration:revert
+```
+
+### Workflow
+
+1. Update entities under `libs/data-access/src/lib/entities`.
+2. Generate migration:
+   `npm run migration:generate -- libs/data-access/src/lib/migrations/<MigrationName>`
+3. Review the generated SQL carefully.
+4. Apply locally with `npm run migration:run`.
+5. Deploy and run `npm run migration:run` in staging, then production.
+
+Initial baseline migration:
+
+- `libs/data-access/src/lib/migrations/1772130132263-InitialSchema.ts`

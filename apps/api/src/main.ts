@@ -8,8 +8,11 @@ import { existsSync } from 'fs';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
+import { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app/app.module';
 import { normalizeNodeEnv, resolveEnvFilePaths } from '@khana/shared-utils';
+import { validateJwtSecretsOrThrow } from './app/config/secret-validation';
 import {
   AppLoggerService,
   HttpLoggingInterceptor,
@@ -28,6 +31,41 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const nodeEnv = normalizeNodeEnv(configService.get<string>('NODE_ENV'));
+  validateJwtSecretsOrThrow(nodeEnv, configService);
+  const trustProxy =
+    (configService.get<string>('TRUST_PROXY') ?? 'false').toLowerCase() ===
+    'true';
+
+  if (trustProxy) {
+    expressApp.set('trust proxy', 1);
+  }
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      referrerPolicy: { policy: 'no-referrer' },
+      frameguard: { action: 'deny' },
+      hsts: false,
+    })
+  );
+
+  if (nodeEnv === 'production') {
+    const hstsMiddleware = helmet.hsts({
+      maxAge: 15_552_000,
+      includeSubDomains: true,
+      preload: false,
+    });
+
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (!req.secure) {
+        next();
+        return;
+      }
+
+      hstsMiddleware(req, res, next);
+    });
+  }
 
   // Global prefix for all routes
   const globalPrefix = configService.get<string>('API_PREFIX') || 'api';

@@ -26,15 +26,19 @@ const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
     LoggingModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres' as const,
-        url: configService.get<string>('DATABASE_URL'),
-        autoLoadEntities: true,
-        // TODO(PROD): replace synchronize with migrations in production.
-        synchronize:
-          normalizeNodeEnv(configService.get<string>('NODE_ENV')) !==
-          'production',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const runtimeEnv = normalizeNodeEnv(
+          configService.get<string>('NODE_ENV')
+        );
+
+        return {
+          type: 'postgres' as const,
+          url: configService.get<string>('DATABASE_URL'),
+          autoLoadEntities: true,
+          // Keep entity auto-sync for local developer velocity only.
+          synchronize: runtimeEnv === 'development',
+        };
+      },
       inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([Tenant, Facility, User, AuditLog]),

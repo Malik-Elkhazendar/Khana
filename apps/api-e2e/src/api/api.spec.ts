@@ -113,6 +113,18 @@ describe('API', () => {
       expect(res.headers['x-request-id']).toBeTruthy();
     });
 
+    it('should include API security headers', async () => {
+      const res = await axios.get(`/api`);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['x-powered-by']).toBeUndefined();
+      expect(res.headers['x-content-type-options']).toBe('nosniff');
+      expect(res.headers['x-frame-options']).toBe('DENY');
+      expect(res.headers['referrer-policy']).toBe('no-referrer');
+      expect(res.headers['content-security-policy']).toBeUndefined();
+      expect(res.headers['strict-transport-security']).toBeUndefined();
+    });
+
     it('should echo a valid custom x-request-id header', async () => {
       const customRequestId = 'trace-id/e2e-123';
       const res = await axios.get(`/api`, {
