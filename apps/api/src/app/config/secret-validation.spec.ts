@@ -67,8 +67,8 @@ describe('validateJwtSecretsOrThrow', () => {
 
   it('passes in production with strong secrets', () => {
     const configService = createConfigService({
-      JWT_SECRET: 'wTRh6f9LQ2Z7mN8pV4xC1dK5sR0tY3uB',
-      JWT_REFRESH_SECRET: 'pV7kR2zM9nX3cD6tF1wQ8eL4sH0aJ5uY',
+      JWT_SECRET: 'prod-jwt-secret-0123456789-0123456789',
+      JWT_REFRESH_SECRET: 'prod-refresh-secret-0123456789-0123456789',
     });
 
     expect(() =>
