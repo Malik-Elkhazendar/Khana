@@ -78,3 +78,13 @@ export interface NewBookingAlertData {
   totalAmount: number;
   currency: string;
 }
+
+export interface TeamInviteData {
+  recipientEmail: string;
+  recipientName: string;
+  invitedByName: string;
+  role: string;
+  inviteUrl?: string;
+  inviteToken: string;
+  expiresAt: Date;
+}

@@ -10,6 +10,7 @@ import {
   CancellationData,
   RefundData,
   NewBookingAlertData,
+  TeamInviteData,
 } from '../interfaces/email.interface';
 import { securityAlertTemplate } from '../templates/security-alert.template';
 import { passwordChangedTemplate } from '../templates/password-changed.template';
@@ -19,6 +20,7 @@ import { cancellationTemplate } from '../templates/cancellation.template';
 import { refundTemplate } from '../templates/refund.template';
 import { newBookingAlertTemplate } from '../templates/new-booking-alert.template';
 import { passwordResetTemplate } from '../templates/password-reset.template';
+import { teamInviteTemplate } from '../templates/team-invite.template';
 
 @Injectable()
 export class EmailService {
@@ -139,6 +141,19 @@ export class EmailService {
       `New Booking - ${data.bookingReference}`,
       html,
       'new_booking_alert'
+    );
+  }
+
+  /**
+   * Send team invitation email.
+   */
+  async sendTeamInviteNotification(data: TeamInviteData): Promise<void> {
+    const html = teamInviteTemplate(data);
+    await this.send(
+      data.recipientEmail,
+      'You are invited to join Khana',
+      html,
+      'team_invite'
     );
   }
 

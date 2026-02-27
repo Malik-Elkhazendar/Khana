@@ -10,8 +10,13 @@ import {
   CreateFacilityRequestDto,
   FacilityListItemDto,
   FacilityManagementItemDto,
+  InviteUserRequestDto,
+  InviteUserResponseDto,
   PaymentStatus,
+  UpdateUserRoleRequestDto,
+  UpdateUserStatusRequestDto,
   UpdateFacilityRequestDto,
+  UserDto,
 } from '@khana/shared-dtos';
 import { environment } from '../../../environments/environment';
 import { LoggerService } from './logger.service';
@@ -119,6 +124,52 @@ export class ApiService {
     return this.http
       .delete<FacilityManagementItemDto>(`${this.baseUrl}/v1/facilities/${id}`)
       .pipe(catchError(this.handleError('deactivate facility')));
+  }
+
+  // ============================================================
+  // USERS
+  // ============================================================
+
+  /**
+   * List all team members in current tenant
+   */
+  listUsers(): Observable<UserDto[]> {
+    return this.http
+      .get<UserDto[]>(`${this.baseUrl}/v1/users`)
+      .pipe(catchError(this.handleError('load users')));
+  }
+
+  /**
+   * Update role of a team member
+   */
+  updateUserRole(
+    id: string,
+    request: UpdateUserRoleRequestDto
+  ): Observable<UserDto> {
+    return this.http
+      .patch<UserDto>(`${this.baseUrl}/v1/users/${id}/role`, request)
+      .pipe(catchError(this.handleError('update user role')));
+  }
+
+  /**
+   * Activate or deactivate team member
+   */
+  updateUserStatus(
+    id: string,
+    request: UpdateUserStatusRequestDto
+  ): Observable<UserDto> {
+    return this.http
+      .patch<UserDto>(`${this.baseUrl}/v1/users/${id}/status`, request)
+      .pipe(catchError(this.handleError('update user status')));
+  }
+
+  /**
+   * Invite new team member by email
+   */
+  inviteUser(request: InviteUserRequestDto): Observable<InviteUserResponseDto> {
+    return this.http
+      .post<InviteUserResponseDto>(`${this.baseUrl}/v1/users/invite`, request)
+      .pipe(catchError(this.handleError('invite user')));
   }
 
   // ============================================================

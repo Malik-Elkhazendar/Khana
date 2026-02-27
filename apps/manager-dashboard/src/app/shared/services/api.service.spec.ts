@@ -12,6 +12,7 @@ import {
   BookingPreviewRequestDto,
   BookingStatus,
   PaymentStatus,
+  UserRole,
 } from '@khana/shared-dtos';
 
 describe('ApiService', () => {
@@ -111,6 +112,54 @@ describe('ApiService', () => {
     const req = httpMock.expectOne(`${API_BASE_URL}/v1/facilities/facility-1`);
     expect(req.request.method).toBe('DELETE');
     req.flush({});
+  });
+
+  it('should list users using configured API base URL', () => {
+    service.listUsers().subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/users`);
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
+  it('should update user role using configured API base URL', () => {
+    service
+      .updateUserRole('user-1', {
+        role: UserRole.MANAGER,
+      })
+      .subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/users/user-1/role`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ role: UserRole.MANAGER });
+    req.flush({});
+  });
+
+  it('should update user status using configured API base URL', () => {
+    service
+      .updateUserStatus('user-1', {
+        isActive: false,
+      })
+      .subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/users/user-1/status`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ isActive: false });
+    req.flush({});
+  });
+
+  it('should invite user using configured API base URL', () => {
+    const request = {
+      email: 'new.staff@khana.dev',
+      role: UserRole.STAFF,
+    };
+
+    service.inviteUser(request).subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/users/invite`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(request);
+    req.flush({ message: 'Invitation sent successfully.', user: {} });
   });
 
   it('should request bookings with facilityId query param', () => {

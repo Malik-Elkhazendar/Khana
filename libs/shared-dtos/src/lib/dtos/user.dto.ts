@@ -123,6 +123,36 @@ export interface LoginResponseDto {
 }
 
 /**
+ * Request DTO for updating a user's role
+ */
+export interface UpdateUserRoleRequestDto {
+  role: UserRole;
+}
+
+/**
+ * Request DTO for activating/deactivating a user
+ */
+export interface UpdateUserStatusRequestDto {
+  isActive: boolean;
+}
+
+/**
+ * Request DTO for inviting a new team member
+ */
+export interface InviteUserRequestDto {
+  email: string;
+  role: Exclude<UserRole, UserRole.OWNER>;
+}
+
+/**
+ * Response DTO for invite operation
+ */
+export interface InviteUserResponseDto {
+  message: string;
+  user: UserDto;
+}
+
+/**
  * Summary DTO for user lists
  */
 export interface UserSummaryDto {

@@ -12,7 +12,7 @@
       <button
         type="button"
         class="dashboard-btn dashboard-btn--secondary"
-        (click)="refreshCurrentUser()"
+        (click)="retry()"
       >
         {{ 'DASHBOARD.ACTIONS.REFRESH' | translate }}
       </button>
@@ -25,41 +25,152 @@
     </p>
 
     <p class="team-state team-state--error" *ngIf="error() && !loading()">
-      {{ error()! | translate }}
+      {{ error() }}
     </p>
 
-    <div class="team-profile" *ngIf="!loading() && currentUser() as user">
-      <h2 class="team-profile__title">
-        {{ 'DASHBOARD.PAGES.TEAM.CURRENT_MEMBER' | translate }}
-      </h2>
-      <dl class="team-profile__details">
-        <div>
-          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.NAME' | translate }}</dt>
-          <dd>{{ user.name }}</dd>
-        </div>
-        <div>
-          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.EMAIL' | translate }}</dt>
-          <dd>{{ user.email }}</dd>
-        </div>
-        <div>
-          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.ROLE' | translate }}</dt>
-          <dd>{{ user.role }}</dd>
-        </div>
-        <div>
-          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.STATUS' | translate }}</dt>
-          <dd>
-            {{
-              user.isActive
-                ? ('DASHBOARD.PAGES.TEAM.STATUS.ACTIVE' | translate)
-                : ('DASHBOARD.PAGES.TEAM.STATUS.INACTIVE' | translate)
-            }}
-          </dd>
-        </div>
-        <div>
-          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.TENANT' | translate }}</dt>
-          <dd>{{ user.tenantId }}</dd>
-        </div>
-      </dl>
+    <p class="team-state" *ngIf="!loading() && users().length === 0">
+      {{ 'DASHBOARD.PAGES.TEAM.EMPTY' | translate }}
+    </p>
+
+    <div class="team-state team-state--error" *ngIf="actionError()">
+      {{ actionError() }}
     </div>
+
+    <div class="table-wrap" *ngIf="!loading() && users().length > 0">
+      <table class="team-table">
+        <thead>
+          <tr>
+            <th>{{ 'DASHBOARD.PAGES.TEAM.TABLE.STATUS' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.TEAM.TABLE.NAME' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.TEAM.TABLE.EMAIL' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.TEAM.TABLE.ROLE' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.TEAM.TABLE.LAST_LOGIN' | translate }}</th>
+            <th *ngIf="isOwner()">
+              {{ 'DASHBOARD.PAGES.TEAM.TABLE.ACTIONS' | translate }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of users(); trackBy: trackByUserId">
+            <td>
+              <app-ui-status-badge
+                [label]="
+                  (user.isActive
+                    ? 'DASHBOARD.PAGES.TEAM.STATUS.ACTIVE'
+                    : 'DASHBOARD.PAGES.TEAM.STATUS.INACTIVE'
+                  ) | translate
+                "
+                [tone]="user.isActive ? 'success' : 'neutral'"
+              ></app-ui-status-badge>
+            </td>
+            <td>{{ user.name }}</td>
+            <td>{{ user.email }}</td>
+            <td>
+              <ng-container *ngIf="isOwner(); else roleText">
+                <select
+                  [value]="user.role"
+                  [disabled]="
+                    !canManageUser(user) ||
+                    isRoleUpdating(user.id) ||
+                    isStatusUpdating(user.id)
+                  "
+                  (change)="onRoleChange(user, $any($event.target).value)"
+                >
+                  <option [value]="user.role" *ngIf="isOwnerUser(user)">
+                    {{ 'DASHBOARD.PAGES.TEAM.ROLES.' + user.role | translate }}
+                  </option>
+                  <option
+                    *ngFor="let role of assignableRoles"
+                    [value]="role"
+                    [selected]="role === user.role"
+                  >
+                    {{ 'DASHBOARD.PAGES.TEAM.ROLES.' + role | translate }}
+                  </option>
+                </select>
+              </ng-container>
+              <ng-template #roleText>
+                <app-ui-status-badge
+                  [label]="
+                    'DASHBOARD.PAGES.TEAM.ROLES.' + user.role | translate
+                  "
+                  [tone]="roleBadgeTone(user.role)"
+                ></app-ui-status-badge>
+              </ng-template>
+            </td>
+            <td>{{ formatDate(user.lastLoginAt) }}</td>
+            <td *ngIf="isOwner()">
+              <button
+                type="button"
+                class="dashboard-btn dashboard-btn--ghost"
+                [disabled]="
+                  !canManageUser(user) ||
+                  isStatusUpdating(user.id) ||
+                  isRoleUpdating(user.id)
+                "
+                (click)="toggleUserStatus(user)"
+              >
+                {{
+                  (user.isActive
+                    ? 'DASHBOARD.PAGES.TEAM.ACTIONS.DEACTIVATE'
+                    : 'DASHBOARD.PAGES.TEAM.ACTIONS.ACTIVATE'
+                  ) | translate
+                }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard-card invite-panel" *ngIf="isOwner()">
+    <header class="invite-panel__header">
+      <h2>{{ 'DASHBOARD.PAGES.TEAM.INVITE.TITLE' | translate }}</h2>
+      <p>{{ 'DASHBOARD.PAGES.TEAM.INVITE.SUBTITLE' | translate }}</p>
+    </header>
+
+    <form
+      class="invite-form"
+      [formGroup]="inviteForm"
+      (ngSubmit)="submitInvite()"
+    >
+      <label>
+        <span>{{ 'DASHBOARD.PAGES.TEAM.INVITE.EMAIL' | translate }}</span>
+        <input type="email" formControlName="email" />
+      </label>
+
+      <label>
+        <span>{{ 'DASHBOARD.PAGES.TEAM.INVITE.ROLE' | translate }}</span>
+        <select formControlName="role">
+          <option *ngFor="let role of assignableRoles" [value]="role">
+            {{ 'DASHBOARD.PAGES.TEAM.ROLES.' + role | translate }}
+          </option>
+        </select>
+      </label>
+
+      <p
+        class="team-state team-state--error"
+        *ngIf="
+          inviteForm.controls.email.invalid && inviteForm.controls.email.touched
+        "
+      >
+        {{ 'DASHBOARD.PAGES.TEAM.INVITE.ERROR_EMAIL' | translate }}
+      </p>
+
+      <p class="team-state team-state--error" *ngIf="inviteError()">
+        {{ inviteError() }}
+      </p>
+      <p class="team-state team-state--success" *ngIf="inviteMessage()">
+        {{ inviteMessage() }}
+      </p>
+
+      <button
+        type="submit"
+        class="dashboard-btn dashboard-btn--primary"
+        [disabled]="inviteLoading() || inviteForm.invalid"
+      >
+        {{ 'DASHBOARD.PAGES.TEAM.INVITE.SUBMIT' | translate }}
+      </button>
+    </form>
   </section>
 </main>

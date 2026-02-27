@@ -9,6 +9,9 @@ import {
   BookingPreviewResponseDto,
   FacilityListItemDto,
   FacilityManagementItemDto,
+  InviteUserResponseDto,
+  UserDto,
+  UserRole,
 } from '@khana/shared-dtos';
 
 export type ApiServiceMock = {
@@ -18,6 +21,10 @@ export type ApiServiceMock = {
   createFacility: jest.Mock;
   updateFacility: jest.Mock;
   deactivateFacility: jest.Mock;
+  listUsers: jest.Mock;
+  updateUserRole: jest.Mock;
+  updateUserStatus: jest.Mock;
+  inviteUser: jest.Mock;
   getBookings: jest.Mock;
   previewBooking: jest.Mock;
   createBooking: jest.Mock;
@@ -46,6 +53,20 @@ export const createApiMock = (
   };
   const booking = createBooking();
   const preview = createBookingPreview();
+  const user: UserDto = {
+    id: 'user-1',
+    tenantId: 'tenant-1',
+    email: 'owner@khana.dev',
+    name: 'Owner',
+    role: UserRole.OWNER,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  const inviteResponse: InviteUserResponseDto = {
+    message: 'Invitation sent successfully.',
+    user,
+  };
 
   return {
     getFacilities: jest.fn(() => of<FacilityListItemDto[]>([facility])),
@@ -64,6 +85,10 @@ export const createApiMock = (
     deactivateFacility: jest.fn(() =>
       of<FacilityManagementItemDto>({ ...managedFacility, isActive: false })
     ),
+    listUsers: jest.fn(() => of<UserDto[]>([user])),
+    updateUserRole: jest.fn(() => of<UserDto>(user)),
+    updateUserStatus: jest.fn(() => of<UserDto>(user)),
+    inviteUser: jest.fn(() => of<InviteUserResponseDto>(inviteResponse)),
     getBookings: jest.fn(() => of<BookingListItemDto[]>([booking])),
     previewBooking: jest.fn(() => of<BookingPreviewResponseDto>(preview)),
     createBooking: jest.fn(() => of<BookingListItemDto>(booking)),

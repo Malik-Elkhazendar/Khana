@@ -209,20 +209,38 @@
       },
       "TEAM": {
         "TITLE": "Team",
-        "SUBTITLE": "Current authenticated team member profile",
-        "LOADING": "Loading team data...",
-        "ERROR": "Unable to load team member data.",
-        "CURRENT_MEMBER": "Current Team Member",
-        "FIELDS": {
+        "SUBTITLE": "Manage team members, roles, and account access",
+        "LOADING": "Loading team members...",
+        "EMPTY": "No team members found for this tenant.",
+        "TABLE": {
+          "STATUS": "Status",
           "NAME": "Name",
           "EMAIL": "Email",
           "ROLE": "Role",
-          "STATUS": "Status",
-          "TENANT": "Tenant ID"
+          "LAST_LOGIN": "Last Login",
+          "ACTIONS": "Actions"
         },
         "STATUS": {
           "ACTIVE": "Active",
           "INACTIVE": "Inactive"
+        },
+        "ROLES": {
+          "OWNER": "Owner",
+          "MANAGER": "Manager",
+          "STAFF": "Staff",
+          "VIEWER": "Viewer"
+        },
+        "ACTIONS": {
+          "ACTIVATE": "Activate",
+          "DEACTIVATE": "Deactivate"
+        },
+        "INVITE": {
+          "TITLE": "Invite Team Member",
+          "SUBTITLE": "Send an email invitation with an assigned role.",
+          "EMAIL": "Email Address",
+          "ROLE": "Role",
+          "SUBMIT": "Send Invitation",
+          "ERROR_EMAIL": "A valid email address is required."
         }
       },
       "SETTINGS": {

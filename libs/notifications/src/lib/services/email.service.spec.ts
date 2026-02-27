@@ -10,6 +10,7 @@ import {
   CancellationData,
   RefundData,
   NewBookingAlertData,
+  TeamInviteData,
 } from '../interfaces/email.interface';
 
 describe('EmailService', () => {
@@ -319,6 +320,46 @@ describe('EmailService', () => {
       mailerService.sendMail.mockRejectedValueOnce(new Error('SMTP error'));
 
       await expect(service.sendNewBookingAlert(data)).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendTeamInviteNotification', () => {
+    const data: TeamInviteData = {
+      recipientEmail: 'new.member@example.com',
+      recipientName: 'New Member',
+      invitedByName: 'Owner User',
+      role: 'MANAGER',
+      inviteUrl: 'http://localhost:4200/reset-password?token=invite-token',
+      inviteToken: 'invite-token',
+      expiresAt: new Date('2026-03-10T10:00:00Z'),
+    };
+
+    it('should send team invitation email', async () => {
+      await service.sendTeamInviteNotification(data);
+
+      expect(mailerService.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'new.member@example.com',
+          subject: 'You are invited to join Khana',
+          html: expect.stringContaining('Team Invitation'),
+        })
+      );
+    });
+
+    it('should include inviter and role details', async () => {
+      await service.sendTeamInviteNotification(data);
+
+      const call = mailerService.sendMail.mock.calls[0][0];
+      expect(call.html).toContain('Owner User');
+      expect(call.html).toContain('MANAGER');
+    });
+
+    it('should not throw on mailer failure', async () => {
+      mailerService.sendMail.mockRejectedValueOnce(new Error('SMTP error'));
+
+      await expect(
+        service.sendTeamInviteNotification(data)
+      ).resolves.not.toThrow();
     });
   });
 });
