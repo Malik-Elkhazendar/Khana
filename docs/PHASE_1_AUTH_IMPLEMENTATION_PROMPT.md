@@ -1213,6 +1213,13 @@ export class BookingsController {
 - `@CurrentUser()`: Inject current user
 - TODO comments: Phase 2 (data scoping)
 
+**Status (Phase 2 complete - February 27, 2026)**:
+
+- Booking list is role-scoped (`STAFF` sees own bookings only; `OWNER`/`MANAGER`/`VIEWER` can view tenant bookings).
+- Booking creation always sets `createdByUserId`; `VIEWER` creation is forbidden (`403`).
+- Booking status updates enforce ownership and role rules (`STAFF` can cancel own bookings only; `VIEWER` cannot mutate bookings).
+- Frontend route/nav/action visibility is aligned (`VIEWER` cannot access `/dashboard/new` and has read-only booking UI).
+
 ---
 
 ### 1.9 Environment Configuration

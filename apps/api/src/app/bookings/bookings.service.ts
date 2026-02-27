@@ -15,7 +15,12 @@ import {
   calculatePrice,
 } from '@khana/booking-engine';
 import { Booking, Facility, User } from '@khana/data-access';
-import { BookingStatus, PaymentStatus, SlotStatus } from '@khana/shared-dtos';
+import {
+  BookingStatus,
+  PaymentStatus,
+  SlotStatus,
+  UserRole,
+} from '@khana/shared-dtos';
 import { addMinutes } from '@khana/shared-utils';
 import { EmailService } from '@khana/notifications';
 import { AppLoggerService, LOG_EVENTS } from '../logging';
@@ -66,8 +71,14 @@ export class BookingsService {
     private readonly appLogger: AppLoggerService
   ) {}
 
-  async findAll(tenantId: string, facilityId?: string): Promise<Booking[]> {
+  async findAll(
+    tenantId: string,
+    user: User,
+    facilityId?: string
+  ): Promise<Booking[]> {
     const resolvedTenantId = this.requireTenantId(tenantId);
+    const actorRole = this.requireUserRole(user?.role);
+    const actorUserId = this.requireUserId(user?.id);
     const now = new Date();
 
     const expiredPendingBookings = await this.bookingRepository
@@ -104,6 +115,10 @@ export class BookingsService {
 
     if (facilityId) {
       query.andWhere('facility.id = :facilityId', { facilityId });
+    }
+
+    if (this.isStaff(actorRole)) {
+      query.andWhere('booking.createdByUserId = :actorUserId', { actorUserId });
     }
 
     return query.getMany();
@@ -209,10 +224,16 @@ export class BookingsService {
   async createBooking(
     dto: CreateBookingDto,
     tenantId: string,
-    userId: string
+    userId: string,
+    userRole: string
   ): Promise<Booking> {
     const resolvedTenantId = this.requireTenantId(tenantId);
     const resolvedUserId = this.requireUserId(userId);
+    const actorRole = this.requireUserRole(userRole);
+
+    if (this.isViewer(actorRole)) {
+      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
+    }
 
     // 1. Fetch facility with ownership validation
     const facility = await this.validateFacilityOwnership(
@@ -363,10 +384,29 @@ export class BookingsService {
   async updateStatus(
     id: string,
     dto: UpdateBookingStatusDto,
-    tenantId: string
+    tenantId: string,
+    user: User
   ): Promise<Booking> {
     const resolvedTenantId = this.requireTenantId(tenantId);
+    const actorRole = this.requireUserRole(user?.role);
+    const actorUserId = this.requireUserId(user?.id);
+
+    if (this.isViewer(actorRole)) {
+      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
+    }
+
     const booking = await this.validateBookingOwnership(id, resolvedTenantId);
+
+    if (this.isStaff(actorRole)) {
+      const ownsBooking = booking.createdByUserId === actorUserId;
+      const isCancelAction =
+        dto.status === BookingStatus.CANCELLED &&
+        typeof dto.paymentStatus === 'undefined';
+
+      if (!ownsBooking || !isCancelAction) {
+        throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
+      }
+    }
 
     const effectiveStatus = dto.status ?? booking.status;
     const previousStatus = booking.status;
@@ -449,6 +489,27 @@ export class BookingsService {
     }
 
     return userId;
+  }
+
+  private requireUserRole(role?: string): UserRole {
+    if (
+      role === UserRole.OWNER ||
+      role === UserRole.MANAGER ||
+      role === UserRole.STAFF ||
+      role === UserRole.VIEWER
+    ) {
+      return role;
+    }
+
+    throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
+  }
+
+  private isStaff(role: UserRole): boolean {
+    return role === UserRole.STAFF;
+  }
+
+  private isViewer(role: UserRole): boolean {
+    return role === UserRole.VIEWER;
   }
 
   private async validateFacilityOwnership(

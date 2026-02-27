@@ -3,12 +3,25 @@ import { ElementRef, signal } from '@angular/core';
 import { BookingCalendarComponent } from './booking-calendar.component';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { FacilityContextStore } from '../../shared/state';
-import { BookingStatus, PaymentStatus } from '@khana/shared-dtos';
+import { AuthStore } from '../../shared/state/auth.store';
+import { BookingStatus, PaymentStatus, UserRole } from '@khana/shared-dtos';
 import { createBooking } from '../../testing/factories';
 import { createStoreMock, BookingStoreMock } from '../../testing/store-mocks';
 
 describe('BookingCalendarComponent', () => {
   let storeMock: BookingStoreMock;
+  const authStoreMock = {
+    user: signal({
+      id: 'manager-1',
+      tenantId: 'tenant-1',
+      email: 'manager@example.com',
+      name: 'Manager User',
+      role: UserRole.MANAGER,
+      isActive: true,
+      createdAt: new Date('2025-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+    }),
+  };
   const facilityContextMock = {
     facilities: signal([]),
     selectedFacilityId: signal<string | null>(null),
@@ -44,6 +57,16 @@ describe('BookingCalendarComponent', () => {
     jest.useFakeTimers();
     jest.setSystemTime(baseDate);
     storeMock = createStoreMock();
+    authStoreMock.user.set({
+      id: 'manager-1',
+      tenantId: 'tenant-1',
+      email: 'manager@example.com',
+      name: 'Manager User',
+      role: UserRole.MANAGER,
+      isActive: true,
+      createdAt: new Date('2025-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+    });
     facilityContextMock.initialize.mockReset();
     facilityContextMock.refreshFacilities.mockReset();
     facilityContextMock.selectFacility.mockReset();
@@ -56,6 +79,7 @@ describe('BookingCalendarComponent', () => {
       providers: [
         { provide: BookingStore, useValue: storeMock },
         { provide: FacilityContextStore, useValue: facilityContextMock },
+        { provide: AuthStore, useValue: authStoreMock },
       ],
     }).compileComponents();
   });
@@ -71,6 +95,61 @@ describe('BookingCalendarComponent', () => {
     setupComponent();
 
     expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
+  });
+
+  it('shows confirm/pay/cancel actions for manager role', () => {
+    authStoreMock.user.update((user) => ({ ...user, role: UserRole.MANAGER }));
+    const booking = createTimedBooking({ id: 'booking-manager-actions' });
+    const { fixture, component } = setupComponent([booking]);
+
+    component.openBooking(booking);
+    fixture.detectChanges();
+
+    const actionButtons = Array.from(
+      fixture.nativeElement.querySelectorAll('.action-sheet__actions button')
+    ) as HTMLButtonElement[];
+    const actionLabels = actionButtons
+      .map((button) => button.textContent?.trim() ?? '')
+      .filter(Boolean);
+
+    expect(actionLabels).toEqual(
+      expect.arrayContaining(['Confirm', 'Mark Paid', 'Cancel'])
+    );
+  });
+
+  it('shows cancel-only actions for staff role', () => {
+    authStoreMock.user.update((user) => ({ ...user, role: UserRole.STAFF }));
+    const booking = createTimedBooking({ id: 'booking-staff-actions' });
+    const { fixture, component } = setupComponent([booking]);
+
+    component.openBooking(booking);
+    fixture.detectChanges();
+
+    const actionButtons = Array.from(
+      fixture.nativeElement.querySelectorAll('.action-sheet__actions button')
+    ) as HTMLButtonElement[];
+    const actionLabels = actionButtons
+      .map((button) => button.textContent?.trim() ?? '')
+      .filter(Boolean);
+
+    expect(actionLabels).toEqual(['Cancel']);
+  });
+
+  it('shows read-only actions for viewer role', () => {
+    authStoreMock.user.update((user) => ({ ...user, role: UserRole.VIEWER }));
+    const booking = createTimedBooking({ id: 'booking-viewer-actions' });
+    const { fixture, component } = setupComponent([booking]);
+
+    component.openBooking(booking);
+    fixture.detectChanges();
+
+    const actionButtons = fixture.nativeElement.querySelectorAll(
+      '.action-sheet__actions button'
+    );
+    const panelText = fixture.nativeElement.textContent;
+
+    expect(actionButtons.length).toBe(0);
+    expect(panelText).toContain('read-only access');
   });
 
   it('renders error banner and retries loading bookings', () => {

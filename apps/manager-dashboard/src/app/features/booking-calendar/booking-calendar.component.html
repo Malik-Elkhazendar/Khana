@@ -108,6 +108,7 @@
           text(
             'BOOKING_CALENDAR.ERRORS.NEXT_RETRY_AT',
             'Next retry at {{time
+
         }}', { time: formatLastUpdated(retryScheduledAt()) } ) }}
       </p>
       } @if (lastSuccessfulAt()) {
@@ -116,6 +117,7 @@
           text(
             'BOOKING_CALENDAR.ERRORS.SHOWING_LAST_UPDATED',
             'Showing last updated {{time
+
         }}', { time: formatLastUpdated(lastSuccessfulAt()) } ) }}
       </p>
       }
@@ -221,6 +223,7 @@
       <p>
         {{
         text('BOOKING_CALENDAR.STATE.NO_BOOKINGS_FOR_DAY', 'No bookings for {{day
+
         }}', { day: selectedDayLabel() }) }}
       </p>
     </div>
@@ -426,6 +429,7 @@
   </div>
 
   <div class="action-sheet__actions">
+    @if (canConfirm()) {
     <button
       type="button"
       class="btn primary"
@@ -434,6 +438,7 @@
     >
       {{ text('BOOKING_CALENDAR.ACTIONS.CONFIRM', 'Confirm') }}
     </button>
+    } @if (canMarkPaid()) {
     <button
       type="button"
       class="btn secondary"
@@ -442,6 +447,7 @@
     >
       {{ text('BOOKING_CALENDAR.ACTIONS.MARK_PAID', 'Mark Paid') }}
     </button>
+    } @if (canCancel()) {
     <button
       type="button"
       class="btn danger"
@@ -461,6 +467,15 @@
         text(
           'BOOKING_CALENDAR.ACTIONS.PAID_BOOKING_NOTE',
           'Paid booking - cancellation will require refund once payment gateway is integrated.'
+        )
+      }}
+    </p>
+    } } @if (!canConfirm() && !canMarkPaid() && !canCancel()) {
+    <p class="action-sheet__note">
+      {{
+        text(
+          'BOOKING_CALENDAR.ACTIONS.READ_ONLY',
+          'This account has read-only access.'
         )
       }}
     </p>

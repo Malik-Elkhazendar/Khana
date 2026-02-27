@@ -107,6 +107,9 @@ export const appRoutes: Route[] = [
       {
         path: 'new',
         component: BookingPreviewComponent,
+        canActivate: [
+          roleGuard([UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF]),
+        ],
         title: 'New Booking | Khana',
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.NEW_BOOKING',

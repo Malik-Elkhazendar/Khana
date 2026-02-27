@@ -177,6 +177,7 @@
         >
           {{ text('BOOKING_LIST.ACTIONS.EXPORT_CSV', 'Export CSV') }}
         </button>
+        @if (canCancel()) {
         <button
           type="button"
           class="btn-ghost btn-ghost--danger"
@@ -187,7 +188,7 @@
         >
           {{ text('BOOKING_LIST.ACTIONS.CANCEL_SELECTED', 'Cancel Selected') }}
         </button>
-        @if (selectionCount() > 0) {
+        } @if (selectionCount() > 0) {
         <button type="button" class="btn-ghost" (click)="clearSelection()">
           {{ text('BOOKING_LIST.ACTIONS.CLEAR', 'Clear') }}
         </button>
@@ -202,12 +203,14 @@
       } @else if (bookings().length === 0) {
       <div class="table-empty" role="status" aria-live="polite">
         <p>{{ text('BOOKING_LIST.STATE.NO_BOOKINGS', 'No bookings yet.') }}</p>
+        @if (canCreateNew()) {
         <a class="btn-ghost" routerLink="/dashboard/new">{{
           text(
             'BOOKING_LIST.STATE.CREATE_FIRST_BOOKING',
             'Create your first booking'
           )
         }}</a>
+        }
       </div>
       } @else if (totalFilteredCount() === 0) {
       <div class="table-empty" role="status" aria-live="polite">
@@ -229,6 +232,7 @@
           <thead>
             <tr>
               <th scope="col" class="col-select">
+                @if (canCancel()) {
                 <input
                   type="checkbox"
                   [checked]="allPageSelected()"
@@ -241,6 +245,7 @@
                   "
                   (change)="toggleSelectAllOnPage($any($event.target).checked)"
                 />
+                }
               </th>
               <th
                 scope="col"
@@ -329,6 +334,7 @@
               (keydown)="onRowKeydown($event, rowIndex)"
             >
               <td class="col-select">
+                @if (canCancel()) {
                 <input
                   type="checkbox"
                   [checked]="selectedBookingIds().has(booking.id)"
@@ -344,6 +350,7 @@
                     toggleBookingSelection(booking, $any($event.target).checked)
                   "
                 />
+                }
               </td>
               <td class="col-date">{{ formatDate(booking.startTime) }}</td>
               <td class="col-time-range">
@@ -368,6 +375,7 @@
                       'BOOKING_LIST.TABLE.HOLD_UNTIL',
                       'Reserved until {{time
 
+
                   }}', { time: formatTime(booking.holdUntil) } ) }}
                 </div>
                 }
@@ -386,8 +394,8 @@
               </td>
               <td class="col-actions">
                 <div class="actions">
-                  @if ( booking.status !== BookingStatus.CANCELLED &&
-                  booking.paymentStatus !== PaymentStatus.PAID &&
+                  @if (canCancel() && booking.status !== BookingStatus.CANCELLED
+                  && booking.paymentStatus !== PaymentStatus.PAID &&
                   booking.paymentStatus !== PaymentStatus.PARTIALLY_PAID ) {
                   <button
                     type="button"
@@ -424,9 +432,10 @@
                       <line x1="9" y1="9" x2="15" y2="15" />
                     </svg>
                   </button>
-                  } @if ( booking.status !== BookingStatus.CANCELLED &&
-                  (booking.paymentStatus === PaymentStatus.PAID ||
-                  booking.paymentStatus === PaymentStatus.PARTIALLY_PAID) ) {
+                  } @if (canCancel() && booking.status !==
+                  BookingStatus.CANCELLED && (booking.paymentStatus ===
+                  PaymentStatus.PAID || booking.paymentStatus ===
+                  PaymentStatus.PARTIALLY_PAID) ) {
                   <span class="actions__note">
                     {{
                       text(
@@ -435,8 +444,9 @@
                       )
                     }}
                   </span>
-                  } @if (booking.paymentStatus === PaymentStatus.PENDING &&
-                  booking.status !== BookingStatus.CANCELLED) {
+                  } @if (canMarkPaid() && booking.paymentStatus ===
+                  PaymentStatus.PENDING && booking.status !==
+                  BookingStatus.CANCELLED) {
                   <button
                     type="button"
                     class="btn-icon btn-icon--success"
@@ -496,6 +506,7 @@
                 [tone]="statusTone(booking.status)"
                 [label]="statusLabel(booking.status)"
               ></app-ui-status-badge>
+              @if (canCancel()) {
               <input
                 type="checkbox"
                 class="select-checkbox"
@@ -506,6 +517,7 @@
                   toggleBookingSelection(booking, $any($event.target).checked)
                 "
               />
+              }
             </div>
           </header>
           <div class="booking-card__body">
@@ -561,13 +573,14 @@
                     'BOOKING_LIST.TABLE.HOLD_UNTIL',
                     'Reserved until {{time
 
+
                 }}', { time: formatTime(booking.holdUntil) } ) }}
               </span>
             </div>
             }
           </div>
           <div class="booking-card__actions">
-            @if ( booking.status !== BookingStatus.CANCELLED &&
+            @if (canCancel() && booking.status !== BookingStatus.CANCELLED &&
             booking.paymentStatus !== PaymentStatus.PAID &&
             booking.paymentStatus !== PaymentStatus.PARTIALLY_PAID ) {
             <button
@@ -585,7 +598,7 @@
             >
               {{ text('BOOKING_LIST.ACTIONS.CANCEL', 'Cancel') }}
             </button>
-            } @if ( booking.status !== BookingStatus.CANCELLED &&
+            } @if (canCancel() && booking.status !== BookingStatus.CANCELLED &&
             (booking.paymentStatus === PaymentStatus.PAID ||
             booking.paymentStatus === PaymentStatus.PARTIALLY_PAID) ) {
             <span class="actions__note">
@@ -596,8 +609,9 @@
                 )
               }}
             </span>
-            } @if (booking.paymentStatus === PaymentStatus.PENDING &&
-            booking.status !== BookingStatus.CANCELLED) {
+            } @if (canMarkPaid() && booking.paymentStatus ===
+            PaymentStatus.PENDING && booking.status !== BookingStatus.CANCELLED)
+            {
             <button
               type="button"
               class="btn-icon btn-icon--success"
@@ -664,7 +678,7 @@
   </section>
 </main>
 
-@if (cancelDialogBooking(); as booking) {
+@if (canCancel()) { @if (cancelDialogBooking(); as booking) {
 <app-confirmation-dialog
   [title]="cancelDialogCopy.title"
   [message]="cancelDialogCopy.message"
@@ -708,7 +722,7 @@
   </p>
   }
 </app-confirmation-dialog>
-} @if (toast(); as notice) {
+} } @if (toast(); as notice) {
 <app-ui-toast
   [message]="notice.message"
   [tone]="notice.tone"

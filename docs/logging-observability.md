@@ -71,6 +71,19 @@ Core implementation:
 - `clientSessionId` is generated once per page load and attached to every client log.
 - `requestId` is propagated to frontend error logs when backend responses include `x-request-id`.
 
+## Booking RBAC (Phase 2)
+
+Role behavior for booking features:
+
+- `OWNER` / `MANAGER`: full booking visibility and status/payment actions.
+- `STAFF`: own bookings only; can cancel own bookings only.
+- `VIEWER`: read-only booking visibility; cannot create or update bookings.
+
+Frontend alignment:
+
+- `/dashboard/new` is restricted to `OWNER` / `MANAGER` / `STAFF`.
+- Viewer action controls are hidden in booking list and calendar.
+
 ## Redaction Policy
 
 ### Always redact

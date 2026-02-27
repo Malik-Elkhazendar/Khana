@@ -6,15 +6,18 @@ describe('API', () => {
   let bookedEndTime: string;
   let accessToken: string;
   let tenantId: string;
+  let currentUserRole: string;
 
   const tenantHeaders = () => ({
     'x-tenant-id': tenantId,
   });
 
-  const authHeaders = () => ({
-    Authorization: `Bearer ${accessToken}`,
+  const authHeadersFor = (token: string) => ({
+    Authorization: `Bearer ${token}`,
     ...tenantHeaders(),
   });
+
+  const authHeaders = () => authHeadersFor(accessToken);
 
   const findAvailableSlot = async (baseStartTime: Date) => {
     for (let offsetHours = 0; offsetHours < 16; offsetHours += 1) {
@@ -41,6 +44,75 @@ describe('API', () => {
     }
 
     throw new Error('No available booking slot found for e2e test setup');
+  };
+
+  const findAvailableSlotFor = async (
+    token: string,
+    targetFacilityId: string,
+    baseStartTime: Date
+  ) => {
+    for (let offsetHours = 0; offsetHours < 24; offsetHours += 1) {
+      const candidateStart = new Date(
+        baseStartTime.getTime() + offsetHours * 60 * 60 * 1000
+      );
+      const candidateEnd = new Date(candidateStart.getTime() + 60 * 60 * 1000);
+      const preview = await axios.post(
+        `/api/v1/bookings/preview`,
+        {
+          facilityId: targetFacilityId,
+          startTime: candidateStart.toISOString(),
+          endTime: candidateEnd.toISOString(),
+        },
+        { headers: authHeadersFor(token) }
+      );
+
+      if (preview.data?.canBook) {
+        return {
+          startTime: candidateStart.toISOString(),
+          endTime: candidateEnd.toISOString(),
+        };
+      }
+    }
+
+    throw new Error('No available booking slot found for role-scope test');
+  };
+
+  const registerWithRetryOnThrottle = async (
+    email: string,
+    name: string
+  ): Promise<{
+    accessToken: string;
+    user: { id: string; role: string };
+  }> => {
+    const maxAttempts = 2;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const res = await axios.post(
+          `/api/v1/auth/register`,
+          {
+            email,
+            password: 'Password123',
+            name,
+          },
+          {
+            headers: tenantHeaders(),
+          }
+        );
+
+        return res.data;
+      } catch (error: unknown) {
+        const status = (error as { response?: { status?: number } }).response
+          ?.status;
+        if (status !== 429 || attempt === maxAttempts) {
+          throw error;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 61000));
+      }
+    }
+
+    throw new Error('Registration retry exhausted');
   };
 
   const expectHttpError = async (
@@ -75,6 +147,7 @@ describe('API', () => {
       }
     );
     accessToken = registerRes.data.accessToken;
+    currentUserRole = registerRes.data.user?.role;
 
     const facilitiesRes = await axios.get(`/api/v1/bookings/facilities`, {
       headers: authHeaders(),
@@ -564,8 +637,128 @@ describe('API', () => {
           { status: 'CONFIRMED' },
           { headers: authHeaders() }
         ),
-        400
+        currentUserRole === 'STAFF' ? 403 : 400
       );
     });
+  });
+
+  describe('Bookings RBAC ownership and scoping', () => {
+    it('enforces staff own-only visibility and mutation rules', async () => {
+      const ownerRes = await registerWithRetryOnThrottle(
+        `bookings-rbac-owner-${Date.now()}@khana.dev`,
+        'RBAC Owner User'
+      );
+      const staffRes = await registerWithRetryOnThrottle(
+        `bookings-rbac-staff-${Date.now()}@khana.dev`,
+        'RBAC Staff User'
+      );
+
+      expect(staffRes.user?.role).toBe('STAFF');
+
+      const ownerToken = ownerRes.accessToken as string;
+      const staffToken = staffRes.accessToken as string;
+      const ownerUserId = ownerRes.user.id as string;
+      const staffUserId = staffRes.user.id as string;
+
+      const facilitiesRes = await axios.get(`/api/v1/bookings/facilities`, {
+        headers: authHeadersFor(ownerToken),
+      });
+      const scopedFacilityId = facilitiesRes.data?.[0]?.id as string;
+      expect(scopedFacilityId).toBeTruthy();
+
+      const ownerBase = new Date();
+      ownerBase.setDate(ownerBase.getDate() + 7);
+      ownerBase.setHours(8, 0, 0, 0);
+      const ownerSlot = await findAvailableSlotFor(
+        ownerToken,
+        scopedFacilityId,
+        ownerBase
+      );
+
+      const ownerBooking = await axios.post(
+        `/api/v1/bookings`,
+        {
+          facilityId: scopedFacilityId,
+          startTime: ownerSlot.startTime,
+          endTime: ownerSlot.endTime,
+          customerName: 'RBAC Owner Booking',
+          customerPhone: '+966511111111',
+        },
+        { headers: authHeadersFor(ownerToken) }
+      );
+      expect(ownerBooking.status).toBe(201);
+      expect(ownerBooking.data.createdByUserId).toBe(ownerUserId);
+
+      const staffBase = new Date(ownerBase.getTime() + 24 * 60 * 60 * 1000);
+      const staffSlot = await findAvailableSlotFor(
+        staffToken,
+        scopedFacilityId,
+        staffBase
+      );
+      const staffBooking = await axios.post(
+        `/api/v1/bookings`,
+        {
+          facilityId: scopedFacilityId,
+          startTime: staffSlot.startTime,
+          endTime: staffSlot.endTime,
+          customerName: 'RBAC Staff Booking',
+          customerPhone: '+966522222222',
+        },
+        { headers: authHeadersFor(staffToken) }
+      );
+      expect(staffBooking.status).toBe(201);
+      expect(staffBooking.data.createdByUserId).toBe(staffUserId);
+
+      const staffList = await axios.get(`/api/v1/bookings`, {
+        params: { facilityId: scopedFacilityId },
+        headers: authHeadersFor(staffToken),
+      });
+      expect(staffList.status).toBe(200);
+      expect(Array.isArray(staffList.data)).toBe(true);
+      expect(staffList.data.length).toBeGreaterThan(0);
+      expect(
+        staffList.data.every(
+          (booking: { createdByUserId?: string }) =>
+            booking.createdByUserId === staffUserId
+        )
+      ).toBe(true);
+      expect(
+        staffList.data.some(
+          (booking: { id: string }) => booking.id === ownerBooking.data.id
+        )
+      ).toBe(false);
+
+      await expectHttpError(
+        axios.patch(
+          `/api/v1/bookings/${ownerBooking.data.id}/status`,
+          {
+            status: 'CANCELLED',
+            cancellationReason: 'Attempt to cancel another user booking',
+          },
+          { headers: authHeadersFor(staffToken) }
+        ),
+        403
+      );
+
+      await expectHttpError(
+        axios.patch(
+          `/api/v1/bookings/${staffBooking.data.id}/status`,
+          { paymentStatus: 'PAID' },
+          { headers: authHeadersFor(staffToken) }
+        ),
+        403
+      );
+
+      const ownCancel = await axios.patch(
+        `/api/v1/bookings/${staffBooking.data.id}/status`,
+        {
+          status: 'CANCELLED',
+          cancellationReason: 'Staff own cancellation',
+        },
+        { headers: authHeadersFor(staffToken) }
+      );
+      expect(ownCancel.status).toBe(200);
+      expect(ownCancel.data.status).toBe('CANCELLED');
+    }, 120000);
   });
 });

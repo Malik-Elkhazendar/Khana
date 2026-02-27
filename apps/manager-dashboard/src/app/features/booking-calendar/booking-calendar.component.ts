@@ -16,12 +16,14 @@ import { CommonModule } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { FacilityContextStore } from '../../shared/state';
+import { AuthStore } from '../../shared/state/auth.store';
 import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import {
   BookingListItemDto,
   BookingStatus,
   PaymentStatus,
+  UserRole,
 } from '@khana/shared-dtos';
 import { HoldTimerComponent } from './hold-timer.component';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
@@ -136,6 +138,7 @@ const ERROR_CATEGORY_BY_CODE: Record<BookingErrorCode, ErrorCategory> = {
 export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly store = inject(BookingStore);
   private readonly facilityContext = inject(FacilityContextStore);
+  private readonly authStore = inject(AuthStore);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
@@ -145,6 +148,8 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   });
   readonly BookingStatus = BookingStatus;
   readonly PaymentStatus = PaymentStatus;
+  readonly currentUser = this.authStore.user;
+  readonly currentUserRole = computed(() => this.currentUser()?.role ?? null);
 
   // State from store
   readonly bookings = this.store.bookings;
@@ -244,6 +249,22 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly dialogAvailable = computed(
     () => this.actionDialog() === null && !this.actionInProgress()
   );
+  readonly canCancel = computed(() => {
+    const role = this.currentUserRole();
+    return (
+      role === UserRole.OWNER ||
+      role === UserRole.MANAGER ||
+      role === UserRole.STAFF
+    );
+  });
+  readonly canConfirm = computed(() => {
+    const role = this.currentUserRole();
+    return role === UserRole.OWNER || role === UserRole.MANAGER;
+  });
+  readonly canMarkPaid = computed(() => {
+    const role = this.currentUserRole();
+    return role === UserRole.OWNER || role === UserRole.MANAGER;
+  });
 
   readonly displayBookings = computed(() => {
     const current = this.bookings();
@@ -579,6 +600,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * Confirm the selected booking.
    */
   async confirmBooking(): Promise<void> {
+    if (!this.canConfirm()) return;
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
       if (!booking) return false;
@@ -590,6 +612,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * Mark the selected booking as paid.
    */
   async markPaid(): Promise<void> {
+    if (!this.canMarkPaid()) return;
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
       if (!booking) return false;
@@ -601,6 +624,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * Cancel the selected booking with a reason.
    */
   async cancelBooking(): Promise<void> {
+    if (!this.canCancel()) return;
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
       if (!booking) return false;
@@ -615,6 +639,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * Open the confirm dialog for the selected booking.
    */
   openConfirmDialog(): void {
+    if (!this.canConfirm()) return;
     if (!this.dialogAvailable()) return;
     const booking = this.selectedBookingLive();
     if (!booking) return;
@@ -625,6 +650,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * Open the mark-paid dialog for the selected booking.
    */
   openPayDialog(): void {
+    if (!this.canMarkPaid()) return;
     if (!this.dialogAvailable()) return;
     const booking = this.selectedBookingLive();
     if (!booking) return;
@@ -635,6 +661,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
    * Open the cancel dialog and reset the reason input.
    */
   openCancelDialog(): void {
+    if (!this.canCancel()) return;
     if (!this.dialogAvailable()) return;
     const booking = this.selectedBookingLive();
     if (!booking) return;
@@ -656,6 +683,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   async submitDialogAction(): Promise<void> {
     const dialog = this.actionDialog();
     if (!dialog) return;
+
+    if (dialog.type === 'confirm' && !this.canConfirm()) return;
+    if (dialog.type === 'pay' && !this.canMarkPaid()) return;
+    if (dialog.type === 'cancel' && !this.canCancel()) return;
 
     if (dialog.type === 'cancel' && !this.cancelReasonValid()) {
       return;

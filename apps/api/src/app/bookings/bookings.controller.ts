@@ -44,9 +44,10 @@ export class BookingsController {
   @Get()
   findAll(
     @TenantId() tenantId: string,
+    @CurrentUser() user: User,
     @Query('facilityId') facilityId?: string
   ) {
-    return this.bookingsService.findAll(tenantId, facilityId);
+    return this.bookingsService.findAll(tenantId, user, facilityId);
   }
 
   /**
@@ -62,7 +63,12 @@ export class BookingsController {
     @CurrentUser() user: User,
     @TenantId() tenantId: string
   ) {
-    return this.bookingsService.createBooking(dto, tenantId, user.id);
+    return this.bookingsService.createBooking(
+      dto,
+      tenantId,
+      user.id,
+      user.role
+    );
   }
 
   /**
@@ -74,9 +80,10 @@ export class BookingsController {
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateBookingStatusDto,
-    @TenantId() tenantId: string
+    @TenantId() tenantId: string,
+    @CurrentUser() user: User
   ) {
-    return this.bookingsService.updateStatus(id, dto, tenantId);
+    return this.bookingsService.updateStatus(id, dto, tenantId, user);
   }
 
   /**

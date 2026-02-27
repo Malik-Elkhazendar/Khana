@@ -18,6 +18,7 @@ import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import { FacilityContextStore } from '../../shared/state';
 import { BookingStore } from '../../state/bookings/booking.store';
+import { AuthStore } from '../../shared/state/auth.store';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
 import {
@@ -28,6 +29,7 @@ import {
   BookingStatus,
   PaymentStatus,
   BookingListItemDto,
+  UserRole,
 } from '@khana/shared-dtos';
 
 type BookingStatusTone = 'success' | 'warning' | 'danger' | 'default';
@@ -55,6 +57,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
   });
   private readonly localeFormat = inject(LocaleFormatService);
   private readonly facilityContext = inject(FacilityContextStore);
+  private readonly authStore = inject(AuthStore);
   private readonly translateService = inject(TranslateService, {
     optional: true,
   });
@@ -110,6 +113,28 @@ export class BookingListComponent implements OnInit, OnDestroy {
     () =>
       this.facilities().find((f) => f.id === this.selectedFacilityId()) ?? null
   );
+  readonly currentUser = this.authStore.user;
+  readonly currentUserRole = computed(() => this.currentUser()?.role ?? null);
+  readonly canCancel = computed(() => {
+    const role = this.currentUserRole();
+    return (
+      role === UserRole.OWNER ||
+      role === UserRole.MANAGER ||
+      role === UserRole.STAFF
+    );
+  });
+  readonly canMarkPaid = computed(() => {
+    const role = this.currentUserRole();
+    return role === UserRole.OWNER || role === UserRole.MANAGER;
+  });
+  readonly canCreateNew = computed(() => {
+    const role = this.currentUserRole();
+    return (
+      role === UserRole.OWNER ||
+      role === UserRole.MANAGER ||
+      role === UserRole.STAFF
+    );
+  });
   readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
 
   get cancelDialogCopy(): {
@@ -623,6 +648,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
    * Determine whether a booking can be cancelled.
    */
   isCancellable(booking: BookingListItemDto): boolean {
+    if (!this.canCancel()) return false;
     if (booking.status === BookingStatus.CANCELLED) return false;
     return (
       booking.paymentStatus !== PaymentStatus.PAID &&
@@ -901,6 +927,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
    * Open the cancel dialog for a booking.
    */
   openCancelDialog(booking: BookingListItemDto): void {
+    if (!this.canCancel()) return;
     if (booking.status === BookingStatus.CANCELLED) return;
     this.cancelDialogBooking.set(booking);
     this.cancelReason.set('');
@@ -968,6 +995,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
    * Mark a booking as paid.
    */
   async markAsPaid(booking: BookingListItemDto): Promise<void> {
+    if (!this.canMarkPaid()) return;
     if (booking.paymentStatus === PaymentStatus.PAID) return;
     if (this.actionLoadingById()[booking.id]) return;
     try {

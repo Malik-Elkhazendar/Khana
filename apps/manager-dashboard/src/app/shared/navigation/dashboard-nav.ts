@@ -34,6 +34,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     route: '/dashboard/new',
     icon: 'new',
     exact: true,
+    roles: [UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF],
   },
   {
     labelKey: 'DASHBOARD.NAV.ITEMS.FACILITIES',

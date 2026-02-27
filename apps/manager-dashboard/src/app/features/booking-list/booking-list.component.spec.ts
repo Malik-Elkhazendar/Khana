@@ -4,11 +4,13 @@ import { provideRouter } from '@angular/router';
 import { BookingListComponent } from './booking-list.component';
 import { FacilityContextStore } from '../../shared/state';
 import { BookingStore } from '../../state/bookings/booking.store';
+import { AuthStore } from '../../shared/state/auth.store';
 import {
   BookingListItemDto,
   BookingStatus,
   FacilityListItemDto,
   PaymentStatus,
+  UserRole,
 } from '@khana/shared-dtos';
 
 const createFacility = (): FacilityListItemDto => ({
@@ -58,6 +60,18 @@ const createStoreMock = (initialBookings: BookingListItemDto[] = []) => ({
 
 describe('BookingListComponent', () => {
   let storeMock: ReturnType<typeof createStoreMock>;
+  const authStoreMock = {
+    user: signal({
+      id: 'manager-1',
+      tenantId: 'tenant-1',
+      email: 'manager@example.com',
+      name: 'Manager User',
+      role: UserRole.MANAGER,
+      isActive: true,
+      createdAt: new Date('2025-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+    }),
+  };
   const facilityContextMock = {
     facilities: signal<FacilityListItemDto[]>([createFacility()]),
     selectedFacilityId: signal<string | null>(null),
@@ -81,6 +95,16 @@ describe('BookingListComponent', () => {
 
   beforeEach(async () => {
     storeMock = createStoreMock();
+    authStoreMock.user.set({
+      id: 'manager-1',
+      tenantId: 'tenant-1',
+      email: 'manager@example.com',
+      name: 'Manager User',
+      role: UserRole.MANAGER,
+      isActive: true,
+      createdAt: new Date('2025-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+    });
     facilityContextMock.facilities.set([createFacility()]);
     facilityContextMock.selectedFacilityId.set(null);
     facilityContextMock.loading.set(false);
@@ -97,6 +121,7 @@ describe('BookingListComponent', () => {
         provideRouter([]),
         { provide: BookingStore, useValue: storeMock },
         { provide: FacilityContextStore, useValue: facilityContextMock },
+        { provide: AuthStore, useValue: authStoreMock },
       ],
     }).compileComponents();
   });
@@ -112,6 +137,50 @@ describe('BookingListComponent', () => {
     expect(facilityContextMock.initialize).toHaveBeenCalled();
     expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
     expect(component.facilities().length).toBe(1);
+  });
+
+  it('hides cancel and mark-paid actions for viewer role', () => {
+    authStoreMock.user.update((user) => ({ ...user, role: UserRole.VIEWER }));
+    const booking = createBooking({ id: 'booking-viewer' });
+    const { fixture } = setupComponent([booking]);
+
+    const cancelButton = fixture.nativeElement.querySelector(
+      'button[aria-label*="Cancel booking for"]'
+    ) as HTMLButtonElement | null;
+    const markPaidButton = fixture.nativeElement.querySelector(
+      'button[aria-label*="Mark booking as paid"]'
+    ) as HTMLButtonElement | null;
+
+    expect(cancelButton).toBeNull();
+    expect(markPaidButton).toBeNull();
+  });
+
+  it('hides mark-paid actions for staff role', () => {
+    authStoreMock.user.update((user) => ({ ...user, role: UserRole.STAFF }));
+    const booking = createBooking({
+      id: 'booking-staff',
+      paymentStatus: PaymentStatus.PENDING,
+    });
+    const { fixture } = setupComponent([booking]);
+
+    const markPaidButton = fixture.nativeElement.querySelector(
+      'button[aria-label*="Mark booking as paid"]'
+    ) as HTMLButtonElement | null;
+    expect(markPaidButton).toBeNull();
+  });
+
+  it('shows mark-paid actions for manager role', () => {
+    authStoreMock.user.update((user) => ({ ...user, role: UserRole.MANAGER }));
+    const booking = createBooking({
+      id: 'booking-manager',
+      paymentStatus: PaymentStatus.PENDING,
+    });
+    const { fixture } = setupComponent([booking]);
+
+    const markPaidButton = fixture.nativeElement.querySelector(
+      'button[aria-label*="Mark booking as paid"]'
+    ) as HTMLButtonElement | null;
+    expect(markPaidButton).not.toBeNull();
   });
 
   it('reloads bookings and clears selection when facility changes', () => {

@@ -259,8 +259,12 @@ test('team/settings are blocked for VIEWER role', async ({ page }) => {
   await page.goto('/dashboard/bookings');
   await meRequest;
   await expect(page).toHaveURL(/\/dashboard\/bookings/);
+  await expect(page.locator('a[href="/dashboard/new"]')).toHaveCount(0);
   await expect(page.locator('a[href="/dashboard/team"]')).toHaveCount(0);
   await expect(page.locator('a[href="/dashboard/settings"]')).toHaveCount(0);
+
+  await page.goto('/dashboard/new');
+  await expect(page).toHaveURL(/\/403$/);
 
   await page.goto('/dashboard/team');
   await expect(page).toHaveURL(/\/403$/);
