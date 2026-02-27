@@ -1,0 +1,76 @@
+:host {
+  display: block;
+}
+
+.settings-panel {
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+}
+
+.settings-section {
+  display: grid;
+  gap: var(--space-3);
+  padding-block-end: var(--space-4);
+  border-block-end: 1px solid var(--color-surface-muted);
+}
+
+.settings-section:last-child {
+  border-block-end: none;
+  padding-block-end: 0;
+}
+
+.settings-section h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.settings-section dl {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.settings-section dl div {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.settings-section dt {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.settings-section dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  word-break: break-word;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.settings-state {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.settings-state--error {
+  color: var(--color-error);
+}
+
+.settings-state--success {
+  color: var(--color-success);
+}
+
+@media (max-width: 47.9375rem) {
+  .settings-section dl div {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}

@@ -17,13 +17,15 @@
       <ul class="nav-list">
         <li
           class="nav-item"
-          *ngFor="let item of navItems; trackBy: trackByRoute"
+          *ngFor="let item of navItems(); trackBy: trackByRoute"
         >
           <a
             class="nav-link"
             [routerLink]="item.route"
             routerLinkActive="nav-link--active"
+            #linkActive="routerLinkActive"
             [routerLinkActiveOptions]="{ exact: item.exact }"
+            [attr.aria-current]="linkActive.isActive ? 'page' : null"
             (click)="onNavClick()"
           >
             <app-ui-icon
@@ -37,6 +39,12 @@
     </nav>
 
     <div class="header-actions">
+      <app-facility-switcher
+        class="header-facility-switcher"
+        variant="header-compact"
+        controlId="dashboard-facility-switcher"
+      ></app-facility-switcher>
+
       <app-language-switcher
         tone="dark"
         [useShortLabel]="true"

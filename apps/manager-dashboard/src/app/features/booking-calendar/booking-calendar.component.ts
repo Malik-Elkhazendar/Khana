@@ -15,6 +15,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { TranslateService } from '@ngx-translate/core';
 import { BookingStore } from '../../state/bookings/booking.store';
+import { FacilityContextStore } from '../../shared/state';
 import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import {
@@ -134,6 +135,7 @@ const ERROR_CATEGORY_BY_CODE: Record<BookingErrorCode, ErrorCategory> = {
 })
 export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly store = inject(BookingStore);
+  private readonly facilityContext = inject(FacilityContextStore);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
@@ -177,6 +179,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   private retryTimer: number | null = null;
   private focusTimer: number | null = null;
   private panelCloseTimer: number | null = null;
+  private lastLoadedFacilityId: string | null | undefined = undefined;
 
   // Operating hours (00:00 - 23:00)
   readonly hours: string[] = Array.from(
@@ -386,10 +389,17 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly layoutDurationMs = computed(() => this.layoutMetrics().durationMs);
 
   constructor() {
+    effect(() => {
+      if (!this.facilityContext.initialized()) return;
+      const selectedFacilityId = this.facilityContext.selectedFacilityId();
+      if (selectedFacilityId === this.lastLoadedFacilityId) return;
+      this.loadBookings(true);
+    });
     this.registerEffects();
   }
 
   ngOnInit(): void {
+    this.facilityContext.initialize();
     this.setInitialSlotFocus();
     this.loadBookings(true);
   }
@@ -1134,7 +1144,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     this.retryTimer = window.setTimeout(() => {
       this.retryTimer = null;
       this.retryScheduledAt.set(null);
-      this.store.loadBookings(null);
+      this.loadBookings(false);
       this.retryAttempt.set(attempt + 1);
     }, delay);
   }
@@ -1156,7 +1166,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     if (resetRetry) {
       this.resetRetryState();
     }
-    this.store.loadBookings(null);
+    const selectedFacilityId = this.facilityContext.selectedFacilityId();
+    this.lastLoadedFacilityId = selectedFacilityId;
+    this.store.loadBookings(selectedFacilityId);
   }
 
   private clearTimers(): void {

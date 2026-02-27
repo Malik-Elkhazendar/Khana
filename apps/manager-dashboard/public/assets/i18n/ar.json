@@ -127,7 +127,10 @@
       "ITEMS": {
         "BOOKINGS": "الحجوزات",
         "CALENDAR": "التقويم",
-        "NEW_BOOKING": "حجز جديد"
+        "NEW_BOOKING": "حجز جديد",
+        "FACILITIES": "المرافق",
+        "TEAM": "الفريق",
+        "SETTINGS": "الإعدادات"
       }
     },
     "USER": {
@@ -137,6 +140,83 @@
     "LAYOUT": {
       "PRIMARY_SIDEBAR": "الشريط الجانبي الرئيسي",
       "CONTENT_REGION": "محتوى لوحة التحكم"
+    },
+    "FACILITY_SWITCHER": {
+      "ARIA_LABEL": "محدد المرفق",
+      "LABEL": "المرفق النشط",
+      "LOADING": "جارٍ تحميل المرافق...",
+      "EMPTY": "لا توجد مرافق متاحة",
+      "RETRY": "إعادة المحاولة"
+    },
+    "BREADCRUMBS": {
+      "ARIA_LABEL": "مسار التنقل",
+      "HOME": "لوحة التحكم",
+      "BOOKINGS": "الحجوزات",
+      "CALENDAR": "التقويم",
+      "NEW_BOOKING": "حجز جديد",
+      "FACILITIES": "المرافق",
+      "TEAM": "الفريق",
+      "SETTINGS": "الإعدادات"
+    },
+    "ACTIONS": {
+      "RETRY": "إعادة المحاولة",
+      "REFRESH": "تحديث"
+    },
+    "PAGES": {
+      "FACILITIES": {
+        "TITLE": "المرافق",
+        "SUBTITLE": "إدارة المرافق المتاحة وسياق المرفق النشط",
+        "LOADING": "جارٍ تحميل المرافق...",
+        "ERROR": "تعذّر تحميل المرافق.",
+        "EMPTY": "لا توجد مرافق متاحة لهذا المستأجر.",
+        "ACTIVE": "نشط",
+        "OPEN_TIME": "وقت الفتح",
+        "CLOSE_TIME": "وقت الإغلاق",
+        "SLOT_DURATION": "مدة الفترة",
+        "SLOT_DURATION_VALUE": "{{minutes}} دقيقة",
+        "BASE_PRICE": "السعر الأساسي",
+        "SET_ACTIVE": "تعيين كنشط"
+      },
+      "TEAM": {
+        "TITLE": "الفريق",
+        "SUBTITLE": "ملف عضو الفريق الحالي المصادق عليه",
+        "LOADING": "جارٍ تحميل بيانات الفريق...",
+        "ERROR": "تعذّر تحميل بيانات عضو الفريق.",
+        "CURRENT_MEMBER": "عضو الفريق الحالي",
+        "FIELDS": {
+          "NAME": "الاسم",
+          "EMAIL": "البريد الإلكتروني",
+          "ROLE": "الدور",
+          "STATUS": "الحالة",
+          "TENANT": "معرف المستأجر"
+        },
+        "STATUS": {
+          "ACTIVE": "نشط",
+          "INACTIVE": "غير نشط"
+        }
+      },
+      "SETTINGS": {
+        "TITLE": "الإعدادات",
+        "SUBTITLE": "تفضيلات الحساب وسياق المستأجر",
+        "LOADING": "جارٍ تحميل الإعدادات...",
+        "ERROR": "تعذّر تحميل الإعدادات.",
+        "ACCOUNT_TITLE": "الحساب",
+        "TENANT_TITLE": "سياق المستأجر",
+        "PREFERENCES_TITLE": "التفضيلات",
+        "SECURITY_TITLE": "الأمان",
+        "TOGGLE_LANGUAGE": "تبديل اللغة",
+        "CHANGE_PASSWORD": "تغيير كلمة المرور",
+        "LOGOUT_ALL": "تسجيل خروج كل الأجهزة الأخرى",
+        "LOGOUT_ALL_SUCCESS": "تم تسجيل خروج الجلسات الأخرى بنجاح.",
+        "LOGOUT_ALL_ERROR": "تعذّر تسجيل خروج الجلسات الأخرى.",
+        "FIELDS": {
+          "NAME": "الاسم",
+          "EMAIL": "البريد الإلكتروني",
+          "ROLE": "الدور",
+          "TENANT_NAME": "اسم المستأجر",
+          "TENANT_ID": "معرف المستأجر"
+        }
+      }
     }
   },
   "SHARED": {

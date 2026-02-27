@@ -7,10 +7,7 @@
   [class.sidebar-collapsed]="layoutStore.sidebarCollapsed()"
   [class.is-desktop]="isDesktop()"
 >
-  <app-header
-    [class.sidebar-collapsed]="layoutStore.sidebarCollapsed()"
-    [class.sidebar-hidden]="!showSidebar()"
-  ></app-header>
+  <app-header></app-header>
 
   <aside
     class="sidebar"
@@ -32,7 +29,10 @@
     [attr.aria-label]="'DASHBOARD.LAYOUT.CONTENT_REGION' | translate"
     tabindex="-1"
   >
-    <router-outlet></router-outlet>
+    <app-dashboard-breadcrumbs></app-dashboard-breadcrumbs>
+    <div class="main-content__body">
+      <router-outlet></router-outlet>
+    </div>
   </div>
 
   <app-mobile-nav-drawer></app-mobile-nav-drawer>

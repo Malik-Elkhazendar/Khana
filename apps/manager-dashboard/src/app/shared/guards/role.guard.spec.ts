@@ -4,8 +4,10 @@ import {
   ActivatedRouteSnapshot,
   RouterStateSnapshot,
 } from '@angular/router';
+import { firstValueFrom, of, throwError } from 'rxjs';
 import { roleGuard } from './role.guard';
 import { AuthStore } from '../state/auth.store';
+import { AuthService } from '../services/auth.service';
 import { UserRole } from '@khana/shared-dtos';
 import {
   createOwnerUser,
@@ -16,6 +18,7 @@ import {
 
 describe('roleGuard', () => {
   let authStore: InstanceType<typeof AuthStore>;
+  let authService: { getCurrentUser: jest.Mock };
   let router: Router;
 
   const mockRoute = {} as ActivatedRouteSnapshot;
@@ -32,10 +35,19 @@ describe('roleGuard', () => {
             createUrlTree: jest.fn((commands: string[]) => commands),
           },
         },
+        {
+          provide: AuthService,
+          useValue: {
+            getCurrentUser: jest.fn(() => of(createOwnerUser())),
+          },
+        },
       ],
     });
 
     authStore = TestBed.inject(AuthStore);
+    authService = TestBed.inject(AuthService) as unknown as {
+      getCurrentUser: jest.Mock;
+    };
     router = TestBed.inject(Router);
   });
 
@@ -217,6 +229,53 @@ describe('roleGuard', () => {
       );
 
       expect(result).toEqual(['/login']);
+    });
+
+    it('should hydrate user when authenticated but user is not loaded yet', async () => {
+      authStore.setUser(null);
+      authStore.setAuthenticated(true);
+      authService.getCurrentUser.mockReturnValue(of(createManagerUser()));
+
+      const guard = roleGuard([UserRole.OWNER, UserRole.MANAGER]);
+      const result = TestBed.runInInjectionContext(() =>
+        guard(mockRoute, mockState)
+      );
+
+      await expect(
+        firstValueFrom(result as ReturnType<typeof of>)
+      ).resolves.toBe(true);
+    });
+
+    it('should redirect to /403 when hydrated user lacks required role', async () => {
+      authStore.setUser(null);
+      authStore.setAuthenticated(true);
+      authService.getCurrentUser.mockReturnValue(of(createViewerUser()));
+
+      const guard = roleGuard([UserRole.OWNER, UserRole.MANAGER]);
+      const result = TestBed.runInInjectionContext(() =>
+        guard(mockRoute, mockState)
+      );
+
+      await expect(
+        firstValueFrom(result as ReturnType<typeof of>)
+      ).resolves.toEqual(['/403']);
+    });
+
+    it('should redirect to login when user hydration fails', async () => {
+      authStore.setUser(null);
+      authStore.setAuthenticated(true);
+      authService.getCurrentUser.mockReturnValue(
+        throwError(() => new Error('network error'))
+      );
+
+      const guard = roleGuard([UserRole.OWNER, UserRole.MANAGER]);
+      const result = TestBed.runInInjectionContext(() =>
+        guard(mockRoute, mockState)
+      );
+
+      await expect(
+        firstValueFrom(result as ReturnType<typeof of>)
+      ).resolves.toEqual(['/login']);
     });
   });
 });

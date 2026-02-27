@@ -1,13 +1,25 @@
 import { TestBed } from '@angular/core/testing';
-import { ElementRef } from '@angular/core';
+import { ElementRef, signal } from '@angular/core';
 import { BookingCalendarComponent } from './booking-calendar.component';
 import { BookingStore } from '../../state/bookings/booking.store';
+import { FacilityContextStore } from '../../shared/state';
 import { BookingStatus, PaymentStatus } from '@khana/shared-dtos';
 import { createBooking } from '../../testing/factories';
 import { createStoreMock, BookingStoreMock } from '../../testing/store-mocks';
 
 describe('BookingCalendarComponent', () => {
   let storeMock: BookingStoreMock;
+  const facilityContextMock = {
+    facilities: signal([]),
+    selectedFacilityId: signal<string | null>(null),
+    loading: signal(false),
+    error: signal<Error | null>(null),
+    initialized: signal(true),
+    initialize: jest.fn(),
+    refreshFacilities: jest.fn(),
+    selectFacility: jest.fn(),
+    clearError: jest.fn(),
+  };
   const baseDate = new Date('2025-03-05T10:00:00Z');
 
   const createTimedBooking = (overrides = {}) => {
@@ -32,10 +44,19 @@ describe('BookingCalendarComponent', () => {
     jest.useFakeTimers();
     jest.setSystemTime(baseDate);
     storeMock = createStoreMock();
+    facilityContextMock.initialize.mockReset();
+    facilityContextMock.refreshFacilities.mockReset();
+    facilityContextMock.selectFacility.mockReset();
+    facilityContextMock.clearError.mockReset();
+    facilityContextMock.selectedFacilityId.set(null);
+    facilityContextMock.initialized.set(true);
 
     await TestBed.configureTestingModule({
       imports: [BookingCalendarComponent],
-      providers: [{ provide: BookingStore, useValue: storeMock }],
+      providers: [
+        { provide: BookingStore, useValue: storeMock },
+        { provide: FacilityContextStore, useValue: facilityContextMock },
+      ],
     }).compileComponents();
   });
 

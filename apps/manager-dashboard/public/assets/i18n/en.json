@@ -127,7 +127,10 @@
       "ITEMS": {
         "BOOKINGS": "Bookings",
         "CALENDAR": "Calendar",
-        "NEW_BOOKING": "New Booking"
+        "NEW_BOOKING": "New Booking",
+        "FACILITIES": "Facilities",
+        "TEAM": "Team",
+        "SETTINGS": "Settings"
       }
     },
     "USER": {
@@ -137,6 +140,83 @@
     "LAYOUT": {
       "PRIMARY_SIDEBAR": "Primary sidebar",
       "CONTENT_REGION": "Dashboard content"
+    },
+    "FACILITY_SWITCHER": {
+      "ARIA_LABEL": "Facility selector",
+      "LABEL": "Active facility",
+      "LOADING": "Loading facilities...",
+      "EMPTY": "No facilities available",
+      "RETRY": "Retry"
+    },
+    "BREADCRUMBS": {
+      "ARIA_LABEL": "Breadcrumb",
+      "HOME": "Dashboard",
+      "BOOKINGS": "Bookings",
+      "CALENDAR": "Calendar",
+      "NEW_BOOKING": "New Booking",
+      "FACILITIES": "Facilities",
+      "TEAM": "Team",
+      "SETTINGS": "Settings"
+    },
+    "ACTIONS": {
+      "RETRY": "Retry",
+      "REFRESH": "Refresh"
+    },
+    "PAGES": {
+      "FACILITIES": {
+        "TITLE": "Facilities",
+        "SUBTITLE": "Manage available facilities and active context",
+        "LOADING": "Loading facilities...",
+        "ERROR": "Unable to load facilities.",
+        "EMPTY": "No facilities available for this tenant.",
+        "ACTIVE": "Active",
+        "OPEN_TIME": "Open time",
+        "CLOSE_TIME": "Close time",
+        "SLOT_DURATION": "Slot duration",
+        "SLOT_DURATION_VALUE": "{{minutes}} minutes",
+        "BASE_PRICE": "Base price",
+        "SET_ACTIVE": "Set Active"
+      },
+      "TEAM": {
+        "TITLE": "Team",
+        "SUBTITLE": "Current authenticated team member profile",
+        "LOADING": "Loading team data...",
+        "ERROR": "Unable to load team member data.",
+        "CURRENT_MEMBER": "Current Team Member",
+        "FIELDS": {
+          "NAME": "Name",
+          "EMAIL": "Email",
+          "ROLE": "Role",
+          "STATUS": "Status",
+          "TENANT": "Tenant ID"
+        },
+        "STATUS": {
+          "ACTIVE": "Active",
+          "INACTIVE": "Inactive"
+        }
+      },
+      "SETTINGS": {
+        "TITLE": "Settings",
+        "SUBTITLE": "Account preferences and tenant context",
+        "LOADING": "Loading settings...",
+        "ERROR": "Unable to load settings.",
+        "ACCOUNT_TITLE": "Account",
+        "TENANT_TITLE": "Tenant Context",
+        "PREFERENCES_TITLE": "Preferences",
+        "SECURITY_TITLE": "Security",
+        "TOGGLE_LANGUAGE": "Toggle Language",
+        "CHANGE_PASSWORD": "Change Password",
+        "LOGOUT_ALL": "Logout All Other Devices",
+        "LOGOUT_ALL_SUCCESS": "Other sessions were logged out successfully.",
+        "LOGOUT_ALL_ERROR": "Unable to log out other sessions.",
+        "FIELDS": {
+          "NAME": "Name",
+          "EMAIL": "Email",
+          "ROLE": "Role",
+          "TENANT_NAME": "Tenant Name",
+          "TENANT_ID": "Tenant ID"
+        }
+      }
     }
   },
   "SHARED": {

@@ -45,6 +45,15 @@ export const mockFacilities = [
     basePrice: 100,
     currency: 'SAR',
   },
+  {
+    id: 'facility-2',
+    name: 'Court B',
+    openTime: '09:00',
+    closeTime: '23:00',
+    slotDurationMinutes: 60,
+    basePrice: 140,
+    currency: 'SAR',
+  },
 ];
 
 export const mockBookings = [];

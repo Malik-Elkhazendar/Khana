@@ -5,6 +5,7 @@ import {
   HostListener,
   OnDestroy,
   ViewChild,
+  computed,
   effect,
   inject,
 } from '@angular/core';
@@ -12,7 +13,9 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { LayoutStore } from '../../state/layout.store';
-import { DASHBOARD_NAV_ITEMS } from '../../navigation/dashboard-nav';
+import { AuthStore } from '../../state/auth.store';
+import { getDashboardNavItemsForRole } from '../../navigation/dashboard-nav';
+import { FacilitySwitcherComponent } from '../facility-switcher/facility-switcher.component';
 import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
 import { UiIconComponent } from '../ui';
 
@@ -24,6 +27,7 @@ import { UiIconComponent } from '../ui';
     RouterModule,
     TranslateModule,
     UiIconComponent,
+    FacilitySwitcherComponent,
     LanguageSwitcherComponent,
   ],
   templateUrl: './mobile-nav-drawer.component.html',
@@ -34,8 +38,12 @@ export class MobileNavDrawerComponent implements OnDestroy {
   @ViewChild('drawerPanel') drawerPanel?: ElementRef<HTMLElement>;
   @ViewChild('closeButton') closeButton?: ElementRef<HTMLButtonElement>;
 
-  readonly navItems = DASHBOARD_NAV_ITEMS;
   readonly layoutStore = inject(LayoutStore);
+  private readonly authStore = inject(AuthStore);
+  readonly currentUser = this.authStore.user;
+  readonly navItems = computed(() =>
+    getDashboardNavItemsForRole(this.currentUser()?.role)
+  );
 
   private lastFocusedElement: HTMLElement | null = null;
   private wasOpen = false;

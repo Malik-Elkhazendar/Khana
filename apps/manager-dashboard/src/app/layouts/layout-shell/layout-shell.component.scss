@@ -44,10 +44,18 @@ app-header {
 .main-content {
   grid-column: 2;
   grid-row: 2;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   min-inline-size: 0;
   min-block-size: 0;
   background: var(--color-surface);
+}
+
+.main-content__body {
+  flex: 1;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow-y: auto;
 }
 
 @media (max-width: 47.9375rem) {

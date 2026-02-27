@@ -7,16 +7,16 @@ import {
   QueryList,
   ViewChildren,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { ApiService } from '../../shared/services/api.service';
 import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
-import { LoggerService } from '../../shared/services/logger.service';
+import { FacilityContextStore } from '../../shared/state';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
@@ -28,7 +28,6 @@ import {
   BookingStatus,
   PaymentStatus,
   BookingListItemDto,
-  FacilityListItemDto,
 } from '@khana/shared-dtos';
 
 type BookingStatusTone = 'success' | 'warning' | 'danger' | 'default';
@@ -51,12 +50,11 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
   styleUrl: './booking-list.component.scss',
 })
 export class BookingListComponent implements OnInit, OnDestroy {
-  private readonly api = inject(ApiService);
-  private readonly logger = inject(LoggerService);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
   private readonly localeFormat = inject(LocaleFormatService);
+  private readonly facilityContext = inject(FacilityContextStore);
   private readonly translateService = inject(TranslateService, {
     optional: true,
   });
@@ -66,10 +64,12 @@ export class BookingListComponent implements OnInit, OnDestroy {
     ElementRef<HTMLTableRowElement>
   >;
 
-  facilities = signal<FacilityListItemDto[]>([]);
-  selectedFacilityId = signal<string>('');
+  readonly facilities = this.facilityContext.facilities;
+  readonly selectedFacilityId = computed(
+    () => this.facilityContext.selectedFacilityId() ?? ''
+  );
   focusedRowIndex = signal(0);
-  facilityError = signal<Error | null>(null);
+  readonly facilityError = this.facilityContext.error;
 
   bookings = this.store.bookings;
   loading = this.store.loading;
@@ -340,13 +340,29 @@ export class BookingListComponent implements OnInit, OnDestroy {
 
   private searchDebounceId: number | null = null;
   private toastTimer: number | null = null;
+  private hasFacilitySelectionInitialized = false;
+
+  constructor() {
+    effect(() => {
+      if (!this.facilityContext.initialized()) return;
+      const facilityId = this.facilityContext.selectedFacilityId();
+      if (!this.hasFacilitySelectionInitialized) {
+        this.hasFacilitySelectionInitialized = true;
+        this.store.loadBookings(facilityId);
+        return;
+      }
+
+      this.store.loadBookings(facilityId);
+      this.currentPage.set(1);
+      this.clearSelection();
+    });
+  }
 
   /**
    * Initialize facility data and load bookings.
    */
   ngOnInit(): void {
-    this.loadFacilities();
-    this.store.loadBookings(this.getFacilityFilter());
+    this.facilityContext.initialize();
   }
 
   /**
@@ -366,38 +382,11 @@ export class BookingListComponent implements OnInit, OnDestroy {
   /**
    * Reload bookings when facility selection changes.
    */
-  onFacilityChange(): void {
+  onFacilityChange(facilityId: string): void {
+    this.facilityContext.selectFacility(facilityId || null);
     this.store.loadBookings(this.getFacilityFilter());
     this.currentPage.set(1);
     this.clearSelection();
-  }
-
-  private loadFacilities(): void {
-    this.facilityError.set(null);
-    this.api.getFacilities().subscribe({
-      next: (facilities) => {
-        this.facilities.set(facilities);
-        this.facilityError.set(null);
-      },
-      error: (err) => {
-        const resolved =
-          err instanceof Error
-            ? err
-            : new Error(
-                this.t(
-                  'BOOKING_LIST.ERRORS.LOAD_FACILITIES',
-                  'Failed to load facilities. Please try again.'
-                )
-              );
-        this.facilityError.set(resolved);
-        this.logger.error(
-          'client.booking.facilities.load_failed',
-          'Error loading facilities',
-          undefined,
-          err
-        );
-      },
-    });
   }
 
   /**
@@ -412,11 +401,11 @@ export class BookingListComponent implements OnInit, OnDestroy {
    * Retry loading facilities list.
    */
   retryFacilities(): void {
-    this.loadFacilities();
+    this.facilityContext.refreshFacilities();
   }
 
   private getFacilityFilter(): string | null {
-    const facilityId = this.selectedFacilityId().trim();
+    const facilityId = this.facilityContext.selectedFacilityId()?.trim() ?? '';
     return facilityId.length > 0 ? facilityId : null;
   }
 

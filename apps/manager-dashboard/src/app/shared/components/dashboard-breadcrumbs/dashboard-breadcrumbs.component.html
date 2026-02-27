@@ -1,0 +1,31 @@
+<nav
+  class="dashboard-breadcrumbs"
+  [attr.aria-label]="'DASHBOARD.BREADCRUMBS.ARIA_LABEL' | translate"
+>
+  <div class="dashboard-breadcrumbs__inner">
+    <ol class="dashboard-breadcrumbs__list">
+      <li
+        class="dashboard-breadcrumbs__item"
+        *ngFor="
+          let crumb of breadcrumbs();
+          trackBy: trackByRoute;
+          let isLast = last
+        "
+      >
+        <ng-container *ngIf="!isLast; else currentCrumb">
+          <a class="dashboard-breadcrumbs__link" [routerLink]="crumb.route">
+            {{ crumb.labelKey | translate }}
+          </a>
+          <span class="dashboard-breadcrumbs__separator" aria-hidden="true"
+            >/</span
+          >
+        </ng-container>
+        <ng-template #currentCrumb>
+          <span class="dashboard-breadcrumbs__current" aria-current="page">
+            {{ crumb.labelKey | translate }}
+          </span>
+        </ng-template>
+      </li>
+    </ol>
+  </div>
+</nav>

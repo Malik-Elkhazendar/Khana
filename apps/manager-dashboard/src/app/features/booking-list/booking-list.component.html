@@ -50,7 +50,7 @@
         }}</span>
         <select
           [ngModel]="selectedFacilityId()"
-          (ngModelChange)="selectedFacilityId.set($event); onFacilityChange()"
+          (ngModelChange)="onFacilityChange($event)"
           name="facility"
         >
           <option value="">
@@ -367,6 +367,7 @@
                     text(
                       'BOOKING_LIST.TABLE.HOLD_UNTIL',
                       'Reserved until {{time
+
                   }}', { time: formatTime(booking.holdUntil) } ) }}
                 </div>
                 }
@@ -559,6 +560,7 @@
                   text(
                     'BOOKING_LIST.TABLE.HOLD_UNTIL',
                     'Reserved until {{time
+
                 }}', { time: formatTime(booking.holdUntil) } ) }}
               </span>
             </div>

@@ -41,6 +41,20 @@ Core implementation:
 - JSON output for machine ingestion.
 - Severity split to stdout/stderr.
 
+## API Security Headers
+
+- Helmet is enabled in `apps/api/src/main.ts`.
+- `Content-Security-Policy` is intentionally disabled at the API layer because this service is JSON-only.
+- `Strict-Transport-Security` is enabled only in production and only for secure requests.
+- `TRUST_PROXY` controls secure-request detection behind a load balancer or reverse proxy.
+
+### Header policy
+
+- `X-Frame-Options: DENY`
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: no-referrer`
+- `X-Powered-By`: disabled
+
 ## Frontend Logging
 
 Core implementation:

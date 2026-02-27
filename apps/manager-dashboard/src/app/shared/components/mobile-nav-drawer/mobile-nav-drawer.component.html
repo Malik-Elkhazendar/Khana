@@ -37,13 +37,15 @@
       <ul class="mobile-drawer__list">
         <li
           class="mobile-drawer__item"
-          *ngFor="let item of navItems; trackBy: trackByRoute"
+          *ngFor="let item of navItems(); trackBy: trackByRoute"
         >
           <a
             class="mobile-drawer__link"
             [routerLink]="item.route"
             routerLinkActive="mobile-drawer__link--active"
+            #linkActive="routerLinkActive"
             [routerLinkActiveOptions]="{ exact: item.exact }"
+            [attr.aria-current]="linkActive.isActive ? 'page' : null"
             (click)="onNavClick()"
           >
             <app-ui-icon [name]="item.icon"></app-ui-icon>
@@ -52,6 +54,10 @@
         </li>
       </ul>
     </nav>
+
+    <div class="mobile-drawer__facility">
+      <app-facility-switcher></app-facility-switcher>
+    </div>
 
     <div class="mobile-drawer__language">
       <app-language-switcher [fullWidth]="true"></app-language-switcher>

@@ -4,7 +4,9 @@ import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MobileNavDrawerComponent } from './mobile-nav-drawer.component';
+import { FacilityContextStore } from '../../state';
 import { LayoutStore } from '../../state/layout.store';
+import { signal } from '@angular/core';
 
 @Component({
   template: '',
@@ -24,6 +26,9 @@ const EN_TRANSLATIONS = {
         BOOKINGS: 'Bookings',
         CALENDAR: 'Calendar',
         NEW_BOOKING: 'New Booking',
+        FACILITIES: 'Facilities',
+        TEAM: 'Team',
+        SETTINGS: 'Settings',
       },
     },
   },
@@ -35,6 +40,17 @@ describe('MobileNavDrawerComponent', () => {
   let store: InstanceType<typeof LayoutStore>;
   let router: Router;
   let translateService: TranslateService;
+  const facilityContextMock = {
+    facilities: signal([]),
+    selectedFacilityId: signal<string | null>(null),
+    loading: signal(false),
+    error: signal<Error | null>(null),
+    initialized: signal(true),
+    initialize: jest.fn(),
+    refreshFacilities: jest.fn(),
+    selectFacility: jest.fn(),
+    clearError: jest.fn(),
+  };
 
   const openDrawer = () => {
     store.openMobileDrawer();
@@ -42,6 +58,11 @@ describe('MobileNavDrawerComponent', () => {
   };
 
   beforeEach(async () => {
+    facilityContextMock.initialize.mockReset();
+    facilityContextMock.refreshFacilities.mockReset();
+    facilityContextMock.selectFacility.mockReset();
+    facilityContextMock.clearError.mockReset();
+
     await TestBed.configureTestingModule({
       imports: [
         MobileNavDrawerComponent,
@@ -51,6 +72,9 @@ describe('MobileNavDrawerComponent', () => {
           { path: 'dashboard/calendar', component: StubRouteComponent },
           { path: 'dashboard/new', component: StubRouteComponent },
         ]),
+      ],
+      providers: [
+        { provide: FacilityContextStore, useValue: facilityContextMock },
       ],
     }).compileComponents();
 

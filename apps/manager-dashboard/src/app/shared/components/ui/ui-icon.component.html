@@ -31,5 +31,26 @@
       <line x1="12" y1="8" x2="12" y2="16"></line>
       <line x1="8" y1="12" x2="16" y2="12"></line>
     </ng-container>
+
+    <ng-container *ngSwitchCase="'facilities'">
+      <rect x="3" y="5" width="7" height="14" rx="1"></rect>
+      <rect x="14" y="5" width="7" height="14" rx="1"></rect>
+      <line x1="6.5" y1="9" x2="6.5" y2="9"></line>
+      <line x1="17.5" y1="9" x2="17.5" y2="9"></line>
+    </ng-container>
+
+    <ng-container *ngSwitchCase="'team'">
+      <circle cx="9" cy="9" r="3"></circle>
+      <circle cx="17" cy="10" r="2.5"></circle>
+      <path d="M3 19c0-2.8 2.7-5 6-5s6 2.2 6 5"></path>
+      <path d="M13 19c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5"></path>
+    </ng-container>
+
+    <ng-container *ngSwitchCase="'settings'">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path
+        d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1 0 2.8l-.1.1a2 2 0 0 1-2.8 0l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 0 1-2 2h-.2a2 2 0 0 1-2-2v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 0 1-2.8 0l-.1-.1a2 2 0 0 1 0-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.6-1H3a2 2 0 0 1-2-2v-.2a2 2 0 0 1 2-2h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 0-2.8l.1-.1a2 2 0 0 1 2.8 0l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 0 1 2-2h.2a2 2 0 0 1 2 2v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 0l.1.1a2 2 0 0 1 0 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c0 .7.4 1.4 1.1 1.6H21a2 2 0 0 1 2 2v.2a2 2 0 0 1-2 2h-.2a1.7 1.7 0 0 0-1.4 1.2z"
+      ></path>
+    </ng-container>
   </ng-container>
 </svg>

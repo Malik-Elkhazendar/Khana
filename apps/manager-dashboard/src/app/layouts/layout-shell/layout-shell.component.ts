@@ -10,10 +10,12 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import {
+  DashboardBreadcrumbsComponent,
   HeaderComponent,
   MobileNavDrawerComponent,
   SidebarComponent,
 } from '../../shared/components';
+import { FacilityContextStore } from '../../shared/state';
 import { LayoutStore } from '../../shared/state/layout.store';
 
 const MOBILE_BREAKPOINT = 768;
@@ -27,6 +29,7 @@ const DESKTOP_BREAKPOINT = 1024;
     RouterModule,
     TranslateModule,
     HeaderComponent,
+    DashboardBreadcrumbsComponent,
     SidebarComponent,
     MobileNavDrawerComponent,
   ],
@@ -36,6 +39,7 @@ const DESKTOP_BREAKPOINT = 1024;
 })
 export class LayoutShellComponent {
   readonly layoutStore = inject(LayoutStore);
+  private readonly facilityContext = inject(FacilityContextStore);
   readonly sidebarCollapsed = this.layoutStore.sidebarCollapsed;
 
   private readonly viewportWidth = signal(
@@ -50,6 +54,7 @@ export class LayoutShellComponent {
   );
 
   constructor() {
+    this.facilityContext.initialize();
     this.applyViewportState(this.viewportWidth());
   }
 

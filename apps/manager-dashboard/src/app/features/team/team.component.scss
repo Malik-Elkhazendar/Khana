@@ -1,0 +1,65 @@
+:host {
+  display: block;
+}
+
+.team-panel {
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+}
+
+.team-state {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.team-state--error {
+  color: var(--color-error);
+}
+
+.team-profile {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.team-profile__title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.team-profile__details {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.team-profile__details div {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--color-surface-muted);
+}
+
+.team-profile__details div:last-child {
+  border-block-end: none;
+}
+
+.team-profile__details dt {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.team-profile__details dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  word-break: break-word;
+}
+
+@media (max-width: 47.9375rem) {
+  .team-profile__details div {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}

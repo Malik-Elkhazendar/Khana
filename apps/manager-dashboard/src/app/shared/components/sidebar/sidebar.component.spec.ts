@@ -22,6 +22,9 @@ const EN_TRANSLATIONS = {
         BOOKINGS: 'Bookings',
         CALENDAR: 'Calendar',
         NEW_BOOKING: 'New Booking',
+        FACILITIES: 'Facilities',
+        TEAM: 'Team',
+        SETTINGS: 'Settings',
       },
     },
   },
@@ -43,6 +46,8 @@ describe('SidebarComponent', () => {
     );
 
   beforeEach(async () => {
+    document.documentElement.dir = 'ltr';
+
     await TestBed.configureTestingModule({
       imports: [
         SidebarComponent,
@@ -51,6 +56,9 @@ describe('SidebarComponent', () => {
           { path: 'dashboard/calendar', component: StubRouteComponent },
           { path: 'dashboard/bookings', component: StubRouteComponent },
           { path: 'dashboard/new', component: StubRouteComponent },
+          { path: 'dashboard/facilities', component: StubRouteComponent },
+          { path: 'dashboard/team', component: StubRouteComponent },
+          { path: 'dashboard/settings', component: StubRouteComponent },
         ]),
       ],
     }).compileComponents();
@@ -64,13 +72,17 @@ describe('SidebarComponent', () => {
     fixture.detectChanges();
   });
 
+  afterEach(() => {
+    document.documentElement.dir = 'ltr';
+  });
+
   it('creates the component', () => {
     expect(component).toBeTruthy();
   });
 
   it('renders navigation links', () => {
     const links = fixture.nativeElement.querySelectorAll('.sidebar__nav-link');
-    expect(links.length).toBe(component.navItems.length);
+    expect(links.length).toBe(component.navItems().length);
   });
 
   it('renders logo when expanded', () => {
@@ -167,5 +179,39 @@ describe('SidebarComponent', () => {
     expect(getStyles()).toMatch(
       /sidebar__nav-link[^}]*min-block-size:\s*var\(--space-12\)/
     );
+  });
+
+  it('shows expected toggle icon in LTR mode', () => {
+    document.documentElement.dir = 'ltr';
+    fixture.componentRef.setInput('isCollapsed', false);
+    fixture.detectChanges();
+    let toggleIcon = fixture.nativeElement.querySelector(
+      '.sidebar__toggle-icon'
+    ) as HTMLElement | null;
+    expect(toggleIcon?.textContent?.trim()).toBe('‹');
+
+    fixture.componentRef.setInput('isCollapsed', true);
+    fixture.detectChanges();
+    toggleIcon = fixture.nativeElement.querySelector(
+      '.sidebar__toggle-icon'
+    ) as HTMLElement | null;
+    expect(toggleIcon?.textContent?.trim()).toBe('›');
+  });
+
+  it('shows expected toggle icon in RTL mode', () => {
+    document.documentElement.dir = 'rtl';
+    fixture.componentRef.setInput('isCollapsed', false);
+    fixture.detectChanges();
+    let toggleIcon = fixture.nativeElement.querySelector(
+      '.sidebar__toggle-icon'
+    ) as HTMLElement | null;
+    expect(toggleIcon?.textContent?.trim()).toBe('›');
+
+    fixture.componentRef.setInput('isCollapsed', true);
+    fixture.detectChanges();
+    toggleIcon = fixture.nativeElement.querySelector(
+      '.sidebar__toggle-icon'
+    ) as HTMLElement | null;
+    expect(toggleIcon?.textContent?.trim()).toBe('‹');
   });
 });

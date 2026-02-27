@@ -1,9 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
 import { BookingListComponent } from './booking-list.component';
-import { ApiService } from '../../shared/services/api.service';
+import { FacilityContextStore } from '../../shared/state';
 import { BookingStore } from '../../state/bookings/booking.store';
 import {
   BookingListItemDto,
@@ -59,7 +58,19 @@ const createStoreMock = (initialBookings: BookingListItemDto[] = []) => ({
 
 describe('BookingListComponent', () => {
   let storeMock: ReturnType<typeof createStoreMock>;
-  let apiMock: { getFacilities: jest.Mock };
+  const facilityContextMock = {
+    facilities: signal<FacilityListItemDto[]>([createFacility()]),
+    selectedFacilityId: signal<string | null>(null),
+    loading: signal(false),
+    error: signal<Error | null>(null),
+    initialized: signal(true),
+    initialize: jest.fn(),
+    refreshFacilities: jest.fn(),
+    selectFacility: jest.fn((id: string | null) => {
+      facilityContextMock.selectedFacilityId.set(id);
+    }),
+    clearError: jest.fn(),
+  };
 
   const setupComponent = (bookings: BookingListItemDto[] = []) => {
     storeMock.bookings.set(bookings);
@@ -70,14 +81,22 @@ describe('BookingListComponent', () => {
 
   beforeEach(async () => {
     storeMock = createStoreMock();
-    apiMock = { getFacilities: jest.fn(() => of([createFacility()])) };
+    facilityContextMock.facilities.set([createFacility()]);
+    facilityContextMock.selectedFacilityId.set(null);
+    facilityContextMock.loading.set(false);
+    facilityContextMock.error.set(null);
+    facilityContextMock.initialized.set(true);
+    facilityContextMock.initialize.mockReset();
+    facilityContextMock.refreshFacilities.mockReset();
+    facilityContextMock.selectFacility.mockClear();
+    facilityContextMock.clearError.mockReset();
 
     await TestBed.configureTestingModule({
       imports: [BookingListComponent],
       providers: [
         provideRouter([]),
         { provide: BookingStore, useValue: storeMock },
-        { provide: ApiService, useValue: apiMock },
+        { provide: FacilityContextStore, useValue: facilityContextMock },
       ],
     }).compileComponents();
   });
@@ -90,7 +109,7 @@ describe('BookingListComponent', () => {
   it('loads facilities and bookings on init', () => {
     const { component } = setupComponent();
 
-    expect(apiMock.getFacilities).toHaveBeenCalled();
+    expect(facilityContextMock.initialize).toHaveBeenCalled();
     expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
     expect(component.facilities().length).toBe(1);
   });
@@ -99,12 +118,12 @@ describe('BookingListComponent', () => {
     const booking = createBooking({ id: 'booking-1' });
     const { component } = setupComponent([booking]);
 
-    component.selectedFacilityId.set('facility-1');
+    facilityContextMock.selectedFacilityId.set('facility-1');
     component.selectedBookingIds.set(new Set(['booking-1']));
     component.currentPage.set(3);
     storeMock.loadBookings.mockClear();
 
-    component.onFacilityChange();
+    component.onFacilityChange('facility-1');
 
     expect(storeMock.loadBookings).toHaveBeenCalledWith('facility-1');
     expect(component.currentPage()).toBe(1);
@@ -538,21 +557,18 @@ describe('BookingListComponent', () => {
   });
 
   it('shows facility error and retries loading facilities', () => {
-    jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    apiMock.getFacilities.mockReturnValueOnce(
-      throwError(() => new Error('Facilities failed'))
-    );
+    facilityContextMock.error.set(new Error('Facilities failed'));
 
     const { fixture } = setupComponent([]);
 
     const errorMessage = fixture.nativeElement.querySelector('.filter-error');
     expect(errorMessage?.textContent).toContain('Facilities failed');
 
-    apiMock.getFacilities.mockClear();
+    facilityContextMock.refreshFacilities.mockClear();
     const retryButton = errorMessage?.querySelector('button');
     retryButton?.click();
 
-    expect(apiMock.getFacilities).toHaveBeenCalled();
+    expect(facilityContextMock.refreshFacilities).toHaveBeenCalled();
   });
 
   it('shows date range validation error and disables export', () => {
@@ -588,10 +604,10 @@ describe('BookingListComponent', () => {
 
   it('renders error banner and retries loading bookings', () => {
     storeMock.error.set(new Error('Load failed'));
-    const { fixture, component } = setupComponent([]);
+    const { fixture } = setupComponent([]);
 
     storeMock.loadBookings.mockClear();
-    component.selectedFacilityId.set('facility-1');
+    facilityContextMock.selectedFacilityId.set('facility-1');
 
     const retryButton = fixture.nativeElement.querySelector(
       '.error-message button'

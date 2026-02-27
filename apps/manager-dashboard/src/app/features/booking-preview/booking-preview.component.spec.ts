@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Subject, TimeoutError, of, throwError } from 'rxjs';
 import { BookingPreviewComponent } from './booking-preview.component';
 import { ApiService } from '../../shared/services/api.service';
+import { FacilityContextStore } from '../../shared/state';
 import { BookingStatus, ConflictType } from '@khana/shared-dtos';
 import { createApiMock, ApiServiceMock } from '../../testing/api-mocks';
 import {
@@ -12,6 +14,17 @@ import {
 
 describe('BookingPreviewComponent', () => {
   let apiMock: ApiServiceMock;
+  const facilityContextMock = {
+    facilities: signal([]),
+    selectedFacilityId: signal<string | null>(null),
+    loading: signal(false),
+    error: signal<Error | null>(null),
+    initialized: signal(true),
+    initialize: jest.fn(),
+    refreshFacilities: jest.fn(),
+    selectFacility: jest.fn(),
+    clearError: jest.fn(),
+  };
 
   const setupComponent = () => {
     const fixture = TestBed.createComponent(BookingPreviewComponent);
@@ -21,10 +34,18 @@ describe('BookingPreviewComponent', () => {
 
   beforeEach(async () => {
     apiMock = createApiMock();
+    facilityContextMock.initialize.mockReset();
+    facilityContextMock.refreshFacilities.mockReset();
+    facilityContextMock.selectFacility.mockReset();
+    facilityContextMock.clearError.mockReset();
+    facilityContextMock.selectedFacilityId.set(null);
 
     await TestBed.configureTestingModule({
       imports: [BookingPreviewComponent],
-      providers: [{ provide: ApiService, useValue: apiMock }],
+      providers: [
+        { provide: ApiService, useValue: apiMock },
+        { provide: FacilityContextStore, useValue: facilityContextMock },
+      ],
     }).compileComponents();
   });
 

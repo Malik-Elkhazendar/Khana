@@ -23,9 +23,14 @@ export const appConfig: ApplicationConfig = {
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     importProvidersFrom(
       TranslateModule.forRoot({
+        lang: 'en',
         fallbackLang: 'en',
       })
     ),
-    provideTranslateHttpLoader({ prefix: '/assets/i18n/', suffix: '.json' }),
+    provideTranslateHttpLoader({
+      prefix: './assets/i18n/',
+      suffix: '.json',
+      useHttpBackend: true,
+    }),
   ],
 };

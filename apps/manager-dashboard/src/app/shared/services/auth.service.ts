@@ -141,6 +141,19 @@ export class AuthService {
   }
 
   /**
+   * Logout all other devices for the current user.
+   */
+  logoutAllDevices(): Observable<void> {
+    return this.http.post<void>(
+      `${this.API_URL}/logout-all-devices`,
+      {},
+      {
+        headers: this.getTenantHeaders(),
+      }
+    );
+  }
+
+  /**
    * Refresh access token using refresh token
    */
   refreshToken(): Observable<LoginResponseDto> {
@@ -186,6 +199,21 @@ export class AuthService {
         catchError((error) => {
           this.clearAuthState();
           return throwError(() => error);
+        })
+      );
+  }
+
+  /**
+   * Resolve tenant context from API.
+   */
+  getTenantContext(): Observable<TenantContextResponse> {
+    return this.http
+      .get<TenantContextResponse>(`${this.API_URL}/tenant`, {
+        headers: this.getTenantHeaders(),
+      })
+      .pipe(
+        tap((tenant) => {
+          this.storeTenantId(tenant?.id);
         })
       );
   }

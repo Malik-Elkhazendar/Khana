@@ -1,0 +1,52 @@
+<div
+  class="facility-switcher"
+  [class.facility-switcher--header-compact]="isHeaderCompact"
+  [attr.aria-label]="'DASHBOARD.FACILITY_SWITCHER.ARIA_LABEL' | translate"
+>
+  <label
+    class="facility-switcher__label"
+    [class.facility-switcher__label--sr-only]="!showLabel"
+    [attr.for]="resolvedControlId"
+  >
+    {{ 'DASHBOARD.FACILITY_SWITCHER.LABEL' | translate }}
+  </label>
+
+  <div class="facility-switcher__control-row">
+    <select
+      [attr.id]="resolvedControlId"
+      class="facility-switcher__select"
+      [attr.aria-label]="'DASHBOARD.FACILITY_SWITCHER.LABEL' | translate"
+      [ngModel]="selectedFacilityId() ?? ''"
+      (ngModelChange)="onFacilityChange($event)"
+      [disabled]="loading() || facilities().length === 0"
+    >
+      <option
+        *ngFor="let facility of facilities(); trackBy: trackByFacilityId"
+        [value]="facility.id"
+      >
+        {{ facility.name }}
+      </option>
+    </select>
+
+    <button
+      class="facility-switcher__retry"
+      type="button"
+      *ngIf="error()"
+      [attr.aria-label]="'DASHBOARD.FACILITY_SWITCHER.RETRY' | translate"
+      (click)="retryLoad()"
+    >
+      {{ 'DASHBOARD.FACILITY_SWITCHER.RETRY' | translate }}
+    </button>
+  </div>
+
+  <p class="facility-switcher__state" *ngIf="showStateText && loading()">
+    {{ 'DASHBOARD.FACILITY_SWITCHER.LOADING' | translate }}
+  </p>
+
+  <p
+    class="facility-switcher__state"
+    *ngIf="showStateText && !loading() && facilities().length === 0"
+  >
+    {{ 'DASHBOARD.FACILITY_SWITCHER.EMPTY' | translate }}
+  </p>
+</div>

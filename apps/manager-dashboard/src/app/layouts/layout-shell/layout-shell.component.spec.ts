@@ -1,8 +1,10 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { LayoutShellComponent } from './layout-shell.component';
 import { LayoutStore } from '../../shared/state/layout.store';
+import { FacilityContextStore } from '../../shared/state';
 import { AuthService } from '../../shared/services/auth.service';
 
 const EN_TRANSLATIONS = {
@@ -44,6 +46,17 @@ describe('LayoutShellComponent', () => {
   let component: LayoutShellComponent;
   let store: InstanceType<typeof LayoutStore>;
   let translateService: TranslateService;
+  const facilityContextMock = {
+    facilities: signal([]),
+    selectedFacilityId: signal<string | null>(null),
+    loading: signal(false),
+    error: signal<Error | null>(null),
+    initialized: signal(true),
+    initialize: jest.fn(),
+    refreshFacilities: jest.fn(),
+    selectFacility: jest.fn(),
+    clearError: jest.fn(),
+  };
 
   const setWindowWidth = (width: number) => {
     Object.defineProperty(window, 'innerWidth', {
@@ -55,6 +68,11 @@ describe('LayoutShellComponent', () => {
 
   beforeEach(async () => {
     setWindowWidth(1200);
+    facilityContextMock.initialize.mockReset();
+    facilityContextMock.refreshFacilities.mockReset();
+    facilityContextMock.selectFacility.mockReset();
+    facilityContextMock.clearError.mockReset();
+
     await TestBed.configureTestingModule({
       imports: [
         LayoutShellComponent,
@@ -68,6 +86,7 @@ describe('LayoutShellComponent', () => {
             logout: jest.fn(),
           },
         },
+        { provide: FacilityContextStore, useValue: facilityContextMock },
       ],
     }).compileComponents();
 
@@ -82,6 +101,7 @@ describe('LayoutShellComponent', () => {
 
   it('creates the component', () => {
     expect(component).toBeTruthy();
+    expect(facilityContextMock.initialize).toHaveBeenCalled();
   });
 
   it('toggles sidebar collapse state', () => {
@@ -92,7 +112,7 @@ describe('LayoutShellComponent', () => {
 
   it('toggles mobile drawer state', () => {
     setWindowWidth(500);
-    component.onResize(new Event('resize'));
+    component.onResize();
     expect(store.mobileDrawerOpen()).toBe(false);
     store.toggleMobileDrawer();
     expect(store.mobileDrawerOpen()).toBe(true);
@@ -100,28 +120,34 @@ describe('LayoutShellComponent', () => {
 
   it('detects desktop viewport width', () => {
     setWindowWidth(1200);
-    component.onResize(new Event('resize'));
+    component.onResize();
     expect(component.isDesktop()).toBe(true);
   });
 
   it('detects mobile viewport width', () => {
     setWindowWidth(500);
-    component.onResize(new Event('resize'));
+    component.onResize();
     expect(component.isDesktop()).toBe(false);
   });
 
   it('renders header and router outlet', () => {
     const header = fixture.nativeElement.querySelector('app-header');
-    const outlet = fixture.nativeElement.querySelector('router-outlet');
+    const outlet = fixture.nativeElement.querySelector(
+      '.main-content__body router-outlet'
+    );
+    const breadcrumbs = fixture.nativeElement.querySelector(
+      'app-dashboard-breadcrumbs'
+    );
     const drawer = fixture.nativeElement.querySelector('app-mobile-nav-drawer');
     expect(header).toBeTruthy();
+    expect(breadcrumbs).toBeTruthy();
     expect(outlet).toBeTruthy();
     expect(drawer).toBeTruthy();
   });
 
   it('renders sidebar on tablet widths', () => {
     setWindowWidth(900);
-    component.onResize(new Event('resize'));
+    component.onResize();
     fixture.detectChanges();
     const sidebar = fixture.nativeElement.querySelector('app-sidebar');
     expect(sidebar).toBeTruthy();
@@ -130,7 +156,7 @@ describe('LayoutShellComponent', () => {
 
   it('hides sidebar on mobile widths', () => {
     setWindowWidth(500);
-    component.onResize(new Event('resize'));
+    component.onResize();
     fixture.detectChanges();
     const sidebar = fixture.nativeElement.querySelector('app-sidebar');
     expect(sidebar).toBeNull();
@@ -146,12 +172,12 @@ describe('LayoutShellComponent', () => {
 
   it('closes the drawer when switching to desktop', () => {
     setWindowWidth(500);
-    component.onResize(new Event('resize'));
+    component.onResize();
     store.toggleMobileDrawer();
     expect(store.mobileDrawerOpen()).toBe(true);
 
     setWindowWidth(1200);
-    component.onResize(new Event('resize'));
+    component.onResize();
     expect(store.mobileDrawerOpen()).toBe(false);
   });
 });

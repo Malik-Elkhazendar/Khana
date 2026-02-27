@@ -71,7 +71,7 @@
       <select
         id="facility"
         [ngModel]="selectedFacilityId()"
-        (ngModelChange)="selectedFacilityId.set($event)"
+        (ngModelChange)="onFacilitySelectionChange($event)"
         name="facility"
         required
         autocomplete="organization"
@@ -162,6 +162,7 @@
         text(
           'BOOKING_PREVIEW.FORM.TIMEZONE_HINT',
           'Times shown in {{timezone
+
       }}', { timezone: timezoneLabel } ) }}
     </p>
 
@@ -376,6 +377,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.PEAK_HOURS_RATE',
                 'Peak Hours ({{multiplier
+
             }}x)', { multiplier: result.priceBreakdown.timeMultiplier } ) }}
           </td>
           <td class="modifier">
@@ -389,6 +391,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.WEEKEND_RATE',
                 'Weekend Rate ({{multiplier
+
             }}x)', { multiplier: result.priceBreakdown.dayMultiplier } ) }}
           </td>
           <td class="modifier">
@@ -426,6 +429,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.PROMO_CODE',
                 'Promo ({{code
+
             }})', { code: result.priceBreakdown.promoCode } ) }}
           </td>
           <td>

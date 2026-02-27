@@ -1,7 +1,9 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { UserRole } from '@khana/shared-dtos';
+import { catchError, map, of } from 'rxjs';
 import { AuthStore } from '../state/auth.store';
+import { AuthService } from '../services/auth.service';
 
 /**
  * Role Guard Factory
@@ -19,19 +21,34 @@ import { AuthStore } from '../state/auth.store';
 export function roleGuard(allowedRoles: UserRole[]): CanActivateFn {
   return () => {
     const authStore = inject(AuthStore);
+    const authService = inject(AuthService);
     const router = inject(Router);
 
     const user = authStore.user();
 
-    if (!user) {
+    if (!user && !authStore.isAuthenticated()) {
       return router.createUrlTree(['/login']);
     }
 
-    if (allowedRoles.includes(user.role)) {
-      return true;
+    if (user) {
+      if (allowedRoles.includes(user.role)) {
+        return true;
+      }
+
+      // User doesn't have required role
+      return router.createUrlTree(['/403']);
     }
 
-    // User doesn't have required role
-    return router.createUrlTree(['/403']);
+    // User is authenticated but user profile is not hydrated yet
+    return authService.getCurrentUser().pipe(
+      map((currentUser) => {
+        if (allowedRoles.includes(currentUser.role)) {
+          return true;
+        }
+
+        return router.createUrlTree(['/403']);
+      }),
+      catchError(() => of(router.createUrlTree(['/login'])))
+    );
   };
 }

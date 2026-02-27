@@ -14,14 +14,14 @@
       (click)="onToggleClick()"
     >
       <span class="sidebar__toggle-icon" aria-hidden="true">
-        {{ isCollapsed ? '>' : '<' }}
+        {{ toggleIcon }}
       </span>
     </button>
   </div>
 
   <ul class="sidebar__nav-list">
     <li
-      *ngFor="let item of navItems; trackBy: trackByRoute"
+      *ngFor="let item of navItems(); trackBy: trackByRoute"
       class="sidebar__nav-item"
     >
       <a

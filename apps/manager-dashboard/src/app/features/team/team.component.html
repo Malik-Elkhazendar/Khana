@@ -1,0 +1,65 @@
+<main class="dashboard-page team-page">
+  <header class="dashboard-page__header">
+    <div class="dashboard-page__title-group">
+      <h1 class="dashboard-page__title">
+        {{ 'DASHBOARD.PAGES.TEAM.TITLE' | translate }}
+      </h1>
+      <p class="dashboard-page__subtitle">
+        {{ 'DASHBOARD.PAGES.TEAM.SUBTITLE' | translate }}
+      </p>
+    </div>
+    <div class="dashboard-page__actions">
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--secondary"
+        (click)="refreshCurrentUser()"
+      >
+        {{ 'DASHBOARD.ACTIONS.REFRESH' | translate }}
+      </button>
+    </div>
+  </header>
+
+  <section class="dashboard-card team-panel">
+    <p class="team-state" *ngIf="loading()">
+      {{ 'DASHBOARD.PAGES.TEAM.LOADING' | translate }}
+    </p>
+
+    <p class="team-state team-state--error" *ngIf="error() && !loading()">
+      {{ error()! | translate }}
+    </p>
+
+    <div class="team-profile" *ngIf="!loading() && currentUser() as user">
+      <h2 class="team-profile__title">
+        {{ 'DASHBOARD.PAGES.TEAM.CURRENT_MEMBER' | translate }}
+      </h2>
+      <dl class="team-profile__details">
+        <div>
+          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.NAME' | translate }}</dt>
+          <dd>{{ user.name }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.EMAIL' | translate }}</dt>
+          <dd>{{ user.email }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.ROLE' | translate }}</dt>
+          <dd>{{ user.role }}</dd>
+        </div>
+        <div>
+          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.STATUS' | translate }}</dt>
+          <dd>
+            {{
+              user.isActive
+                ? ('DASHBOARD.PAGES.TEAM.STATUS.ACTIVE' | translate)
+                : ('DASHBOARD.PAGES.TEAM.STATUS.INACTIVE' | translate)
+            }}
+          </dd>
+        </div>
+        <div>
+          <dt>{{ 'DASHBOARD.PAGES.TEAM.FIELDS.TENANT' | translate }}</dt>
+          <dd>{{ user.tenantId }}</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+</main>

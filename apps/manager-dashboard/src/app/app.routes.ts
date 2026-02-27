@@ -3,6 +3,9 @@ import { BookingPreviewComponent } from './features/booking-preview/booking-prev
 import { BookingListComponent } from './features/booking-list/booking-list.component';
 import { BookingCalendarComponent } from './features/booking-calendar/booking-calendar.component';
 import { LayoutShellComponent } from './layouts/layout-shell/layout-shell.component';
+import { FacilitiesComponent } from './features/facilities/facilities.component';
+import { TeamComponent } from './features/team/team.component';
+import { SettingsComponent } from './features/settings/settings.component';
 import { LandingComponent } from './features/landing';
 import { LandingArabicComponent } from './features/landing-ar';
 import { LoginComponent } from './features/auth/login';
@@ -12,7 +15,9 @@ import { ForgotPasswordComponent } from './features/auth/forgot-password';
 import { ResetPasswordComponent } from './features/auth/reset-password';
 import { ForbiddenComponent } from './features/forbidden/forbidden.component';
 import { authGuard } from './shared/guards/auth.guard';
+import { roleGuard } from './shared/guards/role.guard';
 import { publicGuard } from './shared/guards/public.guard';
+import { UserRole } from '@khana/shared-dtos';
 
 export const appRoutes: Route[] = [
   // Landing page - public route
@@ -85,16 +90,57 @@ export const appRoutes: Route[] = [
         path: 'bookings',
         component: BookingListComponent,
         title: 'Bookings | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.BOOKINGS',
+          navKey: 'DASHBOARD.NAV.ITEMS.BOOKINGS',
+        },
       },
       {
         path: 'calendar',
         component: BookingCalendarComponent,
         title: 'Calendar | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.CALENDAR',
+          navKey: 'DASHBOARD.NAV.ITEMS.CALENDAR',
+        },
       },
       {
         path: 'new',
         component: BookingPreviewComponent,
         title: 'New Booking | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.NEW_BOOKING',
+          navKey: 'DASHBOARD.NAV.ITEMS.NEW_BOOKING',
+        },
+      },
+      {
+        path: 'facilities',
+        component: FacilitiesComponent,
+        title: 'Facilities | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.FACILITIES',
+          navKey: 'DASHBOARD.NAV.ITEMS.FACILITIES',
+        },
+      },
+      {
+        path: 'team',
+        component: TeamComponent,
+        canActivate: [roleGuard([UserRole.OWNER, UserRole.MANAGER])],
+        title: 'Team | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.TEAM',
+          navKey: 'DASHBOARD.NAV.ITEMS.TEAM',
+        },
+      },
+      {
+        path: 'settings',
+        component: SettingsComponent,
+        canActivate: [roleGuard([UserRole.OWNER, UserRole.MANAGER])],
+        title: 'Settings | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.SETTINGS',
+          navKey: 'DASHBOARD.NAV.ITEMS.SETTINGS',
+        },
       },
       {
         path: '',

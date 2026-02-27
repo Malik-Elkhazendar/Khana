@@ -23,6 +23,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiService } from '../../shared/services/api.service';
 import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
+import { FacilityContextStore } from '../../shared/state';
 import {
   FacilityListItemDto,
   BookingPreviewResponseDto,
@@ -108,6 +109,7 @@ const ALTERNATIVES_WINDOW_SIZE = 18;
 })
 export class BookingPreviewComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly facilityContext = inject(FacilityContextStore);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
@@ -424,10 +426,22 @@ export class BookingPreviewComponent implements OnInit {
   }));
 
   constructor() {
+    effect(() => {
+      const sharedSelection = this.facilityContext.selectedFacilityId();
+      if (!sharedSelection) return;
+      if (sharedSelection === this.selectedFacilityId()) return;
+      if (
+        this.facilities().some((facility) => facility.id === sharedSelection)
+      ) {
+        this.selectedFacilityId.set(sharedSelection);
+      }
+    });
+
     this.registerEffects();
   }
 
   ngOnInit(): void {
+    this.facilityContext.initialize();
     this.setupConnectivityListeners();
     this.startHeartbeat();
     this.loadFacilities();
@@ -463,9 +477,14 @@ export class BookingPreviewComponent implements OnInit {
         next: (facilities) => {
           if (requestId !== this.facilitiesRequestId) return;
           this.facilities.set(facilities);
-          if (facilities.length > 0) {
-            this.selectedFacilityId.set(facilities[0].id);
-          }
+          const sharedSelection = this.facilityContext.selectedFacilityId();
+          const nextSelection =
+            sharedSelection &&
+            facilities.some((facility) => facility.id === sharedSelection)
+              ? sharedSelection
+              : facilities[0]?.id ?? '';
+          this.selectedFacilityId.set(nextSelection);
+          this.facilityContext.selectFacility(nextSelection || null);
           this.lastAction.set(null);
           this.facilitiesLoading.set(false);
           this.resetRetryState();
@@ -476,6 +495,11 @@ export class BookingPreviewComponent implements OnInit {
           this.handleRequestError('facilities', err);
         },
       });
+  }
+
+  onFacilitySelectionChange(facilityId: string): void {
+    this.selectedFacilityId.set(facilityId);
+    this.facilityContext.selectFacility(facilityId || null);
   }
 
   /**

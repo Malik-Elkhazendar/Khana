@@ -1,0 +1,107 @@
+:host {
+  display: block;
+}
+
+.facilities-panel {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+}
+
+.facilities-state {
+  margin: 0;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.facilities-state--error {
+  color: var(--color-error);
+}
+
+.facility-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.facility-card {
+  display: grid;
+  gap: var(--space-4);
+  border: 1px solid var(--color-surface-muted);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  background: var(--color-surface-elevated);
+}
+
+.facility-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.facility-card__header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.facility-card__badge {
+  border-radius: var(--radius-full);
+  background: var(--color-success-light);
+  color: var(--color-success);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  padding-block: var(--space-1);
+  padding-inline: var(--space-2);
+}
+
+.facility-card__meta {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.facility-card__meta div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.facility-card__meta dt {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.facility-card__meta dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-medium);
+}
+
+.facility-card__action {
+  inline-size: 100%;
+}
+
+.facility-card__active-action {
+  inline-size: 100%;
+  min-block-size: var(--space-12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-success);
+  background: var(--color-success-light);
+  color: var(--color-success);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+}
