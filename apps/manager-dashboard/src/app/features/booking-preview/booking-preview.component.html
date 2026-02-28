@@ -104,7 +104,7 @@
         type="date"
         id="date"
         [ngModel]="selectedDate()"
-        (ngModelChange)="selectedDate.set($event)"
+        (ngModelChange)="onDateChange($event)"
         name="date"
         required
         [attr.lang]="inputLang()"
@@ -163,6 +163,7 @@
           'BOOKING_PREVIEW.FORM.TIMEZONE_HINT',
           'Times shown in {{timezone
 
+
       }}', { timezone: timezoneLabel } ) }}
     </p>
 
@@ -183,6 +184,113 @@
         autocomplete="off"
         [disabled]="loading() || facilitiesLoading()"
       />
+    </div>
+
+    <div class="hold-toggle">
+      <label for="repeatWeekly">
+        <input
+          type="checkbox"
+          [ngModel]="repeatWeekly()"
+          (ngModelChange)="onRepeatWeeklyChange($event)"
+          name="repeatWeekly"
+          id="repeatWeekly"
+          [disabled]="loading() || facilitiesLoading()"
+        />
+        {{
+          text(
+            'BOOKING_PREVIEW.RECURRENCE.REPEAT_WEEKLY_LABEL',
+            'Repeat weekly'
+          )
+        }}
+      </label>
+      @if (repeatWeekly()) {
+      <div class="form-row">
+        <div class="form-group">
+          <label for="recurrenceFrequency">{{
+            text('BOOKING_PREVIEW.RECURRENCE.FREQUENCY_LABEL', 'Frequency')
+          }}</label>
+          <select
+            id="recurrenceFrequency"
+            [ngModel]="recurrenceFrequency()"
+            (ngModelChange)="onRecurrenceFrequencyChange($event)"
+            name="recurrenceFrequency"
+            [disabled]="loading() || facilitiesLoading()"
+          >
+            <option value="WEEKLY">
+              {{
+                text(
+                  'BOOKING_PREVIEW.RECURRENCE.FREQUENCY_WEEKLY',
+                  'Every week'
+                )
+              }}
+            </option>
+            <option value="BIWEEKLY">
+              {{
+                text(
+                  'BOOKING_PREVIEW.RECURRENCE.FREQUENCY_BIWEEKLY',
+                  'Every 2 weeks'
+                )
+              }}
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="recurrenceEndMode">{{
+            text('BOOKING_PREVIEW.RECURRENCE.END_MODE_LABEL', 'Repeat Until')
+          }}</label>
+          <select
+            id="recurrenceEndMode"
+            [ngModel]="recurrenceEndMode()"
+            (ngModelChange)="onRecurrenceEndModeChange($event)"
+            name="recurrenceEndMode"
+            [disabled]="loading() || facilitiesLoading()"
+          >
+            <option value="COUNT">
+              {{
+                text(
+                  'BOOKING_PREVIEW.RECURRENCE.END_MODE_COUNT',
+                  'Number of weeks'
+                )
+              }}
+            </option>
+            <option value="DATE">
+              {{ text('BOOKING_PREVIEW.RECURRENCE.END_MODE_DATE', 'End date') }}
+            </option>
+          </select>
+        </div>
+      </div>
+      @if (showWeeksCountField()) {
+      <div class="form-group">
+        <label for="recurrenceWeeksCount">{{
+          text('BOOKING_PREVIEW.RECURRENCE.WEEKS_COUNT_LABEL', 'Weeks count')
+        }}</label>
+        <input
+          type="number"
+          id="recurrenceWeeksCount"
+          [ngModel]="recurrenceWeeksCount()"
+          (ngModelChange)="onRecurrenceWeeksCountChange($event)"
+          name="recurrenceWeeksCount"
+          min="1"
+          max="104"
+          [disabled]="loading() || facilitiesLoading()"
+        />
+      </div>
+      } @if (showEndDateField()) {
+      <div class="form-group">
+        <label for="recurrenceEndDate">{{
+          text('BOOKING_PREVIEW.RECURRENCE.END_DATE_LABEL', 'End date')
+        }}</label>
+        <input
+          type="date"
+          id="recurrenceEndDate"
+          [ngModel]="recurrenceEndDate()"
+          (ngModelChange)="onRecurrenceEndDateChange($event)"
+          name="recurrenceEndDate"
+          [attr.min]="selectedDate()"
+          [disabled]="loading() || facilitiesLoading()"
+        />
+      </div>
+      } }
     </div>
 
     <!-- Submit Button -->
@@ -378,6 +486,7 @@
                 'BOOKING_PREVIEW.PRICING.PEAK_HOURS_RATE',
                 'Peak Hours ({{multiplier
 
+
             }}x)', { multiplier: result.priceBreakdown.timeMultiplier } ) }}
           </td>
           <td class="modifier">
@@ -391,6 +500,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.WEEKEND_RATE',
                 'Weekend Rate ({{multiplier
+
 
             }}x)', { multiplier: result.priceBreakdown.dayMultiplier } ) }}
           </td>
@@ -429,6 +539,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.PROMO_CODE',
                 'Promo ({{code
+
 
             }})', { code: result.priceBreakdown.promoCode } ) }}
           </td>
@@ -702,6 +813,26 @@
           )
         }}</span>
       </div>
+      } @if (repeatWeekly()) {
+      <div class="confirm-row">
+        <span class="label">{{
+          text('BOOKING_PREVIEW.CONFIRM_SUMMARY.REPEAT_LABEL', 'Repeat')
+        }}</span>
+        <span class="value">
+          @if (recurrenceFrequency() === 'BIWEEKLY') {
+          {{
+            text(
+              'BOOKING_PREVIEW.RECURRENCE.FREQUENCY_BIWEEKLY',
+              'Every 2 weeks'
+            )
+          }}
+          } @else {
+          {{
+            text('BOOKING_PREVIEW.RECURRENCE.FREQUENCY_WEEKLY', 'Every week')
+          }}
+          }
+        </span>
+      </div>
       }
     </div>
     <p class="policy-note">{{ cancellationPolicyNote }}</p>
@@ -717,6 +848,19 @@
     <p class="success-reference">
       {{ text('BOOKING_PREVIEW.SUCCESS.REFERENCE_PREFIX', 'Reference:') }}
       {{ bookingReference() }}
+    </p>
+    } @if (recurringCreatedCount(); as count) {
+    <p class="success-reference">
+      {{
+        text(
+          'BOOKING_PREVIEW.SUCCESS.RECURRING_COUNT',
+          'Created {{count}}
+      recurring bookings.', { count: count } ) }}
+    </p>
+    } @if (recurrenceGroupId()) {
+    <p class="success-reference">
+      {{ text('BOOKING_PREVIEW.SUCCESS.RECURRENCE_GROUP', 'Series ID:') }}
+      {{ recurrenceGroupId() }}
     </p>
     }
     <p class="success-subtitle">

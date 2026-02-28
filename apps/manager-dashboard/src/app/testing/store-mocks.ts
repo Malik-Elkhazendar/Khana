@@ -33,6 +33,7 @@ export const createStoreMock = (options: StoreMockOptions = {}) => {
     confirmBooking: jest.fn(() => Promise.resolve(true)),
     markBookingPaid: jest.fn(() => Promise.resolve(true)),
     cancelBooking: jest.fn(() => Promise.resolve(true)),
+    cancelBookingWithScope: jest.fn(() => Promise.resolve(true)),
   };
 };
 

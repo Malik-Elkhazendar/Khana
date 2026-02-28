@@ -9,7 +9,9 @@ import { ApiService } from './api.service';
 import { environment } from '../../../environments/environment';
 import { LoggerService } from './logger.service';
 import {
+  BookingCancellationScope,
   BookingPreviewRequestDto,
+  RecurrenceFrequency,
   BookingStatus,
   PaymentStatus,
   UserRole,
@@ -53,6 +55,34 @@ describe('ApiService', () => {
     const req = httpMock.expectOne(`${API_BASE_URL}/v1/bookings/facilities`);
     expect(req.request.method).toBe('GET');
     req.flush([]);
+  });
+
+  it('should complete onboarding using configured API base URL', () => {
+    const request = {
+      businessName: 'Elite Sports Hub',
+      businessType: 'SPORTS' as const,
+      contactEmail: 'owner@khana.dev',
+      contactPhone: '+966500000000',
+      facility: {
+        name: 'Court 1',
+        type: 'PADEL_COURT',
+        pricePerHour: 180,
+        openTime: '08:00',
+        closeTime: '23:00',
+      },
+    };
+
+    service.completeOnboarding(request).subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/onboarding/complete`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(request);
+    req.flush({
+      onboardingCompleted: true,
+      tenantId: 'tenant-1',
+      facilityId: 'facility-1',
+      redirectTo: '/dashboard',
+    });
   });
 
   it('should request managed facilities with includeInactive=true', () => {
@@ -209,6 +239,28 @@ describe('ApiService', () => {
     req.flush({});
   });
 
+  it('should post create recurring booking using configured API base URL', () => {
+    const request = {
+      facilityId: 'facility-1',
+      startTime: new Date().toISOString(),
+      endTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      customerName: 'Test User',
+      customerPhone: '+966500000000',
+      recurrenceRule: {
+        frequency: RecurrenceFrequency.WEEKLY,
+        intervalWeeks: 1,
+        occurrences: 8,
+      },
+    };
+
+    service.createRecurringBooking(request).subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/bookings/recurring`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(request);
+    req.flush({ recurrenceGroupId: 'group-1', createdCount: 8, bookings: [] });
+  });
+
   it('should patch booking status using configured API base URL', () => {
     const bookingId = 'booking-1';
 
@@ -217,7 +269,8 @@ describe('ApiService', () => {
         bookingId,
         BookingStatus.CONFIRMED,
         PaymentStatus.PAID,
-        undefined
+        undefined,
+        BookingCancellationScope.SINGLE
       )
       .subscribe();
 
@@ -229,6 +282,7 @@ describe('ApiService', () => {
       status: BookingStatus.CONFIRMED,
       paymentStatus: PaymentStatus.PAID,
       cancellationReason: undefined,
+      cancellationScope: BookingCancellationScope.SINGLE,
     });
     req.flush({});
   });

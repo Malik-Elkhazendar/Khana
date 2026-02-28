@@ -12,6 +12,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateService } from '@ngx-translate/core';
 import {
+  Observable,
   Subject,
   TimeoutError,
   catchError,
@@ -30,6 +31,7 @@ import {
   AlternativeSlotDto,
   BookingStatus,
   ConflictType,
+  RecurrenceFrequency,
 } from '@khana/shared-dtos';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import {
@@ -59,6 +61,8 @@ type OfflineAction = {
   payload?: PreviewRequestPayload;
   queuedAt: number;
 };
+
+type RecurrenceEndMode = 'COUNT' | 'DATE';
 
 type ErrorRecoveryAction = 'retry' | 'refresh' | 'dismiss';
 type ErrorRecoveryOption = {
@@ -175,6 +179,11 @@ export class BookingPreviewComponent implements OnInit {
   startTime = signal<string>('10:00');
   endTime = signal<string>('11:00');
   promoCode = signal<string>('');
+  repeatWeekly = signal<boolean>(false);
+  recurrenceFrequency = signal<RecurrenceFrequency>(RecurrenceFrequency.WEEKLY);
+  recurrenceEndMode = signal<RecurrenceEndMode>('COUNT');
+  recurrenceWeeksCount = signal<number>(8);
+  recurrenceEndDate = signal<string>('');
 
   // Result state
   previewResult = signal<BookingPreviewResponseDto | null>(null);
@@ -204,6 +213,8 @@ export class BookingPreviewComponent implements OnInit {
   bookingInProgress = signal<boolean>(false);
   bookingSuccess = signal<boolean>(false);
   bookingReference = signal<string | null>(null);
+  recurringCreatedCount = signal<number | null>(null);
+  recurrenceGroupId = signal<string | null>(null);
   isOnline = signal<boolean>(this.resolveOnlineStatus());
 
   // Computed values
@@ -221,6 +232,31 @@ export class BookingPreviewComponent implements OnInit {
     );
   });
 
+  readonly recurrenceControlsValid = computed(() => {
+    if (!this.repeatWeekly()) {
+      return true;
+    }
+
+    if (this.recurrenceEndMode() === 'COUNT') {
+      const count = Number(this.recurrenceWeeksCount());
+      return Number.isInteger(count) && count >= 1 && count <= 104;
+    }
+
+    const endDate = this.recurrenceEndDate().trim();
+    if (!endDate) {
+      return false;
+    }
+    return endDate >= this.selectedDate();
+  });
+
+  readonly showWeeksCountField = computed(
+    () => this.repeatWeekly() && this.recurrenceEndMode() === 'COUNT'
+  );
+
+  readonly showEndDateField = computed(
+    () => this.repeatWeekly() && this.recurrenceEndMode() === 'DATE'
+  );
+
   canSubmit = computed(() => {
     return this.inputsValid() && !this.loading() && !this.facilitiesLoading();
   });
@@ -231,6 +267,7 @@ export class BookingPreviewComponent implements OnInit {
       Boolean(result?.canBook) &&
       this.customerName().trim() !== '' &&
       this.customerPhone().trim() !== '' &&
+      this.recurrenceControlsValid() &&
       !this.bookingInProgress() &&
       !this.loading()
     );
@@ -412,6 +449,29 @@ export class BookingPreviewComponent implements OnInit {
         )
       );
     }
+    if (this.repeatWeekly()) {
+      if (this.recurrenceEndMode() === 'COUNT') {
+        const count = Number(this.recurrenceWeeksCount());
+        if (!Number.isInteger(count) || count < 1 || count > 104) {
+          errors.push(
+            this.t(
+              'BOOKING_PREVIEW.VALIDATION.REPEAT_COUNT_INVALID',
+              'Repeat count must be between 1 and 104.'
+            )
+          );
+        }
+      } else {
+        const endDate = this.recurrenceEndDate().trim();
+        if (!endDate || endDate < this.selectedDate()) {
+          errors.push(
+            this.t(
+              'BOOKING_PREVIEW.VALIDATION.REPEAT_END_DATE_INVALID',
+              'Repeat end date must be on or after the selected booking date.'
+            )
+          );
+        }
+      }
+    }
     return errors;
   });
 
@@ -444,6 +504,7 @@ export class BookingPreviewComponent implements OnInit {
     this.facilityContext.initialize();
     this.setupConnectivityListeners();
     this.startHeartbeat();
+    this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
     this.loadFacilities();
     this.destroyRef.onDestroy(() => this.cleanup());
   }
@@ -502,6 +563,84 @@ export class BookingPreviewComponent implements OnInit {
     this.facilityContext.selectFacility(facilityId || null);
   }
 
+  onDateChange(value: string): void {
+    this.selectedDate.set(value);
+    if (!this.repeatWeekly()) {
+      return;
+    }
+
+    if (this.recurrenceEndMode() === 'COUNT') {
+      this.syncEndDateFromWeeksCount();
+      return;
+    }
+
+    if (this.recurrenceEndDate().trim() && this.recurrenceEndDate() < value) {
+      this.recurrenceEndDate.set(value);
+      this.syncWeeksCountFromEndDate(value);
+    }
+  }
+
+  onRepeatWeeklyChange(value: boolean): void {
+    this.repeatWeekly.set(value);
+    if (!value) {
+      return;
+    }
+    if (this.recurrenceEndMode() === 'COUNT') {
+      this.syncEndDateFromWeeksCount();
+      return;
+    }
+    if (!this.recurrenceEndDate().trim()) {
+      this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
+    }
+  }
+
+  onRecurrenceFrequencyChange(value: string): void {
+    if (value === RecurrenceFrequency.BIWEEKLY) {
+      this.recurrenceFrequency.set(RecurrenceFrequency.BIWEEKLY);
+      return;
+    }
+    this.recurrenceFrequency.set(RecurrenceFrequency.WEEKLY);
+  }
+
+  onRecurrenceEndModeChange(value: string): void {
+    const mode: RecurrenceEndMode = value === 'DATE' ? 'DATE' : 'COUNT';
+    this.recurrenceEndMode.set(mode);
+    if (mode === 'COUNT') {
+      this.syncEndDateFromWeeksCount();
+      return;
+    }
+    if (!this.recurrenceEndDate().trim()) {
+      this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
+    }
+  }
+
+  onRecurrenceWeeksCountChange(value: string | number): void {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      this.recurrenceWeeksCount.set(1);
+      if (this.repeatWeekly() && this.recurrenceEndMode() === 'COUNT') {
+        this.syncEndDateFromWeeksCount();
+      }
+      return;
+    }
+    const normalized = Math.min(104, Math.max(1, Math.trunc(parsed)));
+    this.recurrenceWeeksCount.set(normalized);
+    if (this.repeatWeekly() && this.recurrenceEndMode() === 'COUNT') {
+      this.syncEndDateFromWeeksCount();
+    }
+  }
+
+  onRecurrenceEndDateChange(value: string): void {
+    if (!value) {
+      this.recurrenceEndDate.set('');
+      return;
+    }
+    const normalized =
+      value < this.selectedDate() ? this.selectedDate() : value.trim();
+    this.recurrenceEndDate.set(normalized);
+    this.syncWeeksCountFromEndDate(normalized);
+  }
+
   /**
    * Validates that the start time is before the end time.
    * Called from template for aria-invalid and input validation.
@@ -518,6 +657,63 @@ export class BookingPreviewComponent implements OnInit {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString().split('T')[0];
+  }
+
+  private getDateAfterWeeks(baseDateIso: string, weeks: number): string {
+    const [year, month, day] = baseDateIso
+      .split('-')
+      .map((value) => Number(value));
+
+    if (
+      !Number.isInteger(year) ||
+      !Number.isInteger(month) ||
+      !Number.isInteger(day)
+    ) {
+      return baseDateIso;
+    }
+
+    const normalizedWeeks = Number.isFinite(weeks) ? Math.trunc(weeks) : 0;
+    const baseDate = new Date(Date.UTC(year, month - 1, day));
+    baseDate.setUTCDate(baseDate.getUTCDate() + normalizedWeeks * 7);
+    return baseDate.toISOString().split('T')[0];
+  }
+
+  private getDefaultRecurrenceEndDate(): string {
+    const horizonWeeks = Math.max(0, Number(this.recurrenceWeeksCount()) - 1);
+    return this.getDateAfterWeeks(this.selectedDate(), horizonWeeks);
+  }
+
+  private syncEndDateFromWeeksCount(): void {
+    this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
+  }
+
+  private syncWeeksCountFromEndDate(endDateIso: string): void {
+    const days = this.getDayDifference(this.selectedDate(), endDateIso);
+    const weeksCount = Math.floor(Math.max(0, days) / 7) + 1;
+    this.recurrenceWeeksCount.set(Math.min(104, Math.max(1, weeksCount)));
+  }
+
+  private getDayDifference(startIso: string, endIso: string): number {
+    const parseIsoDate = (value: string): Date | null => {
+      const [year, month, day] = value.split('-').map((part) => Number(part));
+      if (
+        !Number.isInteger(year) ||
+        !Number.isInteger(month) ||
+        !Number.isInteger(day)
+      ) {
+        return null;
+      }
+      return new Date(Date.UTC(year, month - 1, day));
+    };
+
+    const startDate = parseIsoDate(startIso);
+    const endDate = parseIsoDate(endIso);
+    if (!startDate || !endDate) {
+      return 0;
+    }
+
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return Math.floor((endDate.getTime() - startDate.getTime()) / msPerDay);
   }
 
   /**
@@ -552,6 +748,8 @@ export class BookingPreviewComponent implements OnInit {
     this.previewStale.set(false);
     this.bookingSuccess.set(false);
     this.bookingReference.set(null);
+    this.recurrenceGroupId.set(null);
+    this.recurringCreatedCount.set(null);
     this.confirmDialogOpen.set(false);
     this.alternativesExpanded.set(false);
     this.alternativesScrollTop.set(0);
@@ -878,6 +1076,8 @@ export class BookingPreviewComponent implements OnInit {
   resetBooking(): void {
     this.bookingSuccess.set(false);
     this.bookingReference.set(null);
+    this.recurrenceGroupId.set(null);
+    this.recurringCreatedCount.set(null);
     this.customerName.set('');
     this.customerPhone.set('');
     this.holdAsPending.set(false);
@@ -951,18 +1151,45 @@ export class BookingPreviewComponent implements OnInit {
       `${this.selectedDate()}T${this.startTime()}`
     );
     const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
+    const status = this.holdAsPending() ? BookingStatus.PENDING : undefined;
     const payload = {
       facilityId: this.selectedFacilityId(),
       startTime: startDateTime.toISOString(),
       endTime: endDateTime.toISOString(),
       customerName: this.customerName().trim(),
       customerPhone: this.customerPhone().trim(),
-      status: this.holdAsPending() ? BookingStatus.PENDING : undefined,
+      status,
     };
+    const isRecurring = this.repeatWeekly();
+    const recurringPayload = isRecurring
+      ? {
+          ...payload,
+          recurrenceRule: {
+            frequency: this.recurrenceFrequency(),
+            intervalWeeks:
+              this.recurrenceFrequency() === RecurrenceFrequency.BIWEEKLY
+                ? 2
+                : 1,
+            // Weeks count represents a week horizon, not number of instances.
+            // Convert COUNT mode to an end date so weekly/biweekly behave consistently.
+            endsAtDate:
+              this.recurrenceEndMode() === 'DATE'
+                ? this.recurrenceEndDate().trim()
+                : this.getDateAfterWeeks(
+                    this.selectedDate(),
+                    Math.max(0, Number(this.recurrenceWeeksCount()) - 1)
+                  ),
+          },
+        }
+      : null;
 
     return new Promise((resolve) => {
-      this.api
-        .createBooking(payload)
+      const request$: Observable<unknown> =
+        isRecurring && recurringPayload
+          ? this.api.createRecurringBooking(recurringPayload)
+          : this.api.createBooking(payload);
+
+      request$
         .pipe(
           timeout(REQUEST_TIMEOUT_MS),
           catchError((err) =>
@@ -971,16 +1198,37 @@ export class BookingPreviewComponent implements OnInit {
           takeUntilDestroyed(this.destroyRef)
         )
         .subscribe({
-          next: (createdBooking) => {
+          next: (createdBooking: unknown) => {
             this.bookingInProgress.set(false);
             this.bookingSuccess.set(true);
-            this.bookingReference.set(createdBooking.bookingReference ?? null);
+            if (isRecurring) {
+              const series = createdBooking as {
+                recurrenceGroupId: string;
+                createdCount: number;
+                bookings: Array<{ bookingReference?: string }>;
+              };
+              this.bookingReference.set(
+                series.bookings[0]?.bookingReference ?? null
+              );
+              this.recurrenceGroupId.set(series.recurrenceGroupId);
+              this.recurringCreatedCount.set(series.createdCount);
+            } else {
+              const booking = createdBooking as { bookingReference?: string };
+              this.bookingReference.set(booking.bookingReference ?? null);
+              this.recurrenceGroupId.set(null);
+              this.recurringCreatedCount.set(null);
+            }
             this.confirmDialogOpen.set(false);
             this.showToast(
-              this.t(
-                'BOOKING_PREVIEW.TOAST.BOOKING_CONFIRMED',
-                'Booking confirmed'
-              ),
+              isRecurring
+                ? this.t(
+                    'BOOKING_PREVIEW.TOAST.RECURRING_BOOKING_CONFIRMED',
+                    'Recurring booking series confirmed'
+                  )
+                : this.t(
+                    'BOOKING_PREVIEW.TOAST.BOOKING_CONFIRMED',
+                    'Booking confirmed'
+                  ),
               'success'
             );
             // Reset form for next booking
@@ -1243,6 +1491,8 @@ export class BookingPreviewComponent implements OnInit {
     this.bookingInProgress.set(false);
     this.bookingSuccess.set(false);
     this.bookingReference.set(null);
+    this.recurrenceGroupId.set(null);
+    this.recurringCreatedCount.set(null);
     this.confirmDialogOpen.set(false);
     this.customerName.set('');
     this.customerPhone.set('');

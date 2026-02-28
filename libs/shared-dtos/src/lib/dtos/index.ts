@@ -8,3 +8,5 @@ export * from './customer.dto';
 export * from './user.dto';
 export * from './availability.dto';
 export * from './api-response.dto';
+export * from './onboarding.dto';
+export * from './owner-signup.dto';

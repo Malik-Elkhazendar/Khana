@@ -18,6 +18,7 @@ const createUser = (
   name: 'Owner User',
   role: UserRole.OWNER,
   isActive: true,
+  onboardingCompleted: true,
   createdAt: new Date('2026-02-28T10:00:00.000Z'),
   updatedAt: new Date('2026-02-28T10:00:00.000Z'),
   ...overrides,

@@ -2,10 +2,15 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, throwError } from 'rxjs';
 import {
+  BookingCancellationScope,
   BookingPreviewRequestDto,
   BookingPreviewResponseDto,
   BookingListItemDto,
   BookingStatus,
+  CompleteOnboardingRequestDto,
+  CompleteOnboardingResponseDto,
+  CreateRecurringBookingRequestDto,
+  CreateRecurringBookingResponseDto,
   CreateBookingRequestDto,
   CreateFacilityRequestDto,
   FacilityListItemDto,
@@ -54,6 +59,24 @@ export class ApiService {
       );
       return throwError(() => err);
     };
+  }
+
+  // ============================================================
+  // ONBOARDING
+  // ============================================================
+
+  /**
+   * Complete tenant onboarding with business details + first facility
+   */
+  completeOnboarding(
+    request: CompleteOnboardingRequestDto
+  ): Observable<CompleteOnboardingResponseDto> {
+    return this.http
+      .post<CompleteOnboardingResponseDto>(
+        `${this.baseUrl}/v1/onboarding/complete`,
+        request
+      )
+      .pipe(catchError(this.handleError('complete onboarding')));
   }
 
   // ============================================================
@@ -218,19 +241,35 @@ export class ApiService {
   }
 
   /**
+   * Create a recurring booking series
+   */
+  createRecurringBooking(
+    request: CreateRecurringBookingRequestDto
+  ): Observable<CreateRecurringBookingResponseDto> {
+    return this.http
+      .post<CreateRecurringBookingResponseDto>(
+        `${this.baseUrl}/v1/bookings/recurring`,
+        request
+      )
+      .pipe(catchError(this.handleError('create recurring booking')));
+  }
+
+  /**
    * Update booking status (cancel, mark as paid, etc.)
    */
   updateBookingStatus(
     id: string,
     status?: BookingStatus,
     paymentStatus?: PaymentStatus,
-    cancellationReason?: string
+    cancellationReason?: string,
+    cancellationScope?: BookingCancellationScope
   ): Observable<BookingListItemDto> {
     return this.http
       .patch<BookingListItemDto>(`${this.baseUrl}/v1/bookings/${id}/status`, {
         status,
         paymentStatus,
         cancellationReason,
+        cancellationScope,
       })
       .pipe(catchError(this.handleError('update booking status')));
   }

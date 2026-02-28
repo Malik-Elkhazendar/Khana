@@ -2,11 +2,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { UserRole } from '@khana/shared-dtos';
 import { RegisterComponent } from './register.component';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
 import { setupStorageMock } from '../../../shared/testing/mocks/storage.mock';
 import { createMockLoginResponse } from '../../../shared/testing/fixtures/auth-response.fixture';
+import { createMockUser } from '../../../shared/testing/fixtures/user.fixture';
 
 const EN_TRANSLATIONS = {
   AUTH: {
@@ -19,6 +21,10 @@ const EN_TRANSLATIONS = {
       SUBTITLE: 'Join Khana Booking Platform',
       HAVE_ACCOUNT: 'Already have an account?',
       SIGNIN_LINK: 'Sign in',
+      WORKSPACE_NAME_LABEL: 'Workspace Name',
+      WORKSPACE_NAME_PLACEHOLDER: 'Elite Padel',
+      WORKSPACE_SLUG_LABEL: 'Workspace URL (optional)',
+      WORKSPACE_SLUG_PLACEHOLDER: 'elite-padel',
       EMAIL_LABEL: 'Email',
       EMAIL_PLACEHOLDER: 'business@example.com',
       NAME_LABEL: 'Full Name',
@@ -41,6 +47,13 @@ const EN_TRANSLATIONS = {
         'Join the Khana ecosystem. Streamline your operations, eliminate double bookings, and deliver flawless customer experiences.',
     },
     VALIDATION: {
+      WORKSPACE_NAME_REQUIRED: 'Workspace name is required',
+      WORKSPACE_NAME_MINLENGTH: 'Workspace name must be at least 2 characters',
+      WORKSPACE_SLUG_LENGTH:
+        'Workspace URL must be between 3 and 50 characters',
+      WORKSPACE_SLUG_PATTERN:
+        'Workspace URL can only use lowercase letters, numbers, and hyphens',
+      WORKSPACE_SLUG_TAKEN: 'Workspace URL is already in use',
       EMAIL_REQUIRED: 'Email is required',
       EMAIL_INVALID: 'Please enter a valid email address',
       EMAIL_DUPLICATE: 'Email already in use',
@@ -72,7 +85,7 @@ describe('RegisterComponent', () => {
     storageMock = setupStorageMock();
 
     authService = {
-      register: jest.fn(),
+      signupOwner: jest.fn(),
     } as unknown as jest.Mocked<AuthService>;
 
     await TestBed.configureTestingModule({
@@ -110,6 +123,8 @@ describe('RegisterComponent', () => {
 
     it('should initialize form with empty values', () => {
       expect(component.registerForm.value).toEqual({
+        workspaceName: '',
+        workspaceSlug: '',
         email: '',
         password: '',
         confirmPassword: '',
@@ -157,6 +172,12 @@ describe('RegisterComponent', () => {
       const emailControl = component.emailControl!;
       emailControl.setValue('');
       expect(emailControl.hasError('required')).toBe(true);
+    });
+
+    it('should require workspace name', () => {
+      const workspaceNameControl = component.workspaceNameControl!;
+      workspaceNameControl.setValue('');
+      expect(workspaceNameControl.hasError('required')).toBe(true);
     });
 
     it('should validate email format', () => {
@@ -223,6 +244,19 @@ describe('RegisterComponent', () => {
 
       expect(termsControl.hasError('required')).toBe(true);
     });
+
+    it('should validate optional workspace slug format', () => {
+      const workspaceSlugControl = component.workspaceSlugControl!;
+
+      workspaceSlugControl.setValue('Invalid Slug');
+      expect(workspaceSlugControl.hasError('workspaceSlugPattern')).toBe(true);
+
+      workspaceSlugControl.setValue('ok');
+      expect(workspaceSlugControl.hasError('workspaceSlugLength')).toBe(true);
+
+      workspaceSlugControl.setValue('elite-padel');
+      expect(workspaceSlugControl.errors).toBeNull();
+    });
   });
 
   describe('password strength indicator', () => {
@@ -245,15 +279,17 @@ describe('RegisterComponent', () => {
     it('should not submit when form is invalid', () => {
       component.onSubmit();
 
-      expect(authService.register).not.toHaveBeenCalled();
+      expect(authService.signupOwner).not.toHaveBeenCalled();
       expect(component.registerForm.touched).toBe(true);
     });
 
-    it('should call authService.register with valid form values', () => {
+    it('should call authService.signupOwner with valid form values', () => {
       const mockResponse = createMockLoginResponse();
-      authService.register.mockReturnValue(of(mockResponse));
+      authService.signupOwner.mockReturnValue(of(mockResponse));
 
       component.registerForm.setValue({
+        workspaceName: 'Elite Padel',
+        workspaceSlug: 'elite-padel',
         email: 'test@example.com',
         password: 'Password1',
         confirmPassword: 'Password1',
@@ -264,7 +300,9 @@ describe('RegisterComponent', () => {
 
       component.onSubmit();
 
-      expect(authService.register).toHaveBeenCalledWith({
+      expect(authService.signupOwner).toHaveBeenCalledWith({
+        workspaceName: 'Elite Padel',
+        workspaceSlug: 'elite-padel',
         email: 'test@example.com',
         password: 'Password1',
         name: 'Test User',
@@ -274,9 +312,11 @@ describe('RegisterComponent', () => {
 
     it('should redirect to dashboard on success', (done) => {
       const mockResponse = createMockLoginResponse();
-      authService.register.mockReturnValue(of(mockResponse));
+      authService.signupOwner.mockReturnValue(of(mockResponse));
 
       component.registerForm.setValue({
+        workspaceName: 'Elite Padel',
+        workspaceSlug: '',
         email: 'test@example.com',
         password: 'Password1',
         confirmPassword: 'Password1',
@@ -296,9 +336,11 @@ describe('RegisterComponent', () => {
     it('should redirect to returnUrl when present', (done) => {
       storageMock.setItem('returnUrl', '/dashboard/bookings');
       const mockResponse = createMockLoginResponse();
-      authService.register.mockReturnValue(of(mockResponse));
+      authService.signupOwner.mockReturnValue(of(mockResponse));
 
       component.registerForm.setValue({
+        workspaceName: 'Elite Padel',
+        workspaceSlug: '',
         email: 'test@example.com',
         password: 'Password1',
         confirmPassword: 'Password1',
@@ -311,14 +353,73 @@ describe('RegisterComponent', () => {
 
       setTimeout(() => {
         expect(navigateByUrlSpy).toHaveBeenCalledWith('/dashboard/bookings');
+        expect(storageMock.getItem('returnUrl')).toBeNull();
+        done();
+      }, 100);
+    });
+
+    it('should redirect owner with incomplete onboarding to onboarding', (done) => {
+      const mockResponse = createMockLoginResponse({
+        user: createMockUser({
+          role: UserRole.OWNER,
+          onboardingCompleted: false,
+        }),
+      });
+      authService.signupOwner.mockReturnValue(of(mockResponse));
+
+      component.registerForm.setValue({
+        workspaceName: 'Elite Padel',
+        workspaceSlug: '',
+        email: 'test@example.com',
+        password: 'Password1',
+        confirmPassword: 'Password1',
+        name: 'Test User',
+        phone: '',
+        acceptTerms: true,
+      });
+
+      component.onSubmit();
+
+      setTimeout(() => {
+        expect(navigateByUrlSpy).toHaveBeenCalledWith('/onboarding');
+        done();
+      }, 100);
+    });
+
+    it('should fallback to dashboard when register response user is missing', (done) => {
+      const mockResponse = {
+        ...createMockLoginResponse(),
+        user: undefined,
+      } as unknown as ReturnType<typeof createMockLoginResponse>;
+      authService.signupOwner.mockReturnValue(of(mockResponse));
+
+      component.registerForm.setValue({
+        workspaceName: 'Elite Padel',
+        workspaceSlug: '',
+        email: 'test@example.com',
+        password: 'Password1',
+        confirmPassword: 'Password1',
+        name: 'Test User',
+        phone: '',
+        acceptTerms: true,
+      });
+
+      component.onSubmit();
+
+      setTimeout(() => {
+        expect(navigateByUrlSpy).toHaveBeenCalledWith('/dashboard');
         done();
       }, 100);
     });
 
     it('should set duplicate error on 409 conflict', () => {
-      authService.register.mockReturnValue(throwError(() => ({ status: 409 })));
+      authService.signupOwner.mockReturnValue(
+        throwError(() => ({ status: 409 }))
+      );
 
       component.registerForm.setValue({
+        workspaceName: 'Elite Padel',
+        workspaceSlug: '',
         email: 'existing@example.com',
         password: 'Password1',
         confirmPassword: 'Password1',
@@ -330,6 +431,33 @@ describe('RegisterComponent', () => {
       component.onSubmit();
 
       expect(component.emailControl?.hasError('duplicate')).toBe(true);
+    });
+
+    it('should set workspace slug conflict error on slug-related 409', () => {
+      authService.signupOwner.mockReturnValue(
+        throwError(() => ({
+          status: 409,
+          error: { message: 'Workspace slug is already in use.' },
+        }))
+      );
+
+      component.registerForm.setValue({
+        workspaceName: 'Elite Padel',
+        workspaceSlug: 'elite-padel',
+        email: 'owner@example.com',
+        password: 'Password1',
+        confirmPassword: 'Password1',
+        name: 'Owner',
+        phone: '',
+        acceptTerms: true,
+      });
+
+      component.onSubmit();
+
+      expect(
+        component.workspaceSlugControl?.hasError('workspaceSlugTaken')
+      ).toBe(true);
+      expect(component.emailControl?.hasError('duplicate')).toBeFalsy();
     });
   });
 

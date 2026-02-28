@@ -27,7 +27,7 @@ import { LoggerService } from '../services/logger.service';
  * 1. Inject Authorization header with Bearer token
  * 2. Handle 401 errors by refreshing token
  * 3. Prevent multiple simultaneous refresh requests
- * 4. Skip public auth endpoints (login, register, refresh, forgot/reset password)
+ * 4. Skip public auth endpoints (login, register/signup, tenant resolve, refresh, forgot/reset password)
  *
  * Pattern: Token Rotation
  * - Access token expires after 15 min
@@ -160,6 +160,9 @@ function isAuthEndpoint(url: string): boolean {
   const authEndpoints = [
     '/auth/login',
     '/auth/register',
+    '/auth/signup-owner',
+    '/auth/tenant',
+    '/auth/tenant/resolve',
     '/auth/refresh',
     '/auth/forgot-password',
     '/auth/reset-password',

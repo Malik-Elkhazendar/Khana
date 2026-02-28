@@ -26,7 +26,10 @@ export class SeedService implements OnModuleInit {
         return;
       }
 
-      const tenant = this.tenantRepository.create({ name: 'Elite Padel' });
+      const tenant = this.tenantRepository.create({
+        name: 'Elite Padel',
+        slug: 'elite-padel',
+      });
       const savedTenant = await this.tenantRepository.save(tenant);
 
       const facility = this.facilityRepository.create({

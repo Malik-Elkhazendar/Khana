@@ -37,6 +37,103 @@
         }
 
         <div class="form-group auth-field">
+          <label for="workspaceName" class="form-label auth-label">
+            {{ 'AUTH.REGISTER.WORKSPACE_NAME_LABEL' | translate }}
+            <span
+              class="required auth-required"
+              [attr.aria-label]="
+                'AUTH.ACCESSIBILITY.REQUIRED_FIELD' | translate
+              "
+              >*</span
+            >
+          </label>
+          <input
+            id="workspaceName"
+            type="text"
+            formControlName="workspaceName"
+            class="form-input auth-input"
+            [placeholder]="
+              'AUTH.REGISTER.WORKSPACE_NAME_PLACEHOLDER' | translate
+            "
+            autocomplete="organization"
+            [attr.aria-label]="'AUTH.REGISTER.WORKSPACE_NAME_LABEL' | translate"
+            [attr.aria-invalid]="
+              workspaceNameControl?.invalid && workspaceNameControl?.touched
+            "
+            [attr.aria-describedby]="
+              workspaceNameControl?.invalid && workspaceNameControl?.touched
+                ? 'workspace-name-error'
+                : null
+            "
+          />
+          @if (workspaceNameControl?.invalid && workspaceNameControl?.touched) {
+          <div
+            id="workspace-name-error"
+            class="form-error auth-error"
+            role="alert"
+          >
+            @if (workspaceNameControl?.hasError('required')) {
+            <span>{{
+              'AUTH.VALIDATION.WORKSPACE_NAME_REQUIRED' | translate
+            }}</span>
+            } @if (workspaceNameControl?.hasError('minlength')) {
+            <span>{{
+              'AUTH.VALIDATION.WORKSPACE_NAME_MINLENGTH' | translate
+            }}</span>
+            }
+          </div>
+          }
+        </div>
+
+        <div class="form-group auth-field">
+          <label for="workspaceSlug" class="form-label auth-label">{{
+            'AUTH.REGISTER.WORKSPACE_SLUG_LABEL' | translate
+          }}</label>
+          <input
+            id="workspaceSlug"
+            type="text"
+            formControlName="workspaceSlug"
+            class="form-input auth-input"
+            [placeholder]="
+              'AUTH.REGISTER.WORKSPACE_SLUG_PLACEHOLDER' | translate
+            "
+            autocapitalize="none"
+            autocomplete="off"
+            spellcheck="false"
+            [attr.aria-label]="'AUTH.REGISTER.WORKSPACE_SLUG_LABEL' | translate"
+            [attr.aria-invalid]="
+              workspaceSlugControl?.invalid && workspaceSlugControl?.touched
+            "
+            [attr.aria-describedby]="
+              workspaceSlugControl?.invalid && workspaceSlugControl?.touched
+                ? 'workspace-slug-error'
+                : null
+            "
+          />
+          @if (workspaceSlugControl?.invalid && workspaceSlugControl?.touched) {
+          <div
+            id="workspace-slug-error"
+            class="form-error auth-error"
+            role="alert"
+          >
+            @if (workspaceSlugControl?.hasError('workspaceSlugLength')) {
+            <span>{{
+              'AUTH.VALIDATION.WORKSPACE_SLUG_LENGTH' | translate
+            }}</span>
+            } @if (workspaceSlugControl?.hasError('workspaceSlugPattern')) {
+            <span>{{
+              'AUTH.VALIDATION.WORKSPACE_SLUG_PATTERN' | translate
+            }}</span>
+            } @if (workspaceSlugControl?.hasError('workspaceSlugTaken')) {
+            <span>{{
+              'AUTH.VALIDATION.WORKSPACE_SLUG_TAKEN' | translate
+            }}</span>
+            }
+          </div>
+          }
+        </div>
+
+        <div class="form-group auth-field">
           <label for="email" class="form-label auth-label">
             {{ 'AUTH.REGISTER.EMAIL_LABEL' | translate }}
             <span

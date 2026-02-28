@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   DeleteDateColumn,
@@ -29,6 +30,7 @@ import { PasswordResetToken } from './password-reset-token.entity';
 @Index('users_email_idx', ['email'])
 @Index('users_is_active_idx', ['isActive'])
 @Index('users_email_tenant_unique', ['email', 'tenantId'], { unique: true })
+@Check('users_email_lowercase_chk', `"email" = lower("email")`)
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

@@ -1,66 +1,85 @@
 import { Route } from '@angular/router';
-import { BookingPreviewComponent } from './features/booking-preview/booking-preview.component';
-import { BookingListComponent } from './features/booking-list/booking-list.component';
-import { BookingCalendarComponent } from './features/booking-calendar/booking-calendar.component';
-import { LayoutShellComponent } from './layouts/layout-shell/layout-shell.component';
-import { FacilitiesComponent } from './features/facilities/facilities.component';
-import { TeamComponent } from './features/team/team.component';
-import { SettingsComponent } from './features/settings/settings.component';
-import { LandingComponent } from './features/landing';
-import { LandingArabicComponent } from './features/landing-ar';
-import { LoginComponent } from './features/auth/login';
-import { RegisterComponent } from './features/auth/register';
-import { ChangePasswordComponent } from './features/auth/change-password';
-import { ForgotPasswordComponent } from './features/auth/forgot-password';
-import { ResetPasswordComponent } from './features/auth/reset-password';
-import { ForbiddenComponent } from './features/forbidden/forbidden.component';
 import { authGuard } from './shared/guards/auth.guard';
 import { roleGuard } from './shared/guards/role.guard';
 import { publicGuard } from './shared/guards/public.guard';
+import { onboardingGuard } from './shared/guards/onboarding.guard';
 import { UserRole } from '@khana/shared-dtos';
+
+const requireIncompleteOnboarding = onboardingGuard('requireIncomplete');
+const requireCompletedOnboarding = onboardingGuard('requireComplete');
 
 export const appRoutes: Route[] = [
   // Landing page - public route
   {
     path: '',
-    component: LandingComponent,
+    loadComponent: () =>
+      import('./features/landing/landing.component').then(
+        (module) => module.LandingComponent
+      ),
     title: 'Khana - Never Lose a Booking Again',
   },
   {
     path: 'ar',
-    component: LandingArabicComponent,
+    loadComponent: () =>
+      import('./features/landing-ar/landing.component').then(
+        (module) => module.LandingArabicComponent
+      ),
     title: 'خانة - لا تخسر حجز أبداً',
   },
   // Auth routes - public (redirect if authenticated)
   {
     path: 'login',
-    component: LoginComponent,
+    loadComponent: () =>
+      import('./features/auth/login/login.component').then(
+        (module) => module.LoginComponent
+      ),
     canActivate: [publicGuard],
     title: 'Login | Khana',
   },
   {
     path: 'register',
-    component: RegisterComponent,
+    loadComponent: () =>
+      import('./features/auth/register/register.component').then(
+        (module) => module.RegisterComponent
+      ),
     canActivate: [publicGuard],
     title: 'Create Account | Khana',
   },
   {
     path: 'forgot-password',
-    component: ForgotPasswordComponent,
+    loadComponent: () =>
+      import('./features/auth/forgot-password/forgot-password.component').then(
+        (module) => module.ForgotPasswordComponent
+      ),
     canActivate: [publicGuard],
     title: 'Forgot Password | Khana',
   },
   {
     path: 'reset-password',
-    component: ResetPasswordComponent,
+    loadComponent: () =>
+      import('./features/auth/reset-password/reset-password.component').then(
+        (module) => module.ResetPasswordComponent
+      ),
     canActivate: [publicGuard],
     title: 'Reset Password | Khana',
   },
   {
     path: 'change-password',
-    component: ChangePasswordComponent,
+    loadComponent: () =>
+      import('./features/auth/change-password/change-password.component').then(
+        (module) => module.ChangePasswordComponent
+      ),
     canActivate: [authGuard],
     title: 'Change Password | Khana',
+  },
+  {
+    path: 'onboarding',
+    loadComponent: () =>
+      import('./features/onboarding/onboarding.component').then(
+        (module) => module.OnboardingComponent
+      ),
+    canActivate: [authGuard, requireIncompleteOnboarding],
+    title: 'Onboarding | Khana',
   },
   // Legacy auth path aliases (keep old email links working)
   {
@@ -68,13 +87,19 @@ export const appRoutes: Route[] = [
     children: [
       {
         path: 'forgot-password',
-        component: ForgotPasswordComponent,
+        loadComponent: () =>
+          import(
+            './features/auth/forgot-password/forgot-password.component'
+          ).then((module) => module.ForgotPasswordComponent),
         canActivate: [publicGuard],
         title: 'Forgot Password | Khana',
       },
       {
         path: 'reset-password',
-        component: ResetPasswordComponent,
+        loadComponent: () =>
+          import(
+            './features/auth/reset-password/reset-password.component'
+          ).then((module) => module.ResetPasswordComponent),
         canActivate: [publicGuard],
         title: 'Reset Password | Khana',
       },
@@ -83,12 +108,18 @@ export const appRoutes: Route[] = [
   // Dashboard routes - authenticated area
   {
     path: 'dashboard',
-    component: LayoutShellComponent,
-    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./layouts/layout-shell/layout-shell.component').then(
+        (module) => module.LayoutShellComponent
+      ),
+    canActivate: [authGuard, requireCompletedOnboarding],
     children: [
       {
         path: 'bookings',
-        component: BookingListComponent,
+        loadComponent: () =>
+          import('./features/booking-list/booking-list.component').then(
+            (module) => module.BookingListComponent
+          ),
         title: 'Bookings | Khana',
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.BOOKINGS',
@@ -97,7 +128,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'calendar',
-        component: BookingCalendarComponent,
+        loadComponent: () =>
+          import('./features/booking-calendar/booking-calendar.component').then(
+            (module) => module.BookingCalendarComponent
+          ),
         title: 'Calendar | Khana',
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.CALENDAR',
@@ -106,7 +140,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'new',
-        component: BookingPreviewComponent,
+        loadComponent: () =>
+          import('./features/booking-preview/booking-preview.component').then(
+            (module) => module.BookingPreviewComponent
+          ),
         canActivate: [
           roleGuard([UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF]),
         ],
@@ -118,7 +155,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'facilities',
-        component: FacilitiesComponent,
+        loadComponent: () =>
+          import('./features/facilities/facilities.component').then(
+            (module) => module.FacilitiesComponent
+          ),
         canActivate: [
           roleGuard([UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF]),
         ],
@@ -130,7 +170,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'team',
-        component: TeamComponent,
+        loadComponent: () =>
+          import('./features/team/team.component').then(
+            (module) => module.TeamComponent
+          ),
         canActivate: [roleGuard([UserRole.OWNER, UserRole.MANAGER])],
         title: 'Team | Khana',
         data: {
@@ -140,7 +183,10 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'settings',
-        component: SettingsComponent,
+        loadComponent: () =>
+          import('./features/settings/settings.component').then(
+            (module) => module.SettingsComponent
+          ),
         canActivate: [roleGuard([UserRole.OWNER, UserRole.MANAGER])],
         title: 'Settings | Khana',
         data: {
@@ -158,7 +204,10 @@ export const appRoutes: Route[] = [
   // Error pages
   {
     path: '403',
-    component: ForbiddenComponent,
+    loadComponent: () =>
+      import('./features/forbidden/forbidden.component').then(
+        (module) => module.ForbiddenComponent
+      ),
     title: '403 Forbidden | Khana',
   },
   // Legacy routes - redirect to dashboard

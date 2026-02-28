@@ -14,6 +14,8 @@ import {
   LoginDto,
   LoginResponseDto,
   CreateUserDto,
+  OwnerSignupDto,
+  TenantResolveResponseDto,
   UserDto,
   ChangePasswordDto,
 } from '@khana/shared-dtos';
@@ -31,6 +33,7 @@ type ResetPasswordResponse = {
 type TenantContextResponse = {
   id: string;
   name: string;
+  slug: string;
 };
 
 /**
@@ -57,8 +60,10 @@ export class AuthService {
   private readonly REFRESH_TOKEN_KEY = 'khana_refresh_token';
   private readonly TENANT_KEY = 'khana_tenant_id';
   private readonly TENANT_HEADER = 'x-tenant-id';
+  private readonly WORKSPACE_QUERY_PARAM = 'workspace';
   private readonly UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  private readonly WORKSPACE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   private tenantContextRequest$?: Observable<string>;
 
   /**
@@ -119,6 +124,32 @@ export class AuthService {
         return throwError(() => error);
       })
     );
+  }
+
+  /**
+   * Create a new workspace and bootstrap the owner account.
+   */
+  signupOwner(dto: OwnerSignupDto): Observable<LoginResponseDto> {
+    this.authStore.setLoading(true);
+    this.authStore.setError(null);
+
+    return this.http
+      .post<LoginResponseDto>(`${this.API_URL}/signup-owner`, dto)
+      .pipe(
+        tap((response) => {
+          this.storeTokens(response.accessToken, response.refreshToken);
+          this.storeTenantId(response.user?.tenantId || response.tenant?.id);
+          this.authStore.setUser(response.user);
+          this.authStore.setAuthenticated(true);
+          this.authStore.setLoading(false);
+        }),
+        catchError((error) => {
+          const message = error.error?.message || 'Workspace signup failed';
+          this.authStore.setError(message);
+          this.authStore.setLoading(false);
+          return throwError(() => error);
+        })
+      );
   }
 
   /**
@@ -363,24 +394,67 @@ export class AuthService {
   }
 
   private resolveTenantHeaders(): Observable<HttpHeaders> {
-    const tenantId = this.resolveTenantId();
+    const tenantId = this.getTenantIdFromStorage();
     if (tenantId) {
       return of(this.buildTenantHeaders(tenantId));
     }
 
-    return this.fetchTenantContext().pipe(
+    return this.resolveTenantId().pipe(
       map((resolvedTenantId) => this.buildTenantHeaders(resolvedTenantId))
     );
   }
 
   private getTenantHeaders(): HttpHeaders {
-    const tenantId = this.resolveTenantId();
+    const tenantId = this.getTenantIdFromStorage();
 
     if (!tenantId) {
       return new HttpHeaders();
     }
 
     return this.buildTenantHeaders(tenantId);
+  }
+
+  private resolveTenantId(): Observable<string> {
+    const fromStorage = this.getTenantIdFromStorage();
+    if (fromStorage) {
+      return of(fromStorage);
+    }
+
+    const workspaceSlug = this.getWorkspaceSlugFromQueryParam();
+    if (this.isWorkspaceSlug(workspaceSlug)) {
+      return this.resolveTenantByWorkspaceSlug(workspaceSlug);
+    }
+
+    const fromLegacyHints = this.resolveTenantIdFromLegacyHints();
+    if (fromLegacyHints) {
+      this.storeTenantId(fromLegacyHints);
+      return of(fromLegacyHints);
+    }
+
+    return this.fetchTenantContext();
+  }
+
+  private resolveTenantByWorkspaceSlug(
+    workspaceSlug: string
+  ): Observable<string> {
+    const normalizedWorkspace = workspaceSlug.trim().toLowerCase();
+
+    return this.http
+      .get<TenantResolveResponseDto>(`${this.API_URL}/tenant/resolve`, {
+        params: { slug: normalizedWorkspace },
+      })
+      .pipe(
+        map((tenant) => tenant?.id?.trim() ?? ''),
+        map((tenantId) => {
+          if (!this.isUuid(tenantId)) {
+            throw new Error('Invalid tenant context received from API');
+          }
+          return tenantId;
+        }),
+        tap((tenantId) => {
+          this.storeTenantId(tenantId);
+        })
+      );
   }
 
   private buildTenantHeaders(tenantId: string): HttpHeaders {
@@ -416,15 +490,17 @@ export class AuthService {
     return this.tenantContextRequest$;
   }
 
-  private resolveTenantId(): string {
+  private getTenantIdFromStorage(): string {
     const fromStorage = sessionStorage.getItem(this.TENANT_KEY)?.trim() ?? '';
     if (this.isUuid(fromStorage)) {
       return fromStorage;
     }
+    return '';
+  }
 
+  private resolveTenantIdFromLegacyHints(): string {
     const fromEnv = environment.auth.tenantId?.trim() ?? '';
     if (this.isUuid(fromEnv)) {
-      this.storeTenantId(fromEnv);
       return fromEnv;
     }
 
@@ -436,11 +512,21 @@ export class AuthService {
 
     const fromHostname = this.getTenantIdFromHostname();
     if (this.isUuid(fromHostname)) {
-      this.storeTenantId(fromHostname);
       return fromHostname;
     }
 
     return '';
+  }
+
+  private getWorkspaceSlugFromQueryParam(): string {
+    const workspace = new URLSearchParams(window.location.search).get(
+      this.WORKSPACE_QUERY_PARAM
+    );
+    return workspace?.trim().toLowerCase() ?? '';
+  }
+
+  private isWorkspaceSlug(value: string): boolean {
+    return this.WORKSPACE_SLUG_PATTERN.test(value);
   }
 
   private getTenantIdFromQueryParam(): string {

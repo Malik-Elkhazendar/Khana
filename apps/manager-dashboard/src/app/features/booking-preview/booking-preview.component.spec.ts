@@ -4,7 +4,11 @@ import { Subject, TimeoutError, of, throwError } from 'rxjs';
 import { BookingPreviewComponent } from './booking-preview.component';
 import { ApiService } from '../../shared/services/api.service';
 import { FacilityContextStore } from '../../shared/state';
-import { BookingStatus, ConflictType } from '@khana/shared-dtos';
+import {
+  BookingStatus,
+  ConflictType,
+  RecurrenceFrequency,
+} from '@khana/shared-dtos';
 import { createApiMock, ApiServiceMock } from '../../testing/api-mocks';
 import {
   createBooking,
@@ -703,6 +707,80 @@ describe('BookingPreviewComponent', () => {
 
     const payload = apiMock.createBooking.mock.calls[0][0];
     expect(payload.customerName).toBe(arabicName);
+  });
+
+  it('derives date-mode end date from weeks count without timezone drift', () => {
+    const { component } = setupComponent();
+
+    component.selectedDate.set('2026-02-28');
+    component.recurrenceWeeksCount.set(8);
+    component.recurrenceEndDate.set('');
+    component.onRecurrenceEndModeChange('DATE');
+
+    expect(component.recurrenceEndDate()).toBe('2026-04-18');
+  });
+
+  it('maps count mode to an inclusive recurrence end date for recurring bookings', () => {
+    const { component } = setupComponent();
+    apiMock.createRecurringBooking.mockReturnValueOnce(
+      of({
+        recurrenceGroupId: 'group-1',
+        createdCount: 1,
+        bookings: [createBooking()],
+      })
+    );
+
+    component.selectedDate.set('2026-02-28');
+    component.startTime.set('13:00');
+    component.endTime.set('14:00');
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+    component.repeatWeekly.set(true);
+    component.recurrenceFrequency.set(RecurrenceFrequency.WEEKLY);
+    component.recurrenceEndMode.set('COUNT');
+    component.recurrenceWeeksCount.set(8);
+
+    component.onBook();
+
+    expect(apiMock.createRecurringBooking).toHaveBeenCalledTimes(1);
+    const payload = apiMock.createRecurringBooking.mock.calls[0][0];
+    expect(payload.recurrenceRule.endsAtDate).toBe('2026-04-18');
+  });
+
+  it('keeps end date in sync when weeks count changes in count mode', () => {
+    const { component } = setupComponent();
+
+    component.selectedDate.set('2026-03-01');
+    component.repeatWeekly.set(true);
+    component.recurrenceEndMode.set('COUNT');
+    component.onRecurrenceWeeksCountChange(4);
+
+    expect(component.recurrenceWeeksCount()).toBe(4);
+    expect(component.recurrenceEndDate()).toBe('2026-03-22');
+  });
+
+  it('updates weeks count when end date changes in date mode', () => {
+    const { component } = setupComponent();
+
+    component.selectedDate.set('2026-03-01');
+    component.repeatWeekly.set(true);
+    component.recurrenceEndMode.set('DATE');
+    component.onRecurrenceEndDateChange('2026-03-29');
+
+    expect(component.recurrenceEndDate()).toBe('2026-03-29');
+    expect(component.recurrenceWeeksCount()).toBe(5);
+  });
+
+  it('recomputes count-mode end date when selected date changes', () => {
+    const { component } = setupComponent();
+
+    component.repeatWeekly.set(true);
+    component.recurrenceEndMode.set('COUNT');
+    component.onRecurrenceWeeksCountChange(3);
+    component.onDateChange('2026-03-10');
+
+    expect(component.recurrenceEndDate()).toBe('2026-03-24');
   });
 
   it('sets booking success state after creation', () => {

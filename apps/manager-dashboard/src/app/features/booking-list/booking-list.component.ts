@@ -26,6 +26,7 @@ import {
   UiToastComponent,
 } from '../../shared/components';
 import {
+  BookingCancellationScope,
   BookingStatus,
   PaymentStatus,
   BookingListItemDto,
@@ -93,6 +94,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
   selectedBookingIds = signal<Set<string>>(new Set());
 
   readonly cancelDialogBooking = signal<BookingListItemDto | null>(null);
+  readonly cancelScope = signal<BookingCancellationScope>(
+    BookingCancellationScope.SINGLE
+  );
   readonly cancelReason = signal('');
   readonly cancelReasonMinLength = 5;
   readonly cancelError = signal<string | null>(null);
@@ -135,6 +139,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
       role === UserRole.STAFF
     );
   });
+  readonly cancellationScopes = BookingCancellationScope;
   readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
 
   get cancelDialogCopy(): {
@@ -930,6 +935,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
     if (!this.canCancel()) return;
     if (booking.status === BookingStatus.CANCELLED) return;
     this.cancelDialogBooking.set(booking);
+    this.cancelScope.set(BookingCancellationScope.SINGLE);
     this.cancelReason.set('');
     this.cancelError.set(null);
   }
@@ -939,6 +945,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
    */
   closeCancelDialog(): void {
     this.cancelDialogBooking.set(null);
+    this.cancelScope.set(BookingCancellationScope.SINGLE);
     this.cancelReason.set('');
     this.cancelError.set(null);
     this.actionInProgress.set(false);
@@ -955,9 +962,10 @@ export class BookingListComponent implements OnInit, OnDestroy {
 
     this.actionInProgress.set(true);
     try {
-      const success = await this.store.cancelBooking(
+      const success = await this.store.cancelBookingWithScope(
         booking.id,
-        this.cancelReason().trim()
+        this.cancelReason().trim(),
+        this.cancelScope()
       );
 
       if (success) {

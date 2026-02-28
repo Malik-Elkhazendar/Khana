@@ -1,0 +1,352 @@
+<main class="dashboard-page onboarding-page">
+  <header class="dashboard-page__header">
+    <div class="dashboard-page__title-group">
+      <h1 class="dashboard-page__title">
+        {{ 'ONBOARDING.TITLE' | translate }}
+      </h1>
+      <p class="dashboard-page__subtitle">
+        {{ 'ONBOARDING.SUBTITLE' | translate }}
+      </p>
+    </div>
+  </header>
+
+  <section class="dashboard-card onboarding-progress">
+    <p class="onboarding-progress__counter">
+      {{
+        'ONBOARDING.STEP_COUNTER'
+          | translate : { current: currentStep(), total: 4 }
+      }}
+    </p>
+
+    <ol class="onboarding-progress__steps">
+      <li [class.onboarding-progress__step--active]="currentStep() >= 1">
+        {{ 'ONBOARDING.STEPS.BUSINESS' | translate }}
+      </li>
+      <li [class.onboarding-progress__step--active]="currentStep() >= 2">
+        {{ 'ONBOARDING.STEPS.FACILITY' | translate }}
+      </li>
+      <li [class.onboarding-progress__step--active]="currentStep() >= 3">
+        {{ 'ONBOARDING.STEPS.INVITE' | translate }}
+      </li>
+      <li [class.onboarding-progress__step--active]="currentStep() >= 4">
+        {{ 'ONBOARDING.STEPS.CONFIRM' | translate }}
+      </li>
+    </ol>
+  </section>
+
+  <section class="dashboard-card onboarding-panel" *ngIf="currentStep() === 1">
+    <header class="onboarding-panel__header">
+      <h2>{{ 'ONBOARDING.BUSINESS.TITLE' | translate }}</h2>
+      <p>{{ 'ONBOARDING.BUSINESS.SUBTITLE' | translate }}</p>
+    </header>
+
+    <form
+      class="onboarding-form"
+      [formGroup]="businessForm"
+      (ngSubmit)="nextStep()"
+    >
+      <label>
+        <span>{{ 'ONBOARDING.BUSINESS.NAME' | translate }}</span>
+        <input type="text" formControlName="businessName" maxlength="120" />
+      </label>
+
+      <label>
+        <span>{{ 'ONBOARDING.BUSINESS.TYPE' | translate }}</span>
+        <select formControlName="businessType">
+          <option *ngFor="let type of businessTypes" [value]="type">
+            {{ 'ONBOARDING.BUSINESS.TYPE_' + type | translate }}
+          </option>
+        </select>
+      </label>
+
+      <label>
+        <span>{{ 'ONBOARDING.BUSINESS.CONTACT_EMAIL' | translate }}</span>
+        <input type="email" formControlName="contactEmail" />
+      </label>
+
+      <label>
+        <span>{{ 'ONBOARDING.BUSINESS.CONTACT_PHONE' | translate }}</span>
+        <input type="tel" formControlName="contactPhone" />
+      </label>
+
+      <p
+        class="onboarding-form__error"
+        *ngIf="
+          businessForm.controls.businessName.invalid &&
+          businessForm.controls.businessName.touched
+        "
+      >
+        {{ 'ONBOARDING.BUSINESS.ERROR_NAME' | translate }}
+      </p>
+
+      <p
+        class="onboarding-form__error"
+        *ngIf="
+          businessForm.controls.contactEmail.invalid &&
+          businessForm.controls.contactEmail.touched
+        "
+      >
+        {{ 'ONBOARDING.BUSINESS.ERROR_EMAIL' | translate }}
+      </p>
+
+      <p
+        class="onboarding-form__error"
+        *ngIf="
+          businessForm.controls.contactPhone.invalid &&
+          businessForm.controls.contactPhone.touched
+        "
+      >
+        {{ 'ONBOARDING.BUSINESS.ERROR_PHONE' | translate }}
+      </p>
+
+      <div class="onboarding-actions">
+        <button type="submit" class="dashboard-btn dashboard-btn--primary">
+          {{ 'ONBOARDING.ACTIONS.NEXT' | translate }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="dashboard-card onboarding-panel" *ngIf="currentStep() === 2">
+    <header class="onboarding-panel__header">
+      <h2>{{ 'ONBOARDING.FACILITY.TITLE' | translate }}</h2>
+      <p>{{ 'ONBOARDING.FACILITY.SUBTITLE' | translate }}</p>
+    </header>
+
+    <form
+      class="onboarding-form"
+      [formGroup]="facilityForm"
+      (ngSubmit)="nextStep()"
+    >
+      <label>
+        <span>{{ 'ONBOARDING.FACILITY.NAME' | translate }}</span>
+        <input type="text" formControlName="name" maxlength="120" />
+      </label>
+
+      <label>
+        <span>{{ 'ONBOARDING.FACILITY.TYPE' | translate }}</span>
+        <select formControlName="type">
+          <option *ngFor="let type of facilityTypes" [value]="type">
+            {{ formatFacilityType(type) }}
+          </option>
+        </select>
+      </label>
+
+      <label>
+        <span>{{ 'ONBOARDING.FACILITY.PRICE' | translate }}</span>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          formControlName="pricePerHour"
+        />
+      </label>
+
+      <div class="onboarding-form__row">
+        <label>
+          <span>{{ 'ONBOARDING.FACILITY.OPEN_TIME' | translate }}</span>
+          <input type="time" formControlName="openTime" />
+        </label>
+
+        <label>
+          <span>{{ 'ONBOARDING.FACILITY.CLOSE_TIME' | translate }}</span>
+          <input type="time" formControlName="closeTime" />
+        </label>
+      </div>
+
+      <p
+        class="onboarding-form__error"
+        *ngIf="
+          facilityForm.controls.name.invalid &&
+          facilityForm.controls.name.touched
+        "
+      >
+        {{ 'ONBOARDING.FACILITY.ERROR_NAME' | translate }}
+      </p>
+
+      <p
+        class="onboarding-form__error"
+        *ngIf="
+          facilityForm.controls.pricePerHour.invalid &&
+          facilityForm.controls.pricePerHour.touched
+        "
+      >
+        {{ 'ONBOARDING.FACILITY.ERROR_PRICE' | translate }}
+      </p>
+
+      <p
+        class="onboarding-form__error"
+        *ngIf="
+          facilityForm.hasError('invalidOperatingHours') &&
+          (facilityForm.controls.openTime.touched ||
+            facilityForm.controls.closeTime.touched)
+        "
+      >
+        {{ 'ONBOARDING.FACILITY.ERROR_HOURS' | translate }}
+      </p>
+
+      <div class="onboarding-actions">
+        <button
+          type="button"
+          class="dashboard-btn dashboard-btn--secondary"
+          (click)="previousStep()"
+        >
+          {{ 'ONBOARDING.ACTIONS.BACK' | translate }}
+        </button>
+
+        <button type="submit" class="dashboard-btn dashboard-btn--primary">
+          {{ 'ONBOARDING.ACTIONS.NEXT' | translate }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="dashboard-card onboarding-panel" *ngIf="currentStep() === 3">
+    <header class="onboarding-panel__header">
+      <h2>{{ 'ONBOARDING.INVITE.TITLE' | translate }}</h2>
+      <p>{{ 'ONBOARDING.INVITE.SUBTITLE' | translate }}</p>
+    </header>
+
+    <form
+      class="onboarding-form"
+      [formGroup]="inviteForm"
+      (ngSubmit)="sendInvite()"
+    >
+      <label>
+        <span>{{ 'ONBOARDING.INVITE.EMAIL' | translate }}</span>
+        <input type="email" formControlName="email" />
+      </label>
+
+      <label>
+        <span>{{ 'ONBOARDING.INVITE.ROLE' | translate }}</span>
+        <select formControlName="role">
+          <option *ngFor="let role of assignableRoles" [value]="role">
+            {{ 'DASHBOARD.PAGES.TEAM.ROLES.' + role | translate }}
+          </option>
+        </select>
+      </label>
+
+      <p
+        class="onboarding-form__error"
+        *ngIf="
+          inviteForm.controls.email.invalid && inviteForm.controls.email.touched
+        "
+      >
+        {{ 'ONBOARDING.INVITE.ERROR_EMAIL' | translate }}
+      </p>
+
+      <p class="onboarding-form__error" *ngIf="inviteError()">
+        {{ inviteError() }}
+      </p>
+
+      <button
+        type="submit"
+        class="dashboard-btn dashboard-btn--secondary"
+        [disabled]="inviteLoading() || inviteForm.invalid"
+      >
+        {{
+          (inviteLoading()
+            ? 'ONBOARDING.INVITE.SENDING'
+            : 'ONBOARDING.INVITE.SEND'
+          ) | translate
+        }}
+      </button>
+    </form>
+
+    <p class="onboarding-note" *ngIf="successfulInviteCount() > 0">
+      {{
+        'ONBOARDING.INVITE.SUCCESS_COUNT'
+          | translate : { count: successfulInviteCount() }
+      }}
+    </p>
+
+    <ul class="invite-results" *ngIf="inviteResults().length > 0">
+      <li *ngFor="let item of inviteResults()">
+        <span>{{ item.email }}</span>
+        <span [class.invite-results__item--error]="!item.success">
+          {{ item.message }}
+        </span>
+      </li>
+    </ul>
+
+    <div class="onboarding-actions">
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--secondary"
+        (click)="previousStep()"
+      >
+        {{ 'ONBOARDING.ACTIONS.BACK' | translate }}
+      </button>
+
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--secondary"
+        (click)="skipInvites()"
+      >
+        {{ 'ONBOARDING.ACTIONS.SKIP' | translate }}
+      </button>
+
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--primary"
+        (click)="nextStep()"
+      >
+        {{ 'ONBOARDING.ACTIONS.CONTINUE' | translate }}
+      </button>
+    </div>
+  </section>
+
+  <section class="dashboard-card onboarding-panel" *ngIf="currentStep() === 4">
+    <header class="onboarding-panel__header">
+      <h2>{{ 'ONBOARDING.CONFIRM.TITLE' | translate }}</h2>
+      <p>{{ 'ONBOARDING.CONFIRM.SUBTITLE' | translate }}</p>
+    </header>
+
+    <div class="onboarding-summary">
+      <article>
+        <h3>{{ 'ONBOARDING.STEPS.BUSINESS' | translate }}</h3>
+        <p>{{ businessForm.controls.businessName.value }}</p>
+        <p>
+          {{
+            'ONBOARDING.BUSINESS.TYPE_' +
+              businessForm.controls.businessType.value | translate
+          }}
+        </p>
+      </article>
+
+      <article>
+        <h3>{{ 'ONBOARDING.STEPS.FACILITY' | translate }}</h3>
+        <p>{{ facilityForm.controls.name.value }}</p>
+        <p>{{ formatFacilityType(facilityForm.controls.type.value) }}</p>
+      </article>
+    </div>
+
+    <p class="onboarding-form__error" *ngIf="completionError()">
+      {{ completionError() }}
+    </p>
+
+    <div class="onboarding-actions">
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--secondary"
+        (click)="previousStep()"
+      >
+        {{ 'ONBOARDING.ACTIONS.BACK' | translate }}
+      </button>
+
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--primary"
+        [disabled]="completionLoading()"
+        (click)="completeOnboarding()"
+      >
+        {{
+          (completionLoading()
+            ? 'ONBOARDING.CONFIRM.SUBMITTING'
+            : 'ONBOARDING.CONFIRM.SUBMIT'
+          ) | translate
+        }}
+      </button>
+    </div>
+  </section>
+</main>

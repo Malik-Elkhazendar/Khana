@@ -61,7 +61,7 @@ function buildEnglishFooterSections(
         { label: 'Features', href: '#features' },
         { label: 'How It Works', href: '#how-it-works' },
         { label: 'Testimonials', href: '#testimonials' },
-        { label: 'Start Free Trial', href: '#cta' },
+        { label: 'Start Free Trial', href: '/register' },
       ],
     },
     {
@@ -105,7 +105,7 @@ function buildArabicFooterSections(
         { label: 'الميزات', href: '/ar#features' },
         { label: 'كيف تعمل خانة', href: '/ar#how-it-works' },
         { label: 'آراء العملاء', href: '/ar#testimonials' },
-        { label: 'ابدأ مجاناً', href: '/ar#cta' },
+        { label: 'ابدأ مجاناً', href: '/register' },
       ],
     },
     {

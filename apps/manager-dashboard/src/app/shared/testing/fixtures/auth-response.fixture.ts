@@ -21,6 +21,7 @@ export const createMockLoginResponse = (
   user: createMockUser(),
   tenant: {
     id: 'tenant-456',
+    slug: 'test-tenant',
     subdomain: 'test-tenant',
     name: 'Test Tenant',
   },

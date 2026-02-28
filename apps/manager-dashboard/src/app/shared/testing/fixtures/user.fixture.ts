@@ -15,6 +15,7 @@ export const createMockUser = (overrides?: Partial<UserDto>): UserDto => ({
   phone: '+1234567890',
   role: UserRole.MANAGER,
   isActive: true,
+  onboardingCompleted: true,
   lastLoginAt: new Date('2024-01-15T10:30:00Z'),
   createdAt: new Date('2024-01-01T00:00:00Z'),
   updatedAt: new Date('2024-01-15T10:30:00Z'),

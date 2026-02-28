@@ -5,8 +5,13 @@ export const LOG_EVENTS = {
 
   // Auth
   AUTH_REGISTER_SUCCESS: 'auth.register.success',
+  AUTH_REGISTER_BLOCKED_NONEMPTY_TENANT:
+    'auth.register.blocked_nonempty_tenant',
+  AUTH_SIGNUP_OWNER_SUCCESS: 'auth.signup_owner.success',
+  AUTH_SIGNUP_OWNER_FAILED: 'auth.signup_owner.failed',
   AUTH_LOGIN_SUCCESS: 'auth.login.success',
   AUTH_LOGIN_FAILED: 'auth.login.failed',
+  AUTH_TENANT_RESOLVE_FAILED: 'auth.tenant.resolve_failed',
   AUTH_REFRESH_ROTATED: 'auth.refresh.rotated',
   AUTH_REFRESH_FAILED: 'auth.refresh.failed',
   AUTH_REFRESH_REUSE_DETECTED: 'auth.refresh.reuse_detected',

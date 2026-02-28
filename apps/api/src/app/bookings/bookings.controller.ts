@@ -15,8 +15,10 @@ import {
   BookingPreviewRequestDto,
   BookingPreviewResponseDto,
   CreateBookingDto,
+  CreateRecurringBookingDto,
   UpdateBookingStatusDto,
 } from './dto';
+import { CreateRecurringBookingResponseDto } from '@khana/shared-dtos';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { TenantId } from '../auth/decorators/tenant-id.decorator';
@@ -64,6 +66,26 @@ export class BookingsController {
     @TenantId() tenantId: string
   ) {
     return this.bookingsService.createBooking(
+      dto,
+      tenantId,
+      user.id,
+      user.role
+    );
+  }
+
+  /**
+   * POST /api/v1/bookings/recurring
+   *
+   * Create recurring bookings for a single time slot pattern.
+   */
+  @Post('recurring')
+  @HttpCode(HttpStatus.CREATED)
+  createRecurringBooking(
+    @Body() dto: CreateRecurringBookingDto,
+    @CurrentUser() user: User,
+    @TenantId() tenantId: string
+  ): Promise<CreateRecurringBookingResponseDto> {
+    return this.bookingsService.createRecurringBookings(
       dto,
       tenantId,
       user.id,

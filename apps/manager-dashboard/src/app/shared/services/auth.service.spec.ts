@@ -12,7 +12,7 @@ import {
   createMockRefreshResponse,
 } from '../testing/fixtures/auth-response.fixture';
 import { createMockUser } from '../testing/fixtures/user.fixture';
-import { CreateUserDto } from '@khana/shared-dtos';
+import { CreateUserDto, OwnerSignupDto } from '@khana/shared-dtos';
 import { provideHttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
@@ -106,7 +106,11 @@ describe('AuthService', () => {
 
         const tenantReq = httpMock.expectOne(`${API_URL}/tenant`);
         expect(tenantReq.request.method).toBe('GET');
-        tenantReq.flush({ id: resolvedTenantId, name: 'Elite Padel' });
+        tenantReq.flush({
+          id: resolvedTenantId,
+          name: 'Elite Padel',
+          slug: 'elite-padel',
+        });
 
         const loginReq = httpMock.expectOne(`${API_URL}/login`);
         expect(loginReq.request.headers.get('x-tenant-id')).toBe(
@@ -116,6 +120,33 @@ describe('AuthService', () => {
       } finally {
         environment.auth.tenantId = originalTenantId;
       }
+    });
+
+    it('should prefer workspace slug resolution over legacy tenant hints', () => {
+      const resolvedTenantId = 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      window.history.pushState({}, '', '/login?workspace=elite-padel');
+
+      service.login('test@example.com', 'password123').subscribe();
+
+      const resolveReq = httpMock.expectOne(
+        (request) =>
+          request.url === `${API_URL}/tenant/resolve` &&
+          request.params.get('slug') === 'elite-padel'
+      );
+      expect(resolveReq.request.method).toBe('GET');
+      resolveReq.flush({
+        id: resolvedTenantId,
+        name: 'Elite Padel',
+        slug: 'elite-padel',
+      });
+
+      const loginReq = httpMock.expectOne(`${API_URL}/login`);
+      expect(loginReq.request.headers.get('x-tenant-id')).toBe(
+        resolvedTenantId
+      );
+      loginReq.flush(createMockLoginResponse());
+
+      window.history.pushState({}, '', '/');
     });
 
     it('should handle 401 unauthorized error', (done) => {
@@ -249,6 +280,40 @@ describe('AuthService', () => {
         { message: errorMessage },
         { status: 409, statusText: 'Conflict' }
       );
+    });
+  });
+
+  describe('signupOwner', () => {
+    it('should create owner workspace and store auth state', (done) => {
+      const mockResponse = createMockLoginResponse();
+      const dto: OwnerSignupDto = {
+        workspaceName: 'Elite Padel',
+        workspaceSlug: 'elite-padel',
+        email: 'owner@example.com',
+        password: 'Password123',
+        name: 'Owner',
+        phone: '+966555555555',
+      };
+
+      service.signupOwner(dto).subscribe({
+        next: (response) => {
+          expect(response).toEqual(mockResponse);
+          expect(storageMock.getItem('khana_access_token')).toBe(
+            mockResponse.accessToken
+          );
+          expect(storageMock.getItem('khana_refresh_token')).toBe(
+            mockResponse.refreshToken
+          );
+          expect(authStore.user()).toEqual(mockResponse.user);
+          expect(authStore.isAuthenticated()).toBe(true);
+          done();
+        },
+      });
+
+      const req = httpMock.expectOne(`${API_URL}/signup-owner`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(dto);
+      req.flush(mockResponse);
     });
   });
 

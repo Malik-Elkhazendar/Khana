@@ -26,6 +26,9 @@ export interface UserDto {
   /** Whether user is active */
   isActive: boolean;
 
+  /** Whether the tenant onboarding flow is completed */
+  onboardingCompleted: boolean;
+
   /** Last login timestamp */
   lastLoginAt?: Date;
 
@@ -118,6 +121,7 @@ export interface LoginResponseDto {
   tenant?: {
     id: string;
     name: string;
+    slug?: string;
     subdomain?: string;
   };
 }
