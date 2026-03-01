@@ -29,6 +29,10 @@
       "SUBTITLE": "Join Khana Booking Platform",
       "HAVE_ACCOUNT": "Already have an account?",
       "SIGNIN_LINK": "Sign in",
+      "WORKSPACE_NAME_LABEL": "Workspace Name",
+      "WORKSPACE_NAME_PLACEHOLDER": "Elite Padel",
+      "WORKSPACE_SLUG_LABEL": "Workspace URL (optional)",
+      "WORKSPACE_SLUG_PLACEHOLDER": "elite-padel",
       "EMAIL_LABEL": "Email",
       "EMAIL_PLACEHOLDER": "business@example.com",
       "NAME_LABEL": "Full Name",
@@ -88,6 +92,11 @@
       "SUCCESS_MESSAGE": "Password changed successfully. Other sessions are now logged out."
     },
     "VALIDATION": {
+      "WORKSPACE_NAME_REQUIRED": "Workspace name is required",
+      "WORKSPACE_NAME_MINLENGTH": "Workspace name must be at least 2 characters",
+      "WORKSPACE_SLUG_LENGTH": "Workspace URL must be between 3 and 50 characters",
+      "WORKSPACE_SLUG_PATTERN": "Workspace URL can only use lowercase letters, numbers, and hyphens",
+      "WORKSPACE_SLUG_TAKEN": "Workspace URL is already in use",
       "EMAIL_REQUIRED": "Email is required",
       "EMAIL_INVALID": "Please enter a valid email address",
       "EMAIL_DUPLICATE": "Email already in use",
@@ -318,6 +327,9 @@
       "CANCEL_TITLE": "Cancel booking",
       "CANCEL_MESSAGE": "This action is permanent and cannot be undone.",
       "CANCEL_CONFIRM": "Cancel booking",
+      "CANCEL_SCOPE_LABEL": "Cancellation scope",
+      "CANCEL_SCOPE_SINGLE": "Cancel this booking",
+      "CANCEL_SCOPE_FUTURE": "Cancel this and all future bookings",
       "BULK_CANCEL_TITLE": "Cancel selected bookings",
       "BULK_CANCEL_MESSAGE": "This action will cancel all selected bookings and cannot be undone.",
       "BULK_CANCEL_CONFIRM": "Cancel bookings"
@@ -435,8 +447,15 @@
       "CANCEL_TITLE": "Cancel booking",
       "CANCEL_MESSAGE": "This action is permanent and cannot be undone.",
       "CANCEL_LABEL": "Cancel booking",
+      "CANCEL_SCOPE_LABEL": "Cancellation scope",
+      "CANCEL_SCOPE_SINGLE": "Cancel this booking",
+      "CANCEL_SCOPE_FUTURE": "Cancel this and all future bookings",
       "FALLBACK_TITLE": "Confirm action",
       "FALLBACK_CONFIRM": "Confirm"
+    },
+    "BADGES": {
+      "RECURRING": "Recurring",
+      "RECURRING_SHORT": "R"
     },
     "STATE": {
       "LOADING": "Loading bookings...",
@@ -575,7 +594,20 @@
       "START_TIME_REQUIRED": "Start time is required",
       "END_TIME_REQUIRED": "End time is required",
       "START_BEFORE_END": "Start time must be before end time",
+      "REPEAT_COUNT_INVALID": "Repeat count must be between 1 and 104.",
+      "REPEAT_END_DATE_INVALID": "Repeat end date must be on or after the selected booking date.",
       "ISSUES_TITLE": "Validation Issues:"
+    },
+    "RECURRENCE": {
+      "REPEAT_WEEKLY_LABEL": "Repeat weekly",
+      "FREQUENCY_LABEL": "Frequency",
+      "FREQUENCY_WEEKLY": "Every week",
+      "FREQUENCY_BIWEEKLY": "Every 2 weeks",
+      "END_MODE_LABEL": "Repeat Until",
+      "END_MODE_COUNT": "Number of weeks",
+      "END_MODE_DATE": "End date",
+      "WEEKS_COUNT_LABEL": "Weeks count",
+      "END_DATE_LABEL": "End date"
     },
     "ALTERNATIVES": {
       "HIDE": "Hide alternatives",
@@ -621,7 +653,8 @@
       "OFFLINE_RETRY": "You are offline. We will retry when you are back online."
     },
     "TOAST": {
-      "BOOKING_CONFIRMED": "Booking confirmed"
+      "BOOKING_CONFIRMED": "Booking confirmed",
+      "RECURRING_BOOKING_CONFIRMED": "Recurring booking series confirmed"
     },
     "CONFLICT": {
       "EXACT_OVERLAP": "Exact overlap with an existing booking",
@@ -665,11 +698,14 @@
       "TIME_LABEL": "Time",
       "TOTAL_LABEL": "Total",
       "HOLD_LABEL": "Hold",
-      "HOLD_PENDING_VALUE": "Reserve as pending"
+      "HOLD_PENDING_VALUE": "Reserve as pending",
+      "REPEAT_LABEL": "Repeat"
     },
     "SUCCESS": {
       "TITLE": "Booking Confirmed!",
       "REFERENCE_PREFIX": "Reference:",
+      "RECURRING_COUNT": "Created {{count}} recurring bookings.",
+      "RECURRENCE_GROUP": "Series ID:",
       "SUBTITLE": "You will receive a confirmation shortly.",
       "CTA_ANOTHER": "Make Another Booking"
     }
@@ -681,5 +717,63 @@
     "USER_EXISTS": "A user with these credentials already exists.",
     "INVALID_CREDENTIALS": "The email or password you entered is incorrect.",
     "VERIFICATION_FAILED": "Identity verification failed."
+  },
+  "ONBOARDING": {
+    "TITLE": "Complete your setup",
+    "SUBTITLE": "Add your business details, first facility, and team so you can start taking bookings.",
+    "STEP_COUNTER": "Step {{current}} of {{total}}",
+    "STEPS": {
+      "BUSINESS": "Business details",
+      "FACILITY": "First facility",
+      "INVITE": "Invite team",
+      "CONFIRM": "Confirmation"
+    },
+    "ACTIONS": {
+      "BACK": "Back",
+      "NEXT": "Next",
+      "SKIP": "Skip",
+      "CONTINUE": "Continue"
+    },
+    "BUSINESS": {
+      "TITLE": "Business details",
+      "SUBTITLE": "Tell us about your business profile.",
+      "NAME": "Business name",
+      "TYPE": "Business type",
+      "TYPE_SPORTS": "Sports",
+      "TYPE_RENTAL": "Rental",
+      "CONTACT_EMAIL": "Contact email (optional)",
+      "CONTACT_PHONE": "Contact phone (optional)",
+      "ERROR_NAME": "Business name is required.",
+      "ERROR_EMAIL": "Please enter a valid email address.",
+      "ERROR_PHONE": "Please enter a valid phone number."
+    },
+    "FACILITY": {
+      "TITLE": "Add your first facility",
+      "SUBTITLE": "Configure pricing and operating hours for your first court/unit.",
+      "NAME": "Facility name",
+      "TYPE": "Facility type",
+      "PRICE": "Price per hour (SAR)",
+      "OPEN_TIME": "Open time",
+      "CLOSE_TIME": "Close time",
+      "ERROR_NAME": "Facility name is required.",
+      "ERROR_PRICE": "Price per hour must be greater than zero.",
+      "ERROR_HOURS": "Open time must be before close time."
+    },
+    "INVITE": {
+      "TITLE": "Invite your team (optional)",
+      "SUBTITLE": "Invite managers or staff now, or skip and do this later from Team.",
+      "EMAIL": "Email address",
+      "ROLE": "Role",
+      "SEND": "Send invite",
+      "SENDING": "Sending invite...",
+      "ERROR_EMAIL": "A valid email address is required.",
+      "SUCCESS_COUNT": "{{count}} invitation(s) sent successfully."
+    },
+    "CONFIRM": {
+      "TITLE": "Confirm and finish",
+      "SUBTITLE": "Review the details, then complete onboarding.",
+      "SUBMIT": "Complete onboarding",
+      "SUBMITTING": "Completing onboarding..."
+    }
   }
 }

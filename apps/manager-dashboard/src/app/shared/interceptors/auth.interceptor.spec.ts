@@ -104,6 +104,34 @@ describe('authInterceptor', () => {
       req.flush({});
     });
 
+    it('should skip adding token to signup-owner endpoint', () => {
+      const token = 'test-access-token';
+      authService.getAccessToken.mockReturnValue(token);
+
+      httpClient.post('/api/v1/auth/signup-owner', {}).subscribe();
+
+      const req = httpMock.expectOne('/api/v1/auth/signup-owner');
+      expect(req.request.headers.has('Authorization')).toBe(false);
+
+      req.flush({});
+    });
+
+    it('should skip adding token to tenant resolve endpoint', () => {
+      const token = 'test-access-token';
+      authService.getAccessToken.mockReturnValue(token);
+
+      httpClient
+        .get('/api/v1/auth/tenant/resolve?slug=elite-padel')
+        .subscribe();
+
+      const req = httpMock.expectOne(
+        '/api/v1/auth/tenant/resolve?slug=elite-padel'
+      );
+      expect(req.request.headers.has('Authorization')).toBe(false);
+
+      req.flush({});
+    });
+
     it('should skip adding token to refresh endpoint', () => {
       const token = 'test-access-token';
       authService.getAccessToken.mockReturnValue(token);

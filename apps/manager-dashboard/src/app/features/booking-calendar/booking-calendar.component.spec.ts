@@ -4,7 +4,12 @@ import { BookingCalendarComponent } from './booking-calendar.component';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { FacilityContextStore } from '../../shared/state';
 import { AuthStore } from '../../shared/state/auth.store';
-import { BookingStatus, PaymentStatus, UserRole } from '@khana/shared-dtos';
+import {
+  BookingCancellationScope,
+  BookingStatus,
+  PaymentStatus,
+  UserRole,
+} from '@khana/shared-dtos';
 import { createBooking } from '../../testing/factories';
 import { createStoreMock, BookingStoreMock } from '../../testing/store-mocks';
 
@@ -768,7 +773,7 @@ describe('BookingCalendarComponent', () => {
 
     await component.submitDialogAction();
 
-    expect(storeMock.cancelBooking).not.toHaveBeenCalled();
+    expect(storeMock.cancelBookingWithScope).not.toHaveBeenCalled();
   });
 
   it('submits confirm action through the dialog', async () => {
@@ -804,9 +809,10 @@ describe('BookingCalendarComponent', () => {
 
     await component.submitDialogAction();
 
-    expect(storeMock.cancelBooking).toHaveBeenCalledWith(
+    expect(storeMock.cancelBookingWithScope).toHaveBeenCalledWith(
       booking.id,
-      'Too late'
+      'Too late',
+      BookingCancellationScope.SINGLE
     );
     expect(component.actionDialog()).toBeNull();
   });
@@ -856,7 +862,7 @@ describe('BookingCalendarComponent', () => {
 
   it('shows a success toast when cancel action succeeds', async () => {
     const booking = createTimedBooking();
-    storeMock.cancelBooking.mockResolvedValueOnce(true);
+    storeMock.cancelBookingWithScope.mockResolvedValueOnce(true);
     const { component } = setupComponent([booking]);
     component.selectedBooking.set(booking);
 

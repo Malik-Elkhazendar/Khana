@@ -37,6 +37,7 @@ const ASSIGNABLE_ROLES = new Set<UserRole>([
 ]);
 
 const INVITE_TOKEN_TTL_MS = 48 * 60 * 60 * 1000;
+const WORKSPACE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 type Actor = Pick<User, 'id' | 'role' | 'tenantId' | 'email' | 'name'>;
 
@@ -67,6 +68,7 @@ export class UsersService {
 
     const users = await this.userRepository.find({
       where: { tenantId: resolvedTenantId },
+      relations: ['tenant'],
       order: { createdAt: 'ASC' },
     });
 
@@ -220,6 +222,11 @@ export class UsersService {
       tenantId: resolvedTenantId,
     });
     const savedUser = await this.userRepository.save(user);
+    const savedUserWithTenant =
+      (await this.userRepository.findOne({
+        where: { id: savedUser.id, tenantId: resolvedTenantId },
+        relations: ['tenant'],
+      })) ?? savedUser;
 
     const invitation = await this.createInvitationToken(
       savedUser.id,
@@ -232,7 +239,10 @@ export class UsersService {
       recipientName: savedUser.name,
       invitedByName: actor.name || actor.email || 'Owner',
       role: savedUser.role,
-      inviteUrl: this.buildInviteUrl(invitation.rawToken),
+      inviteUrl: this.buildInviteUrl(
+        invitation.rawToken,
+        savedUserWithTenant.tenant?.slug
+      ),
       inviteToken: invitation.rawToken,
       expiresAt: invitation.expiresAt,
     });
@@ -265,7 +275,7 @@ export class UsersService {
 
     return {
       message: 'Invitation sent successfully.',
-      user: this.toUserDto(savedUser),
+      user: this.toUserDto(savedUserWithTenant),
     };
   }
 
@@ -362,7 +372,10 @@ export class UsersService {
     return { rawToken, expiresAt };
   }
 
-  private buildInviteUrl(rawToken: string): string | undefined {
+  private buildInviteUrl(
+    rawToken: string,
+    workspaceSlug?: string
+  ): string | undefined {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const frontendBase = frontendUrl?.replace(/\/+$/, '');
 
@@ -370,9 +383,19 @@ export class UsersService {
       return undefined;
     }
 
-    return `${frontendBase}/reset-password?token=${encodeURIComponent(
-      rawToken
-    )}`;
+    const params = new URLSearchParams({
+      token: rawToken,
+    });
+
+    const normalizedWorkspaceSlug = workspaceSlug?.trim().toLowerCase();
+    if (
+      normalizedWorkspaceSlug &&
+      WORKSPACE_SLUG_PATTERN.test(normalizedWorkspaceSlug)
+    ) {
+      params.set('workspace', normalizedWorkspaceSlug);
+    }
+
+    return `${frontendBase}/reset-password?${params.toString()}`;
   }
 
   private getHmacSecret(): string {
@@ -392,6 +415,7 @@ export class UsersService {
       phone: user.phone,
       role: user.role as UserRole,
       isActive: user.isActive,
+      onboardingCompleted: user.tenant?.onboardingCompleted ?? false,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

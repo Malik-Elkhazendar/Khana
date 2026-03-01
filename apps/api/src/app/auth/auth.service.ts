@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -17,7 +18,12 @@ import {
   PasswordResetToken,
   Tenant,
 } from '@khana/data-access';
-import { UserDto, UserRole } from '@khana/shared-dtos';
+import {
+  OwnerSignupDto,
+  TenantResolveResponseDto,
+  UserDto,
+  UserRole,
+} from '@khana/shared-dtos';
 import { PasswordService } from './services/password.service';
 import { JwtTokenService, JwtPayload } from './services/jwt.service';
 import { EmailService } from '@khana/notifications';
@@ -29,7 +35,36 @@ import {
   verifyRefreshTokenHash,
 } from './utils/hmac.util';
 import { isUUID } from 'class-validator';
-import { LoginDto, RegisterDto } from './dto';
+import { LoginDto, RegisterDto, SignupOwnerDto } from './dto';
+
+const MAX_TENANT_SLUG_LENGTH = 50;
+const TENANT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const RESERVED_TENANT_SLUGS = new Set([
+  'admin',
+  'api',
+  'app',
+  'auth',
+  'billing',
+  'dashboard',
+  'help',
+  'internal',
+  'login',
+  'logout',
+  'manager',
+  'onboarding',
+  'owner',
+  'register',
+  'root',
+  'settings',
+  'signup',
+  'staff',
+  'support',
+  'system',
+  'www',
+]);
+
+const SELF_REGISTRATION_BLOCKED_MESSAGE =
+  'Direct registration is disabled for this workspace. Ask the owner for an invite.';
 
 /**
  * Authentication Service
@@ -64,9 +99,36 @@ export class AuthService {
     private readonly appLogger: AppLoggerService
   ) {}
 
-  async getTenantContext(): Promise<{ id: string; name: string }> {
+  async getTenantContext(tenantId?: string): Promise<{
+    id: string;
+    name: string;
+    slug: string;
+  }> {
+    const normalizedTenantId = tenantId?.trim();
+
+    if (normalizedTenantId) {
+      if (!isUUID(normalizedTenantId)) {
+        throw new BadRequestException('Invalid tenant ID');
+      }
+
+      const tenant = await this.tenantRepository.findOne({
+        where: { id: normalizedTenantId },
+        select: ['id', 'name', 'slug'],
+      });
+
+      if (!tenant) {
+        throw new BadRequestException('Invalid tenant ID');
+      }
+
+      return {
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+      };
+    }
+
     const tenants = await this.tenantRepository.find({
-      select: ['id', 'name', 'createdAt'],
+      select: ['id', 'name', 'slug', 'createdAt'],
       order: { createdAt: 'ASC' },
       take: 2,
     });
@@ -84,7 +146,195 @@ export class AuthService {
     return {
       id: tenant.id,
       name: tenant.name,
+      slug: tenant.slug,
     };
+  }
+
+  async resolveTenantBySlug(
+    slug: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<TenantResolveResponseDto> {
+    let normalizedSlug: string;
+    try {
+      normalizedSlug = this.normalizeTenantSlug(slug);
+    } catch (error) {
+      this.appLogger.warn(
+        LOG_EVENTS.AUTH_TENANT_RESOLVE_FAILED,
+        'Workspace slug resolution rejected',
+        {
+          slug,
+          reason: 'invalid_format',
+          ipAddress,
+          userAgent,
+        }
+      );
+      throw error;
+    }
+
+    const tenant = await this.tenantRepository.findOne({
+      where: { slug: normalizedSlug },
+      select: ['id', 'name', 'slug'],
+    });
+
+    if (!tenant) {
+      this.appLogger.warn(
+        LOG_EVENTS.AUTH_TENANT_RESOLVE_FAILED,
+        'Workspace slug resolution failed',
+        {
+          slug: normalizedSlug,
+          reason: 'not_found',
+          ipAddress,
+          userAgent,
+        }
+      );
+      throw new NotFoundException('Workspace not found');
+    }
+
+    return {
+      id: tenant.id,
+      name: tenant.name,
+      slug: tenant.slug,
+    };
+  }
+
+  async signupOwner(
+    dto: SignupOwnerDto | OwnerSignupDto,
+    ipAddress?: string,
+    userAgent?: string
+  ) {
+    const workspaceName = this.normalizeWorkspaceName(dto.workspaceName);
+    const ownerEmail = this.normalizeEmail(dto.email);
+    const ownerName = dto.name.trim();
+    const ownerPhone = dto.phone?.trim() || undefined;
+    const requestedSlug = dto.workspaceSlug?.trim();
+
+    this.validatePasswordStrength(dto.password);
+
+    try {
+      const { tenant, owner } = await this.dataSource.transaction(
+        async (manager) => {
+          const transactionalTenantRepository = manager.getRepository(Tenant);
+          const transactionalUserRepository = manager.getRepository(User);
+          const transactionalAuditRepository = manager.getRepository(AuditLog);
+
+          const baseSlug = this.resolveBaseTenantSlug(
+            requestedSlug,
+            workspaceName
+          );
+          const slug = await this.generateAvailableTenantSlug(
+            transactionalTenantRepository,
+            baseSlug
+          );
+
+          const tenant = transactionalTenantRepository.create({
+            name: workspaceName,
+            slug,
+            onboardingCompleted: false,
+            onboardingCompletedAt: null,
+          });
+          const savedTenant = await transactionalTenantRepository.save(tenant);
+
+          const owner = transactionalUserRepository.create({
+            email: ownerEmail,
+            name: ownerName,
+            phone: ownerPhone,
+            passwordHash: await this.passwordService.hash(dto.password),
+            role: UserRole.OWNER,
+            tenantId: savedTenant.id,
+            isActive: true,
+          });
+          const savedOwner = await transactionalUserRepository.save(owner);
+
+          await this.logAuditWithRepository(transactionalAuditRepository, {
+            tenantId: savedTenant.id,
+            userId: savedOwner.id,
+            action: AuditAction.CREATE,
+            entityType: 'Tenant',
+            entityId: savedTenant.id,
+            description: `Workspace created: ${savedTenant.name}`,
+            ipAddress,
+            userAgent,
+          });
+
+          await this.logAuditWithRepository(transactionalAuditRepository, {
+            tenantId: savedTenant.id,
+            userId: savedOwner.id,
+            action: AuditAction.CREATE,
+            entityType: 'User',
+            entityId: savedOwner.id,
+            description: `Owner account created: ${savedOwner.email}`,
+            ipAddress,
+            userAgent,
+          });
+
+          return { tenant: savedTenant, owner: savedOwner };
+        }
+      );
+
+      const ownerWithTenant = (await this.userRepository.findOne({
+        where: { id: owner.id },
+        relations: ['tenant'],
+      })) ?? { ...owner, tenant };
+
+      const tokens = await this.issueTokenPair(
+        ownerWithTenant,
+        ipAddress,
+        userAgent
+      );
+
+      await this.logAudit({
+        tenantId: ownerWithTenant.tenantId,
+        userId: ownerWithTenant.id,
+        action: AuditAction.LOGIN,
+        entityType: 'User',
+        entityId: ownerWithTenant.id,
+        description: `Owner logged in after workspace signup: ${ownerWithTenant.email}`,
+        ipAddress,
+        userAgent,
+      });
+
+      this.appLogger.info(
+        LOG_EVENTS.AUTH_SIGNUP_OWNER_SUCCESS,
+        'Owner signup completed',
+        {
+          tenantId: tenant.id,
+          userId: owner.id,
+          slug: tenant.slug,
+        }
+      );
+
+      return {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+        user: this.toUserDto(ownerWithTenant),
+        tenant: this.toTenantDto(ownerWithTenant.tenant),
+      };
+    } catch (error) {
+      this.appLogger.warn(
+        LOG_EVENTS.AUTH_SIGNUP_OWNER_FAILED,
+        'Owner signup failed',
+        {
+          workspaceName,
+          requestedSlug: requestedSlug || undefined,
+          email: ownerEmail,
+          error:
+            error instanceof Error ? error.message : 'unknown signup error',
+        }
+      );
+
+      if (this.isUniqueViolation(error, 'tenants_slug_unique')) {
+        throw new ConflictException('Workspace slug is already in use.');
+      }
+      if (this.isUniqueViolation(error, 'users_email_tenant_unique')) {
+        throw new ConflictException(
+          `Email ${ownerEmail} already registered in this workspace`
+        );
+      }
+
+      throw error;
+    }
   }
 
   /**
@@ -102,53 +352,80 @@ export class AuthService {
     userAgent?: string
   ) {
     const resolvedTenantId = await this.resolveTenantId(tenantId);
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    const normalizedName = dto.name.trim();
+    const normalizedPhone = dto.phone?.trim() || undefined;
+
     // Validate password strength
     this.validatePasswordStrength(dto.password);
 
-    // Hash password
     const passwordHash = await this.passwordService.hash(dto.password);
-    const { savedUser, initialRole } = await this.dataSource.transaction(
-      async (manager) => {
-        const transactionalUserRepository = manager.getRepository(User);
-        const transactionalTenantRepository = manager.getRepository(Tenant);
+    let savedUser: User;
+    let initialRole: UserRole;
 
-        const lockedTenant = await transactionalTenantRepository
-          .createQueryBuilder('tenant')
-          .where('tenant.id = :tenantId', { tenantId: resolvedTenantId })
-          .setLock('pessimistic_write')
-          .getOne();
+    try {
+      const registrationResult = await this.dataSource.transaction(
+        async (manager) => {
+          const transactionalUserRepository = manager.getRepository(User);
+          const transactionalTenantRepository = manager.getRepository(Tenant);
 
-        if (!lockedTenant) {
-          throw new BadRequestException('Invalid tenant ID');
+          const lockedTenant = await transactionalTenantRepository
+            .createQueryBuilder('tenant')
+            .where('tenant.id = :tenantId', { tenantId: resolvedTenantId })
+            .setLock('pessimistic_write')
+            .getOne();
+
+          if (!lockedTenant) {
+            throw new BadRequestException('Invalid tenant ID');
+          }
+
+          const existingUser = await transactionalUserRepository.findOne({
+            where: { email: normalizedEmail, tenantId: resolvedTenantId },
+          });
+          if (existingUser) {
+            throw new ConflictException(
+              `Email ${normalizedEmail} already registered in this tenant`
+            );
+          }
+
+          const userCount = await transactionalUserRepository.count({
+            where: { tenantId: resolvedTenantId },
+          });
+          if (userCount > 0) {
+            throw new ForbiddenException(SELF_REGISTRATION_BLOCKED_MESSAGE);
+          }
+
+          const role = UserRole.OWNER;
+
+          const user = transactionalUserRepository.create({
+            email: normalizedEmail,
+            name: normalizedName,
+            phone: normalizedPhone,
+            passwordHash,
+            role,
+            tenantId: resolvedTenantId,
+            isActive: true,
+          });
+          const saved = await transactionalUserRepository.save(user);
+          return { savedUser: saved, initialRole: role };
         }
+      );
 
-        const existingUser = await transactionalUserRepository.findOne({
-          where: { email: dto.email, tenantId: resolvedTenantId },
-        });
-        if (existingUser) {
-          throw new ConflictException(
-            `Email ${dto.email} already registered in this tenant`
-          );
-        }
-
-        const userCount = await transactionalUserRepository.count({
-          where: { tenantId: resolvedTenantId },
-        });
-        const role = userCount === 0 ? UserRole.OWNER : UserRole.STAFF;
-
-        const user = transactionalUserRepository.create({
-          email: dto.email,
-          name: dto.name,
-          phone: dto.phone,
-          passwordHash,
-          role,
-          tenantId: resolvedTenantId,
-          isActive: true,
-        });
-        const saved = await transactionalUserRepository.save(user);
-        return { savedUser: saved, initialRole: role };
+      savedUser = registrationResult.savedUser;
+      initialRole = registrationResult.initialRole;
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        this.appLogger.warn(
+          LOG_EVENTS.AUTH_REGISTER_BLOCKED_NONEMPTY_TENANT,
+          'Registration blocked for non-empty tenant',
+          {
+            tenantId: resolvedTenantId,
+            email: normalizedEmail,
+          }
+        );
       }
-    );
+      throw error;
+    }
     const saved = savedUser;
 
     // Log audit event
@@ -158,7 +435,7 @@ export class AuthService {
       action: AuditAction.CREATE,
       entityType: 'User',
       entityId: saved.id,
-      description: `User registered: ${saved.email}`,
+      description: `User registered: ${normalizedEmail}`,
       ipAddress,
       userAgent,
     });
@@ -183,11 +460,24 @@ export class AuthService {
       userAgent,
     });
 
+    const responseUser =
+      (await this.userRepository.findOne({
+        where: { id: saved.id },
+        relations: ['tenant'],
+      })) ?? saved;
+    const responseTenant =
+      responseUser.tenant ??
+      (await this.tenantRepository.findOne({
+        where: { id: responseUser.tenantId },
+        select: ['id', 'name', 'slug'],
+      }));
+
     return {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       expiresIn: tokens.expiresIn,
-      user: this.toUserDto(saved),
+      user: this.toUserDto(responseUser),
+      tenant: this.toTenantDto(responseTenant),
     };
   }
 
@@ -202,10 +492,14 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string
   ) {
-    const resolvedTenantId = await this.resolveTenantId(tenantId);
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    const resolvedTenantId = await this.resolveTenantIdForLogin(
+      normalizedEmail,
+      tenantId
+    );
     // Find user by email within tenant
     const user = await this.userRepository.findOne({
-      where: { email: dto.email, tenantId: resolvedTenantId },
+      where: { email: normalizedEmail, tenantId: resolvedTenantId },
       select: [
         'id',
         'email',
@@ -288,6 +582,7 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       expiresIn: tokens.expiresIn,
       user: this.toUserDto(user),
+      tenant: this.toTenantDto(user.tenant),
     };
   }
 
@@ -713,9 +1008,14 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const genericMessage = 'If that email exists, a reset link has been sent';
     const resolvedTenantId = await this.resolveTenantId(tenantId);
+    const normalizedEmail = this.normalizeEmail(email);
 
     const user = await this.userRepository.findOne({
-      where: { email, tenantId: resolvedTenantId, deletedAt: IsNull() },
+      where: {
+        email: normalizedEmail,
+        tenantId: resolvedTenantId,
+        deletedAt: IsNull(),
+      },
       select: ['id', 'email', 'tenantId', 'isActive'],
     });
 
@@ -897,11 +1197,146 @@ export class AuthService {
       phone: user.phone,
       role: user.role as UserRole,
       isActive: user.isActive,
+      onboardingCompleted: user.tenant?.onboardingCompleted ?? false,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       tenantId: user.tenantId || user.tenant?.id || 'unknown',
     };
+  }
+
+  private toTenantDto(
+    tenant?: Pick<Tenant, 'id' | 'name' | 'slug'> | null
+  ): { id: string; name: string; slug?: string } | undefined {
+    if (!tenant?.id) {
+      return undefined;
+    }
+
+    return {
+      id: tenant.id,
+      name: tenant.name,
+      slug: tenant.slug,
+    };
+  }
+
+  private normalizeWorkspaceName(name: string): string {
+    const normalizedName = name?.trim();
+    if (!normalizedName) {
+      throw new BadRequestException('Workspace name is required');
+    }
+    return normalizedName;
+  }
+
+  private normalizeEmail(email: string): string {
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (!normalizedEmail) {
+      throw new BadRequestException('Email is required');
+    }
+    return normalizedEmail;
+  }
+
+  private resolveBaseTenantSlug(
+    requestedSlug: string | undefined,
+    workspaceName: string
+  ): string {
+    const normalizedRequestedSlug = requestedSlug?.trim();
+    if (normalizedRequestedSlug) {
+      return this.normalizeTenantSlug(normalizedRequestedSlug);
+    }
+
+    const derivedSlug = this.slugify(workspaceName);
+    if (derivedSlug && !RESERVED_TENANT_SLUGS.has(derivedSlug)) {
+      return derivedSlug;
+    }
+    if (derivedSlug) {
+      const derivedFallback = this.slugify(`${derivedSlug}-workspace`);
+      if (derivedFallback && !RESERVED_TENANT_SLUGS.has(derivedFallback)) {
+        return derivedFallback;
+      }
+    }
+
+    return this.assertAllowedSlug(
+      `workspace-${randomBytes(4).toString('hex').toLowerCase()}`
+    );
+  }
+
+  private normalizeTenantSlug(slug: string): string {
+    const normalizedSlug = slug?.trim().toLowerCase();
+    if (!normalizedSlug) {
+      throw new BadRequestException('Workspace slug is required');
+    }
+    if (normalizedSlug.length > MAX_TENANT_SLUG_LENGTH) {
+      throw new BadRequestException('Workspace slug is too long');
+    }
+    if (!TENANT_SLUG_PATTERN.test(normalizedSlug)) {
+      throw new BadRequestException('Workspace slug format is invalid');
+    }
+    return this.assertAllowedSlug(normalizedSlug);
+  }
+
+  private slugify(value: string): string {
+    return (value || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-{2,}/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, MAX_TENANT_SLUG_LENGTH)
+      .replace(/-+$/g, '');
+  }
+
+  private assertAllowedSlug(slug: string): string {
+    if (RESERVED_TENANT_SLUGS.has(slug)) {
+      throw new BadRequestException('Workspace slug is reserved');
+    }
+    return slug;
+  }
+
+  private withSlugSuffix(baseSlug: string, suffix: number): string {
+    const suffixToken = `-${suffix}`;
+    const trimmedBase = baseSlug.slice(
+      0,
+      Math.max(1, MAX_TENANT_SLUG_LENGTH - suffixToken.length)
+    );
+    return `${trimmedBase}${suffixToken}`;
+  }
+
+  private async generateAvailableTenantSlug(
+    tenantRepository: Repository<Tenant>,
+    baseSlug: string
+  ): Promise<string> {
+    let candidateSlug = baseSlug;
+    let suffix = 2;
+
+    while (await tenantRepository.exists({ where: { slug: candidateSlug } })) {
+      candidateSlug = this.assertAllowedSlug(
+        this.withSlugSuffix(baseSlug, suffix)
+      );
+      suffix += 1;
+    }
+
+    return candidateSlug;
+  }
+
+  private isUniqueViolation(
+    error: unknown,
+    constraintName?: string
+  ): error is { code?: string; constraint?: string } {
+    if (typeof error !== 'object' || !error) {
+      return false;
+    }
+
+    const maybePgError = error as { code?: string; constraint?: string };
+    if (maybePgError.code !== '23505') {
+      return false;
+    }
+
+    if (!constraintName) {
+      return true;
+    }
+
+    return maybePgError.constraint === constraintName;
   }
 
   private async resolveTenantId(tenantId?: string): Promise<string> {
@@ -918,6 +1353,33 @@ export class AuthService {
     }
 
     return tenantId;
+  }
+
+  private async resolveTenantIdForLogin(
+    email: string,
+    tenantId?: string
+  ): Promise<string> {
+    if (tenantId) {
+      return this.resolveTenantId(tenantId);
+    }
+
+    const candidates = await this.userRepository.find({
+      where: { email },
+      select: ['id', 'tenantId'],
+      take: 2,
+    });
+
+    if (candidates.length === 1 && candidates[0]?.tenantId) {
+      return candidates[0].tenantId;
+    }
+
+    if (candidates.length > 1) {
+      throw new BadRequestException(
+        'Workspace is required. Please use your workspace login link.'
+      );
+    }
+
+    throw new UnauthorizedException('Invalid email or password');
   }
 
   private getRefreshTokenExpiry(issuedAt: Date): Date {
@@ -1040,6 +1502,35 @@ export class AuthService {
     });
 
     await this.auditLogRepository.save(auditLog);
+  }
+
+  private async logAuditWithRepository(
+    auditRepository: Repository<AuditLog>,
+    params: {
+      tenantId: string;
+      userId?: string;
+      action: AuditAction;
+      entityType: string;
+      entityId: string;
+      description?: string;
+      changes?: Record<string, unknown>;
+      ipAddress?: string;
+      userAgent?: string;
+    }
+  ): Promise<void> {
+    const auditLog = auditRepository.create({
+      tenantId: params.tenantId,
+      userId: params.userId,
+      action: params.action,
+      entityType: params.entityType,
+      entityId: params.entityId,
+      description: params.description,
+      changes: params.changes,
+      ipAddress: params.ipAddress,
+      userAgent: params.userAgent,
+    });
+
+    await auditRepository.save(auditLog);
   }
 
   private async issueTokenPair(

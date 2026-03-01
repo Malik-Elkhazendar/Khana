@@ -13,6 +13,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TranslateService } from '@ngx-translate/core';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { FacilityContextStore } from '../../shared/state';
@@ -20,6 +21,7 @@ import { AuthStore } from '../../shared/state/auth.store';
 import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import {
+  BookingCancellationScope,
   BookingListItemDto,
   BookingStatus,
   PaymentStatus,
@@ -125,6 +127,7 @@ const ERROR_CATEGORY_BY_CODE: Record<BookingErrorCode, ErrorCategory> = {
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     HoldTimerComponent,
     ConfirmationDialogComponent,
     CancellationFormComponent,
@@ -164,6 +167,9 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly toast = signal<ToastNotice | null>(null);
   readonly actionDialog = signal<ActionDialogState | null>(null);
   readonly cancelReason = signal<string>('');
+  readonly cancelScope = signal<BookingCancellationScope>(
+    BookingCancellationScope.SINGLE
+  );
   readonly cancelReasonMinLength = CANCEL_REASON_MIN_LENGTH;
   readonly lastSuccessfulBookings = signal<BookingListItemDto[]>([]);
   readonly lastSuccessfulAt = signal<number | null>(null);
@@ -264,6 +270,11 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly canMarkPaid = computed(() => {
     const role = this.currentUserRole();
     return role === UserRole.OWNER || role === UserRole.MANAGER;
+  });
+  readonly cancellationScopes = BookingCancellationScope;
+  readonly showRecurringCancellationScope = computed(() => {
+    const booking = this.selectedBookingLive();
+    return Boolean(booking?.recurrenceGroupId);
   });
 
   readonly displayBookings = computed(() => {
@@ -628,9 +639,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     await this.runAction(async () => {
       const booking = this.selectedBookingLive();
       if (!booking) return false;
-      return await this.store.cancelBooking(
+      return await this.store.cancelBookingWithScope(
         booking.id,
-        this.cancelReason().trim()
+        this.cancelReason().trim(),
+        this.cancelScope()
       );
     }, this.getActionSuccessMessage('cancel'));
   }
@@ -666,6 +678,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     const booking = this.selectedBookingLive();
     if (!booking) return;
     this.cancelReason.set('');
+    this.cancelScope.set(BookingCancellationScope.SINGLE);
     this.actionDialog.set({ type: 'cancel', bookingId: booking.id });
   }
 
@@ -675,6 +688,7 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   closeDialog(): void {
     this.actionDialog.set(null);
     this.cancelReason.set('');
+    this.cancelScope.set(BookingCancellationScope.SINGLE);
   }
 
   /**
@@ -702,9 +716,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
         case 'pay':
           return await this.store.markBookingPaid(booking.id);
         case 'cancel':
-          return await this.store.cancelBooking(
+          return await this.store.cancelBookingWithScope(
             booking.id,
-            this.cancelReason().trim()
+            this.cancelReason().trim(),
+            this.cancelScope()
           );
         default:
           return false;

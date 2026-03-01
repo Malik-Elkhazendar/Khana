@@ -1,6 +1,8 @@
 import { BookingStatus } from '../enums/booking-status.enum';
+import { BookingCancellationScope } from '../enums/booking-cancellation-scope.enum';
 import { ConflictType } from '../enums/conflict-type.enum';
 import { PaymentStatus } from '../enums/payment-status.enum';
+import { RecurrenceFrequency } from '../enums/recurrence-frequency.enum';
 import { PriceBreakdown } from '../interfaces/price-breakdown.interface';
 
 /**
@@ -118,6 +120,41 @@ export interface CreateBookingRequestDto {
 }
 
 /**
+ * Recurrence rule for grouped recurring bookings.
+ */
+export interface BookingRecurrenceRuleDto {
+  frequency: RecurrenceFrequency;
+  /** Interval in weeks. 1 = weekly, 2 = biweekly. */
+  intervalWeeks: number;
+  /** End recurrence on this date (inclusive). */
+  endsAtDate?: string;
+  /** Total number of booking instances to create. */
+  occurrences?: number;
+}
+
+/**
+ * Request DTO for creating recurring bookings in one call.
+ */
+export interface CreateRecurringBookingRequestDto {
+  facilityId: string;
+  startTime: string;
+  endTime: string;
+  customerName: string;
+  customerPhone: string;
+  status?: BookingStatus;
+  recurrenceRule: BookingRecurrenceRuleDto;
+}
+
+/**
+ * Summary response for recurring booking creation.
+ */
+export interface CreateRecurringBookingResponseDto {
+  recurrenceGroupId: string;
+  createdCount: number;
+  bookings: BookingListItemDto[];
+}
+
+/**
  * Booking response from API (list and detail views)
  */
 export interface BookingListItemDto {
@@ -139,6 +176,9 @@ export interface BookingListItemDto {
   priceBreakdown?: PriceBreakdown;
   holdUntil?: string | null;
   cancellationReason?: string | null;
+  recurrenceGroupId?: string | null;
+  recurrenceInstanceNumber?: number | null;
+  recurrenceRule?: BookingRecurrenceRuleDto | null;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   createdAt: string;
@@ -152,4 +192,5 @@ export interface UpdateBookingStatusRequestDto {
   status?: BookingStatus;
   paymentStatus?: PaymentStatus;
   cancellationReason?: string;
+  cancellationScope?: BookingCancellationScope;
 }

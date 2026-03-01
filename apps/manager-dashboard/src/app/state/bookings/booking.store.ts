@@ -6,6 +6,7 @@ import { pipe, tap, switchMap, catchError, of, firstValueFrom } from 'rxjs';
 import { ApiService } from '../../shared/services/api.service';
 import { LoggerService } from '../../shared/services/logger.service';
 import {
+  BookingCancellationScope,
   BookingStatus,
   PaymentStatus,
   BookingListItemDto,
@@ -97,6 +98,7 @@ export const BookingStore = signalStore(
           status?: BookingStatus;
           paymentStatus?: PaymentStatus;
           cancellationReason?: string | null;
+          cancellationScope?: BookingCancellationScope;
         }
       ): Promise<boolean> => {
         const existing = inFlightActions.get(id);
@@ -168,9 +170,23 @@ export const BookingStore = signalStore(
                 id,
                 updates.status,
                 updates.paymentStatus,
-                trimmedReason ?? undefined
+                trimmedReason ?? undefined,
+                updates.cancellationScope
               )
             );
+
+            if (
+              updates.cancellationScope ===
+              BookingCancellationScope.THIS_AND_FUTURE
+            ) {
+              const refreshedBookings = await firstValueFrom(
+                api.getBookings(store.filter().facilityId ?? undefined)
+              );
+              patchState(store, {
+                bookings: refreshedBookings,
+              });
+              return true;
+            }
 
             patchState(store, (state) => ({
               bookings: state.bookings.map((b) =>
@@ -243,6 +259,18 @@ export const BookingStore = signalStore(
           return await runStatusAction(id, {
             status: BookingStatus.CANCELLED,
             cancellationReason: reason,
+            cancellationScope: BookingCancellationScope.SINGLE,
+          });
+        },
+        cancelBookingWithScope: async (
+          id: string,
+          reason: string,
+          cancellationScope: BookingCancellationScope
+        ): Promise<boolean> => {
+          return await runStatusAction(id, {
+            status: BookingStatus.CANCELLED,
+            cancellationReason: reason,
+            cancellationScope,
           });
         },
         setFacilityFilter: (facilityId: string | null) => {

@@ -346,6 +346,10 @@
   &--hold {
     padding-inline-end: calc(var(--space-4) + 3.5rem);
   }
+
+  &--recurring {
+    border-inline-start-style: dashed;
+  }
 }
 
 .calendar__timeline-time {
@@ -391,6 +395,21 @@
     var(--color-surface-elevated) 80%,
     transparent
   );
+  color: currentColor;
+}
+
+.calendar__timeline-recurring {
+  position: absolute;
+  inset-inline-end: var(--space-3);
+  inset-block-end: var(--space-3);
+  padding-block: calc(var(--space-1) / 2);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: calc(var(--text-xs) * 0.75);
+  font-weight: var(--font-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
   color: currentColor;
 }
 
@@ -555,6 +574,10 @@
   padding-block-start: calc(var(--space-2) + var(--space-3));
 }
 
+.calendar__booking--recurring {
+  border-inline-start-style: dashed;
+}
+
 .calendar__booking-name {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -590,6 +613,22 @@
     var(--color-surface-elevated) 80%,
     transparent
   );
+  color: currentColor;
+}
+
+.calendar__booking-recurring {
+  position: absolute;
+  inset-inline-end: var(--space-2);
+  inset-block-end: var(--space-2);
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  font-size: calc(var(--text-xs) * 0.85);
+  font-weight: var(--font-bold);
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
   color: currentColor;
 }
 
@@ -680,6 +719,31 @@
 
   .calendar__grid {
     min-inline-size: max(100%, 36rem);
+  }
+}
+
+@media (max-width: 25rem) {
+  .calendar__nav--compact-two-row {
+    margin-inline-start: 0;
+    inline-size: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .calendar__nav--compact-two-row .calendar__nav-btn {
+    inline-size: 100%;
+    block-size: 2.75rem;
+  }
+
+  .calendar__nav--compact-two-row .calendar__today-btn {
+    order: 3;
+    grid-column: 1 / -1;
+    inline-size: 100%;
+  }
+
+  .calendar__nav--compact-two-row .calendar__nav-btn:last-of-type {
+    order: 2;
   }
 }
 

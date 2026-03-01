@@ -2,7 +2,7 @@
   text('BOOKING_CALENDAR.PAGE.SKIP_LINK', 'Skip to calendar')
 }}</a>
 <main
-  class="calendar dashboard-page"
+  class="calendar dashboard-page dashboard-page--data"
   id="booking-calendar-main"
   role="main"
   [attr.aria-busy]="loading() ? 'true' : null"
@@ -17,7 +17,9 @@
       <p class="dashboard-page__subtitle">{{ weekRange() }}</p>
     </div>
 
-    <div class="calendar__nav dashboard-page__actions">
+    <div
+      class="calendar__nav calendar__nav--compact-two-row dashboard-page__actions"
+    >
       <button
         type="button"
         class="calendar__nav-btn"
@@ -109,6 +111,9 @@
             'BOOKING_CALENDAR.ERRORS.NEXT_RETRY_AT',
             'Next retry at {{time
 
+
+
+
         }}', { time: formatLastUpdated(retryScheduledAt()) } ) }}
       </p>
       } @if (lastSuccessfulAt()) {
@@ -117,6 +122,9 @@
           text(
             'BOOKING_CALENDAR.ERRORS.SHOWING_LAST_UPDATED',
             'Showing last updated {{time
+
+
+
 
         }}', { time: formatLastUpdated(lastSuccessfulAt()) } ) }}
       </p>
@@ -190,6 +198,7 @@
         type="button"
         class="calendar__timeline-card {{ getStatusClass(booking.status) }}"
         [class.calendar__timeline-card--hold]="isHoldActive(booking)"
+        [class.calendar__timeline-card--recurring]="booking.recurrenceGroupId"
         role="listitem"
         [attr.aria-label]="timelineBookingAriaLabel(booking)"
         (click)="openBooking(booking, $event)"
@@ -214,6 +223,10 @@
         <span class="calendar__timeline-hold">{{
           text('BOOKING_CALENDAR.ACTION_SHEET.HOLD', 'Hold')
         }}</span>
+        } @if (booking.recurrenceGroupId) {
+        <span class="calendar__timeline-recurring">{{
+          text('BOOKING_CALENDAR.BADGES.RECURRING', 'Recurring')
+        }}</span>
         }
       </button>
       }
@@ -223,6 +236,9 @@
       <p>
         {{
         text('BOOKING_CALENDAR.STATE.NO_BOOKINGS_FOR_DAY', 'No bookings for {{day
+
+
+
 
         }}', { day: selectedDayLabel() }) }}
       </p>
@@ -296,6 +312,7 @@
         type="button"
         class="calendar__booking {{ getStatusClass(booking.status) }}"
         [class.calendar__booking--hold]="isHoldActive(booking)"
+        [class.calendar__booking--recurring]="booking.recurrenceGroupId"
         [ngStyle]="getBookingStyle(segment, layout.column, layout.columns)"
         [attr.aria-label]="gridBookingAriaLabel(booking)"
         [attr.title]="
@@ -310,6 +327,10 @@
         @if (isHoldActive(booking)) {
         <span class="calendar__booking-hold">{{
           text('BOOKING_CALENDAR.ACTION_SHEET.HOLD', 'Hold')
+        }}</span>
+        } @if (booking.recurrenceGroupId) {
+        <span class="calendar__booking-recurring">{{
+          text('BOOKING_CALENDAR.BADGES.RECURRING_SHORT', 'R')
         }}</span>
         }
       </button>
@@ -505,7 +526,37 @@
     [minLength]="cancelReasonMinLength"
     (reasonChange)="cancelReason.set($event)"
   ></app-cancellation-form>
-  }
+  @if (showRecurringCancellationScope()) {
+  <div class="form-group">
+    <label for="calendarCancelScope">{{
+      text('BOOKING_CALENDAR.DIALOG.CANCEL_SCOPE_LABEL', 'Cancellation scope')
+    }}</label>
+    <select
+      id="calendarCancelScope"
+      [ngModel]="cancelScope()"
+      (ngModelChange)="cancelScope.set($event)"
+      name="calendarCancelScope"
+      [disabled]="actionInProgress()"
+    >
+      <option [value]="cancellationScopes.SINGLE">
+        {{
+          text(
+            'BOOKING_CALENDAR.DIALOG.CANCEL_SCOPE_SINGLE',
+            'Cancel this booking'
+          )
+        }}
+      </option>
+      <option [value]="cancellationScopes.THIS_AND_FUTURE">
+        {{
+          text(
+            'BOOKING_CALENDAR.DIALOG.CANCEL_SCOPE_FUTURE',
+            'Cancel this and all future bookings'
+          )
+        }}
+      </option>
+    </select>
+  </div>
+  } }
 </app-confirmation-dialog>
 } @if (toast(); as notice) {
 <app-ui-toast

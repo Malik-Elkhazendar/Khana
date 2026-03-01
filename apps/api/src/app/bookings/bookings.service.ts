@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { In, MoreThan, Repository } from 'typeorm';
 import {
   previewBooking,
@@ -15,10 +15,21 @@ import {
   calculatePrice,
   validateBookingInput,
 } from '@khana/booking-engine';
-import { Booking, Facility, User } from '@khana/data-access';
 import {
+  AuditAction,
+  AuditLog,
+  Booking,
+  Facility,
+  User,
+} from '@khana/data-access';
+import {
+  BookingCancellationScope,
+  BookingListItemDto,
+  BookingRecurrenceRuleDto,
+  CreateRecurringBookingResponseDto,
   BookingStatus,
   PaymentStatus,
+  RecurrenceFrequency,
   SlotStatus,
   UserRole,
 } from '@khana/shared-dtos';
@@ -29,6 +40,7 @@ import {
   BookingPreviewRequestDto,
   BookingPreviewResponseDto,
   CreateBookingDto,
+  CreateRecurringBookingDto,
   UpdateBookingStatusDto,
 } from './dto';
 
@@ -42,6 +54,7 @@ const INACTIVE_FACILITY_MESSAGE =
 const BOOKING_REFERENCE_PREFIX = 'KHN';
 const BOOKING_REFERENCE_RANDOM_LENGTH = 6;
 const BOOKING_REFERENCE_ATTEMPTS = 5;
+const MAX_RECURRING_OCCURRENCES = 104;
 
 const ALLOWED_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   [BookingStatus.PENDING]: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
@@ -70,6 +83,8 @@ export class BookingsService {
     private readonly facilityRepository: Repository<Facility>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(AuditLog)
+    private readonly auditLogRepository: Repository<AuditLog>,
     private readonly emailService: EmailService,
     private readonly appLogger: AppLoggerService
   ) {}
@@ -405,6 +420,270 @@ export class BookingsService {
   }
 
   /**
+   * Create recurring bookings in a single, all-or-nothing operation.
+   */
+  async createRecurringBookings(
+    dto: CreateRecurringBookingDto,
+    tenantId: string,
+    userId: string,
+    userRole: string
+  ): Promise<CreateRecurringBookingResponseDto> {
+    const resolvedTenantId = this.requireTenantId(tenantId);
+    const resolvedUserId = this.requireUserId(userId);
+    const actorRole = this.requireUserRole(userRole);
+
+    if (this.isViewer(actorRole)) {
+      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
+    }
+
+    const facility = await this.validateFacilityOwnership(
+      dto.facilityId,
+      resolvedTenantId,
+      true
+    );
+    const recurrenceRule = this.normalizeRecurrenceRule(dto.recurrenceRule);
+    const baseStartTime = new Date(dto.startTime);
+    const baseEndTime = new Date(dto.endTime);
+    const occurrences = this.generateRecurringOccurrences(
+      baseStartTime,
+      baseEndTime,
+      recurrenceRule
+    );
+
+    const now = new Date();
+    const created = await this.bookingRepository.manager.transaction(
+      async (manager) => {
+        const bookingRepo = manager.getRepository(Booking);
+        const lockedFacility = await manager
+          .getRepository(Facility)
+          .createQueryBuilder('facility')
+          .where('facility.id = :facilityId', { facilityId: facility.id })
+          .setLock('pessimistic_write')
+          .getOne();
+
+        if (!lockedFacility) {
+          throw new NotFoundException(RESOURCE_NOT_FOUND_MESSAGE);
+        }
+
+        if (!lockedFacility.isActive) {
+          throw new ConflictException(INACTIVE_FACILITY_MESSAGE);
+        }
+
+        const firstOccurrence = occurrences[0];
+        const lastOccurrence = occurrences[occurrences.length - 1];
+
+        const existingBookings = await bookingRepo
+          .createQueryBuilder('booking')
+          .innerJoin('booking.facility', 'facility')
+          .where('facility.id = :facilityId', { facilityId: dto.facilityId })
+          .andWhere('facility.tenantId = :tenantId', {
+            tenantId: resolvedTenantId,
+          })
+          .andWhere(
+            `(
+              booking.status = :confirmedStatus
+              OR (
+                booking.status = :pendingStatus
+                AND booking.holdUntil > :now
+              )
+            )`,
+            {
+              confirmedStatus: BookingStatus.CONFIRMED,
+              pendingStatus: BookingStatus.PENDING,
+              now,
+            }
+          )
+          .andWhere('booking.startTime < :windowEnd', {
+            windowEnd: lastOccurrence.endTime,
+          })
+          .andWhere('booking.endTime > :windowStart', {
+            windowStart: firstOccurrence.startTime,
+          })
+          .getMany();
+
+        const occupiedSlots = existingBookings.map((booking) => ({
+          id: booking.id,
+          facilityId: dto.facilityId,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          status: SlotStatus.BOOKED,
+          bookingReference: booking.bookingReference ?? booking.id,
+        }));
+        const dynamicOccupiedSlots = [...occupiedSlots];
+        const facilityConfig = this.buildFacilityConfig(lockedFacility);
+
+        const validationErrors: string[] = [];
+        const conflicts: Array<{
+          instanceNumber: number;
+          startTime: string;
+          endTime: string;
+          message: string;
+          conflictType?: string;
+          conflictingSlots: Array<{
+            startTime: string;
+            endTime: string;
+            bookingReference?: string;
+          }>;
+        }> = [];
+
+        for (const occurrence of occurrences) {
+          const occurrenceValidationErrors = validateBookingInput(
+            {
+              facilityId: dto.facilityId,
+              startTime: occurrence.startTime,
+              endTime: occurrence.endTime,
+            },
+            facilityConfig
+          );
+
+          if (occurrenceValidationErrors.length > 0) {
+            validationErrors.push(
+              ...occurrenceValidationErrors.map(
+                (message) =>
+                  `Instance #${occurrence.instanceNumber}: ${message}`
+              )
+            );
+            continue;
+          }
+
+          const conflictResult = detectConflicts({
+            facilityId: dto.facilityId,
+            requestedStart: occurrence.startTime,
+            requestedEnd: occurrence.endTime,
+            occupiedSlots: dynamicOccupiedSlots,
+          });
+
+          if (conflictResult.hasConflict) {
+            conflicts.push({
+              instanceNumber: occurrence.instanceNumber,
+              startTime: occurrence.startTime.toISOString(),
+              endTime: occurrence.endTime.toISOString(),
+              message: conflictResult.message,
+              conflictType: conflictResult.conflictType,
+              conflictingSlots: conflictResult.conflictingSlots.map((slot) => ({
+                startTime: slot.startTime.toISOString(),
+                endTime: slot.endTime.toISOString(),
+                bookingReference: slot.bookingReference,
+              })),
+            });
+            continue;
+          }
+
+          dynamicOccupiedSlots.push({
+            id: `candidate-${occurrence.instanceNumber}`,
+            facilityId: dto.facilityId,
+            startTime: occurrence.startTime,
+            endTime: occurrence.endTime,
+            status: SlotStatus.BOOKED,
+            bookingReference: `candidate-${occurrence.instanceNumber}`,
+          });
+        }
+
+        if (validationErrors.length > 0) {
+          throw new BadRequestException({
+            message: 'Recurring booking validation failed.',
+            validationErrors,
+          });
+        }
+
+        if (conflicts.length > 0) {
+          this.appLogger.warn(
+            LOG_EVENTS.BOOKING_CREATE_CONFLICT,
+            'Recurring booking conflict detected',
+            {
+              facilityId: dto.facilityId,
+              conflictCount: conflicts.length,
+            }
+          );
+          throw new ConflictException({
+            message:
+              'One or more recurring instances conflict with existing bookings.',
+            conflicts,
+          });
+        }
+
+        const status = this.resolveCreateStatus(dto.status);
+        const recurrenceGroupId = randomUUID();
+        const toPersist: Booking[] = [];
+
+        for (const occurrence of occurrences) {
+          const bookingReference = await this.generateUniqueBookingReference(
+            bookingRepo
+          );
+          const priceBreakdown = calculatePrice({
+            startTime: occurrence.startTime,
+            endTime: occurrence.endTime,
+            pricingConfig: facilityConfig.pricing,
+          });
+          const holdUntil =
+            status === BookingStatus.PENDING
+              ? addMinutes(now, PENDING_HOLD_MINUTES)
+              : null;
+
+          toPersist.push(
+            bookingRepo.create({
+              facility: lockedFacility,
+              createdByUserId: resolvedUserId,
+              startTime: occurrence.startTime,
+              endTime: occurrence.endTime,
+              customerName: dto.customerName,
+              customerPhone: dto.customerPhone,
+              status,
+              paymentStatus: PaymentStatus.PENDING,
+              bookingReference,
+              totalAmount: priceBreakdown.total,
+              currency: priceBreakdown.currency,
+              priceBreakdown,
+              holdUntil,
+              recurrenceRule,
+              recurrenceGroupId,
+              recurrenceInstanceNumber: occurrence.instanceNumber,
+            })
+          );
+        }
+
+        const saved = await bookingRepo.save(toPersist);
+        return {
+          recurrenceGroupId,
+          createdCount: saved.length,
+          bookings: saved.map((booking) =>
+            this.toBookingListItemDto(booking, lockedFacility)
+          ),
+        };
+      }
+    );
+
+    await this.logAudit({
+      tenantId: resolvedTenantId,
+      userId: resolvedUserId,
+      action: AuditAction.CREATE,
+      entityType: 'BookingSeries',
+      entityId: created.recurrenceGroupId,
+      description: `Recurring booking series created (${created.createdCount} instances)`,
+      changes: {
+        after: {
+          facilityId: dto.facilityId,
+          recurrenceGroupId: created.recurrenceGroupId,
+          createdCount: created.createdCount,
+          recurrenceRule,
+        },
+      },
+    });
+
+    this.appLogger.info(
+      LOG_EVENTS.BOOKING_CREATE_SUCCESS,
+      'Recurring bookings created',
+      {
+        recurrenceGroupId: created.recurrenceGroupId,
+        createdCount: created.createdCount,
+        facilityId: dto.facilityId,
+      }
+    );
+
+    return created;
+  }
+
+  /**
    * Update booking status
    */
   async updateStatus(
@@ -435,9 +714,16 @@ export class BookingsService {
     }
 
     const effectiveStatus = dto.status ?? booking.status;
+    const cancellationScope =
+      dto.cancellationScope ?? BookingCancellationScope.SINGLE;
     const previousStatus = booking.status;
     if (dto.status) {
       this.validateStatusTransition(booking.status, dto.status);
+    }
+    if (dto.cancellationScope && dto.status !== BookingStatus.CANCELLED) {
+      throw new BadRequestException(
+        'Cancellation scope is only allowed when cancelling a booking.'
+      );
     }
 
     if (
@@ -457,6 +743,26 @@ export class BookingsService {
     if (trimmedReason && effectiveStatus !== BookingStatus.CANCELLED) {
       throw new BadRequestException(
         'Cancellation reason is only allowed when cancelling a booking.'
+      );
+    }
+    if (
+      cancellationScope === BookingCancellationScope.THIS_AND_FUTURE &&
+      (!booking.recurrenceGroupId || dto.status !== BookingStatus.CANCELLED)
+    ) {
+      throw new BadRequestException(
+        'Cancel-all-future is only supported for recurring bookings.'
+      );
+    }
+
+    if (
+      dto.status === BookingStatus.CANCELLED &&
+      cancellationScope === BookingCancellationScope.THIS_AND_FUTURE
+    ) {
+      return this.cancelRecurringSeriesFromInstance(
+        booking,
+        trimmedReason ?? '',
+        resolvedTenantId,
+        actorUserId
       );
     }
 
@@ -479,6 +785,22 @@ export class BookingsService {
     }
 
     await this.bookingRepository.save(booking);
+    await this.logAudit({
+      tenantId: resolvedTenantId,
+      userId: actorUserId,
+      action: AuditAction.UPDATE,
+      entityType: 'Booking',
+      entityId: booking.id,
+      description: `Booking status updated: ${booking.id}`,
+      changes: {
+        before: { status: previousStatus },
+        after: {
+          status: booking.status,
+          paymentStatus: booking.paymentStatus,
+          cancellationReason: booking.cancellationReason ?? null,
+        },
+      },
+    });
 
     this.appLogger.info(
       LOG_EVENTS.BOOKING_STATUS_UPDATED,
@@ -499,6 +821,275 @@ export class BookingsService {
     }
 
     return booking;
+  }
+
+  private async cancelRecurringSeriesFromInstance(
+    sourceBooking: Booking,
+    cancellationReason: string,
+    tenantId: string,
+    actorUserId: string
+  ): Promise<Booking> {
+    const recurrenceGroupId = sourceBooking.recurrenceGroupId;
+    if (!recurrenceGroupId) {
+      throw new BadRequestException(
+        'Cancel-all-future is only supported for recurring bookings.'
+      );
+    }
+
+    const affectedBookings = await this.bookingRepository
+      .createQueryBuilder('booking')
+      .innerJoinAndSelect('booking.facility', 'facility')
+      .where('booking.recurrenceGroupId = :recurrenceGroupId', {
+        recurrenceGroupId,
+      })
+      .andWhere('booking.startTime >= :startTime', {
+        startTime: sourceBooking.startTime,
+      })
+      .andWhere('booking.status != :cancelledStatus', {
+        cancelledStatus: BookingStatus.CANCELLED,
+      })
+      .andWhere('facility.tenantId = :tenantId', { tenantId })
+      .orderBy('booking.startTime', 'ASC')
+      .getMany();
+
+    if (affectedBookings.length === 0) {
+      return sourceBooking;
+    }
+
+    const paidBooking = affectedBookings.find(
+      (booking) =>
+        booking.paymentStatus === PaymentStatus.PAID ||
+        booking.paymentStatus === PaymentStatus.PARTIALLY_PAID
+    );
+    if (paidBooking) {
+      throw new ConflictException(
+        'Paid bookings require a refund flow; payment gateway integration pending.'
+      );
+    }
+
+    for (const booking of affectedBookings) {
+      this.validateStatusTransition(booking.status, BookingStatus.CANCELLED);
+      booking.status = BookingStatus.CANCELLED;
+      booking.holdUntil = null;
+      booking.cancellationReason = cancellationReason;
+    }
+
+    const savedBookings = await this.bookingRepository.save(affectedBookings);
+    const selectedBooking =
+      savedBookings.find((booking) => booking.id === sourceBooking.id) ??
+      savedBookings[0];
+
+    await this.logAudit({
+      tenantId,
+      userId: actorUserId,
+      action: AuditAction.UPDATE,
+      entityType: 'BookingSeries',
+      entityId: recurrenceGroupId,
+      description: `Recurring booking series cancelled from instance: ${sourceBooking.id}`,
+      changes: {
+        before: { affectedCount: savedBookings.length },
+        after: {
+          status: BookingStatus.CANCELLED,
+          cancellationReason,
+          cancelledFromBookingId: sourceBooking.id,
+          affectedBookingIds: savedBookings.map((booking) => booking.id),
+        },
+      },
+    });
+
+    this.appLogger.info(
+      LOG_EVENTS.BOOKING_STATUS_UPDATED,
+      'Recurring booking series cancelled from selected instance',
+      {
+        recurrenceGroupId,
+        sourceBookingId: sourceBooking.id,
+        affectedCount: savedBookings.length,
+      }
+    );
+
+    for (const booking of savedBookings) {
+      this.sendCancellationEmail(booking).catch((err) =>
+        this.appLogger.error(
+          LOG_EVENTS.EMAIL_FAILED,
+          'Failed to send cancellation email',
+          { bookingId: booking.id, recurrenceGroupId },
+          err
+        )
+      );
+    }
+
+    return selectedBooking;
+  }
+
+  private normalizeRecurrenceRule(
+    rawRule: CreateRecurringBookingDto['recurrenceRule']
+  ): BookingRecurrenceRuleDto {
+    const hasEndsAtDate = Boolean(rawRule.endsAtDate?.trim());
+    const hasOccurrences = typeof rawRule.occurrences === 'number';
+    if (
+      (hasEndsAtDate && hasOccurrences) ||
+      (!hasEndsAtDate && !hasOccurrences)
+    ) {
+      throw new BadRequestException(
+        'Provide exactly one recurrence end condition: endsAtDate or occurrences.'
+      );
+    }
+
+    if (
+      (rawRule.frequency === RecurrenceFrequency.WEEKLY &&
+        rawRule.intervalWeeks !== 1) ||
+      (rawRule.frequency === RecurrenceFrequency.BIWEEKLY &&
+        rawRule.intervalWeeks !== 2)
+    ) {
+      throw new BadRequestException(
+        'Recurrence interval does not match selected frequency.'
+      );
+    }
+
+    return {
+      frequency: rawRule.frequency,
+      intervalWeeks: rawRule.intervalWeeks,
+      endsAtDate: rawRule.endsAtDate?.trim() || undefined,
+      occurrences: rawRule.occurrences,
+    };
+  }
+
+  private generateRecurringOccurrences(
+    startTime: Date,
+    endTime: Date,
+    rule: BookingRecurrenceRuleDto
+  ): Array<{ instanceNumber: number; startTime: Date; endTime: Date }> {
+    if (startTime >= endTime) {
+      throw new BadRequestException('Start time must be before end time.');
+    }
+
+    const intervalDays = rule.intervalWeeks * 7;
+    const occurrences: Array<{
+      instanceNumber: number;
+      startTime: Date;
+      endTime: Date;
+    }> = [];
+
+    if (typeof rule.occurrences === 'number') {
+      if (rule.occurrences > MAX_RECURRING_OCCURRENCES) {
+        throw new BadRequestException(
+          `Recurring bookings are capped at ${MAX_RECURRING_OCCURRENCES} instances.`
+        );
+      }
+      for (let i = 0; i < rule.occurrences; i += 1) {
+        const candidateStart = new Date(startTime);
+        const candidateEnd = new Date(endTime);
+        candidateStart.setDate(candidateStart.getDate() + i * intervalDays);
+        candidateEnd.setDate(candidateEnd.getDate() + i * intervalDays);
+
+        occurrences.push({
+          instanceNumber: i + 1,
+          startTime: candidateStart,
+          endTime: candidateEnd,
+        });
+      }
+      return occurrences;
+    }
+
+    const endsAtDateRaw = rule.endsAtDate?.trim();
+    if (!endsAtDateRaw) {
+      throw new BadRequestException(
+        'Recurrence end date is required when occurrences are not provided.'
+      );
+    }
+
+    const endsAtDate = new Date(endsAtDateRaw);
+    if (Number.isNaN(endsAtDate.getTime())) {
+      throw new BadRequestException('Recurrence end date is invalid.');
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(endsAtDateRaw)) {
+      endsAtDate.setHours(23, 59, 59, 999);
+    }
+    if (endsAtDate < startTime) {
+      throw new BadRequestException(
+        'Recurrence end date must be on or after the first booking date.'
+      );
+    }
+
+    let instanceNumber = 1;
+    const candidateStart = new Date(startTime);
+    const candidateEnd = new Date(endTime);
+    while (candidateStart <= endsAtDate) {
+      if (instanceNumber > MAX_RECURRING_OCCURRENCES) {
+        throw new BadRequestException(
+          `Recurring bookings are capped at ${MAX_RECURRING_OCCURRENCES} instances.`
+        );
+      }
+
+      occurrences.push({
+        instanceNumber,
+        startTime: new Date(candidateStart),
+        endTime: new Date(candidateEnd),
+      });
+      candidateStart.setDate(candidateStart.getDate() + intervalDays);
+      candidateEnd.setDate(candidateEnd.getDate() + intervalDays);
+      instanceNumber += 1;
+    }
+
+    return occurrences;
+  }
+
+  private buildFacilityConfig(facility: Facility): {
+    id: string;
+    name: string;
+    openTime: string;
+    closeTime: string;
+    slotDurationMinutes: number;
+    pricing: {
+      basePrice: number;
+      currency: string;
+    };
+  } {
+    return {
+      id: facility.id,
+      name: facility.name,
+      openTime: facility.config.openTime,
+      closeTime: facility.config.closeTime,
+      slotDurationMinutes: 60,
+      pricing: {
+        basePrice: facility.config.pricePerHour,
+        currency: 'SAR',
+      },
+    };
+  }
+
+  private toBookingListItemDto(
+    booking: Booking,
+    facility: Facility
+  ): BookingListItemDto {
+    return {
+      id: booking.id,
+      bookingReference: booking.bookingReference,
+      facility: {
+        id: facility.id,
+        name: facility.name,
+        config: {
+          pricePerHour: Number(facility.config.pricePerHour),
+        },
+      },
+      startTime: booking.startTime.toISOString(),
+      endTime: booking.endTime.toISOString(),
+      customerName: booking.customerName,
+      customerPhone: booking.customerPhone,
+      totalAmount: booking.totalAmount,
+      currency: booking.currency,
+      priceBreakdown: booking.priceBreakdown,
+      holdUntil: booking.holdUntil ? booking.holdUntil.toISOString() : null,
+      cancellationReason: booking.cancellationReason ?? null,
+      recurrenceGroupId: booking.recurrenceGroupId ?? null,
+      recurrenceInstanceNumber: booking.recurrenceInstanceNumber ?? null,
+      recurrenceRule: booking.recurrenceRule ?? null,
+      status: booking.status,
+      paymentStatus: booking.paymentStatus,
+      createdAt: booking.createdAt.toISOString(),
+      updatedAt: booking.updatedAt.toISOString(),
+    };
   }
 
   private requireTenantId(tenantId?: string): string {
@@ -749,6 +1340,28 @@ export class BookingsService {
         err
       );
     }
+  }
+
+  private async logAudit(params: {
+    tenantId: string;
+    userId?: string;
+    action: AuditAction;
+    entityType: string;
+    entityId: string;
+    description?: string;
+    changes?: Record<string, unknown>;
+  }): Promise<void> {
+    const auditLog = this.auditLogRepository.create({
+      tenantId: params.tenantId,
+      userId: params.userId,
+      action: params.action,
+      entityType: params.entityType,
+      entityId: params.entityId,
+      description: params.description,
+      changes: params.changes,
+    });
+
+    await this.auditLogRepository.save(auditLog);
   }
 
   /**

@@ -29,6 +29,10 @@
       "SUBTITLE": "انضم إلى منصة خانة للحجوزات",
       "HAVE_ACCOUNT": "هل لديك حساب بالفعل؟",
       "SIGNIN_LINK": "تسجيل الدخول",
+      "WORKSPACE_NAME_LABEL": "اسم مساحة العمل",
+      "WORKSPACE_NAME_PLACEHOLDER": "إيليت بادل",
+      "WORKSPACE_SLUG_LABEL": "رابط مساحة العمل (اختياري)",
+      "WORKSPACE_SLUG_PLACEHOLDER": "elite-padel",
       "EMAIL_LABEL": "البريد الإلكتروني",
       "EMAIL_PLACEHOLDER": "business@example.com",
       "NAME_LABEL": "الاسم الكامل",
@@ -88,6 +92,11 @@
       "SUCCESS_MESSAGE": "تم تغيير كلمة المرور بنجاح. تم تسجيل خروج الجلسات الأخرى الآن."
     },
     "VALIDATION": {
+      "WORKSPACE_NAME_REQUIRED": "اسم مساحة العمل مطلوب",
+      "WORKSPACE_NAME_MINLENGTH": "يجب أن يكون اسم مساحة العمل من حرفين على الأقل",
+      "WORKSPACE_SLUG_LENGTH": "يجب أن يكون رابط مساحة العمل بين 3 و 50 حرفًا",
+      "WORKSPACE_SLUG_PATTERN": "يمكن أن يحتوي رابط مساحة العمل على أحرف إنجليزية صغيرة وأرقام وشرطة فقط",
+      "WORKSPACE_SLUG_TAKEN": "رابط مساحة العمل مستخدم بالفعل",
       "EMAIL_REQUIRED": "البريد الإلكتروني مطلوب",
       "EMAIL_INVALID": "يرجى إدخال عنوان بريد إلكتروني صالح",
       "EMAIL_DUPLICATE": "البريد الإلكتروني مستخدم بالفعل",
@@ -318,6 +327,9 @@
       "CANCEL_TITLE": "إلغاء الحجز",
       "CANCEL_MESSAGE": "هذا الإجراء نهائي ولا يمكن التراجع عنه.",
       "CANCEL_CONFIRM": "إلغاء الحجز",
+      "CANCEL_SCOPE_LABEL": "نطاق الإلغاء",
+      "CANCEL_SCOPE_SINGLE": "إلغاء هذا الحجز",
+      "CANCEL_SCOPE_FUTURE": "إلغاء هذا الحجز وجميع الحجوزات المستقبلية",
       "BULK_CANCEL_TITLE": "إلغاء الحجوزات المحددة",
       "BULK_CANCEL_MESSAGE": "سيتم إلغاء جميع الحجوزات المحددة ولا يمكن التراجع عن هذا الإجراء.",
       "BULK_CANCEL_CONFIRM": "إلغاء الحجوزات"
@@ -435,8 +447,15 @@
       "CANCEL_TITLE": "إلغاء الحجز",
       "CANCEL_MESSAGE": "هذا الإجراء نهائي ولا يمكن التراجع عنه.",
       "CANCEL_LABEL": "إلغاء الحجز",
+      "CANCEL_SCOPE_LABEL": "نطاق الإلغاء",
+      "CANCEL_SCOPE_SINGLE": "إلغاء هذا الحجز",
+      "CANCEL_SCOPE_FUTURE": "إلغاء هذا الحجز وجميع الحجوزات المستقبلية",
       "FALLBACK_TITLE": "تأكيد الإجراء",
       "FALLBACK_CONFIRM": "تأكيد"
+    },
+    "BADGES": {
+      "RECURRING": "متكرر",
+      "RECURRING_SHORT": "م"
     },
     "STATE": {
       "LOADING": "جارٍ تحميل الحجوزات...",
@@ -575,7 +594,20 @@
       "START_TIME_REQUIRED": "وقت البداية مطلوب",
       "END_TIME_REQUIRED": "وقت النهاية مطلوب",
       "START_BEFORE_END": "يجب أن يكون وقت البداية قبل وقت النهاية",
+      "REPEAT_COUNT_INVALID": "يجب أن يكون عدد مرات التكرار بين 1 و 104.",
+      "REPEAT_END_DATE_INVALID": "يجب أن يكون تاريخ انتهاء التكرار في نفس يوم الحجز الأول أو بعده.",
       "ISSUES_TITLE": "مشكلات التحقق:"
+    },
+    "RECURRENCE": {
+      "REPEAT_WEEKLY_LABEL": "تكرار أسبوعي",
+      "FREQUENCY_LABEL": "التكرار",
+      "FREQUENCY_WEEKLY": "كل أسبوع",
+      "FREQUENCY_BIWEEKLY": "كل أسبوعين",
+      "END_MODE_LABEL": "ينتهي عند",
+      "END_MODE_COUNT": "عدد الأسابيع",
+      "END_MODE_DATE": "تاريخ الانتهاء",
+      "WEEKS_COUNT_LABEL": "عدد الأسابيع",
+      "END_DATE_LABEL": "تاريخ الانتهاء"
     },
     "ALTERNATIVES": {
       "HIDE": "إخفاء البدائل",
@@ -621,7 +653,8 @@
       "OFFLINE_RETRY": "أنت غير متصل. سنعيد المحاولة عند عودة الاتصال."
     },
     "TOAST": {
-      "BOOKING_CONFIRMED": "تم تأكيد الحجز"
+      "BOOKING_CONFIRMED": "تم تأكيد الحجز",
+      "RECURRING_BOOKING_CONFIRMED": "تم تأكيد سلسلة الحجوزات المتكررة"
     },
     "CONFLICT": {
       "EXACT_OVERLAP": "تداخل كامل مع حجز موجود",
@@ -665,11 +698,14 @@
       "TIME_LABEL": "الوقت",
       "TOTAL_LABEL": "الإجمالي",
       "HOLD_LABEL": "حجز مبدئي",
-      "HOLD_PENDING_VALUE": "حجز كمعلّق"
+      "HOLD_PENDING_VALUE": "حجز كمعلّق",
+      "REPEAT_LABEL": "التكرار"
     },
     "SUCCESS": {
       "TITLE": "تم تأكيد الحجز!",
       "REFERENCE_PREFIX": "المرجع:",
+      "RECURRING_COUNT": "تم إنشاء {{count}} حجوزات متكررة.",
+      "RECURRENCE_GROUP": "معرّف السلسلة:",
       "SUBTITLE": "ستتلقى رسالة تأكيد قريبًا.",
       "CTA_ANOTHER": "إنشاء حجز آخر"
     }
@@ -681,5 +717,63 @@
     "USER_EXISTS": "يوجد مستخدم بهذه البيانات بالفعل.",
     "INVALID_CREDENTIALS": "البريد الإلكتروني أو كلمة المرور التي أدخلتها غير صحيحة.",
     "VERIFICATION_FAILED": "فشل التحقق من الهوية."
+  },
+  "ONBOARDING": {
+    "TITLE": "أكمل إعدادك",
+    "SUBTITLE": "أضف بيانات النشاط وأول مرفق والفريق لتبدأ استقبال الحجوزات بسرعة.",
+    "STEP_COUNTER": "الخطوة {{current}} من {{total}}",
+    "STEPS": {
+      "BUSINESS": "بيانات النشاط",
+      "FACILITY": "أول مرفق",
+      "INVITE": "دعوة الفريق",
+      "CONFIRM": "التأكيد"
+    },
+    "ACTIONS": {
+      "BACK": "رجوع",
+      "NEXT": "التالي",
+      "SKIP": "تخطي",
+      "CONTINUE": "متابعة"
+    },
+    "BUSINESS": {
+      "TITLE": "بيانات النشاط",
+      "SUBTITLE": "أخبرنا بمعلومات ملف النشاط.",
+      "NAME": "اسم النشاط",
+      "TYPE": "نوع النشاط",
+      "TYPE_SPORTS": "رياضي",
+      "TYPE_RENTAL": "تأجير",
+      "CONTACT_EMAIL": "بريد التواصل (اختياري)",
+      "CONTACT_PHONE": "هاتف التواصل (اختياري)",
+      "ERROR_NAME": "اسم النشاط مطلوب.",
+      "ERROR_EMAIL": "يرجى إدخال بريد إلكتروني صحيح.",
+      "ERROR_PHONE": "يرجى إدخال رقم هاتف صحيح."
+    },
+    "FACILITY": {
+      "TITLE": "أضف أول مرفق",
+      "SUBTITLE": "حدّد السعر وساعات التشغيل لأول ملعب أو وحدة.",
+      "NAME": "اسم المرفق",
+      "TYPE": "نوع المرفق",
+      "PRICE": "السعر لكل ساعة (ر.س)",
+      "OPEN_TIME": "وقت الفتح",
+      "CLOSE_TIME": "وقت الإغلاق",
+      "ERROR_NAME": "اسم المرفق مطلوب.",
+      "ERROR_PRICE": "السعر لكل ساعة يجب أن يكون أكبر من صفر.",
+      "ERROR_HOURS": "يجب أن يكون وقت الفتح قبل وقت الإغلاق."
+    },
+    "INVITE": {
+      "TITLE": "دعوة الفريق (اختياري)",
+      "SUBTITLE": "ادعُ المديرين أو الموظفين الآن، أو تخطَّ هذه الخطوة لاحقاً من صفحة الفريق.",
+      "EMAIL": "البريد الإلكتروني",
+      "ROLE": "الدور",
+      "SEND": "إرسال الدعوة",
+      "SENDING": "جارٍ إرسال الدعوة...",
+      "ERROR_EMAIL": "يرجى إدخال بريد إلكتروني صالح.",
+      "SUCCESS_COUNT": "تم إرسال {{count}} دعوة بنجاح."
+    },
+    "CONFIRM": {
+      "TITLE": "تأكيد وإنهاء",
+      "SUBTITLE": "راجع البيانات ثم أكمل الإعداد.",
+      "SUBMIT": "إكمال الإعداد",
+      "SUBMITTING": "جارٍ إكمال الإعداد..."
+    }
   }
 }

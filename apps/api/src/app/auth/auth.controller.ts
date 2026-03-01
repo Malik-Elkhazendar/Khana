@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Headers,
   Ip,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UserDto } from '@khana/shared-dtos';
@@ -25,6 +26,7 @@ import {
   RefreshTokenDto,
   RegisterDto,
   ResetPasswordDto,
+  SignupOwnerDto,
 } from './dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
@@ -49,8 +51,38 @@ export class AuthController {
   @Public()
   @Get('tenant')
   @HttpCode(HttpStatus.OK)
-  async getTenantContext() {
-    return this.authService.getTenantContext();
+  async getTenantContext(@TenantId() tenantId?: string) {
+    return this.authService.getTenantContext(tenantId);
+  }
+
+  @Public()
+  @Get('tenant/resolve')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async resolveTenantBySlug(
+    @Query('slug') slug?: string,
+    @Ip() ipAddress?: string,
+    @Headers('user-agent') userAgent?: string
+  ) {
+    return this.authService.resolveTenantBySlug(
+      slug || '',
+      ipAddress,
+      userAgent
+    );
+  }
+
+  @Public()
+  @Post('signup-owner')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async signupOwner(
+    @Body() dto: SignupOwnerDto,
+    @Ip() ipAddress?: string,
+    @Headers('user-agent') userAgent?: string
+  ) {
+    return this.authService.signupOwner(dto, ipAddress, userAgent);
   }
 
   /**

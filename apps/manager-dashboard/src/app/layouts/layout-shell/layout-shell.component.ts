@@ -6,9 +6,16 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import {
+  ActivatedRouteSnapshot,
+  NavigationEnd,
+  Router,
+  RouterModule,
+} from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { filter } from 'rxjs';
 import {
   DashboardBreadcrumbsComponent,
   HeaderComponent,
@@ -20,6 +27,9 @@ import { LayoutStore } from '../../shared/state/layout.store';
 
 const MOBILE_BREAKPOINT = 768;
 const DESKTOP_BREAKPOINT = 1024;
+type ContentArchetype = 'form' | 'data' | 'immersive';
+
+const DEFAULT_CONTENT_ARCHETYPE: ContentArchetype = 'form';
 
 @Component({
   selector: 'app-layout-shell',
@@ -40,11 +50,26 @@ const DESKTOP_BREAKPOINT = 1024;
 export class LayoutShellComponent {
   readonly layoutStore = inject(LayoutStore);
   private readonly facilityContext = inject(FacilityContextStore);
+  private readonly router = inject(Router);
   readonly sidebarCollapsed = this.layoutStore.sidebarCollapsed;
 
   private readonly viewportWidth = signal(
     typeof window === 'undefined' ? DESKTOP_BREAKPOINT : window.innerWidth
   );
+  readonly contentArchetype = signal<ContentArchetype>(
+    DEFAULT_CONTENT_ARCHETYPE
+  );
+  readonly contentMaxWidth = computed(() => {
+    switch (this.contentArchetype()) {
+      case 'data':
+        return 'var(--content-max-data)';
+      case 'immersive':
+        return 'var(--content-max-immersive)';
+      case 'form':
+      default:
+        return 'var(--content-max-form)';
+    }
+  });
 
   readonly isDesktop = computed(
     () => this.viewportWidth() >= DESKTOP_BREAKPOINT
@@ -56,6 +81,18 @@ export class LayoutShellComponent {
   constructor() {
     this.facilityContext.initialize();
     this.applyViewportState(this.viewportWidth());
+    this.updateContentArchetypeFromRoute();
+
+    this.router.events
+      .pipe(
+        filter(
+          (event): event is NavigationEnd => event instanceof NavigationEnd
+        ),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => {
+        this.updateContentArchetypeFromRoute();
+      });
   }
 
   @HostListener('window:resize')
@@ -84,5 +121,26 @@ export class LayoutShellComponent {
         this.layoutStore.toggleSidebar();
       }
     }
+  }
+
+  private updateContentArchetypeFromRoute(): void {
+    let pointer: ActivatedRouteSnapshot | null =
+      this.router.routerState.snapshot.root;
+    let detectedArchetype: ContentArchetype | null = null;
+
+    while (pointer) {
+      const candidate = pointer.data?.['contentArchetype'];
+      if (
+        candidate === 'form' ||
+        candidate === 'data' ||
+        candidate === 'immersive'
+      ) {
+        detectedArchetype = candidate;
+      }
+
+      pointer = pointer.firstChild ?? null;
+    }
+
+    this.contentArchetype.set(detectedArchetype ?? DEFAULT_CONTENT_ARCHETYPE);
   }
 }

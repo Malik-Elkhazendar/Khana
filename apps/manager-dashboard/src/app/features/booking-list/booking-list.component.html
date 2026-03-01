@@ -1,7 +1,11 @@
 <a class="skip-link dashboard-skip-link" href="#booking-list-main">{{
   text('BOOKING_LIST.PAGE.SKIP_LINK', 'Skip to bookings list')
 }}</a>
-<main class="booking-list dashboard-page" id="booking-list-main" role="main">
+<main
+  class="booking-list dashboard-page dashboard-page--data"
+  id="booking-list-main"
+  role="main"
+>
   <header class="page-header dashboard-page__header">
     <div class="title-block dashboard-page__title-group">
       <h1 class="dashboard-page__title">
@@ -168,7 +172,9 @@
         >
         }
       </div>
-      <div class="table-toolbar__right">
+      <div
+        class="table-toolbar__right dashboard-action-group dashboard-action-group--stack-compact"
+      >
         <button
           type="button"
           class="btn-ghost"
@@ -376,6 +382,9 @@
                       'Reserved until {{time
 
 
+
+
+
                   }}', { time: formatTime(booking.holdUntil) } ) }}
                 </div>
                 }
@@ -574,6 +583,9 @@
                     'Reserved until {{time
 
 
+
+
+
                 }}', { time: formatTime(booking.holdUntil) } ) }}
               </span>
             </div>
@@ -694,7 +706,34 @@
     [minLength]="cancelReasonMinLength"
     (reasonChange)="cancelReason.set($event)"
   ></app-cancellation-form>
-  @if (cancelError()) {
+  @if (booking.recurrenceGroupId) {
+  <div class="form-group">
+    <label for="cancelScope">{{
+      text('BOOKING_LIST.DIALOG.CANCEL_SCOPE_LABEL', 'Cancellation scope')
+    }}</label>
+    <select
+      id="cancelScope"
+      [ngModel]="cancelScope()"
+      (ngModelChange)="cancelScope.set($event)"
+      name="cancelScope"
+      [disabled]="actionInProgress()"
+    >
+      <option [value]="cancellationScopes.SINGLE">
+        {{
+          text('BOOKING_LIST.DIALOG.CANCEL_SCOPE_SINGLE', 'Cancel this booking')
+        }}
+      </option>
+      <option [value]="cancellationScopes.THIS_AND_FUTURE">
+        {{
+          text(
+            'BOOKING_LIST.DIALOG.CANCEL_SCOPE_FUTURE',
+            'Cancel this and all future bookings'
+          )
+        }}
+      </option>
+    </select>
+  </div>
+  } @if (cancelError()) {
   <p class="dialog-error" role="alert" aria-live="assertive">
     {{ cancelError() }}
   </p>

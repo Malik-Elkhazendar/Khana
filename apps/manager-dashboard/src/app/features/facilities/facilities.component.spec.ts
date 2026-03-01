@@ -20,6 +20,7 @@ const createUser = (role: UserRole): UserDto => ({
   name: 'Owner',
   role,
   isActive: true,
+  onboardingCompleted: true,
   createdAt: new Date('2025-01-01T10:00:00.000Z'),
   updatedAt: new Date('2025-01-01T10:00:00.000Z'),
 });

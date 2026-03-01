@@ -6,6 +6,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
 import { LanguageService } from '../../../shared/services/language.service';
+import { LoginResponseDto, UserRole } from '@khana/shared-dtos';
 
 /**
  * LoginComponent
@@ -54,10 +55,9 @@ export class LoginComponent {
     }
 
     this.authService.login(email, password).subscribe({
-      next: () => {
-        const returnUrl = sessionStorage.getItem('returnUrl') || '/dashboard';
-        sessionStorage.removeItem('returnUrl');
-        this.router.navigateByUrl(returnUrl);
+      next: (response) => {
+        const targetUrl = this.resolvePostAuthRedirect(response);
+        this.router.navigateByUrl(targetUrl);
       },
       error: () => {
         // Error handled by AuthStore
@@ -71,5 +71,28 @@ export class LoginComponent {
 
   get passwordControl() {
     return this.loginForm.get('password');
+  }
+
+  private resolvePostAuthRedirect(
+    response: LoginResponseDto | null | undefined
+  ): string {
+    const returnUrl = sessionStorage.getItem('returnUrl');
+    if (returnUrl) {
+      sessionStorage.removeItem('returnUrl');
+      if (returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
+        return returnUrl;
+      }
+    }
+
+    const user = response?.user;
+    if (!user) {
+      return '/dashboard';
+    }
+
+    if (user.role === UserRole.OWNER && user.onboardingCompleted !== true) {
+      return '/onboarding';
+    }
+
+    return '/dashboard';
   }
 }

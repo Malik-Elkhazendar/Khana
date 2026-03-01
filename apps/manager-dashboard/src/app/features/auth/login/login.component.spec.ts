@@ -3,11 +3,13 @@ import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { of, throwError } from 'rxjs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { UserRole } from '@khana/shared-dtos';
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
 import { setupStorageMock } from '../../../shared/testing/mocks/storage.mock';
 import { createMockLoginResponse } from '../../../shared/testing/fixtures/auth-response.fixture';
+import { createMockUser } from '../../../shared/testing/fixtures/user.fixture';
 
 const EN_TRANSLATIONS = {
   AUTH: {
@@ -327,6 +329,48 @@ describe('LoginComponent', () => {
       setTimeout(() => {
         expect(navigateByUrlSpy).toHaveBeenCalledWith(returnUrl);
         expect(storageMock.getItem('returnUrl')).toBeNull();
+        done();
+      }, 100);
+    });
+
+    it('should redirect owner with incomplete onboarding to onboarding', (done) => {
+      const mockResponse = createMockLoginResponse({
+        user: createMockUser({
+          role: UserRole.OWNER,
+          onboardingCompleted: false,
+        }),
+      });
+      authService.login.mockReturnValue(of(mockResponse));
+
+      component.loginForm.setValue({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+
+      component.onSubmit();
+
+      setTimeout(() => {
+        expect(navigateByUrlSpy).toHaveBeenCalledWith('/onboarding');
+        done();
+      }, 100);
+    });
+
+    it('should fallback to dashboard when login response user is missing', (done) => {
+      const mockResponse = {
+        ...createMockLoginResponse(),
+        user: undefined,
+      } as unknown as ReturnType<typeof createMockLoginResponse>;
+      authService.login.mockReturnValue(of(mockResponse));
+
+      component.loginForm.setValue({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+
+      component.onSubmit();
+
+      setTimeout(() => {
+        expect(navigateByUrlSpy).toHaveBeenCalledWith('/dashboard');
         done();
       }, 100);
     });

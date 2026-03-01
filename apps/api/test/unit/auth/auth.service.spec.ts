@@ -51,7 +51,7 @@ describe('AuthService', () => {
     lastLoginAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-    tenant: { id: MOCK_TENANT_ID, name: 'Test Tenant' },
+    tenant: { id: MOCK_TENANT_ID, name: 'Test Tenant', slug: 'test-tenant' },
   };
 
   const mockTokens = {
@@ -98,6 +98,7 @@ describe('AuthService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: {
+            find: jest.fn(),
             findOne: jest.fn(),
             save: jest.fn(),
             create: jest.fn(),
@@ -135,6 +136,9 @@ describe('AuthService', () => {
           useValue: {
             find: jest.fn(),
             exists: jest.fn(),
+            findOne: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
             createQueryBuilder: jest.fn(),
           },
         },
@@ -202,6 +206,11 @@ describe('AuthService', () => {
     metricsService = module.get<MetricsService>(MetricsService);
 
     tenantRepository.exists.mockResolvedValue(true);
+    tenantRepository.findOne.mockResolvedValue({
+      id: MOCK_TENANT_ID,
+      name: 'Test Tenant',
+      slug: 'test-tenant',
+    });
     const tenantLockQueryBuilder = {
       where: jest.fn().mockReturnThis(),
       setLock: jest.fn().mockReturnThis(),
@@ -213,6 +222,7 @@ describe('AuthService', () => {
       getRepository: jest.fn((entity: unknown) => {
         if (entity === User) return userRepository;
         if (entity === Tenant) return tenantRepository;
+        if (entity === AuditLog) return auditLogRepository;
         return null;
       }),
     };
@@ -283,44 +293,14 @@ describe('AuthService', () => {
       );
     });
 
-    it('should assign STAFF role to subsequent users', async () => {
+    it('should block direct registration when tenant already has users', async () => {
       userRepository.findOne.mockResolvedValue(null);
       userRepository.count.mockResolvedValue(1);
-      const createdUser = { ...mockUser, ...registerDto, role: 'STAFF' };
-      userRepository.create.mockReturnValue(createdUser);
-      userRepository.save.mockResolvedValue(createdUser);
-      auditLogRepository.create.mockReturnValue({});
-      auditLogRepository.save.mockResolvedValue({});
 
-      await service.register(registerDto, tenantId);
-
-      expect(userRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          role: 'STAFF',
-        })
+      await expect(service.register(registerDto, tenantId)).rejects.toThrow(
+        'Direct registration is disabled for this workspace. Ask the owner for an invite.'
       );
-    });
-
-    it('should ignore role from payload for non-first users', async () => {
-      userRepository.findOne.mockResolvedValue(null);
-      userRepository.count.mockResolvedValue(1);
-      const dtoWithRole = {
-        ...registerDto,
-        role: 'OWNER',
-      } as typeof registerDto & { role: 'OWNER' };
-      const createdUser = { ...mockUser, ...dtoWithRole, role: 'STAFF' };
-      userRepository.create.mockReturnValue(createdUser);
-      userRepository.save.mockResolvedValue(createdUser);
-      auditLogRepository.create.mockReturnValue({});
-      auditLogRepository.save.mockResolvedValue({});
-
-      await service.register(dtoWithRole, tenantId);
-
-      expect(userRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          role: 'STAFF',
-        })
-      );
+      expect(userRepository.create).not.toHaveBeenCalled();
     });
 
     it('should require tenant id for registration', async () => {
@@ -401,6 +381,7 @@ describe('AuthService', () => {
     const tenantId = MOCK_TENANT_ID;
 
     it('should login user and return tokens', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.update.mockResolvedValue({});
       auditLogRepository.create.mockReturnValue({});
@@ -421,6 +402,7 @@ describe('AuthService', () => {
     });
 
     it('should update lastLoginAt on successful login', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.update.mockResolvedValue({});
       auditLogRepository.create.mockReturnValue({});
@@ -437,6 +419,7 @@ describe('AuthService', () => {
     });
 
     it('should store refresh token record', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.update.mockResolvedValue({});
       refreshTokenRepository.save.mockResolvedValue({});
@@ -456,6 +439,7 @@ describe('AuthService', () => {
     });
 
     it('should log audit event on login', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.update.mockResolvedValue({});
       auditLogRepository.create.mockReturnValue({});
@@ -474,6 +458,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException for non-existent user', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(null);
 
       await expect(service.login(loginDto, tenantId)).rejects.toThrow(
@@ -486,6 +471,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException for inactive user', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(inactiveUser);
 
       await expect(service.login(loginDto, tenantId)).rejects.toThrow(
@@ -497,6 +483,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException for invalid password', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       (passwordService.verify as jest.Mock).mockResolvedValue(false);
 
@@ -506,6 +493,57 @@ describe('AuthService', () => {
       await expect(service.login(loginDto, tenantId)).rejects.toThrow(
         'Invalid email or password'
       );
+    });
+
+    it('should resolve tenant by email when tenant id is omitted', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
+      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.update.mockResolvedValue({});
+      auditLogRepository.create.mockReturnValue({});
+      auditLogRepository.save.mockResolvedValue({});
+
+      await service.login(loginDto);
+
+      expect(userRepository.find).toHaveBeenCalledWith({
+        where: { email: loginDto.email },
+        select: ['id', 'tenantId'],
+        take: 2,
+      });
+      expect(userRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            email: loginDto.email,
+            tenantId,
+          },
+        })
+      );
+    });
+
+    it('should require workspace when email exists in multiple tenants', async () => {
+      userRepository.find.mockResolvedValue([
+        { tenantId: 'tenant-1' },
+        { tenantId: 'tenant-2' },
+      ]);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Workspace is required. Please use your workspace login link.'
+      );
+      expect(userRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should return invalid credentials when no matching email exists', async () => {
+      userRepository.find.mockResolvedValue([]);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException
+      );
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Invalid email or password'
+      );
+      expect(userRepository.findOne).not.toHaveBeenCalled();
     });
   });
 
@@ -893,11 +931,55 @@ describe('AuthService', () => {
   });
 
   describe('getTenantContext', () => {
+    it('should return tenant context for provided tenant id', async () => {
+      tenantRepository.findOne.mockResolvedValue({
+        id: MOCK_TENANT_ID,
+        name: 'Elite Padel',
+        slug: 'elite-padel',
+      });
+
+      const result = await service.getTenantContext(MOCK_TENANT_ID);
+
+      expect(result).toEqual({
+        id: MOCK_TENANT_ID,
+        name: 'Elite Padel',
+        slug: 'elite-padel',
+      });
+      expect(tenantRepository.findOne).toHaveBeenCalledWith({
+        where: { id: MOCK_TENANT_ID },
+        select: ['id', 'name', 'slug'],
+      });
+      expect(tenantRepository.find).not.toHaveBeenCalled();
+    });
+
+    it('should reject invalid tenant id format', async () => {
+      await expect(service.getTenantContext('invalid-id')).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.getTenantContext('invalid-id')).rejects.toThrow(
+        'Invalid tenant ID'
+      );
+      expect(tenantRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should reject unknown provided tenant id', async () => {
+      tenantRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getTenantContext(MOCK_TENANT_ID)).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.getTenantContext(MOCK_TENANT_ID)).rejects.toThrow(
+        'Invalid tenant ID'
+      );
+      expect(tenantRepository.find).not.toHaveBeenCalled();
+    });
+
     it('should return tenant context when exactly one tenant exists', async () => {
       tenantRepository.find.mockResolvedValue([
         {
           id: MOCK_TENANT_ID,
           name: 'Elite Padel',
+          slug: 'elite-padel',
           createdAt: new Date(),
         },
       ]);
@@ -907,6 +989,7 @@ describe('AuthService', () => {
       expect(result).toEqual({
         id: MOCK_TENANT_ID,
         name: 'Elite Padel',
+        slug: 'elite-padel',
       });
     });
 
@@ -933,6 +1016,78 @@ describe('AuthService', () => {
       await expect(service.getTenantContext()).rejects.toThrow(
         'Tenant ID is required'
       );
+    });
+  });
+
+  describe('resolveTenantBySlug', () => {
+    it('should resolve tenant by workspace slug', async () => {
+      tenantRepository.findOne.mockResolvedValue({
+        id: MOCK_TENANT_ID,
+        name: 'Elite Padel',
+        slug: 'elite-padel',
+      });
+
+      const result = await service.resolveTenantBySlug('elite-padel');
+
+      expect(result).toEqual({
+        id: MOCK_TENANT_ID,
+        name: 'Elite Padel',
+        slug: 'elite-padel',
+      });
+    });
+
+    it('should reject invalid slug format', async () => {
+      await expect(service.resolveTenantBySlug('Invalid Slug')).rejects.toThrow(
+        BadRequestException
+      );
+      expect(tenantRepository.findOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('signupOwner', () => {
+    const dto = {
+      workspaceName: 'Elite Padel',
+      workspaceSlug: 'elite-padel',
+      name: 'Owner User',
+      email: 'owner@example.com',
+      password: 'Password123',
+      phone: '+966500000000',
+    };
+
+    it('should create tenant and owner in one flow', async () => {
+      tenantRepository.exists.mockResolvedValue(false);
+      const savedTenant = {
+        id: MOCK_TENANT_ID,
+        name: dto.workspaceName,
+        slug: dto.workspaceSlug,
+      };
+      const savedOwner = {
+        ...mockUser,
+        id: 'owner-1',
+        email: dto.email,
+        role: 'OWNER',
+        tenantId: MOCK_TENANT_ID,
+        tenant: savedTenant,
+      };
+
+      tenantRepository.create.mockReturnValue(savedTenant);
+      tenantRepository.save.mockResolvedValue(savedTenant);
+      userRepository.create.mockReturnValue(savedOwner);
+      userRepository.save.mockResolvedValue(savedOwner);
+      userRepository.findOne.mockResolvedValue(savedOwner);
+      auditLogRepository.create.mockReturnValue({});
+      auditLogRepository.save.mockResolvedValue({});
+
+      const result = await service.signupOwner(dto);
+
+      expect(result.user.role).toBe('OWNER');
+      expect(result.tenant).toEqual({
+        id: MOCK_TENANT_ID,
+        name: dto.workspaceName,
+        slug: dto.workspaceSlug,
+      });
+      expect(passwordService.hash).toHaveBeenCalledWith(dto.password);
+      expect(refreshTokenRepository.save).toHaveBeenCalled();
     });
   });
 });

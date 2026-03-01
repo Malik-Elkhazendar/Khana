@@ -6,3 +6,4 @@ export * from './logout-device.dto';
 export * from './logout.dto';
 export * from './forgot-password.dto';
 export * from './reset-password.dto';
+export * from './signup-owner.dto';

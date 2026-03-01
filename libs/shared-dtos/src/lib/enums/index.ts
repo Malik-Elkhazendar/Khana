@@ -4,6 +4,8 @@ export * from './facility-type.enum';
 export * from './inventory-type.enum';
 export * from './slot-status.enum';
 export * from './booking-status.enum';
+export * from './booking-cancellation-scope.enum';
 export * from './payment-status.enum';
 export * from './conflict-type.enum';
+export * from './recurrence-frequency.enum';
 export * from './user-role.enum';

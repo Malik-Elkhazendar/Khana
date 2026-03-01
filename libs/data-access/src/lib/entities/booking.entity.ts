@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import {
+  BookingRecurrenceRuleDto,
   BookingStatus,
   PaymentStatus,
   PriceBreakdown,
@@ -18,6 +19,7 @@ import { User } from './user.entity';
 
 @Entity({ name: 'bookings' })
 @Index('bookings_created_by_user_id_idx', ['createdByUserId'])
+@Index('bookings_recurrence_group_id_idx', ['recurrenceGroupId'])
 export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -75,6 +77,15 @@ export class Booking {
 
   @Column({ type: 'text', nullable: true })
   cancellationReason?: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  recurrenceRule?: BookingRecurrenceRuleDto | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  recurrenceGroupId?: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  recurrenceInstanceNumber?: number | null;
 
   @CreateDateColumn()
   createdAt!: Date;

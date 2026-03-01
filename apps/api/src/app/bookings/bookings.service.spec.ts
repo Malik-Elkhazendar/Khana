@@ -23,6 +23,10 @@ describe('BookingsService', () => {
     findOne: jest.Mock;
     find: jest.Mock;
   };
+  let auditLogRepository: {
+    create: jest.Mock;
+    save: jest.Mock;
+  };
   let txBookingRepository: {
     find: jest.Mock;
     create: jest.Mock;
@@ -135,10 +139,16 @@ describe('BookingsService', () => {
       find: jest.fn().mockResolvedValue([]),
     };
 
+    auditLogRepository = {
+      create: jest.fn((payload: unknown) => payload),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new BookingsService(
       bookingRepository as never,
       facilityRepository as never,
       userRepository as never,
+      auditLogRepository as never,
       emailService as never,
       appLogger as never
     );

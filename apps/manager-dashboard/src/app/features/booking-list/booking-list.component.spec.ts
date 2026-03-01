@@ -6,6 +6,7 @@ import { FacilityContextStore } from '../../shared/state';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { AuthStore } from '../../shared/state/auth.store';
 import {
+  BookingCancellationScope,
   BookingListItemDto,
   BookingStatus,
   FacilityListItemDto,
@@ -55,6 +56,7 @@ const createStoreMock = (initialBookings: BookingListItemDto[] = []) => ({
   actionLoadingById: signal<Record<string, boolean>>({}),
   loadBookings: jest.fn(),
   cancelBooking: jest.fn(() => Promise.resolve(true)),
+  cancelBookingWithScope: jest.fn(() => Promise.resolve(true)),
   markBookingPaid: jest.fn(() => Promise.resolve(true)),
 });
 
@@ -540,7 +542,7 @@ describe('BookingListComponent', () => {
 
     await component.submitCancelDialog();
 
-    expect(storeMock.cancelBooking).not.toHaveBeenCalled();
+    expect(storeMock.cancelBookingWithScope).not.toHaveBeenCalled();
     expect(component.cancelError()).toBeNull();
   });
 
@@ -554,9 +556,10 @@ describe('BookingListComponent', () => {
 
     await component.submitCancelDialog();
 
-    expect(storeMock.cancelBooking).toHaveBeenCalledWith(
+    expect(storeMock.cancelBookingWithScope).toHaveBeenCalledWith(
       'booking-1',
-      'Customer requested cancellation'
+      'Customer requested cancellation',
+      BookingCancellationScope.SINGLE
     );
     expect(component.cancelDialogBooking()).toBeNull();
     expect(component.selectedBookingIds().has('booking-1')).toBe(false);
@@ -565,7 +568,7 @@ describe('BookingListComponent', () => {
 
   it('shows an error when cancellation fails', async () => {
     const booking = createBooking({ id: 'booking-1' });
-    storeMock.cancelBooking.mockResolvedValueOnce(false);
+    storeMock.cancelBookingWithScope.mockResolvedValueOnce(false);
     const { component } = setupComponent([booking]);
 
     component.cancelDialogBooking.set(booking);

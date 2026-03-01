@@ -5,7 +5,11 @@ import { of, throwError, Subject } from 'rxjs';
 import { BookingStore } from './booking.store';
 import { ApiService } from '../../shared/services/api.service';
 import { LoggerService } from '../../shared/services/logger.service';
-import { BookingStatus, PaymentStatus } from '@khana/shared-dtos';
+import {
+  BookingCancellationScope,
+  BookingStatus,
+  PaymentStatus,
+} from '@khana/shared-dtos';
 import { createApiMock, ApiServiceMock } from '../../testing/api-mocks';
 import { createBooking } from '../../testing/factories';
 
@@ -234,6 +238,7 @@ describe('BookingStore', () => {
       booking.id,
       BookingStatus.CONFIRMED,
       undefined,
+      undefined,
       undefined
     );
   });
@@ -262,6 +267,7 @@ describe('BookingStore', () => {
       booking.id,
       undefined,
       PaymentStatus.PAID,
+      undefined,
       undefined
     );
   });
@@ -293,7 +299,8 @@ describe('BookingStore', () => {
       booking.id,
       BookingStatus.CANCELLED,
       undefined,
-      'Too noisy'
+      'Too noisy',
+      BookingCancellationScope.SINGLE
     );
   });
 

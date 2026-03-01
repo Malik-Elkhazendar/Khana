@@ -15,6 +15,7 @@ import {
 } from '@khana/shared-dtos';
 
 export type ApiServiceMock = {
+  completeOnboarding: jest.Mock;
   getFacilities: jest.Mock;
   getManagedFacilities: jest.Mock;
   getManagedFacilityById: jest.Mock;
@@ -28,6 +29,7 @@ export type ApiServiceMock = {
   getBookings: jest.Mock;
   previewBooking: jest.Mock;
   createBooking: jest.Mock;
+  createRecurringBooking: jest.Mock;
   updateBookingStatus: jest.Mock;
 };
 
@@ -60,6 +62,7 @@ export const createApiMock = (
     name: 'Owner',
     role: UserRole.OWNER,
     isActive: true,
+    onboardingCompleted: true,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -69,6 +72,14 @@ export const createApiMock = (
   };
 
   return {
+    completeOnboarding: jest.fn(() =>
+      of({
+        onboardingCompleted: true as const,
+        tenantId: 'tenant-1',
+        facilityId: managedFacility.id,
+        redirectTo: '/dashboard' as const,
+      })
+    ),
     getFacilities: jest.fn(() => of<FacilityListItemDto[]>([facility])),
     getManagedFacilities: jest.fn(() =>
       of<FacilityManagementItemDto[]>([managedFacility])
@@ -92,6 +103,13 @@ export const createApiMock = (
     getBookings: jest.fn(() => of<BookingListItemDto[]>([booking])),
     previewBooking: jest.fn(() => of<BookingPreviewResponseDto>(preview)),
     createBooking: jest.fn(() => of<BookingListItemDto>(booking)),
+    createRecurringBooking: jest.fn(() =>
+      of({
+        recurrenceGroupId: 'group-1',
+        createdCount: 1,
+        bookings: [booking],
+      })
+    ),
     updateBookingStatus: jest.fn(() => of<BookingListItemDto>(booking)),
     ...overrides,
   };

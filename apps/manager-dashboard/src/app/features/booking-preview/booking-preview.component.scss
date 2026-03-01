@@ -30,10 +30,11 @@
    FORM CARD
    ================================ */
 .booking-form {
-  padding: var(--space-6);
+  padding: var(--space-5);
+  container-type: inline-size;
 
   @media (min-width: 48rem) {
-    padding: var(--space-8);
+    padding: var(--space-6);
   }
 }
 
@@ -93,8 +94,10 @@ select[aria-invalid='true']:focus {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-6);
+}
 
-  @media (min-width: 40rem) {
+@container (min-width: 40rem) {
+  .form-row {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -735,10 +738,6 @@ select {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--space-4);
-
-    @media (min-width: 40rem) {
-      grid-template-columns: 1fr 1fr;
-    }
   }
 
   .form-group {
@@ -747,22 +746,77 @@ select {
 }
 
 .hold-toggle {
+  --recurrence-gap-vertical: var(--space-4);
+  --recurrence-gap-compact: var(--space-3);
   margin-block-start: var(--space-4);
   display: grid;
-  gap: var(--space-2);
+  row-gap: var(--recurrence-gap-vertical);
 
-  label {
+  > label {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
+    margin: 0;
     font-size: var(--text-sm);
     font-weight: var(--font-semibold);
     color: var(--color-text-primary);
   }
 
-  input {
+  > label > input[type='checkbox'] {
     inline-size: 18px;
     block-size: 18px;
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  .form-row {
+    margin: 0;
+    column-gap: var(--recurrence-gap-vertical);
+    row-gap: var(--recurrence-gap-compact);
+  }
+
+  > .form-group {
+    margin-block-start: var(--space-2);
+    margin-block-end: 0;
+  }
+
+  .form-group {
+    margin-block-end: 0;
+  }
+
+  .form-group label {
+    display: block;
+  }
+
+  .form-group select,
+  .form-group input[type='number'],
+  .form-group input[type='date'] {
+    min-block-size: 44px;
+    font-size: var(--text-base);
+  }
+
+  .form-group input[type='number'] {
+    inline-size: min(100%, 12rem);
+  }
+
+  .form-group input[type='date'] {
+    display: block;
+    min-inline-size: 0;
+    inline-size: 100%;
+  }
+
+  @container (max-width: 40rem) {
+    row-gap: var(--recurrence-gap-compact);
+
+    .form-row {
+      grid-template-columns: 1fr;
+      gap: var(--recurrence-gap-compact);
+    }
+
+    .form-group input[type='number'],
+    .form-group input[type='date'] {
+      inline-size: 100%;
+    }
   }
 }
 

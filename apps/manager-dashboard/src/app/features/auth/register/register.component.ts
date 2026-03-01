@@ -21,7 +21,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
 import { LanguageService } from '../../../shared/services/language.service';
-import { CreateUserDto } from '@khana/shared-dtos';
+import { LoginResponseDto, OwnerSignupDto, UserRole } from '@khana/shared-dtos';
 import {
   PasswordStrengthResult,
   PasswordStrengthService,
@@ -42,6 +42,7 @@ import { PasswordStrengthIndicatorComponent } from '../shared';
   styleUrl: './register.component.scss',
 })
 export class RegisterComponent implements OnInit {
+  private readonly workspaceSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
@@ -71,6 +72,8 @@ export class RegisterComponent implements OnInit {
 
   readonly registerForm = this.fb.nonNullable.group(
     {
+      workspaceName: ['', [Validators.required, Validators.minLength(2)]],
+      workspaceSlug: ['', [this.optionalWorkspaceSlugValidator.bind(this)]],
       email: ['', [Validators.required, Validators.email]],
       password: [
         '',
@@ -114,23 +117,35 @@ export class RegisterComponent implements OnInit {
       return;
     }
 
-    const { email, password, name, phone } = this.registerForm.getRawValue();
+    const { workspaceName, workspaceSlug, email, password, name, phone } =
+      this.registerForm.getRawValue();
 
-    const payload: CreateUserDto = {
+    const payload: OwnerSignupDto = {
+      workspaceName: workspaceName.trim(),
+      workspaceSlug: workspaceSlug?.trim() || undefined,
       email: email.trim(),
       password,
       name: name.trim(),
       phone: phone?.trim() || undefined,
     };
 
-    this.authService.register(payload).subscribe({
-      next: () => {
-        const returnUrl = sessionStorage.getItem('returnUrl') || '/dashboard';
-        sessionStorage.removeItem('returnUrl');
-        this.router.navigateByUrl(returnUrl);
+    this.authService.signupOwner(payload).subscribe({
+      next: (response) => {
+        const targetUrl = this.resolvePostAuthRedirect(response);
+        this.router.navigateByUrl(targetUrl);
       },
       error: (error) => {
         if (error?.status === 409) {
+          const message = String(error?.error?.message ?? '').toLowerCase();
+
+          if (message.includes('slug')) {
+            this.workspaceSlugControl?.setErrors({
+              ...(this.workspaceSlugControl.errors ?? {}),
+              workspaceSlugTaken: true,
+            });
+            return;
+          }
+
           this.emailControl?.setErrors({
             ...(this.emailControl.errors ?? {}),
             duplicate: true,
@@ -166,8 +181,39 @@ export class RegisterComponent implements OnInit {
     this.router.navigateByUrl('/login');
   }
 
+  private resolvePostAuthRedirect(
+    response: LoginResponseDto | null | undefined
+  ): string {
+    const returnUrl = sessionStorage.getItem('returnUrl');
+    if (returnUrl) {
+      sessionStorage.removeItem('returnUrl');
+      if (returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
+        return returnUrl;
+      }
+    }
+
+    const user = response?.user;
+    if (!user) {
+      return '/dashboard';
+    }
+
+    if (user.role === UserRole.OWNER && user.onboardingCompleted !== true) {
+      return '/onboarding';
+    }
+
+    return '/dashboard';
+  }
+
   get emailControl() {
     return this.registerForm.get('email');
+  }
+
+  get workspaceNameControl() {
+    return this.registerForm.get('workspaceName');
+  }
+
+  get workspaceSlugControl() {
+    return this.registerForm.get('workspaceSlug');
   }
 
   get passwordControl() {
@@ -249,5 +295,25 @@ export class RegisterComponent implements OnInit {
 
     const phonePattern = /^[+]?[0-9\s()-]{7,}$/;
     return phonePattern.test(value) ? null : { phone: true };
+  }
+
+  private optionalWorkspaceSlugValidator(
+    control: AbstractControl
+  ): ValidationErrors | null {
+    const value = (control.value ?? '').toString().trim().toLowerCase();
+
+    if (!value) {
+      return null;
+    }
+
+    if (value.length < 3 || value.length > 50) {
+      return { workspaceSlugLength: true };
+    }
+
+    if (!this.workspaceSlugPattern.test(value)) {
+      return { workspaceSlugPattern: true };
+    }
+
+    return null;
   }
 }
