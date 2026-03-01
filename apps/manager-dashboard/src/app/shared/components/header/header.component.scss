@@ -19,7 +19,7 @@
   gap: var(--space-3);
   block-size: 100%;
   inline-size: 100%;
-  padding-inline: var(--space-6);
+  padding-inline: var(--space-5);
 }
 
 .brand {
@@ -234,21 +234,21 @@
     padding-inline: var(--space-4);
   }
 
+  .header-actions {
+    min-inline-size: 0;
+  }
+
   .user-info,
   .user-caret {
     display: none;
   }
 
-  .header-facility-switcher {
+  .header-actions > .header-facility-switcher {
     display: none;
   }
 }
 
 @media (min-width: 48rem) {
-  .primary-nav {
-    display: block;
-  }
-
   .menu-toggle {
     display: none;
   }

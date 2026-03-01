@@ -3,8 +3,10 @@
 }
 
 .facilities-page {
+  --facilities-table-min-inline: 50rem;
   display: grid;
-  gap: var(--space-5);
+  gap: var(--content-gap-mobile);
+  container-type: inline-size;
 }
 
 .facilities-panel,
@@ -12,7 +14,13 @@
 .facilities-readonly {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-6);
+  padding: var(--space-5);
+}
+
+@media (min-width: 64rem) {
+  .facilities-page {
+    gap: var(--content-gap-desktop);
+  }
 }
 
 .facilities-state {
@@ -34,7 +42,7 @@
 .facilities-table {
   inline-size: 100%;
   border-collapse: collapse;
-  min-inline-size: 50rem;
+  min-inline-size: var(--facilities-table-min-inline);
 }
 
 .facilities-table th,
@@ -128,15 +136,23 @@
   color: var(--color-text-secondary);
 }
 
-@media (max-width: 768px) {
+@container (max-width: 56rem) {
+  .facilities-table {
+    min-inline-size: var(--table-min-inline-standard);
+  }
+}
+
+@container (max-width: 46rem) {
+  .facilities-table {
+    min-inline-size: var(--table-min-inline-tight);
+  }
+}
+
+@container (max-width: 48rem) {
   .facilities-panel,
   .facilities-form-panel,
   .facilities-readonly {
     padding: var(--space-4);
-  }
-
-  .facilities-table {
-    min-inline-size: 44rem;
   }
 
   .facility-form__row {

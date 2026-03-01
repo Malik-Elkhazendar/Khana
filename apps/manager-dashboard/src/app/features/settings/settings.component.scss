@@ -2,10 +2,15 @@
   display: block;
 }
 
+.settings-page {
+  container-type: inline-size;
+}
+
 .settings-panel {
-  padding: var(--space-6);
+  padding: var(--space-5);
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-4);
+  container-type: inline-size;
 }
 
 .settings-section {
@@ -33,7 +38,7 @@
 
 .settings-section dl div {
   display: grid;
-  grid-template-columns: minmax(10rem, 14rem) 1fr;
+  grid-template-columns: minmax(9rem, clamp(11rem, 30%, 13rem)) 1fr;
   gap: var(--space-3);
   align-items: baseline;
 }
@@ -68,9 +73,18 @@
   color: var(--color-success);
 }
 
-@media (max-width: 47.9375rem) {
+@container (max-width: 42rem) {
+  .settings-panel {
+    padding: var(--space-4);
+  }
+
   .settings-section dl div {
     grid-template-columns: 1fr;
     gap: var(--space-1);
+  }
+
+  .settings-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

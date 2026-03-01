@@ -2,7 +2,7 @@
   text('BOOKING_PREVIEW.PAGE.SKIP_LINK', 'Skip to booking preview')
 }}</a>
 <main
-  class="booking-preview dashboard-page"
+  class="booking-preview dashboard-page dashboard-page--data"
   id="booking-preview-main"
   role="main"
 >
@@ -162,6 +162,7 @@
         text(
           'BOOKING_PREVIEW.FORM.TIMEZONE_HINT',
           'Times shown in {{timezone
+
 
 
       }}', { timezone: timezoneLabel } ) }}
@@ -487,6 +488,7 @@
                 'Peak Hours ({{multiplier
 
 
+
             }}x)', { multiplier: result.priceBreakdown.timeMultiplier } ) }}
           </td>
           <td class="modifier">
@@ -500,6 +502,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.WEEKEND_RATE',
                 'Weekend Rate ({{multiplier
+
 
 
             }}x)', { multiplier: result.priceBreakdown.dayMultiplier } ) }}
@@ -539,6 +542,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.PROMO_CODE',
                 'Promo ({{code
+
 
 
             }})', { code: result.priceBreakdown.promoCode } ) }}

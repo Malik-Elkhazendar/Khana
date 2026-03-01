@@ -2,7 +2,7 @@
   text('BOOKING_CALENDAR.PAGE.SKIP_LINK', 'Skip to calendar')
 }}</a>
 <main
-  class="calendar dashboard-page"
+  class="calendar dashboard-page dashboard-page--data"
   id="booking-calendar-main"
   role="main"
   [attr.aria-busy]="loading() ? 'true' : null"
@@ -110,6 +110,7 @@
             'Next retry at {{time
 
 
+
         }}', { time: formatLastUpdated(retryScheduledAt()) } ) }}
       </p>
       } @if (lastSuccessfulAt()) {
@@ -118,6 +119,7 @@
           text(
             'BOOKING_CALENDAR.ERRORS.SHOWING_LAST_UPDATED',
             'Showing last updated {{time
+
 
 
         }}', { time: formatLastUpdated(lastSuccessfulAt()) } ) }}
@@ -230,6 +232,7 @@
       <p>
         {{
         text('BOOKING_CALENDAR.STATE.NO_BOOKINGS_FOR_DAY', 'No bookings for {{day
+
 
 
         }}', { day: selectedDayLabel() }) }}

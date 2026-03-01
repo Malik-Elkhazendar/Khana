@@ -51,8 +51,8 @@ export class AuthController {
   @Public()
   @Get('tenant')
   @HttpCode(HttpStatus.OK)
-  async getTenantContext() {
-    return this.authService.getTenantContext();
+  async getTenantContext(@TenantId() tenantId?: string) {
+    return this.authService.getTenantContext(tenantId);
   }
 
   @Public()

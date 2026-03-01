@@ -6,6 +6,8 @@
   class="layout-wrapper"
   [class.sidebar-collapsed]="layoutStore.sidebarCollapsed()"
   [class.is-desktop]="isDesktop()"
+  [attr.data-content-archetype]="contentArchetype()"
+  [style.--dashboard-content-max]="contentMaxWidth()"
 >
   <app-header></app-header>
 

@@ -8,6 +8,7 @@
   --layout-header-height: 4.5rem;
   --layout-sidebar-width: 16rem;
   --layout-sidebar-collapsed-width: 5rem;
+  --dashboard-content-max: var(--content-max-form);
 
   display: grid;
   grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
@@ -60,11 +61,11 @@ app-header {
 
 @media (max-width: 47.9375rem) {
   .layout-wrapper {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .layout-wrapper.sidebar-collapsed {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .main-content {

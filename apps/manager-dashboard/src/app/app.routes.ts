@@ -124,6 +124,7 @@ export const appRoutes: Route[] = [
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.BOOKINGS',
           navKey: 'DASHBOARD.NAV.ITEMS.BOOKINGS',
+          contentArchetype: 'data',
         },
       },
       {
@@ -136,6 +137,7 @@ export const appRoutes: Route[] = [
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.CALENDAR',
           navKey: 'DASHBOARD.NAV.ITEMS.CALENDAR',
+          contentArchetype: 'data',
         },
       },
       {
@@ -151,6 +153,7 @@ export const appRoutes: Route[] = [
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.NEW_BOOKING',
           navKey: 'DASHBOARD.NAV.ITEMS.NEW_BOOKING',
+          contentArchetype: 'data',
         },
       },
       {
@@ -166,6 +169,7 @@ export const appRoutes: Route[] = [
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.FACILITIES',
           navKey: 'DASHBOARD.NAV.ITEMS.FACILITIES',
+          contentArchetype: 'data',
         },
       },
       {
@@ -179,6 +183,7 @@ export const appRoutes: Route[] = [
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.TEAM',
           navKey: 'DASHBOARD.NAV.ITEMS.TEAM',
+          contentArchetype: 'data',
         },
       },
       {
@@ -192,6 +197,7 @@ export const appRoutes: Route[] = [
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.SETTINGS',
           navKey: 'DASHBOARD.NAV.ITEMS.SETTINGS',
+          contentArchetype: 'data',
         },
       },
       {

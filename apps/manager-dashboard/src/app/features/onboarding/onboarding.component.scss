@@ -4,14 +4,20 @@
 
 .onboarding-page {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--content-gap-mobile);
 }
 
 .onboarding-progress,
 .onboarding-panel {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-6);
+  padding: var(--space-5);
+}
+
+@media (min-width: 64rem) {
+  .onboarding-page {
+    gap: var(--content-gap-desktop);
+  }
 }
 
 .onboarding-progress__counter {
@@ -154,7 +160,7 @@
   color: var(--color-text-secondary);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 47.9375rem) {
   .onboarding-progress,
   .onboarding-panel {
     padding: var(--space-4);

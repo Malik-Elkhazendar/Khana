@@ -75,7 +75,7 @@ export class AuthService {
     this.authStore.setLoading(true);
     this.authStore.setError(null);
 
-    return this.resolveTenantHeaders().pipe(
+    return this.resolveLoginHeaders().pipe(
       switchMap((headers) =>
         this.http.post<LoginResponseDto>(`${this.API_URL}/login`, dto, {
           headers,
@@ -89,7 +89,11 @@ export class AuthService {
         this.authStore.setLoading(false);
       }),
       catchError((error) => {
-        const message = error.error?.message || 'Login failed';
+        const backendMessage = error.error?.message;
+        const message =
+          backendMessage === 'Tenant ID is required'
+            ? 'Workspace is required. Please use your workspace login link.'
+            : backendMessage || 'Login failed';
         this.authStore.setError(message);
         this.authStore.setLoading(false);
         return throwError(() => error);
@@ -402,6 +406,29 @@ export class AuthService {
     return this.resolveTenantId().pipe(
       map((resolvedTenantId) => this.buildTenantHeaders(resolvedTenantId))
     );
+  }
+
+  private resolveLoginHeaders(): Observable<HttpHeaders> {
+    const tenantId = this.getTenantIdFromStorage();
+    if (tenantId) {
+      return of(this.buildTenantHeaders(tenantId));
+    }
+
+    const workspaceSlug = this.getWorkspaceSlugFromQueryParam();
+    if (this.isWorkspaceSlug(workspaceSlug)) {
+      return this.resolveTenantByWorkspaceSlug(workspaceSlug).pipe(
+        map((resolvedTenantId) => this.buildTenantHeaders(resolvedTenantId))
+      );
+    }
+
+    const fromLegacyHints = this.resolveTenantIdFromLegacyHints();
+    if (fromLegacyHints) {
+      this.storeTenantId(fromLegacyHints);
+      return of(this.buildTenantHeaders(fromLegacyHints));
+    }
+
+    // Allow backend email-based tenant resolution on login when no tenant hints exist.
+    return of(new HttpHeaders());
   }
 
   private getTenantHeaders(): HttpHeaders {

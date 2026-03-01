@@ -99,11 +99,34 @@ export class AuthService {
     private readonly appLogger: AppLoggerService
   ) {}
 
-  async getTenantContext(): Promise<{
+  async getTenantContext(tenantId?: string): Promise<{
     id: string;
     name: string;
     slug: string;
   }> {
+    const normalizedTenantId = tenantId?.trim();
+
+    if (normalizedTenantId) {
+      if (!isUUID(normalizedTenantId)) {
+        throw new BadRequestException('Invalid tenant ID');
+      }
+
+      const tenant = await this.tenantRepository.findOne({
+        where: { id: normalizedTenantId },
+        select: ['id', 'name', 'slug'],
+      });
+
+      if (!tenant) {
+        throw new BadRequestException('Invalid tenant ID');
+      }
+
+      return {
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+      };
+    }
+
     const tenants = await this.tenantRepository.find({
       select: ['id', 'name', 'slug', 'createdAt'],
       order: { createdAt: 'ASC' },
@@ -469,8 +492,11 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string
   ) {
-    const resolvedTenantId = await this.resolveTenantId(tenantId);
     const normalizedEmail = this.normalizeEmail(dto.email);
+    const resolvedTenantId = await this.resolveTenantIdForLogin(
+      normalizedEmail,
+      tenantId
+    );
     // Find user by email within tenant
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail, tenantId: resolvedTenantId },
@@ -1327,6 +1353,33 @@ export class AuthService {
     }
 
     return tenantId;
+  }
+
+  private async resolveTenantIdForLogin(
+    email: string,
+    tenantId?: string
+  ): Promise<string> {
+    if (tenantId) {
+      return this.resolveTenantId(tenantId);
+    }
+
+    const candidates = await this.userRepository.find({
+      where: { email },
+      select: ['id', 'tenantId'],
+      take: 2,
+    });
+
+    if (candidates.length === 1 && candidates[0]?.tenantId) {
+      return candidates[0].tenantId;
+    }
+
+    if (candidates.length > 1) {
+      throw new BadRequestException(
+        'Workspace is required. Please use your workspace login link.'
+      );
+    }
+
+    throw new UnauthorizedException('Invalid email or password');
   }
 
   private getRefreshTokenExpiry(issuedAt: Date): Date {

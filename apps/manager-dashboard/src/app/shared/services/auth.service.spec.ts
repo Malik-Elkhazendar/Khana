@@ -96,26 +96,15 @@ describe('AuthService', () => {
       req.flush(createMockLoginResponse());
     });
 
-    it('should resolve tenant from API when no tenant id is configured', () => {
+    it('should login without tenant header when no tenant hints are configured', () => {
       const originalTenantId = environment.auth.tenantId;
-      const resolvedTenantId = 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
       try {
         environment.auth.tenantId = '';
 
         service.login('test@example.com', 'password123').subscribe();
 
-        const tenantReq = httpMock.expectOne(`${API_URL}/tenant`);
-        expect(tenantReq.request.method).toBe('GET');
-        tenantReq.flush({
-          id: resolvedTenantId,
-          name: 'Elite Padel',
-          slug: 'elite-padel',
-        });
-
         const loginReq = httpMock.expectOne(`${API_URL}/login`);
-        expect(loginReq.request.headers.get('x-tenant-id')).toBe(
-          resolvedTenantId
-        );
+        expect(loginReq.request.headers.get('x-tenant-id')).toBeNull();
         loginReq.flush(createMockLoginResponse());
       } finally {
         environment.auth.tenantId = originalTenantId;
@@ -168,6 +157,23 @@ describe('AuthService', () => {
       req.flush(
         { message: errorMessage },
         { status: 401, statusText: 'Unauthorized' }
+      );
+    });
+
+    it('should map tenant-id-required login errors to workspace guidance', (done) => {
+      service.login('test@example.com', 'password123').subscribe({
+        error: () => {
+          expect(authStore.error()).toBe(
+            'Workspace is required. Please use your workspace login link.'
+          );
+          done();
+        },
+      });
+
+      const req = httpMock.expectOne(`${API_URL}/login`);
+      req.flush(
+        { message: 'Tenant ID is required' },
+        { status: 400, statusText: 'Bad Request' }
       );
     });
 

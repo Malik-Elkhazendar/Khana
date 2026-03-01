@@ -54,9 +54,6 @@
   --text-2xl: 1.5rem;
   --text-3xl: 2rem;
 
-  // Layout
-  --page-max-width: 72rem;
-
   // Font Weights
   --font-normal: 400;
   --font-medium: 500;
@@ -74,6 +71,23 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
+
+  // Layout
+  --content-max-form: 80rem;
+  --content-max-data: 88rem;
+  --content-max-analytics-wide: 96rem;
+  --content-max-immersive: 100%;
+  --page-max-width: var(--content-max-form);
+  --content-gutter-mobile: var(--space-4);
+  --content-gutter-tablet: var(--space-5);
+  --content-gutter-desktop: var(--space-6);
+  --content-gap-mobile: var(--space-6);
+  --content-gap-desktop: var(--space-4);
+  --content-padding-block-mobile: var(--space-8);
+  --content-padding-block-desktop: var(--space-6);
+  --table-min-inline-tight: 38rem;
+  --table-min-inline-standard: 44rem;
+  --table-min-inline-wide: 52rem;
 
   // Border Radius (warm, hospitable)
   --radius-sm: 4px;
@@ -218,12 +232,39 @@ h6 {
 }
 
 .dashboard-page {
-  max-inline-size: var(--page-max-width);
+  max-inline-size: var(--dashboard-content-max, var(--content-max-form));
+  inline-size: 100%;
   margin-inline: auto;
-  padding-block: var(--space-8);
-  padding-inline: var(--space-4);
+  padding-block: var(--content-padding-block-mobile);
+  padding-inline: var(--content-gutter-mobile);
   display: grid;
-  gap: var(--space-6);
+  gap: var(--content-gap-mobile);
+}
+
+.dashboard-page--form {
+  --dashboard-content-max: var(--content-max-form);
+}
+
+.dashboard-page--data {
+  --dashboard-content-max: var(--content-max-data);
+}
+
+.dashboard-page--immersive {
+  --dashboard-content-max: var(--content-max-immersive);
+}
+
+@media (min-width: 48rem) {
+  .dashboard-page {
+    padding-inline: var(--content-gutter-tablet);
+  }
+}
+
+@media (min-width: 64rem) {
+  .dashboard-page {
+    padding-block: var(--content-padding-block-desktop);
+    padding-inline: var(--content-gutter-desktop);
+    gap: var(--content-gap-desktop);
+  }
 }
 
 .dashboard-page__header {
@@ -265,6 +306,10 @@ h6 {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-surface-muted);
   box-shadow: var(--shadow-md);
+}
+
+.dashboard-adaptive-surface {
+  container-type: inline-size;
 }
 
 .dashboard-btn {
@@ -667,10 +712,6 @@ h6 {
 }
 
 @media (min-width: 64rem) {
-  .dashboard-page {
-    padding-inline: var(--space-6);
-  }
-
   .auth-layout {
     grid-template-columns: 1fr 1.2fr;
   }

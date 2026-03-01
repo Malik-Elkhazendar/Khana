@@ -3,15 +3,23 @@
 }
 
 .team-page {
+  --team-table-min-inline: 52rem;
   display: grid;
-  gap: var(--space-5);
+  gap: var(--content-gap-mobile);
+  container-type: inline-size;
 }
 
 .team-panel,
 .invite-panel {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-6);
+  padding: var(--space-5);
+}
+
+@media (min-width: 64rem) {
+  .team-page {
+    gap: var(--content-gap-desktop);
+  }
 }
 
 .team-state {
@@ -34,7 +42,7 @@
 .team-table {
   inline-size: 100%;
   border-collapse: collapse;
-  min-inline-size: 52rem;
+  min-inline-size: var(--team-table-min-inline);
 }
 
 .team-table th,
@@ -106,13 +114,21 @@
   padding-inline: var(--space-3);
 }
 
-@media (max-width: 768px) {
+@container (max-width: 58rem) {
+  .team-table {
+    min-inline-size: var(--table-min-inline-standard);
+  }
+}
+
+@container (max-width: 46rem) {
+  .team-table {
+    min-inline-size: var(--table-min-inline-tight);
+  }
+}
+
+@container (max-width: 48rem) {
   .team-panel,
   .invite-panel {
     padding: var(--space-4);
-  }
-
-  .team-table {
-    min-inline-size: 44rem;
   }
 }

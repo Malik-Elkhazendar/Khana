@@ -98,6 +98,7 @@ describe('AuthService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: {
+            find: jest.fn(),
             findOne: jest.fn(),
             save: jest.fn(),
             create: jest.fn(),
@@ -380,6 +381,7 @@ describe('AuthService', () => {
     const tenantId = MOCK_TENANT_ID;
 
     it('should login user and return tokens', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.update.mockResolvedValue({});
       auditLogRepository.create.mockReturnValue({});
@@ -400,6 +402,7 @@ describe('AuthService', () => {
     });
 
     it('should update lastLoginAt on successful login', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.update.mockResolvedValue({});
       auditLogRepository.create.mockReturnValue({});
@@ -416,6 +419,7 @@ describe('AuthService', () => {
     });
 
     it('should store refresh token record', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.update.mockResolvedValue({});
       refreshTokenRepository.save.mockResolvedValue({});
@@ -435,6 +439,7 @@ describe('AuthService', () => {
     });
 
     it('should log audit event on login', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.update.mockResolvedValue({});
       auditLogRepository.create.mockReturnValue({});
@@ -453,6 +458,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException for non-existent user', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(null);
 
       await expect(service.login(loginDto, tenantId)).rejects.toThrow(
@@ -465,6 +471,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException for inactive user', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(inactiveUser);
 
       await expect(service.login(loginDto, tenantId)).rejects.toThrow(
@@ -476,6 +483,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException for invalid password', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
       userRepository.findOne.mockResolvedValue(mockUser);
       (passwordService.verify as jest.Mock).mockResolvedValue(false);
 
@@ -485,6 +493,57 @@ describe('AuthService', () => {
       await expect(service.login(loginDto, tenantId)).rejects.toThrow(
         'Invalid email or password'
       );
+    });
+
+    it('should resolve tenant by email when tenant id is omitted', async () => {
+      userRepository.find.mockResolvedValue([{ tenantId }]);
+      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.update.mockResolvedValue({});
+      auditLogRepository.create.mockReturnValue({});
+      auditLogRepository.save.mockResolvedValue({});
+
+      await service.login(loginDto);
+
+      expect(userRepository.find).toHaveBeenCalledWith({
+        where: { email: loginDto.email },
+        select: ['id', 'tenantId'],
+        take: 2,
+      });
+      expect(userRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            email: loginDto.email,
+            tenantId,
+          },
+        })
+      );
+    });
+
+    it('should require workspace when email exists in multiple tenants', async () => {
+      userRepository.find.mockResolvedValue([
+        { tenantId: 'tenant-1' },
+        { tenantId: 'tenant-2' },
+      ]);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Workspace is required. Please use your workspace login link.'
+      );
+      expect(userRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should return invalid credentials when no matching email exists', async () => {
+      userRepository.find.mockResolvedValue([]);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException
+      );
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Invalid email or password'
+      );
+      expect(userRepository.findOne).not.toHaveBeenCalled();
     });
   });
 
@@ -872,6 +931,49 @@ describe('AuthService', () => {
   });
 
   describe('getTenantContext', () => {
+    it('should return tenant context for provided tenant id', async () => {
+      tenantRepository.findOne.mockResolvedValue({
+        id: MOCK_TENANT_ID,
+        name: 'Elite Padel',
+        slug: 'elite-padel',
+      });
+
+      const result = await service.getTenantContext(MOCK_TENANT_ID);
+
+      expect(result).toEqual({
+        id: MOCK_TENANT_ID,
+        name: 'Elite Padel',
+        slug: 'elite-padel',
+      });
+      expect(tenantRepository.findOne).toHaveBeenCalledWith({
+        where: { id: MOCK_TENANT_ID },
+        select: ['id', 'name', 'slug'],
+      });
+      expect(tenantRepository.find).not.toHaveBeenCalled();
+    });
+
+    it('should reject invalid tenant id format', async () => {
+      await expect(service.getTenantContext('invalid-id')).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.getTenantContext('invalid-id')).rejects.toThrow(
+        'Invalid tenant ID'
+      );
+      expect(tenantRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should reject unknown provided tenant id', async () => {
+      tenantRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getTenantContext(MOCK_TENANT_ID)).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.getTenantContext(MOCK_TENANT_ID)).rejects.toThrow(
+        'Invalid tenant ID'
+      );
+      expect(tenantRepository.find).not.toHaveBeenCalled();
+    });
+
     it('should return tenant context when exactly one tenant exists', async () => {
       tenantRepository.find.mockResolvedValue([
         {
