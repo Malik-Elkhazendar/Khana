@@ -73,17 +73,16 @@ npm run check
 npm run lint:fix && npm run format
 ```
 
-**For detailed development guide with code examples, patterns, and troubleshooting:**
-→ See [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md)
+**Current implementation docs:**
 
-**Key Resources:**
-
-- [Component Creation Checklist](docs/DEVELOPMENT_GUIDE.md#component-creation-checklist)
-- [Common ESLint Errors & Solutions](docs/DEVELOPMENT_GUIDE.md#common-eslint-errors--solutions)
-- [Daily Development Workflow](docs/DEVELOPMENT_GUIDE.md#daily-development-workflow)
-- [Testing Guide](docs/DEVELOPMENT_GUIDE.md#testing-guide)
-- [Troubleshooting](docs/DEVELOPMENT_GUIDE.md#troubleshooting)
+- [Repository Map](docs/current/repository-map.md)
+- [Project Scripts](docs/current/scripts.md)
+- [API Modules](docs/current/api-modules.md)
+- [Frontend Modules](docs/current/frontend-modules.md)
+- [Testing Guide](docs/testing/QUICK_START.md)
 - [Secret Management Guide](docs/security-secrets.md)
+
+Archived planning/authoritative docs are under `docs/archive/2026-03-cleanup/`.
 
 ## Database Migrations (TypeORM)
 
