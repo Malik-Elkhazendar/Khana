@@ -65,6 +65,12 @@ docker/postgres/data/
 
 # Error logs
 error.log
+build.log
+build2.log
 
 # Auto Claude data directory
 .auto-claude/
+
+# Local capture/debug artifacts
+.playwright-mcp/
+.env-debug-backup/
