@@ -28,6 +28,20 @@ export const LOG_EVENTS = {
   BOOKING_CREATE_CONFLICT: 'booking.create.conflict',
   BOOKING_STATUS_UPDATED: 'booking.status.updated',
   BOOKING_STATUS_INVALID_TRANSITION: 'booking.status.invalid_transition',
+  WAITLIST_JOIN_SUCCESS: 'waitlist.join.success',
+  WAITLIST_NOTIFY_SUCCESS: 'waitlist.notify.success',
+  WAITLIST_NOTIFY_FAILED: 'waitlist.notify.failed',
+  WAITLIST_NOTIFY_MANUAL: 'waitlist.notify.manual',
+  WAITLIST_FULFILL_SUCCESS: 'waitlist.fulfill.success',
+  WAITLIST_FULFILL_FAILED: 'waitlist.fulfill.failed',
+  WAITLIST_EXPIRE_COMPLETE: 'waitlist.expire.complete',
+  WAITLIST_EXPIRE_FAILED: 'waitlist.expire.failed',
+  WAITLIST_EXPIRE_MANUAL: 'waitlist.expire.manual',
+  PROMO_CODE_CREATE_SUCCESS: 'promo_code.create.success',
+  PROMO_CODE_UPDATE_SUCCESS: 'promo_code.update.success',
+
+  // Analytics
+  ANALYTICS_QUERY_SUCCESS: 'analytics.query.success',
 
   // Email
   EMAIL_SENT: 'email.sent',

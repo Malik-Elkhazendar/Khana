@@ -11,6 +11,9 @@ import {
   RefreshToken,
   Tenant,
   User,
+  WaitingListEntry,
+  PromoCode,
+  PromoCodeRedemption,
 } from '@khana/data-access';
 import { normalizeNodeEnv, resolveEnvFilePaths } from '../app/config/env-files';
 
@@ -39,6 +42,9 @@ export default new DataSource({
     RefreshToken,
     PasswordResetToken,
     AuditLog,
+    WaitingListEntry,
+    PromoCode,
+    PromoCodeRedemption,
   ],
   // Migration CLI should never use synchronize.
   synchronize: false,

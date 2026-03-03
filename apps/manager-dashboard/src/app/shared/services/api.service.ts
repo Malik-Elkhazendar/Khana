@@ -2,6 +2,12 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, throwError } from 'rxjs';
 import {
+  AnalyticsBaseQueryDto,
+  AnalyticsGroupBy,
+  AnalyticsOccupancyResponseDto,
+  AnalyticsPeakHoursResponseDto,
+  AnalyticsRevenueResponseDto,
+  AnalyticsSummaryResponseDto,
   BookingCancellationScope,
   BookingPreviewRequestDto,
   BookingPreviewResponseDto,
@@ -12,16 +18,30 @@ import {
   CreateRecurringBookingRequestDto,
   CreateRecurringBookingResponseDto,
   CreateBookingRequestDto,
+  CreatePromoCodeRequestDto,
   CreateFacilityRequestDto,
   FacilityListItemDto,
   FacilityManagementItemDto,
   InviteUserRequestDto,
   InviteUserResponseDto,
+  JoinWaitlistRequestDto,
+  JoinWaitlistResponseDto,
+  NotifyNextWaitlistRequestDto,
+  NotifyNextWaitlistResponseDto,
   PaymentStatus,
+  PromoCodeItemDto,
+  PromoCodeListQueryDto,
+  PromoCodeListResponseDto,
   UpdateUserRoleRequestDto,
   UpdateUserStatusRequestDto,
+  UpdatePromoCodeRequestDto,
   UpdateFacilityRequestDto,
   UserDto,
+  WaitlistListQueryDto,
+  WaitlistListResponseDto,
+  WaitlistStatusQueryDto,
+  WaitlistStatusResponseDto,
+  ExpireWaitlistEntryResponseDto,
 } from '@khana/shared-dtos';
 import { environment } from '../../../environments/environment';
 import { LoggerService } from './logger.service';
@@ -59,6 +79,74 @@ export class ApiService {
       );
       return throwError(() => err);
     };
+  }
+
+  // ============================================================
+  // ANALYTICS
+  // ============================================================
+
+  /**
+   * Load analytics KPI summary and previous-period comparison.
+   */
+  getAnalyticsSummary(
+    query: AnalyticsBaseQueryDto
+  ): Observable<AnalyticsSummaryResponseDto> {
+    return this.http
+      .get<AnalyticsSummaryResponseDto>(
+        `${this.baseUrl}/v1/analytics/summary`,
+        {
+          params: this.buildAnalyticsParams(query),
+        }
+      )
+      .pipe(catchError(this.handleError('load analytics summary')));
+  }
+
+  /**
+   * Load occupancy trends and per-facility occupancy rates.
+   */
+  getAnalyticsOccupancy(
+    query: AnalyticsBaseQueryDto
+  ): Observable<AnalyticsOccupancyResponseDto> {
+    return this.http
+      .get<AnalyticsOccupancyResponseDto>(
+        `${this.baseUrl}/v1/analytics/occupancy`,
+        {
+          params: this.buildAnalyticsParams(query),
+        }
+      )
+      .pipe(catchError(this.handleError('load analytics occupancy')));
+  }
+
+  /**
+   * Load revenue/bookings trend and per-facility performance table.
+   */
+  getAnalyticsRevenue(
+    query: AnalyticsBaseQueryDto & { groupBy: AnalyticsGroupBy }
+  ): Observable<AnalyticsRevenueResponseDto> {
+    return this.http
+      .get<AnalyticsRevenueResponseDto>(
+        `${this.baseUrl}/v1/analytics/revenue`,
+        {
+          params: this.buildAnalyticsParams(query),
+        }
+      )
+      .pipe(catchError(this.handleError('load analytics revenue')));
+  }
+
+  /**
+   * Load peak-hour and most-booked insights.
+   */
+  getAnalyticsPeakHours(
+    query: AnalyticsBaseQueryDto
+  ): Observable<AnalyticsPeakHoursResponseDto> {
+    return this.http
+      .get<AnalyticsPeakHoursResponseDto>(
+        `${this.baseUrl}/v1/analytics/peak-hours`,
+        {
+          params: this.buildAnalyticsParams(query),
+        }
+      )
+      .pipe(catchError(this.handleError('load analytics peak hours')));
   }
 
   // ============================================================
@@ -196,6 +284,46 @@ export class ApiService {
   }
 
   // ============================================================
+  // PROMO CODES
+  // ============================================================
+
+  /**
+   * Create a promo code for the current tenant.
+   */
+  createPromoCode(
+    request: CreatePromoCodeRequestDto
+  ): Observable<PromoCodeItemDto> {
+    return this.http
+      .post<PromoCodeItemDto>(`${this.baseUrl}/v1/promo-codes`, request)
+      .pipe(catchError(this.handleError('create promo code')));
+  }
+
+  /**
+   * List promo codes for the current tenant with optional filters.
+   */
+  listPromoCodes(
+    query: PromoCodeListQueryDto
+  ): Observable<PromoCodeListResponseDto> {
+    return this.http
+      .get<PromoCodeListResponseDto>(`${this.baseUrl}/v1/promo-codes`, {
+        params: this.buildPromoCodeListParams(query),
+      })
+      .pipe(catchError(this.handleError('list promo codes')));
+  }
+
+  /**
+   * Update an existing promo code.
+   */
+  updatePromoCode(
+    id: string,
+    request: UpdatePromoCodeRequestDto
+  ): Observable<PromoCodeItemDto> {
+    return this.http
+      .patch<PromoCodeItemDto>(`${this.baseUrl}/v1/promo-codes/${id}`, request)
+      .pipe(catchError(this.handleError('update promo code')));
+  }
+
+  // ============================================================
   // BOOKINGS
   // ============================================================
 
@@ -216,7 +344,7 @@ export class ApiService {
 
   /**
    * Preview a booking without persisting it
-   * Returns price calculation, conflict status, and suggested alternatives
+   * Returns price calculation, conflict status, promoValidation, and suggested alternatives
    */
   previewBooking(
     request: BookingPreviewRequestDto
@@ -231,6 +359,7 @@ export class ApiService {
 
   /**
    * Create a new booking
+   * Supports optional promoCode when preview promoValidation is valid
    */
   createBooking(
     request: CreateBookingRequestDto
@@ -255,6 +384,81 @@ export class ApiService {
   }
 
   /**
+   * Join the waitlist for an unavailable facility slot.
+   */
+  joinBookingWaitlist(
+    request: JoinWaitlistRequestDto
+  ): Observable<JoinWaitlistResponseDto> {
+    return this.http
+      .post<JoinWaitlistResponseDto>(
+        `${this.baseUrl}/v1/bookings/waitlist`,
+        request
+      )
+      .pipe(catchError(this.handleError('join booking waitlist')));
+  }
+
+  /**
+   * Get waitlist status for the currently selected slot.
+   */
+  getBookingWaitlistStatus(
+    query: WaitlistStatusQueryDto
+  ): Observable<WaitlistStatusResponseDto> {
+    return this.http
+      .get<WaitlistStatusResponseDto>(
+        `${this.baseUrl}/v1/bookings/waitlist/status`,
+        {
+          params: {
+            facilityId: query.facilityId,
+            startTime: query.startTime,
+            endTime: query.endTime,
+          },
+        }
+      )
+      .pipe(catchError(this.handleError('load booking waitlist status')));
+  }
+
+  /**
+   * List waitlist entries for dashboard operations view.
+   */
+  getWaitlistEntries(
+    query: WaitlistListQueryDto
+  ): Observable<WaitlistListResponseDto> {
+    return this.http
+      .get<WaitlistListResponseDto>(`${this.baseUrl}/v1/bookings/waitlist`, {
+        params: this.buildWaitlistListParams(query),
+      })
+      .pipe(catchError(this.handleError('load waitlist entries')));
+  }
+
+  /**
+   * Trigger manual notify-next for a specific slot queue.
+   */
+  notifyNextWaitlistSlot(
+    request: NotifyNextWaitlistRequestDto
+  ): Observable<NotifyNextWaitlistResponseDto> {
+    return this.http
+      .post<NotifyNextWaitlistResponseDto>(
+        `${this.baseUrl}/v1/bookings/waitlist/notify-next`,
+        request
+      )
+      .pipe(catchError(this.handleError('manual waitlist notify next')));
+  }
+
+  /**
+   * Manually expire an active waitlist entry.
+   */
+  expireWaitlistEntry(
+    entryId: string
+  ): Observable<ExpireWaitlistEntryResponseDto> {
+    return this.http
+      .patch<ExpireWaitlistEntryResponseDto>(
+        `${this.baseUrl}/v1/bookings/waitlist/${entryId}/expire`,
+        {}
+      )
+      .pipe(catchError(this.handleError('manual waitlist expire entry')));
+  }
+
+  /**
    * Update booking status (cancel, mark as paid, etc.)
    */
   updateBookingStatus(
@@ -272,5 +476,71 @@ export class ApiService {
         cancellationScope,
       })
       .pipe(catchError(this.handleError('update booking status')));
+  }
+
+  private buildAnalyticsParams(
+    query: AnalyticsBaseQueryDto & Partial<{ groupBy: AnalyticsGroupBy }>
+  ): Record<string, string> {
+    const params: Record<string, string> = {
+      from: query.from,
+      to: query.to,
+    };
+
+    if (query.facilityId) {
+      params['facilityId'] = query.facilityId;
+    }
+    if (query.timeZone) {
+      params['timeZone'] = query.timeZone;
+    }
+    if (query.groupBy) {
+      params['groupBy'] = query.groupBy;
+    }
+
+    return params;
+  }
+
+  private buildWaitlistListParams(
+    query: WaitlistListQueryDto
+  ): Record<string, string> {
+    const params: Record<string, string> = {
+      from: query.from,
+      to: query.to,
+    };
+    if (query.facilityId) {
+      params['facilityId'] = query.facilityId;
+    }
+    if (query.status) {
+      params['status'] = query.status;
+    }
+    if (query.page) {
+      params['page'] = String(query.page);
+    }
+    if (query.pageSize) {
+      params['pageSize'] = String(query.pageSize);
+    }
+    return params;
+  }
+
+  private buildPromoCodeListParams(
+    query: PromoCodeListQueryDto
+  ): Record<string, string> {
+    const params: Record<string, string> = {};
+
+    if (query.facilityId) {
+      params['facilityId'] = query.facilityId;
+    }
+    if (typeof query.isActive === 'boolean') {
+      params['isActive'] = String(query.isActive);
+    }
+    if (typeof query.includeExpired === 'boolean') {
+      params['includeExpired'] = String(query.includeExpired);
+    }
+    if (query.page) {
+      params['page'] = String(query.page);
+    }
+    if (query.pageSize) {
+      params['pageSize'] = String(query.pageSize);
+    }
+    return params;
   }
 }

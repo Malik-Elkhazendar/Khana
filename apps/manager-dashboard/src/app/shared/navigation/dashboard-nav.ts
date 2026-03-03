@@ -5,6 +5,7 @@ export type DashboardNavIcon =
   | 'calendar'
   | 'new'
   | 'facilities'
+  | 'promo'
   | 'team'
   | 'settings';
 
@@ -42,6 +43,13 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     icon: 'facilities',
     exact: true,
     roles: [UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF],
+  },
+  {
+    labelKey: 'DASHBOARD.NAV.ITEMS.PROMO_CODES',
+    route: '/dashboard/promo-codes',
+    icon: 'promo',
+    exact: true,
+    roles: [UserRole.OWNER, UserRole.MANAGER],
   },
   {
     labelKey: 'DASHBOARD.NAV.ITEMS.TEAM',

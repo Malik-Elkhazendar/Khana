@@ -10,3 +10,7 @@ export * from './availability.dto';
 export * from './api-response.dto';
 export * from './onboarding.dto';
 export * from './owner-signup.dto';
+export * from './analytics.dto';
+export * from './waitlist.dto';
+export * from './waitlist-operations.dto';
+export * from './promo-code.dto';

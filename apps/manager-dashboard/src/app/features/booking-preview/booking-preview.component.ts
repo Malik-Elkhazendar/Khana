@@ -31,7 +31,10 @@ import {
   AlternativeSlotDto,
   BookingStatus,
   ConflictType,
+  PromoValidationReason,
   RecurrenceFrequency,
+  WaitlistStatus,
+  WaitlistStatusResponseDto,
 } from '@khana/shared-dtos';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import {
@@ -130,6 +133,7 @@ export class BookingPreviewComponent implements OnInit {
   readonly inputLang = computed(() =>
     this.localeFormat.getCurrentLocale() === 'ar-SA' ? 'ar' : 'en'
   );
+  readonly WaitlistStatus = WaitlistStatus;
 
   get confirmCopy(): {
     title: string;
@@ -138,32 +142,25 @@ export class BookingPreviewComponent implements OnInit {
     cancelLabel: string;
   } {
     return {
-      title: this.t('BOOKING_PREVIEW.DIALOG.CONFIRM_TITLE', 'Confirm booking'),
-      message: this.t(
-        'BOOKING_PREVIEW.DIALOG.CONFIRM_MESSAGE',
-        'Review the details before creating this booking.'
-      ),
-      confirmLabel: this.t(
-        'BOOKING_PREVIEW.DIALOG.CONFIRM_LABEL',
-        'Confirm booking'
-      ),
-      cancelLabel: this.t('BOOKING_PREVIEW.DIALOG.CANCEL_LABEL', 'Go back'),
+      title: this.t('BOOKING_PREVIEW.DIALOG.CONFIRM_TITLE'),
+      message: this.t('BOOKING_PREVIEW.DIALOG.CONFIRM_MESSAGE'),
+      confirmLabel: this.t('BOOKING_PREVIEW.DIALOG.CONFIRM_LABEL'),
+      cancelLabel: this.t('BOOKING_PREVIEW.DIALOG.CANCEL_LABEL'),
     };
   }
 
   get cancellationPolicyNote(): string {
-    return this.t(
-      'BOOKING_PREVIEW.DIALOG.CANCELLATION_POLICY_NOTE',
-      'Cancellations follow the facility policy. Please review before confirming.'
-    );
+    return this.t('BOOKING_PREVIEW.DIALOG.CANCELLATION_POLICY_NOTE');
   }
 
   private readonly previewAbort$ = new Subject<void>();
   private readonly facilitiesAbort$ = new Subject<void>();
+  private readonly waitlistStatusAbort$ = new Subject<void>();
   private bookingQueue: Array<() => Promise<void>> = [];
   private bookingQueueRunning = false;
   private previewRequestId = 0;
   private facilitiesRequestId = 0;
+  private waitlistStatusRequestId = 0;
   private retryTimer: number | null = null;
   private heartbeatTimer: number | null = null;
   private lastSubmitAt = 0;
@@ -187,6 +184,10 @@ export class BookingPreviewComponent implements OnInit {
 
   // Result state
   previewResult = signal<BookingPreviewResponseDto | null>(null);
+  waitlistStatus = signal<WaitlistStatusResponseDto | null>(null);
+  waitlistLoading = signal<boolean>(false);
+  joinWaitlistInProgress = signal<boolean>(false);
+  waitlistError = signal<string | null>(null);
   loading = signal<boolean>(false);
   facilitiesLoading = signal<boolean>(false);
   error = signal<PreviewError | null>(null);
@@ -284,22 +285,13 @@ export class BookingPreviewComponent implements OnInit {
     if (!error) return '';
     switch (error.category) {
       case 'network':
-        return this.t(
-          'BOOKING_PREVIEW.ERROR_CATEGORY.NETWORK',
-          'Network issue'
-        );
+        return this.t('BOOKING_PREVIEW.ERROR_CATEGORY.NETWORK');
       case 'server':
-        return this.t('BOOKING_PREVIEW.ERROR_CATEGORY.SERVER', 'Server error');
+        return this.t('BOOKING_PREVIEW.ERROR_CATEGORY.SERVER');
       case 'validation':
-        return this.t(
-          'BOOKING_PREVIEW.ERROR_CATEGORY.VALIDATION',
-          'Validation issue'
-        );
+        return this.t('BOOKING_PREVIEW.ERROR_CATEGORY.VALIDATION');
       default:
-        return this.t(
-          'BOOKING_PREVIEW.ERROR_CATEGORY.UNKNOWN',
-          'Unexpected error'
-        );
+        return this.t('BOOKING_PREVIEW.ERROR_CATEGORY.UNKNOWN');
     }
   });
 
@@ -307,16 +299,11 @@ export class BookingPreviewComponent implements OnInit {
     if (this.isOnline()) return '';
     const queuedCount = this.pendingActions().length;
     if (queuedCount > 0) {
-      return this.t(
-        'BOOKING_PREVIEW.CONNECTION.OFFLINE_QUEUED',
-        `Offline. ${queuedCount} request(s) queued for retry.`,
-        { count: queuedCount }
-      );
+      return this.t('BOOKING_PREVIEW.CONNECTION.OFFLINE_QUEUED', {
+        count: queuedCount,
+      });
     }
-    return this.t(
-      'BOOKING_PREVIEW.CONNECTION.OFFLINE_RETRY',
-      'Offline. We will retry when you are back online.'
-    );
+    return this.t('BOOKING_PREVIEW.CONNECTION.OFFLINE_RETRY');
   });
 
   readonly retryCountdown = computed(() => {
@@ -332,11 +319,10 @@ export class BookingPreviewComponent implements OnInit {
       this.retryAttempt() + 1,
       AUTO_RETRY_MAX_ATTEMPTS
     );
-    return this.t(
-      'BOOKING_PREVIEW.RETRY.ATTEMPT_OF_MAX',
-      `Attempt ${nextAttempt} of ${AUTO_RETRY_MAX_ATTEMPTS}`,
-      { attempt: nextAttempt, max: AUTO_RETRY_MAX_ATTEMPTS }
-    );
+    return this.t('BOOKING_PREVIEW.RETRY.ATTEMPT_OF_MAX', {
+      attempt: nextAttempt,
+      max: AUTO_RETRY_MAX_ATTEMPTS,
+    });
   });
 
   readonly isPreviewStale = computed(() => {
@@ -349,6 +335,55 @@ export class BookingPreviewComponent implements OnInit {
     return this.previewResult()?.suggestedAlternatives ?? [];
   });
 
+  readonly isOnWaitlist = computed(
+    () => this.waitlistStatus()?.status === WaitlistStatus.WAITING
+  );
+
+  readonly waitlistQueuePosition = computed(
+    () => this.waitlistStatus()?.queuePosition ?? null
+  );
+
+  readonly canJoinWaitlist = computed(() => {
+    const result = this.previewResult();
+    return (
+      result !== null &&
+      result.canBook === false &&
+      this.inputsValid() &&
+      this.isSelectedSlotInFuture() &&
+      !this.waitlistLoading() &&
+      !this.joinWaitlistInProgress() &&
+      !this.isOnWaitlist()
+    );
+  });
+
+  readonly promoValidation = computed(
+    () => this.previewResult()?.promoValidation ?? null
+  );
+
+  readonly promoValidationMessage = computed(() => {
+    const promoValidation = this.promoValidation();
+    if (!promoValidation || promoValidation.isValid) {
+      return null;
+    }
+    return this.t(
+      this.promoValidationReasonKey(promoValidation.reason),
+      promoValidation.reason === PromoValidationReason.USAGE_EXCEEDED &&
+        typeof promoValidation.discountValue === 'number'
+        ? { value: promoValidation.discountValue }
+        : undefined
+    );
+  });
+
+  readonly promoAppliedMessage = computed(() => {
+    const promoValidation = this.promoValidation();
+    if (!promoValidation?.isValid || !promoValidation.code) {
+      return null;
+    }
+    return this.t('BOOKING_PREVIEW.PROMO_VALIDATION.VALID', {
+      code: promoValidation.code,
+    });
+  });
+
   readonly alternativesCount = computed(() => this.alternatives().length);
 
   readonly showAlternativesToggle = computed(() => {
@@ -357,12 +392,10 @@ export class BookingPreviewComponent implements OnInit {
 
   readonly alternativesToggleLabel = computed(() => {
     return this.alternativesExpanded()
-      ? this.t('BOOKING_PREVIEW.ALTERNATIVES.HIDE', 'Hide alternatives')
-      : this.t(
-          'BOOKING_PREVIEW.ALTERNATIVES.VIEW_COUNT',
-          `View ${this.alternativesCount()} alternatives`,
-          { count: this.alternativesCount() }
-        );
+      ? this.t('BOOKING_PREVIEW.ALTERNATIVES.HIDE')
+      : this.t('BOOKING_PREVIEW.ALTERNATIVES.VIEW_COUNT', {
+          count: this.alternativesCount(),
+        });
   });
 
   readonly showAlternatives = computed(() => {
@@ -409,65 +442,37 @@ export class BookingPreviewComponent implements OnInit {
   readonly validationErrors = computed(() => {
     const errors: string[] = [];
     if (this.selectedFacilityId().trim().length === 0) {
-      errors.push(
-        this.t(
-          'BOOKING_PREVIEW.VALIDATION.FACILITY_REQUIRED',
-          'Facility is required'
-        )
-      );
+      errors.push(this.t('BOOKING_PREVIEW.VALIDATION.FACILITY_REQUIRED'));
     }
     if (this.selectedDate().trim().length === 0) {
-      errors.push(
-        this.t('BOOKING_PREVIEW.VALIDATION.DATE_REQUIRED', 'Date is required')
-      );
+      errors.push(this.t('BOOKING_PREVIEW.VALIDATION.DATE_REQUIRED'));
     }
     if (this.startTime().trim().length === 0) {
-      errors.push(
-        this.t(
-          'BOOKING_PREVIEW.VALIDATION.START_TIME_REQUIRED',
-          'Start time is required'
-        )
-      );
+      errors.push(this.t('BOOKING_PREVIEW.VALIDATION.START_TIME_REQUIRED'));
     }
     if (this.endTime().trim().length === 0) {
-      errors.push(
-        this.t(
-          'BOOKING_PREVIEW.VALIDATION.END_TIME_REQUIRED',
-          'End time is required'
-        )
-      );
+      errors.push(this.t('BOOKING_PREVIEW.VALIDATION.END_TIME_REQUIRED'));
     }
     if (
       this.startTime().trim().length > 0 &&
       this.endTime().trim().length > 0 &&
       !this.isValidTimeRange()
     ) {
-      errors.push(
-        this.t(
-          'BOOKING_PREVIEW.VALIDATION.START_BEFORE_END',
-          'Start time must be before end time'
-        )
-      );
+      errors.push(this.t('BOOKING_PREVIEW.VALIDATION.START_BEFORE_END'));
     }
     if (this.repeatWeekly()) {
       if (this.recurrenceEndMode() === 'COUNT') {
         const count = Number(this.recurrenceWeeksCount());
         if (!Number.isInteger(count) || count < 1 || count > 104) {
           errors.push(
-            this.t(
-              'BOOKING_PREVIEW.VALIDATION.REPEAT_COUNT_INVALID',
-              'Repeat count must be between 1 and 104.'
-            )
+            this.t('BOOKING_PREVIEW.VALIDATION.REPEAT_COUNT_INVALID')
           );
         }
       } else {
         const endDate = this.recurrenceEndDate().trim();
         if (!endDate || endDate < this.selectedDate()) {
           errors.push(
-            this.t(
-              'BOOKING_PREVIEW.VALIDATION.REPEAT_END_DATE_INVALID',
-              'Repeat end date must be on or after the selected booking date.'
-            )
+            this.t('BOOKING_PREVIEW.VALIDATION.REPEAT_END_DATE_INVALID')
           );
         }
       }
@@ -561,10 +566,12 @@ export class BookingPreviewComponent implements OnInit {
   onFacilitySelectionChange(facilityId: string): void {
     this.selectedFacilityId.set(facilityId);
     this.facilityContext.selectFacility(facilityId || null);
+    this.handleSlotSelectionChanged();
   }
 
   onDateChange(value: string): void {
     this.selectedDate.set(value);
+    this.handleSlotSelectionChanged();
     if (!this.repeatWeekly()) {
       return;
     }
@@ -639,6 +646,16 @@ export class BookingPreviewComponent implements OnInit {
       value < this.selectedDate() ? this.selectedDate() : value.trim();
     this.recurrenceEndDate.set(normalized);
     this.syncWeeksCountFromEndDate(normalized);
+  }
+
+  onStartTimeChange(value: string): void {
+    this.startTime.set(value);
+    this.handleSlotSelectionChanged();
+  }
+
+  onEndTimeChange(value: string): void {
+    this.endTime.set(value);
+    this.handleSlotSelectionChanged();
   }
 
   /**
@@ -753,6 +770,10 @@ export class BookingPreviewComponent implements OnInit {
     this.confirmDialogOpen.set(false);
     this.alternativesExpanded.set(false);
     this.alternativesScrollTop.set(0);
+    this.waitlistStatus.set(null);
+    this.waitlistError.set(null);
+    this.waitlistLoading.set(false);
+    this.joinWaitlistInProgress.set(false);
     this.resetRetryState();
     this.lastPreviewRequest.set(payload);
 
@@ -806,6 +827,13 @@ export class BookingPreviewComponent implements OnInit {
         this.lastSuccessfulPreview.set(cached.result);
         this.previewStale.set(false);
         this.resetRetryState();
+        if (cached.result.canBook) {
+          this.waitlistStatus.set(null);
+          this.waitlistLoading.set(false);
+          this.waitlistError.set(null);
+        } else {
+          this.refreshWaitlistStatus();
+        }
         return;
       }
     }
@@ -845,6 +873,13 @@ export class BookingPreviewComponent implements OnInit {
           this.lastSuccessfulPreview.set(result);
           this.previewStale.set(false);
           this.resetRetryState();
+          if (result.canBook) {
+            this.waitlistStatus.set(null);
+            this.waitlistLoading.set(false);
+            this.waitlistError.set(null);
+          } else {
+            this.refreshWaitlistStatus();
+          }
         },
         error: (err: PreviewError) => {
           if (requestId !== this.previewRequestId) return;
@@ -890,39 +925,27 @@ export class BookingPreviewComponent implements OnInit {
     return `${this.formatPrice(
       facility.basePrice,
       facility.currency
-    )}/${this.text('BOOKING_PREVIEW.FORM.HOUR_SUFFIX', 'hour')}`;
+    )}/${this.text('BOOKING_PREVIEW.FORM.HOUR_SUFFIX')}`;
   }
 
-  text(
-    key: string,
-    fallback: string,
-    params?: Record<string, string | number>
-  ): string {
-    return this.t(key, fallback, params);
+  text(key: string, params?: Record<string, string | number>): string {
+    return this.t(key, params);
   }
 
   retryCountdownMessage(seconds: number): string {
-    return this.t(
-      'BOOKING_PREVIEW.RETRY.COUNTDOWN',
-      `Retrying in ${seconds}s - ${this.retryAttemptMessage()}`,
-      {
-        seconds,
-        attempt: this.retryAttemptMessage(),
-      }
-    );
+    return this.t('BOOKING_PREVIEW.RETRY.COUNTDOWN', {
+      seconds,
+      attempt: this.retryAttemptMessage(),
+    });
   }
 
   alternativeSlotAriaLabel(alt: AlternativeSlotDto): string {
     const start = this.formatTime(alt.startTime);
     const end = this.formatTime(alt.endTime);
-    return this.t(
-      'BOOKING_PREVIEW.ALTERNATIVES.SELECT_SLOT_ARIA',
-      `Select alternative slot ${start} to ${end}`,
-      {
-        start,
-        end,
-      }
-    );
+    return this.t('BOOKING_PREVIEW.ALTERNATIVES.SELECT_SLOT_ARIA', {
+      start,
+      end,
+    });
   }
 
   trackConflictSlot(_: number, slot: ConflictSlotDto): string {
@@ -949,13 +972,13 @@ export class BookingPreviewComponent implements OnInit {
   conflictSlotStatusLabel(status: string): string {
     switch (status) {
       case 'BOOKED':
-        return this.t('BOOKING_PREVIEW.SLOT_STATUS.BOOKED', 'Booked');
+        return this.t('BOOKING_PREVIEW.SLOT_STATUS.BOOKED');
       case 'BLOCKED':
-        return this.t('BOOKING_PREVIEW.SLOT_STATUS.BLOCKED', 'Blocked');
+        return this.t('BOOKING_PREVIEW.SLOT_STATUS.BLOCKED');
       case 'MAINTENANCE':
-        return this.t('BOOKING_PREVIEW.SLOT_STATUS.MAINTENANCE', 'Maintenance');
+        return this.t('BOOKING_PREVIEW.SLOT_STATUS.MAINTENANCE');
       default:
-        return this.t('BOOKING_PREVIEW.SLOT_STATUS.UNKNOWN', 'Occupied');
+        return this.t('BOOKING_PREVIEW.SLOT_STATUS.UNKNOWN');
     }
   }
 
@@ -963,11 +986,7 @@ export class BookingPreviewComponent implements OnInit {
     const start = this.formatTime(slot.startTime);
     const end = this.formatTime(slot.endTime);
     const status = this.conflictSlotStatusLabel(slot.status);
-    return this.t(
-      'BOOKING_PREVIEW.CONFLICT.SLOT_ARIA',
-      `${status} slot from ${start} to ${end}`,
-      { status, start, end }
-    );
+    return this.t('BOOKING_PREVIEW.CONFLICT.SLOT_ARIA', { status, start, end });
   }
 
   /**
@@ -1011,6 +1030,58 @@ export class BookingPreviewComponent implements OnInit {
    */
   retry(): void {
     this.handleErrorRecovery('retry');
+  }
+
+  joinWaitlist(): void {
+    if (!this.canJoinWaitlist()) return;
+
+    const slotQuery = this.buildWaitlistStatusQuery();
+    if (!slotQuery) return;
+
+    if (!this.isOnline()) {
+      this.waitlistError.set(this.t('CLIENT_ERRORS.WAITLIST.OFFLINE'));
+      return;
+    }
+
+    this.joinWaitlistInProgress.set(true);
+    this.waitlistError.set(null);
+
+    this.api
+      .joinBookingWaitlist({
+        facilityId: slotQuery.facilityId,
+        desiredTimeSlot: {
+          startTime: slotQuery.startTime,
+          endTime: slotQuery.endTime,
+        },
+      })
+      .pipe(
+        timeout(REQUEST_TIMEOUT_MS),
+        catchError((err) =>
+          throwError(() => this.resolveError('preview', err))
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (response) => {
+          this.joinWaitlistInProgress.set(false);
+          this.waitlistStatus.set({
+            isOnWaitlist: response.status === WaitlistStatus.WAITING,
+            entryId: response.entryId,
+            status: response.status,
+            queuePosition: response.queuePosition,
+          });
+          this.showToast(
+            this.t('BOOKING_PREVIEW.WAITLIST.JOIN_SUCCESS', {
+              position: response.queuePosition,
+            }),
+            'info'
+          );
+        },
+        error: () => {
+          this.joinWaitlistInProgress.set(false);
+          this.waitlistError.set(this.t('CLIENT_ERRORS.WAITLIST.JOIN_FAILED'));
+        },
+      });
   }
 
   /**
@@ -1092,32 +1163,17 @@ export class BookingPreviewComponent implements OnInit {
   formatConflictType(type: ConflictType | undefined): string {
     switch (type) {
       case ConflictType.EXACT_OVERLAP:
-        return this.t(
-          'BOOKING_PREVIEW.CONFLICT.EXACT_OVERLAP',
-          'Exact overlap with an existing booking'
-        );
+        return this.t('BOOKING_PREVIEW.CONFLICT.EXACT_OVERLAP');
       case ConflictType.CONTAINED_WITHIN:
-        return this.t(
-          'BOOKING_PREVIEW.CONFLICT.CONTAINED_WITHIN',
-          'Requested time falls within an existing booking'
-        );
+        return this.t('BOOKING_PREVIEW.CONFLICT.CONTAINED_WITHIN');
       case ConflictType.PARTIAL_START_OVERLAP:
-        return this.t(
-          'BOOKING_PREVIEW.CONFLICT.PARTIAL_START_OVERLAP',
-          'Requested start overlaps an existing booking'
-        );
+        return this.t('BOOKING_PREVIEW.CONFLICT.PARTIAL_START_OVERLAP');
       case ConflictType.PARTIAL_END_OVERLAP:
-        return this.t(
-          'BOOKING_PREVIEW.CONFLICT.PARTIAL_END_OVERLAP',
-          'Requested end overlaps an existing booking'
-        );
+        return this.t('BOOKING_PREVIEW.CONFLICT.PARTIAL_END_OVERLAP');
       case ConflictType.CONTAINS_EXISTING:
-        return this.t(
-          'BOOKING_PREVIEW.CONFLICT.CONTAINS_EXISTING',
-          'Requested time contains an existing booking'
-        );
+        return this.t('BOOKING_PREVIEW.CONFLICT.CONTAINS_EXISTING');
       default:
-        return this.t('BOOKING_PREVIEW.CONFLICT.DEFAULT', 'Conflict detected');
+        return this.t('BOOKING_PREVIEW.CONFLICT.DEFAULT');
     }
   }
 
@@ -1152,7 +1208,15 @@ export class BookingPreviewComponent implements OnInit {
     );
     const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
     const status = this.holdAsPending() ? BookingStatus.PENDING : undefined;
-    const payload = {
+    const payload: {
+      facilityId: string;
+      startTime: string;
+      endTime: string;
+      customerName: string;
+      customerPhone: string;
+      status?: BookingStatus;
+      promoCode?: string;
+    } = {
       facilityId: this.selectedFacilityId(),
       startTime: startDateTime.toISOString(),
       endTime: endDateTime.toISOString(),
@@ -1161,9 +1225,24 @@ export class BookingPreviewComponent implements OnInit {
       status,
     };
     const isRecurring = this.repeatWeekly();
+    if (!isRecurring) {
+      const validPromoCode = this.getValidPromoCodeForBooking();
+      if (validPromoCode) {
+        payload.promoCode = validPromoCode;
+      }
+    }
+
+    const recurringBasePayload = {
+      facilityId: payload.facilityId,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      customerName: payload.customerName,
+      customerPhone: payload.customerPhone,
+      status: payload.status,
+    };
     const recurringPayload = isRecurring
       ? {
-          ...payload,
+          ...recurringBasePayload,
           recurrenceRule: {
             frequency: this.recurrenceFrequency(),
             intervalWeeks:
@@ -1221,14 +1300,8 @@ export class BookingPreviewComponent implements OnInit {
             this.confirmDialogOpen.set(false);
             this.showToast(
               isRecurring
-                ? this.t(
-                    'BOOKING_PREVIEW.TOAST.RECURRING_BOOKING_CONFIRMED',
-                    'Recurring booking series confirmed'
-                  )
-                : this.t(
-                    'BOOKING_PREVIEW.TOAST.BOOKING_CONFIRMED',
-                    'Booking confirmed'
-                  ),
+                ? this.t('BOOKING_PREVIEW.TOAST.RECURRING_BOOKING_CONFIRMED')
+                : this.t('BOOKING_PREVIEW.TOAST.BOOKING_CONFIRMED'),
               'success'
             );
             // Reset form for next booking
@@ -1309,40 +1382,31 @@ export class BookingPreviewComponent implements OnInit {
         return [
           {
             action: 'retry',
-            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW', 'Retry now'),
+            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW'),
             description: this.t(
-              'BOOKING_PREVIEW.RECOVERY.NETWORK_RETRY_DESCRIPTION',
-              'Attempt the request again when the connection stabilizes.'
+              'BOOKING_PREVIEW.RECOVERY.NETWORK_RETRY_DESCRIPTION'
             ),
           },
           {
             action: 'dismiss',
-            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS', 'Dismiss'),
-            description: this.t(
-              'BOOKING_PREVIEW.RECOVERY.KEEP_LAST_DATA',
-              'Keep the last available data for reference.'
-            ),
+            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS'),
+            description: this.t('BOOKING_PREVIEW.RECOVERY.KEEP_LAST_DATA'),
           },
         ];
       case 'server':
         return [
           {
             action: 'retry',
-            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW', 'Retry now'),
+            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW'),
             description: this.t(
-              'BOOKING_PREVIEW.RECOVERY.SERVER_RETRY_DESCRIPTION',
-              'Try again shortly in case the server recovered.'
+              'BOOKING_PREVIEW.RECOVERY.SERVER_RETRY_DESCRIPTION'
             ),
           },
           {
             action: 'refresh',
-            label: this.t(
-              'BOOKING_PREVIEW.RECOVERY.REFRESH_DATA',
-              'Refresh data'
-            ),
+            label: this.t('BOOKING_PREVIEW.RECOVERY.REFRESH_DATA'),
             description: this.t(
-              'BOOKING_PREVIEW.RECOVERY.SERVER_REFRESH_DESCRIPTION',
-              'Fetch the latest information from the server.'
+              'BOOKING_PREVIEW.RECOVERY.SERVER_REFRESH_DESCRIPTION'
             ),
           },
         ];
@@ -1350,10 +1414,9 @@ export class BookingPreviewComponent implements OnInit {
         return [
           {
             action: 'dismiss',
-            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS', 'Dismiss'),
+            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS'),
             description: this.t(
-              'BOOKING_PREVIEW.RECOVERY.VALIDATION_DISMISS_DESCRIPTION',
-              'Review the inputs and try again.'
+              'BOOKING_PREVIEW.RECOVERY.VALIDATION_DISMISS_DESCRIPTION'
             ),
           },
         ];
@@ -1362,19 +1425,15 @@ export class BookingPreviewComponent implements OnInit {
         return [
           {
             action: 'retry',
-            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW', 'Retry now'),
+            label: this.t('BOOKING_PREVIEW.RECOVERY.RETRY_NOW'),
             description: this.t(
-              'BOOKING_PREVIEW.RECOVERY.UNKNOWN_RETRY_DESCRIPTION',
-              'Try the request again.'
+              'BOOKING_PREVIEW.RECOVERY.UNKNOWN_RETRY_DESCRIPTION'
             ),
           },
           {
             action: 'dismiss',
-            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS', 'Dismiss'),
-            description: this.t(
-              'BOOKING_PREVIEW.RECOVERY.KEEP_LAST_DATA',
-              'Keep the last available data for reference.'
-            ),
+            label: this.t('BOOKING_PREVIEW.RECOVERY.DISMISS'),
+            description: this.t('BOOKING_PREVIEW.RECOVERY.KEEP_LAST_DATA'),
           },
         ];
     }
@@ -1383,32 +1442,19 @@ export class BookingPreviewComponent implements OnInit {
   private getPreviewErrorMessage(action: PreviewAction): string {
     switch (action) {
       case 'facilities':
-        return this.t(
-          'BOOKING_PREVIEW.ERRORS.LOAD_FACILITIES_FAILED',
-          'Failed to load facilities. Please try again.'
-        );
+        return this.t('BOOKING_PREVIEW.ERRORS.LOAD_FACILITIES_FAILED');
       case 'preview':
-        return this.t(
-          'BOOKING_PREVIEW.ERRORS.PREVIEW_FAILED',
-          'Failed to preview booking. Please try again.'
-        );
+        return this.t('BOOKING_PREVIEW.ERRORS.PREVIEW_FAILED');
       case 'booking':
       default:
-        return this.t(
-          'BOOKING_PREVIEW.ERRORS.BOOKING_CREATE_FAILED',
-          'Failed to create booking. Please try again.'
-        );
+        return this.t('BOOKING_PREVIEW.ERRORS.BOOKING_CREATE_FAILED');
     }
   }
 
-  private t(
-    key: string,
-    fallback: string,
-    params?: Record<string, string | number>
-  ): string {
+  private t(key: string, params?: Record<string, string | number>): string {
     this.languageService?.languageVersion();
     const translated = this.translateService?.instant(key, params);
-    return translated && translated !== key ? translated : fallback;
+    return translated && translated !== key ? translated : key;
   }
 
   private registerEffects(): void {
@@ -1475,8 +1521,10 @@ export class BookingPreviewComponent implements OnInit {
     }
     this.previewAbort$.next();
     this.facilitiesAbort$.next();
+    this.waitlistStatusAbort$.next();
     this.previewAbort$.complete();
     this.facilitiesAbort$.complete();
+    this.waitlistStatusAbort$.complete();
     this.pendingActions.set([]);
     this.bookingQueue = [];
     this.bookingQueueRunning = false;
@@ -1485,6 +1533,10 @@ export class BookingPreviewComponent implements OnInit {
 
   private clearTransientState(): void {
     this.previewResult.set(null);
+    this.waitlistStatus.set(null);
+    this.waitlistLoading.set(false);
+    this.joinWaitlistInProgress.set(false);
+    this.waitlistError.set(null);
     this.error.set(null);
     this.loading.set(false);
     this.facilitiesLoading.set(false);
@@ -1557,10 +1609,7 @@ export class BookingPreviewComponent implements OnInit {
     }
     if (this.lastAction() === 'booking') {
       this.showToast(
-        this.t(
-          'BOOKING_PREVIEW.CONNECTION.BACK_ONLINE_CONFIRM',
-          'You are back online. Please confirm the booking.'
-        ),
+        this.t('BOOKING_PREVIEW.CONNECTION.BACK_ONLINE_CONFIRM'),
         'info'
       );
     }
@@ -1654,14 +1703,8 @@ export class BookingPreviewComponent implements OnInit {
   private buildOfflineError(action: PreviewAction): PreviewError {
     const baseMessage =
       action === 'booking'
-        ? this.t(
-            'BOOKING_PREVIEW.ERRORS.OFFLINE_BOOKING',
-            'You are offline. Please reconnect to complete the booking.'
-          )
-        : this.t(
-            'BOOKING_PREVIEW.ERRORS.OFFLINE_RETRY',
-            'You are offline. We will retry when you are back online.'
-          );
+        ? this.t('BOOKING_PREVIEW.ERRORS.OFFLINE_BOOKING')
+        : this.t('BOOKING_PREVIEW.ERRORS.OFFLINE_RETRY');
     return {
       action,
       category: 'network',
@@ -1681,16 +1724,10 @@ export class BookingPreviewComponent implements OnInit {
 
     let message = this.getPreviewErrorMessage(action);
     if (isTimeout) {
-      message = this.t(
-        'BOOKING_PREVIEW.ERRORS.REQUEST_TIMEOUT',
-        'Request timed out. Please try again.'
-      );
+      message = this.t('BOOKING_PREVIEW.ERRORS.REQUEST_TIMEOUT');
     }
     if (action === 'preview' && status === 404) {
-      message = this.t(
-        'BOOKING_PREVIEW.ERRORS.FACILITY_NOT_FOUND',
-        'Facility not found.'
-      );
+      message = this.t('BOOKING_PREVIEW.ERRORS.FACILITY_NOT_FOUND');
     }
     if (action === 'booking') {
       const apiMessage = this.extractApiMessage(err);
@@ -1724,6 +1761,93 @@ export class BookingPreviewComponent implements OnInit {
     return Number.isFinite(status) ? status : undefined;
   }
 
+  private handleSlotSelectionChanged(): void {
+    this.waitlistError.set(null);
+    this.waitlistStatus.set(null);
+    this.waitlistLoading.set(false);
+
+    if (!this.inputsValid() || !this.isSelectedSlotInFuture()) {
+      return;
+    }
+
+    this.refreshWaitlistStatus();
+  }
+
+  private isSelectedSlotInFuture(): boolean {
+    const slotQuery = this.buildWaitlistStatusQuery();
+    if (!slotQuery) {
+      return false;
+    }
+
+    return new Date(slotQuery.startTime) > new Date();
+  }
+
+  private buildWaitlistStatusQuery(): {
+    facilityId: string;
+    startTime: string;
+    endTime: string;
+  } | null {
+    if (!this.inputsValid()) {
+      return null;
+    }
+
+    const startDateTime = new Date(
+      `${this.selectedDate()}T${this.startTime()}`
+    );
+    const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
+
+    if (
+      Number.isNaN(startDateTime.getTime()) ||
+      Number.isNaN(endDateTime.getTime()) ||
+      startDateTime >= endDateTime
+    ) {
+      return null;
+    }
+
+    return {
+      facilityId: this.selectedFacilityId(),
+      startTime: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
+    };
+  }
+
+  private refreshWaitlistStatus(): void {
+    const query = this.buildWaitlistStatusQuery();
+    if (!query || !this.isSelectedSlotInFuture()) {
+      this.waitlistStatus.set(null);
+      this.waitlistLoading.set(false);
+      return;
+    }
+
+    this.waitlistLoading.set(true);
+    this.waitlistError.set(null);
+    this.waitlistStatusAbort$.next();
+    const requestId = ++this.waitlistStatusRequestId;
+
+    this.api
+      .getBookingWaitlistStatus(query)
+      .pipe(
+        timeout(REQUEST_TIMEOUT_MS),
+        takeUntil(this.waitlistStatusAbort$),
+        takeUntilDestroyed(this.destroyRef),
+        catchError((err) => throwError(() => this.resolveError('preview', err)))
+      )
+      .subscribe({
+        next: (status) => {
+          if (requestId !== this.waitlistStatusRequestId) return;
+          this.waitlistStatus.set(status);
+          this.waitlistLoading.set(false);
+        },
+        error: () => {
+          if (requestId !== this.waitlistStatusRequestId) return;
+          this.waitlistLoading.set(false);
+          this.waitlistError.set(
+            this.t('CLIENT_ERRORS.WAITLIST.STATUS_FAILED')
+          );
+        },
+      });
+  }
+
   private extractApiMessage(err: unknown): string | null {
     if (!err || typeof err !== 'object') return null;
     const error = (err as { error?: { message?: string } }).error;
@@ -1731,5 +1855,33 @@ export class BookingPreviewComponent implements OnInit {
       return error.message;
     }
     return null;
+  }
+
+  private getValidPromoCodeForBooking(): string | undefined {
+    const promoValidation = this.previewResult()?.promoValidation;
+    if (!promoValidation?.isValid || !promoValidation.code) {
+      return undefined;
+    }
+    return promoValidation.code.trim().toUpperCase();
+  }
+
+  private promoValidationReasonKey(reason?: PromoValidationReason): string {
+    switch (reason) {
+      case PromoValidationReason.INVALID_FORMAT:
+        return 'BOOKING_PREVIEW.PROMO_VALIDATION.INVALID_FORMAT';
+      case PromoValidationReason.NOT_FOUND:
+        return 'BOOKING_PREVIEW.PROMO_VALIDATION.NOT_FOUND';
+      case PromoValidationReason.INACTIVE:
+        return 'BOOKING_PREVIEW.PROMO_VALIDATION.INACTIVE';
+      case PromoValidationReason.EXPIRED:
+        return 'BOOKING_PREVIEW.PROMO_VALIDATION.EXPIRED';
+      case PromoValidationReason.FACILITY_MISMATCH:
+        return 'BOOKING_PREVIEW.PROMO_VALIDATION.FACILITY_MISMATCH';
+      case PromoValidationReason.USAGE_EXCEEDED:
+        return 'BOOKING_PREVIEW.PROMO_VALIDATION.USAGE_EXCEEDED';
+      case PromoValidationReason.EMPTY_CODE:
+      default:
+        return 'BOOKING_PREVIEW.PROMO_VALIDATION.INVALID_GENERIC';
+    }
   }
 }

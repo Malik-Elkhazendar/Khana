@@ -5,3 +5,6 @@ export * from './lib/entities/user.entity';
 export * from './lib/entities/audit-log.entity';
 export * from './lib/entities/refresh-token.entity';
 export * from './lib/entities/password-reset-token.entity';
+export * from './lib/entities/waiting-list-entry.entity';
+export * from './lib/entities/promo-code.entity';
+export * from './lib/entities/promo-code-redemption.entity';

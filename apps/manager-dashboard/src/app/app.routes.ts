@@ -173,6 +173,21 @@ export const appRoutes: Route[] = [
         },
       },
       {
+        path: 'promo-codes',
+        loadComponent: () =>
+          import('./features/promo-codes/promo-codes.component').then(
+            (module) => module.PromoCodesComponent
+          ),
+        canActivate: [roleGuard([UserRole.OWNER, UserRole.MANAGER])],
+        data: {
+          titleKey: 'META.TITLES.PROMO_CODES',
+          descriptionKey: 'META.DESCRIPTIONS.DASHBOARD',
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.PROMO_CODES',
+          navKey: 'DASHBOARD.NAV.ITEMS.PROMO_CODES',
+          contentArchetype: 'data',
+        },
+      },
+      {
         path: 'team',
         loadComponent: () =>
           import('./features/team/team.component').then(

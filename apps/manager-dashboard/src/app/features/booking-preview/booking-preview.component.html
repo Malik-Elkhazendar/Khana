@@ -166,6 +166,7 @@
 
 
 
+
       }}', { timezone: timezoneLabel } ) }}
     </p>
 
@@ -186,6 +187,15 @@
         autocomplete="off"
         [disabled]="loading() || facilitiesLoading()"
       />
+      @if (promoAppliedMessage(); as promoAppliedMessage) {
+      <p class="promo-validation promo-validation--success" role="status">
+        {{ promoAppliedMessage }}
+      </p>
+      } @if (promoValidationMessage(); as promoValidationMessage) {
+      <p class="promo-validation promo-validation--error" role="alert">
+        {{ promoValidationMessage }}
+      </p>
+      }
     </div>
 
     <div class="hold-toggle">
@@ -491,6 +501,7 @@
 
 
 
+
             }}x)', { multiplier: result.priceBreakdown.timeMultiplier } ) }}
           </td>
           <td class="modifier">
@@ -504,6 +515,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.WEEKEND_RATE',
                 'Weekend Rate ({{multiplier
+
 
 
 
@@ -545,6 +557,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.PROMO_CODE',
                 'Promo ({{code
+
 
 
 

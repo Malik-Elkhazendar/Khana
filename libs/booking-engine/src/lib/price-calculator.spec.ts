@@ -222,7 +222,7 @@ describe('PriceCalculator', () => {
       expect(result.total).toBe(180);
     });
 
-    it('should apply promo code discount', () => {
+    it('should not apply promo discount placeholder in pricing engine', () => {
       const startTime = createDate(2025, 1, 15, 10);
       const endTime = createDate(2025, 1, 15, 11);
 
@@ -233,13 +233,14 @@ describe('PriceCalculator', () => {
         promoCode: 'DISCOUNT10',
       });
 
-      expect(result.promoCode).toBe('DISCOUNT10');
-      expect(result.promoDiscount).toBe(10); // 10% of 100
-      expect(result.total).toBe(90);
+      expect(result.promoCode).toBeUndefined();
+      expect(result.promoDiscount).toBeUndefined();
+      expect(result.discountAmount).toBe(0);
+      expect(result.total).toBe(100);
     });
 
-    it('should stack all multipliers and discounts correctly', () => {
-      // Thursday (weekend) at 6 PM (peak) for 3 hours with promo code
+    it('should stack multipliers with duration discount only', () => {
+      // Thursday (weekend) at 6 PM (peak) for 3 hours
       const startTime = createDate(2025, 1, 16, 18);
       const endTime = createDate(2025, 1, 16, 21);
 
@@ -247,18 +248,14 @@ describe('PriceCalculator', () => {
         startTime,
         endTime,
         pricingConfig: fullPricingConfig,
-        promoCode: 'DISCOUNT10',
       });
 
       // 100 base * 3 hours * 1.5 peak * 1.3 weekend = 585 subtotal
       expect(result.subtotal).toBe(585);
-      // 15% duration discount + 10% promo discount
+      // 15% duration discount only
       const durationDiscountAmount = 585 * 0.15; // 87.75
-      const promoDiscountAmount = 585 * 0.1; // 58.5
-      expect(result.discountAmount).toBeCloseTo(
-        durationDiscountAmount + promoDiscountAmount
-      );
-      expect(result.total).toBeCloseTo(585 - 87.75 - 58.5);
+      expect(result.discountAmount).toBeCloseTo(durationDiscountAmount);
+      expect(result.total).toBeCloseTo(585 - 87.75);
     });
 
     it('should use default currency when not specified', () => {

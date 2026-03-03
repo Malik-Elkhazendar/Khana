@@ -185,7 +185,7 @@ describe('BookingPreview', () => {
       expect((result.validationErrors ?? []).length).toBeGreaterThan(0);
     });
 
-    it('should apply promo code discount', () => {
+    it('should ignore promo code placeholder in preview pricing engine', () => {
       const input: BookingPreviewInput = {
         facilityId: 'facility-1',
         startTime: futureDate(10),
@@ -196,8 +196,8 @@ describe('BookingPreview', () => {
       const result = previewBooking(input, baseFacilityConfig, []);
 
       expect(result.canBook).toBe(true);
-      expect(result.priceBreakdown.promoCode).toBe('SUMMER10');
-      expect(result.priceBreakdown.promoDiscount).toBeGreaterThan(0);
+      expect(result.priceBreakdown.promoCode).toBeUndefined();
+      expect(result.priceBreakdown.promoDiscount).toBeUndefined();
     });
 
     it('should still calculate price even when conflict exists', () => {

@@ -9,3 +9,7 @@ export * from './payment-status.enum';
 export * from './conflict-type.enum';
 export * from './recurrence-frequency.enum';
 export * from './user-role.enum';
+export * from './waitlist-status.enum';
+export * from './promo-discount-type.enum';
+export * from './promo-facility-scope.enum';
+export * from './promo-validation-reason.enum';

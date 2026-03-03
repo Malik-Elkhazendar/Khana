@@ -7,6 +7,8 @@ import { FacilityContextStore } from '../../shared/state';
 import {
   BookingStatus,
   ConflictType,
+  PromoDiscountType,
+  PromoValidationReason,
   RecurrenceFrequency,
 } from '@khana/shared-dtos';
 import { createApiMock, ApiServiceMock } from '../../testing/api-mocks';
@@ -709,6 +711,53 @@ describe('BookingPreviewComponent', () => {
     expect(payload.customerName).toBe(arabicName);
   });
 
+  it('sends promoCode on booking create when promo validation is valid', () => {
+    const { component } = setupComponent();
+    apiMock.createBooking.mockReturnValueOnce(of(createBooking()));
+
+    component.previewResult.set(
+      createBookingPreview({
+        canBook: true,
+        promoValidation: {
+          code: 'SAVE10',
+          isValid: true,
+          promoCodeId: 'promo-1',
+          discountType: PromoDiscountType.PERCENTAGE,
+          discountValue: 10,
+          discountAmount: 10,
+        },
+      })
+    );
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+    component.onBook();
+
+    const payload = apiMock.createBooking.mock.calls[0][0];
+    expect(payload.promoCode).toBe('SAVE10');
+  });
+
+  it('omits promoCode on booking create when promo validation is invalid', () => {
+    const { component } = setupComponent();
+    apiMock.createBooking.mockReturnValueOnce(of(createBooking()));
+
+    component.previewResult.set(
+      createBookingPreview({
+        canBook: true,
+        promoValidation: {
+          code: 'SAVE10',
+          isValid: false,
+          reason: PromoValidationReason.NOT_FOUND,
+        },
+      })
+    );
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+    component.onBook();
+
+    const payload = apiMock.createBooking.mock.calls[0][0];
+    expect(payload.promoCode).toBeUndefined();
+  });
+
   it('derives date-mode end date from weeks count without timezone drift', () => {
     const { component } = setupComponent();
 
@@ -746,6 +795,7 @@ describe('BookingPreviewComponent', () => {
     expect(apiMock.createRecurringBooking).toHaveBeenCalledTimes(1);
     const payload = apiMock.createRecurringBooking.mock.calls[0][0];
     expect(payload.recurrenceRule.endsAtDate).toBe('2026-04-18');
+    expect(payload.promoCode).toBeUndefined();
   });
 
   it('keeps end date in sync when weeks count changes in count mode', () => {

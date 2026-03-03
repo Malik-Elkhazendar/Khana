@@ -1,4 +1,9 @@
-import { ConflictType, SlotStatus, PriceBreakdown } from '@khana/shared-dtos';
+import {
+  ConflictType,
+  SlotStatus,
+  PriceBreakdown,
+  PromoValidationDto,
+} from '@khana/shared-dtos';
 
 /**
  * Conflict information in the response
@@ -24,6 +29,9 @@ export interface BookingPreviewResponseDto {
 
   /** Calculated price breakdown */
   priceBreakdown: PriceBreakdown;
+
+  /** Promo validation details (if promo was provided) */
+  promoValidation?: PromoValidationDto;
 
   /** Conflict information (if any) */
   conflict?: ConflictInfoDto;

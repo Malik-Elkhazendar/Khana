@@ -627,7 +627,7 @@ describe('API', () => {
       );
     });
 
-    it('should apply promo code discount', async () => {
+    it('should return promo validation for provided promo code', async () => {
       const promoDay = new Date();
       promoDay.setDate(promoDay.getDate() + 4);
       promoDay.setHours(8, 0, 0, 0);
@@ -646,8 +646,132 @@ describe('API', () => {
 
       expect(res.status).toBe(200);
       expect(res.data.canBook).toBe(true);
-      expect(res.data.priceBreakdown.promoCode).toBe('SUMMER10');
-      expect(res.data.priceBreakdown.promoDiscount).toBeGreaterThan(0);
+      expect(res.data.promoValidation).toBeDefined();
+      expect(res.data.promoValidation.code).toBe('SUMMER10');
+      expect(res.data.promoValidation.isValid).toBe(false);
+      expect(res.data.priceBreakdown.promoCode).toBeUndefined();
+      expect(res.data.priceBreakdown.promoDiscount).toBeUndefined();
+    });
+  });
+
+  describe('Promo Codes', () => {
+    it('supports create/list/patch promo code lifecycle for owner/manager', async () => {
+      if (currentUserRole !== 'OWNER' && currentUserRole !== 'MANAGER') {
+        return;
+      }
+
+      const code = `OPS${Date.now()}`;
+      const created = await axios.post(
+        `/api/v1/promo-codes`,
+        {
+          code,
+          discountType: 'PERCENTAGE',
+          discountValue: 10,
+          maxUses: 5,
+          facilityScope: 'ALL_FACILITIES',
+        },
+        { headers: authHeaders() }
+      );
+
+      expect(created.status).toBe(201);
+      expect(created.data.code).toBe(code.toUpperCase());
+
+      const listed = await axios.get(`/api/v1/promo-codes`, {
+        headers: authHeaders(),
+      });
+      expect(listed.status).toBe(200);
+      expect(Array.isArray(listed.data.items)).toBe(true);
+      expect(
+        listed.data.items.some(
+          (item: { id: string }) => item.id === created.data.id
+        )
+      ).toBe(true);
+
+      const updated = await axios.patch(
+        `/api/v1/promo-codes/${created.data.id}`,
+        { isActive: false },
+        { headers: authHeaders() }
+      );
+
+      expect(updated.status).toBe(200);
+      expect(updated.data.isActive).toBe(false);
+    });
+
+    it('applies valid promo in preview and consumes maxUses on booking create', async () => {
+      if (currentUserRole !== 'OWNER' && currentUserRole !== 'MANAGER') {
+        return;
+      }
+
+      const code = `SAVE${Date.now()}`;
+      await axios.post(
+        `/api/v1/promo-codes`,
+        {
+          code,
+          discountType: 'PERCENTAGE',
+          discountValue: 15,
+          maxUses: 1,
+          facilityScope: 'ALL_FACILITIES',
+        },
+        { headers: authHeaders() }
+      );
+
+      const dayOne = new Date();
+      dayOne.setDate(dayOne.getDate() + 6);
+      dayOne.setHours(8, 0, 0, 0);
+      const slotOne = await findAvailableSlot(dayOne);
+
+      const previewOne = await axios.post(
+        `/api/v1/bookings/preview`,
+        {
+          facilityId,
+          startTime: slotOne.startTime,
+          endTime: slotOne.endTime,
+          promoCode: code,
+        },
+        { headers: authHeaders() }
+      );
+
+      expect(previewOne.status).toBe(200);
+      expect(previewOne.data.promoValidation?.isValid).toBe(true);
+      expect(previewOne.data.priceBreakdown?.promoCode).toBe(code);
+      expect(previewOne.data.priceBreakdown?.promoDiscount).toBeGreaterThan(0);
+
+      const created = await axios.post(
+        `/api/v1/bookings`,
+        {
+          facilityId,
+          startTime: slotOne.startTime,
+          endTime: slotOne.endTime,
+          customerName: 'Promo Customer',
+          customerPhone: '+966500001111',
+          promoCode: code.toLowerCase(),
+        },
+        { headers: authHeaders() }
+      );
+
+      expect(created.status).toBe(201);
+      expect(created.data.priceBreakdown?.promoCode).toBe(code);
+
+      const dayTwo = new Date();
+      dayTwo.setDate(dayTwo.getDate() + 7);
+      dayTwo.setHours(8, 0, 0, 0);
+      const slotTwo = await findAvailableSlot(dayTwo);
+
+      const previewTwo = await axios.post(
+        `/api/v1/bookings/preview`,
+        {
+          facilityId,
+          startTime: slotTwo.startTime,
+          endTime: slotTwo.endTime,
+          promoCode: code,
+        },
+        { headers: authHeaders() }
+      );
+
+      expect(previewTwo.status).toBe(200);
+      expect(previewTwo.data.promoValidation?.isValid).toBe(false);
+      expect(previewTwo.data.promoValidation?.reason).toBe('USAGE_EXCEEDED');
+      expect(previewTwo.data.priceBreakdown?.promoCode).toBeUndefined();
     });
   });
 

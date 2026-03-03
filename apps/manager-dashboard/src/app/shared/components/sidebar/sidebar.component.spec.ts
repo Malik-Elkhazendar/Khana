@@ -23,6 +23,7 @@ const EN_TRANSLATIONS = {
         CALENDAR: 'Calendar',
         NEW_BOOKING: 'New Booking',
         FACILITIES: 'Facilities',
+        PROMO_CODES: 'Promo Codes',
         TEAM: 'Team',
         SETTINGS: 'Settings',
       },
@@ -57,6 +58,7 @@ describe('SidebarComponent', () => {
           { path: 'dashboard/bookings', component: StubRouteComponent },
           { path: 'dashboard/new', component: StubRouteComponent },
           { path: 'dashboard/facilities', component: StubRouteComponent },
+          { path: 'dashboard/promo-codes', component: StubRouteComponent },
           { path: 'dashboard/team', component: StubRouteComponent },
           { path: 'dashboard/settings', component: StubRouteComponent },
         ]),
@@ -83,6 +85,26 @@ describe('SidebarComponent', () => {
   it('renders navigation links', () => {
     const links = fixture.nativeElement.querySelectorAll('.sidebar__nav-link');
     expect(links.length).toBe(component.navItems().length);
+  });
+
+  it('shows promo nav item for owner and hides it for viewer', () => {
+    expect(fixture.nativeElement.textContent).toContain('Promo Codes');
+
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setUser({
+      id: 'user-2',
+      tenantId: 'tenant-1',
+      email: 'viewer@khana.dev',
+      name: 'Viewer',
+      role: UserRole.VIEWER,
+      isActive: true,
+      onboardingCompleted: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Promo Codes');
   });
 
   it('renders logo when expanded', () => {
@@ -179,6 +201,10 @@ describe('SidebarComponent', () => {
     expect(getStyles()).toMatch(
       /sidebar__nav-link[^}]*min-block-size:\s*var\(--space-12\)/
     );
+  });
+
+  it('makes the entire nav row clickable', () => {
+    expect(getStyles()).toMatch(/sidebar__nav-link[^}]*inline-size:\s*100%/);
   });
 
   it('shows expected toggle icon in LTR mode', () => {

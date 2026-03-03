@@ -137,9 +137,12 @@
         "BOOKINGS": "Bookings",
         "CALENDAR": "Calendar",
         "NEW_BOOKING": "New Booking",
+        "WAITLIST": "Waitlist",
         "FACILITIES": "Facilities",
+        "PROMO_CODES": "Promo Codes",
         "TEAM": "Team",
-        "SETTINGS": "Settings"
+        "SETTINGS": "Settings",
+        "ANALYTICS": "Analytics"
       }
     },
     "USER": {
@@ -163,9 +166,12 @@
       "BOOKINGS": "Bookings",
       "CALENDAR": "Calendar",
       "NEW_BOOKING": "New Booking",
+      "WAITLIST": "Waitlist",
       "FACILITIES": "Facilities",
+      "PROMO_CODES": "Promo Codes",
       "TEAM": "Team",
-      "SETTINGS": "Settings"
+      "SETTINGS": "Settings",
+      "ANALYTICS": "Analytics"
     },
     "ACTIONS": {
       "RETRY": "Retry",
@@ -272,6 +278,213 @@
           "ROLE": "Role",
           "TENANT_NAME": "Tenant Name",
           "TENANT_ID": "Tenant ID"
+        }
+      },
+      "WAITLIST": {
+        "TITLE": "Waitlist Operations",
+        "SUBTITLE": "Monitor and manage queued demand for unavailable slots.",
+        "FILTERS": {
+          "FROM": "From",
+          "TO": "To",
+          "FACILITY": "Facility",
+          "ALL_FACILITIES": "All facilities",
+          "STATUS": "Status",
+          "ALL_STATUSES": "All statuses",
+          "APPLY": "Apply filters",
+          "TODAY": "Today"
+        },
+        "SUMMARY": {
+          "WAITING": "Waiting",
+          "NOTIFIED": "Notified",
+          "EXPIRED": "Expired",
+          "FULFILLED": "Fulfilled"
+        },
+        "STATUS": {
+          "WAITING": "Waiting",
+          "NOTIFIED": "Notified",
+          "EXPIRED": "Expired",
+          "FULFILLED": "Fulfilled"
+        },
+        "TABLE": {
+          "STATUS": "Status",
+          "FACILITY": "Facility",
+          "USER": "User",
+          "SLOT": "Desired Slot",
+          "POSITION": "Queue Position",
+          "CREATED_AT": "Created At",
+          "NOTIFIED_AT": "Notified At",
+          "EXPIRED_AT": "Expired At",
+          "ACTIONS": "Actions"
+        },
+        "ACTIONS": {
+          "NOTIFY_NEXT": "Notify Next",
+          "EXPIRE": "Expire Entry",
+          "NO_WAITING_ENTRY": "No waiting entry available for this slot."
+        },
+        "STATE": {
+          "LOADING": "Loading waitlist entries...",
+          "EMPTY": "No waitlist entries found for the selected filters."
+        },
+        "ERRORS": {
+          "INVALID_RANGE": "Please choose a valid date range where \"From\" is before \"To\"."
+        },
+        "PAGINATION": {
+          "PREVIOUS": "Previous",
+          "NEXT": "Next",
+          "LABEL": "Page {{page}} of {{totalPages}}"
+        }
+      },
+      "PROMO_CODES": {
+        "TITLE": "Promo Codes",
+        "SUBTITLE": "Create and manage discounts across facilities.",
+        "FILTERS": {
+          "FACILITY": "Facility",
+          "ALL_FACILITIES": "All facilities",
+          "STATUS": "Status",
+          "ALL_STATUSES": "All statuses",
+          "INCLUDE_EXPIRED": "Include expired promos",
+          "PAGE_SIZE": "Rows per page",
+          "APPLY": "Apply filters",
+          "RESET": "Reset"
+        },
+        "TABLE": {
+          "CODE": "Code",
+          "DISCOUNT": "Discount",
+          "SCOPE": "Scope",
+          "USAGE": "Usage",
+          "USAGE_VALUE": "{{current}} used • {{remaining}} remaining (max: {{max}})",
+          "EXPIRES_AT": "Expires At",
+          "STATE": "State",
+          "UPDATED_AT": "Updated At",
+          "ACTIONS": "Actions",
+          "NOT_SET": "Not set",
+          "UNLIMITED": "Unlimited"
+        },
+        "DISCOUNT_TYPE": {
+          "PERCENTAGE": "Percentage",
+          "FIXED_AMOUNT": "Fixed amount"
+        },
+        "SCOPE": {
+          "ALL_FACILITIES": "All facilities",
+          "SINGLE_FACILITY": "Single facility"
+        },
+        "STATE": {
+          "ACTIVE": "Active",
+          "INACTIVE": "Inactive",
+          "EXPIRED": "Expired",
+          "EXHAUSTED": "Exhausted",
+          "LOADING": "Loading promo codes...",
+          "EMPTY": "No promo codes found for the selected filters."
+        },
+        "ACTIONS": {
+          "CREATE": "Create Promo",
+          "EDIT": "Edit",
+          "ACTIVATE": "Activate",
+          "DEACTIVATE": "Deactivate"
+        },
+        "MODAL": {
+          "CREATE_TITLE": "Create Promo Code",
+          "EDIT_TITLE": "Edit Promo Code",
+          "SUBTITLE": "Configure scope, discount value, usage, and expiry.",
+          "SUBMIT_CREATE": "Create Promo",
+          "SUBMIT_SAVE": "Save Changes",
+          "CANCEL": "Cancel"
+        },
+        "FORM": {
+          "CODE": "Promo code",
+          "DISCOUNT_TYPE": "Discount type",
+          "DISCOUNT_VALUE": "Discount value",
+          "FACILITY_SCOPE": "Facility scope",
+          "FACILITY": "Facility",
+          "SELECT_FACILITY": "Select facility",
+          "MAX_USES": "Max uses (optional)",
+          "EXPIRES_AT": "Expires at (optional)",
+          "ACTIVE": "Promo is active",
+          "ERROR_CODE": "Promo code must be 3-40 characters and use letters, numbers, '-' or '_'.",
+          "ERROR_DISCOUNT_VALUE": "Discount value must be greater than zero.",
+          "ERROR_MAX_USES": "Max uses must be an integer greater than zero.",
+          "ERROR_FACILITY_REQUIRED": "Facility is required when scope is single facility.",
+          "ERROR_INVALID_DATE": "Expiry date is invalid."
+        },
+        "CONFIRM": {
+          "ACTIVATE_TITLE": "Activate promo code",
+          "ACTIVATE_MESSAGE": "Activate promo code {{code}}?",
+          "DEACTIVATE_TITLE": "Deactivate promo code",
+          "DEACTIVATE_MESSAGE": "Deactivate promo code {{code}}?"
+        },
+        "PAGINATION": {
+          "PREVIOUS": "Previous",
+          "NEXT": "Next",
+          "LABEL": "Page {{page}} of {{totalPages}}"
+        }
+      },
+      "ANALYTICS": {
+        "SKIP_LINK": "Skip to analytics dashboard",
+        "TITLE": "Analytics Dashboard",
+        "SUBTITLE": "Track revenue, occupancy, and booking behavior across your facilities.",
+        "FILTERS": {
+          "FROM": "From",
+          "TO": "To",
+          "GROUP_BY": "Group by",
+          "GROUP_DAY": "Day",
+          "GROUP_WEEK": "Week",
+          "GROUP_MONTH": "Month",
+          "FACILITY": "Facility",
+          "ALL_FACILITIES": "All facilities"
+        },
+        "ACTIONS": {
+          "APPLY_FILTERS": "Apply filters",
+          "TODAY": "Today",
+          "RETRY": "Retry"
+        },
+        "ERRORS": {
+          "INVALID_RANGE": "Please select a valid date range where \"From\" is before \"To\"."
+        },
+        "STATE": {
+          "LOADING": "Loading analytics data...",
+          "NO_TREND_DATA": "No trend data is available for the selected filters.",
+          "NOT_AVAILABLE": "Not available",
+          "NO_FACILITY_DATA": "No facility performance data is available for the selected range.",
+          "NO_DATA": "No analytics data found for the selected filters."
+        },
+        "KPI": {
+          "ARIA_LABEL": "Analytics KPI summary",
+          "TOTAL_BOOKINGS": "Total bookings",
+          "TOTAL_REVENUE": "Total revenue",
+          "OCCUPANCY_RATE": "Occupancy rate",
+          "CANCELLATION_RATE": "Cancellation rate",
+          "AVG_BOOKING_VALUE": "Average booking value",
+          "VS_PREVIOUS_PERIOD": "vs previous period"
+        },
+        "CHARTS": {
+          "BOOKINGS_TREND": "Bookings trend",
+          "REVENUE_TREND": "Revenue trend",
+          "BOOKINGS_ARIA": "Bookings trend chart",
+          "REVENUE_ARIA": "Revenue trend chart"
+        },
+        "INSIGHTS": {
+          "TITLE": "Mini insights",
+          "PEAK_HOURS": "Peak hours",
+          "MOST_BOOKED_FACILITY": "Most booked facility",
+          "MOST_BOOKED_COURT": "Most booked court"
+        },
+        "TABLE": {
+          "TITLE": "Facility comparison",
+          "ARIA_LABEL": "Facility comparison analytics table",
+          "FACILITY": "Facility",
+          "BOOKINGS": "Bookings",
+          "REVENUE": "Revenue",
+          "OCCUPANCY": "Occupancy %",
+          "CANCELLATION": "Cancellation %"
+        },
+        "OCCUPANCY": {
+          "FACILITY_TITLE": "{{name}} occupancy",
+          "TABLE_ARIA_LABEL": "Daily occupancy table for {{name}}",
+          "DATE": "Date",
+          "OCCUPIED": "Occupied (minutes)",
+          "AVAILABLE": "Available (minutes)",
+          "RATE": "Occupancy %",
+          "BOOKINGS": "Bookings"
         }
       }
     }
@@ -466,7 +679,8 @@
       "CONFIRM": "Confirm",
       "MARK_PAID": "Mark Paid",
       "CANCEL": "Cancel",
-      "PAID_BOOKING_NOTE": "Paid booking - cancellation will require refund once payment gateway is integrated."
+      "PAID_BOOKING_NOTE": "Paid booking - cancellation will require refund once payment gateway is integrated.",
+      "READ_ONLY": "Read-only mode"
     },
     "ACTION_SHEET": {
       "CLOSE_ACTIONS": "Close booking actions",
@@ -563,6 +777,16 @@
       "HOUR_SUFFIX": "hour",
       "SUBMIT_CHECKING": "Checking...",
       "SUBMIT_CHECK_AVAILABILITY": "Check Availability"
+    },
+    "PROMO_VALIDATION": {
+      "VALID": "Promo code {{code}} is valid and will be applied at booking.",
+      "INVALID_FORMAT": "Promo code format is invalid.",
+      "NOT_FOUND": "Promo code not found.",
+      "INACTIVE": "Promo code is inactive.",
+      "EXPIRED": "Promo code has expired.",
+      "FACILITY_MISMATCH": "Promo code does not apply to this facility.",
+      "USAGE_EXCEEDED": "Promo code usage limit has been reached.",
+      "INVALID_GENERIC": "Promo code cannot be applied."
     },
     "EMPTY": {
       "NO_FACILITIES": "No facilities available."
@@ -691,6 +915,17 @@
       "CONFIRMING": "Confirming...",
       "CONFIRM_BOOKING": "Confirm Booking"
     },
+    "WAITLIST": {
+      "TITLE": "Waitlist",
+      "SUBTITLE": "This slot is unavailable right now. Join the queue and we will notify you if it becomes available.",
+      "CHECKING_STATUS": "Checking your waitlist status...",
+      "JOIN": "Join waitlist",
+      "JOINING": "Joining waitlist...",
+      "ALREADY_JOINED": "You're on the waitlist",
+      "INDICATOR": "You're on the waitlist (position #{{position}}).",
+      "NOTIFIED": "You were already notified for this slot.",
+      "JOIN_SUCCESS": "Added to waitlist at position #{{position}}."
+    },
     "CONFIRM_SUMMARY": {
       "FACILITY_LABEL": "Facility",
       "SELECTED_FACILITY_FALLBACK": "Selected facility",
@@ -774,6 +1009,381 @@
       "SUBTITLE": "Review the details, then complete onboarding.",
       "SUBMIT": "Complete onboarding",
       "SUBMITTING": "Completing onboarding..."
+    }
+  },
+  "FORBIDDEN": {
+    "TITLE": "Access Forbidden",
+    "MESSAGE": "You don't have permission to access this page.",
+    "ACTION": "Go to Dashboard"
+  },
+  "PASSWORD_STRENGTH": {
+    "LABEL": "Strength:",
+    "LEVELS": {
+      "WEAK": "Weak",
+      "FAIR": "Fair",
+      "GOOD": "Good",
+      "STRONG": "Strong"
+    },
+    "MESSAGE": {
+      "WEAK": "Weak password",
+      "FAIR": "Fair password strength",
+      "GOOD": "Good password strength",
+      "STRONG": "Strong password"
+    },
+    "REQUIREMENTS": {
+      "MIN_LENGTH": "At least 8 characters",
+      "UPPERCASE": "Uppercase letter (A-Z)",
+      "LOWERCASE": "Lowercase letter (a-z)",
+      "NUMBER": "Number (0-9)"
+    }
+  },
+  "CLIENT_ERRORS": {
+    "LOAD_FACILITIES_FAILED": "Unable to load facilities.",
+    "SAVE_FACILITY_FAILED": "Unable to save facility.",
+    "UPDATE_FACILITY_STATUS_FAILED": "Unable to update facility status.",
+    "LOAD_USERS_FAILED": "Unable to load users.",
+    "UPDATE_USER_ROLE_FAILED": "Unable to update user role.",
+    "UPDATE_USER_STATUS_FAILED": "Unable to update user status.",
+    "INVITE_USER_FAILED": "Unable to send invitation.",
+    "COMPLETE_ONBOARDING_FAILED": "Unable to complete onboarding.",
+    "CANCELLATION_REASON_REQUIRED": "Cancellation reason is required",
+    "CANCELLATION_REASON_ONLY_FOR_CANCEL": "Cancellation reason is only allowed when cancelling",
+    "ANALYTICS": {
+      "NETWORK": "Unable to reach analytics service. Check your connection and try again.",
+      "VALIDATION": "Analytics filters are invalid. Please review your date range and filters.",
+      "FORBIDDEN": "You do not have permission to access analytics.",
+      "UNKNOWN": "Unable to load analytics right now. Please try again shortly."
+    },
+    "WAITLIST": {
+      "JOIN_FAILED": "Unable to join waitlist right now. Please try again.",
+      "STATUS_FAILED": "Unable to check waitlist status right now.",
+      "OFFLINE": "You are offline. Reconnect to join the waitlist."
+    },
+    "WAITLIST_OPERATIONS": {
+      "NETWORK": "Unable to reach waitlist operations service. Check your connection and try again.",
+      "VALIDATION": "Waitlist filters or action input are invalid.",
+      "FORBIDDEN": "You do not have permission to manage waitlist operations.",
+      "UNKNOWN": "Unable to complete waitlist operation right now. Please try again."
+    },
+    "PROMO_CODES": {
+      "NETWORK": "Unable to reach promo codes service. Check your connection and try again.",
+      "VALIDATION": "Promo code input is invalid. Review form values and try again.",
+      "FORBIDDEN": "You do not have permission to manage promo codes.",
+      "CONFLICT": "Promo code already exists or conflicts with current data.",
+      "UNKNOWN": "Unable to complete promo code operation right now. Please try again."
+    }
+  },
+  "META": {
+    "SITE_NAME": "Khana",
+    "TITLES": {
+      "DEFAULT": "Khana",
+      "LANDING": "Khana - Never Lose a Booking Again",
+      "LOGIN": "Login | Khana",
+      "REGISTER": "Create Account | Khana",
+      "FORGOT_PASSWORD": "Forgot Password | Khana",
+      "RESET_PASSWORD": "Reset Password | Khana",
+      "CHANGE_PASSWORD": "Change Password | Khana",
+      "ONBOARDING": "Onboarding | Khana",
+      "BOOKINGS": "Bookings | Khana",
+      "CALENDAR": "Calendar | Khana",
+      "NEW_BOOKING": "New Booking | Khana",
+      "FACILITIES": "Facilities | Khana",
+      "TEAM": "Team | Khana",
+      "SETTINGS": "Settings | Khana",
+      "WAITLIST": "Waitlist | Khana",
+      "PROMO_CODES": "Promo Codes | Khana",
+      "FORBIDDEN": "403 Forbidden | Khana",
+      "ANALYTICS": "Analytics | Khana"
+    },
+    "DESCRIPTIONS": {
+      "DEFAULT": "Khana booking management platform.",
+      "LANDING": "The operating system for local booking-based businesses. Real-time calendar, zero double-bookings, and instant confirmations.",
+      "AUTH": "Secure access to your Khana workspace.",
+      "ONBOARDING": "Set up your business and first facility to start taking bookings.",
+      "DASHBOARD": "Manage bookings, facilities, team, and operations in Khana dashboard.",
+      "FORBIDDEN": "You do not have permission to access this page."
+    }
+  },
+  "LANDING": {
+    "COMMON": {
+      "SKIP_TO_MAIN": "Skip to main content"
+    },
+    "HEADER": {
+      "LOGO_ARIA": "Khana - Home",
+      "PRIMARY_NAV": "Primary navigation",
+      "MOBILE_NAV": "Mobile navigation",
+      "TOGGLE_MENU_ARIA": "Toggle navigation menu",
+      "NAV_ITEM_ARIA": "Navigate to {{label}} section",
+      "LOGIN": "Login",
+      "LOGIN_ARIA": "Log in to your account",
+      "START_TRIAL": "Start Free Trial",
+      "START_TRIAL_ARIA": "Start your free trial",
+      "NAV": {
+        "FEATURES": "Features",
+        "HOW_IT_WORKS": "How It Works",
+        "TESTIMONIALS": "Testimonials"
+      }
+    },
+    "HERO": {
+      "BADGE": "The Operating System for Booking-Based Businesses",
+      "HEADLINE": {
+        "LINE_1": "Never Lose",
+        "ACCENT": "a Booking",
+        "LINE_3": "Again"
+      },
+      "SUBHEADLINE": {
+        "LINE_1": "Real-time calendar. Zero double-bookings. Happy customers.",
+        "LINE_2": "The modern way to manage your sports facility or rental property."
+      },
+      "STATS": {
+        "BOOKINGS": "Bookings Managed",
+        "FACILITIES": "Facilities",
+        "UPTIME": "Uptime"
+      },
+      "CTA_START": "Start Free Trial",
+      "CTA_START_ARIA": "Start your free trial - no credit card required",
+      "CTA_DEMO": "See Live Demo",
+      "CTA_DEMO_ARIA": "See how Khana works",
+      "TRUST": {
+        "NO_CARD": "No credit card required",
+        "TRIAL": "14-day free trial",
+        "CANCEL": "Cancel anytime"
+      },
+      "SCROLL_HINT": "Scroll to explore",
+      "FLOATING": {
+        "BOOKING_TITLE": "Booking Confirmed",
+        "BOOKING_SUBTITLE": "Court 3 • 6:00 PM",
+        "REVENUE_TITLE": "+$2,450",
+        "REVENUE_SUBTITLE": "This Week",
+        "CALENDAR_MONTH": "January 2026"
+      }
+    },
+    "PROBLEM_SOLUTION": {
+      "EYEBROW": "The Transformation",
+      "TITLE": {
+        "FROM": "From",
+        "CHAOS": "Chaos",
+        "TO": "to",
+        "CONTROL": "Control"
+      },
+      "SUBTITLE": "See how facility managers across MENA are transforming their booking operations",
+      "OLD_WAY": {
+        "TITLE": "The Old Way",
+        "SUBTITLE": "WhatsApp & Paper",
+        "ITEMS": {
+          "ENDLESS_MESSAGES": "Endless WhatsApp messages to check availability",
+          "PAPER_CALENDARS": "Paper calendars with crossed-out bookings",
+          "PHONE_TAG": "Phone tag just to confirm a slot",
+          "DOUBLE_BOOKINGS": "Double-bookings that embarrass your business",
+          "NO_VISIBILITY": "No visibility into revenue or patterns"
+        }
+      },
+      "NEW_WAY": {
+        "TITLE": "The Khana Way",
+        "SUBTITLE": "Real-Time Control",
+        "ITEMS": {
+          "INSTANT_AVAILABILITY": "Instant availability visible to everyone",
+          "DIGITAL_CALENDAR": "Digital calendar synced across all devices",
+          "AUTO_CONFIRMATIONS": "Automatic confirmations in seconds",
+          "CONFLICT_DETECTION": "Smart conflict detection prevents overlaps",
+          "ANALYTICS": "Complete analytics and revenue tracking"
+        }
+      },
+      "CHAOS_MESSAGE_1": "Is Court 2 free tomorrow at 5?",
+      "CHAOS_MESSAGE_2": "Can I book Friday 6PM?",
+      "CHAOS_MESSAGE_3": "Still waiting for confirmation...",
+      "CHAOS_TIME_1": "2m ago",
+      "CHAOS_TIME_2": "5m ago",
+      "CHAOS_TIME_3": "12m ago",
+      "SUCCESS_TITLE": "Booking Confirmed",
+      "SUCCESS_DETAIL": "Instantly, no waiting"
+    },
+    "FEATURES_GRID": {
+      "EYEBROW": "Powerful Features",
+      "TITLE": {
+        "PREFIX": "Everything You Need to",
+        "ACCENT": "Run Your Business"
+      },
+      "SUBTITLE": "From real-time availability to smart analytics, Khana gives you the tools to eliminate chaos and delight your customers.",
+      "LEARN_MORE": "Learn more",
+      "LEARN_MORE_ARIA": "Learn more about {{title}}",
+      "ITEMS": {
+        "REALTIME_CALENDAR": {
+          "TITLE": "Real-Time Calendar",
+          "DESCRIPTION": "No more \"let me check and get back to you.\" Your calendar updates instantly across all devices, showing live availability."
+        },
+        "CONFLICT_DETECTION": {
+          "TITLE": "Zero Double-Bookings",
+          "DESCRIPTION": "Our smart system automatically detects and prevents overlapping bookings before they happen. Never disappoint a customer again."
+        },
+        "MOBILE_FIRST": {
+          "TITLE": "Mobile-First Design",
+          "DESCRIPTION": "Check-in customers, view bookings, update availability-all from your mobile device. Manage your business from anywhere."
+        },
+        "CUSTOMER_HISTORY": {
+          "TITLE": "Know Your Customers",
+          "DESCRIPTION": "Track booking history, preferences, and payment status. Build lasting relationships, not just one-time transactions."
+        },
+        "SMART_PRICING": {
+          "TITLE": "Dynamic Pricing",
+          "DESCRIPTION": "Set peak and off-peak rates, create promo codes, and maximize revenue during high-demand periods automatically."
+        },
+        "SECURITY": {
+          "TITLE": "Bank-Level Security",
+          "DESCRIPTION": "GDPR-compliant data handling, role-based permissions, and complete audit trails. Your data is safe with us."
+        }
+      }
+    },
+    "HOW_IT_WORKS": {
+      "EYEBROW": "Simple Setup",
+      "TITLE": {
+        "PREFIX": "Get Started in",
+        "ACCENT": "Minutes, Not Days"
+      },
+      "SUBTITLE": "No complex setup. No lengthy onboarding. Start managing bookings professionally in just four simple steps.",
+      "STEPS_ARIA": "Setup steps",
+      "STEP_ARIA": "Step {{number}}: {{title}}",
+      "STEPS": {
+        "SIGNUP": {
+          "TITLE": "Sign Up in 2 Minutes",
+          "DESCRIPTION": "Create your account and add your facilities, courts, or properties. No technical knowledge required."
+        },
+        "IMPORT": {
+          "TITLE": "Import Existing Bookings",
+          "DESCRIPTION": "Easily migrate your existing bookings from WhatsApp, paper, or spreadsheets. We'll help you get started."
+        },
+        "SHARE": {
+          "TITLE": "Share Booking Link",
+          "DESCRIPTION": "Get a unique booking URL that customers can use to book directly. Share it on WhatsApp, social media, or your website."
+        },
+        "MANAGE": {
+          "TITLE": "Manage Everything",
+          "DESCRIPTION": "Track bookings, revenue, and customer data in one beautiful dashboard. You're now in control."
+        }
+      },
+      "CTA_TEXT": "Ready to transform your booking process?",
+      "CTA": "Get Started Free",
+      "CTA_ARIA": "Start your free trial"
+    },
+    "SOCIAL_PROOF": {
+      "EYEBROW": "Trusted by Leaders",
+      "TITLE": {
+        "PREFIX": "Loved by Facility Managers",
+        "ACCENT": "Across MENA"
+      },
+      "SUBTITLE": "Don't just take our word for it. See what our customers have to say about transforming their booking operations.",
+      "STATS_ARIA": "Key statistics",
+      "PREVIOUS_ARIA": "Previous testimonial",
+      "NEXT_ARIA": "Next testimonial",
+      "DOTS_ARIA": "Testimonial navigation",
+      "DOT_ARIA": "Go to testimonial {{index}}",
+      "TESTIMONIAL_ARIA": "Testimonial from {{author}}",
+      "RATING_ARIA": "{{rating}} out of 5 stars",
+      "TRUST_ARIA": "Trust indicators",
+      "STATS": {
+        "FACILITIES": "Facilities",
+        "BOOKINGS": "Bookings Managed",
+        "RATING": "Average Rating",
+        "UPTIME": "Uptime"
+      },
+      "TRUST": {
+        "SECURITY": "Bank-Level Security",
+        "UPTIME": "99.9% Uptime",
+        "GDPR": "GDPR Compliant"
+      },
+      "TESTIMONIALS": {
+        "1": {
+          "QUOTE": "Khana reduced our booking errors by 95%. Our customers love the instant confirmations, and we've seen a 30% increase in repeat bookings.",
+          "AUTHOR": "Ahmed Al-Rashid",
+          "ROLE": "Operations Manager",
+          "COMPANY": "Padel Club Dubai"
+        },
+        "2": {
+          "QUOTE": "Before Khana, we spent 3 hours daily managing WhatsApp bookings. Now it's completely automated. I wish we had found this sooner!",
+          "AUTHOR": "Sara Al-Mahmoud",
+          "ROLE": "Owner",
+          "COMPANY": "Desert Rose Chalets"
+        },
+        "3": {
+          "QUOTE": "The real-time calendar is a game-changer. Our staff can focus on customer service instead of juggling phone calls and messages.",
+          "AUTHOR": "Mohammed Khalil",
+          "ROLE": "General Manager",
+          "COMPANY": "Sports City Complex"
+        },
+        "4": {
+          "QUOTE": "Finally, a system that understands our market. The Arabic support and RTL interface made adoption seamless for our entire team.",
+          "AUTHOR": "Fatima Al-Hassan",
+          "ROLE": "Director",
+          "COMPANY": "Al-Noor Tennis Academy"
+        },
+        "5": {
+          "QUOTE": "Revenue tracking was impossible before. Now I can see exactly which courts are most profitable and optimize pricing accordingly.",
+          "AUTHOR": "Khalid Ibrahim",
+          "ROLE": "Business Owner",
+          "COMPANY": "Golden Gate Sports"
+        }
+      }
+    },
+    "BOTTOM_CTA": {
+      "HEADLINE": {
+        "PREFIX": "Ready to Eliminate",
+        "ACCENT": "Booking Chaos?"
+      },
+      "SUBHEADLINE": "Join 100+ facilities across MENA who have transformed their booking operations. Start your free trial today and see the difference in minutes.",
+      "ACTIONS": {
+        "START_TRIAL": "Start Your Free Trial",
+        "START_TRIAL_ARIA": "Start your free trial",
+        "SCHEDULE_DEMO": "Schedule a Demo",
+        "SCHEDULE_DEMO_ARIA": "Schedule a demo with sales",
+        "CONTACT_SALES": "Contact Sales",
+        "CONTACT_SALES_ARIA": "Contact sales team"
+      },
+      "TRUST": {
+        "ARIA": "Signup trust indicators",
+        "NO_CARD": "No credit card required",
+        "TRIAL": "14-day free trial",
+        "CANCEL": "Cancel anytime"
+      }
+    },
+    "FOOTER": {
+      "LOGO_ARIA": "Khana - Home",
+      "TAGLINE": "The Operating System for Local Booking-Based Businesses. Eliminate chaos. Delight customers.",
+      "SOCIAL_ARIA": "Social media links",
+      "SECTION_NAV_ARIA": "{{section}} navigation",
+      "SWITCH_LANGUAGE_ARIA": "Switch to Arabic",
+      "SWITCH_LANGUAGE_LABEL": "العربية",
+      "COPYRIGHT": "© {{year}} Khana. All rights reserved.",
+      "SECTIONS": {
+        "PRODUCT": "Product",
+        "COMPANY": "Company",
+        "SUPPORT": "Support",
+        "LEGAL": "Legal"
+      },
+      "LINKS": {
+        "FEATURES": "Features",
+        "HOW_IT_WORKS": "How It Works",
+        "TESTIMONIALS": "Testimonials",
+        "START_TRIAL": "Start Free Trial",
+        "ABOUT_KHANA": "About Khana",
+        "CREATE_ACCOUNT": "Create Account",
+        "SIGN_IN": "Sign In",
+        "CONTACT_SALES": "Contact Sales",
+        "HELP_CENTER": "Help Center",
+        "BOOK_DEMO": "Book a Demo",
+        "API_DOCS": "API Docs",
+        "PLATFORM_STATUS": "Platform Status"
+      },
+      "LEGAL": {
+        "PRIVACY": "Privacy Policy",
+        "TERMS": "Terms of Service",
+        "COOKIES": "Cookie Policy",
+        "SECURITY": "Security & Compliance"
+      },
+      "SOCIAL": {
+        "X": "Follow us on Twitter",
+        "LINKEDIN": "Follow us on LinkedIn",
+        "INSTAGRAM": "Follow us on Instagram"
+      }
     }
   }
 }

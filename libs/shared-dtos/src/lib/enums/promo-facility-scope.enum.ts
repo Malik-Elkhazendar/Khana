@@ -1,0 +1,4 @@
+export enum PromoFacilityScope {
+  ALL_FACILITIES = 'ALL_FACILITIES',
+  SINGLE_FACILITY = 'SINGLE_FACILITY',
+}

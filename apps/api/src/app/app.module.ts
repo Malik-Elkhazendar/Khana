@@ -14,6 +14,8 @@ import { normalizeNodeEnv, resolveEnvFilePaths } from './config/env-files';
 import { FacilitiesModule } from './facilities/facilities.module';
 import { UsersModule } from './users/users.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 
 const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
 
@@ -51,6 +53,8 @@ const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
     FacilitiesModule,
     UsersModule,
     OnboardingModule,
+    AnalyticsModule,
+    PromoCodesModule,
   ],
   controllers: [AppController],
   providers: [AppService, SeedService],

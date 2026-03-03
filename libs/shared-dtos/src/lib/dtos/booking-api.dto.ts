@@ -4,6 +4,7 @@ import { ConflictType } from '../enums/conflict-type.enum';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { RecurrenceFrequency } from '../enums/recurrence-frequency.enum';
 import { PriceBreakdown } from '../interfaces/price-breakdown.interface';
+import { PromoValidationDto } from './promo-code.dto';
 
 /**
  * Simplified facility for selection lists and API responses
@@ -101,6 +102,7 @@ export interface AlternativeSlotDto {
 export interface BookingPreviewResponseDto {
   canBook: boolean;
   priceBreakdown: PriceBreakdown;
+  promoValidation?: PromoValidationDto;
   conflict?: BookingConflictDto;
   suggestedAlternatives?: AlternativeSlotDto[];
   validationErrors?: string[];
@@ -115,6 +117,7 @@ export interface CreateBookingRequestDto {
   endTime: string;
   customerName: string;
   customerPhone: string;
+  promoCode?: string;
   status?: BookingStatus;
   paymentStatus?: PaymentStatus;
 }

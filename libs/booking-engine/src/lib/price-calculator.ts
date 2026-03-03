@@ -88,7 +88,7 @@ export function calculatePricingUnits(durationMinutes: number): number {
  * @returns Complete price breakdown
  */
 export function calculatePrice(input: PriceCalculationInput): PriceBreakdown {
-  const { startTime, endTime, pricingConfig, promoCode } = input;
+  const { startTime, endTime, pricingConfig } = input;
 
   const durationMinutes = diffInMinutes(startTime, endTime);
   const pricingUnits = calculatePricingUnits(durationMinutes);
@@ -109,15 +109,7 @@ export function calculatePrice(input: PriceCalculationInput): PriceBreakdown {
   // Calculate duration discount amount
   const durationDiscountAmount = subtotal * durationDiscount;
 
-  // Calculate promo discount (placeholder - in real system, would look up promo code)
-  let promoDiscount = 0;
-  if (promoCode) {
-    // Simple placeholder: 10% discount for any valid promo code
-    // In production, this would query a promo code service
-    promoDiscount = subtotal * 0.1;
-  }
-
-  const discountAmount = durationDiscountAmount + promoDiscount;
+  const discountAmount = durationDiscountAmount;
   const total = Math.max(0, subtotal - discountAmount);
 
   return {
@@ -127,8 +119,6 @@ export function calculatePrice(input: PriceCalculationInput): PriceBreakdown {
     durationDiscount,
     subtotal,
     discountAmount,
-    promoDiscount: promoCode ? promoDiscount : undefined,
-    promoCode: promoCode || undefined,
     total,
     currency,
   };

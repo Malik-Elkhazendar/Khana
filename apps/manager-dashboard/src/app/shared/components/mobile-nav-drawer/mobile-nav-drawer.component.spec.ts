@@ -26,6 +26,7 @@ const EN_TRANSLATIONS = {
         BOOKINGS: 'Bookings',
         CALENDAR: 'Calendar',
         NEW_BOOKING: 'New Booking',
+        PROMO_CODES: 'Promo Codes',
         FACILITIES: 'Facilities',
         TEAM: 'Team',
         SETTINGS: 'Settings',
@@ -71,6 +72,7 @@ describe('MobileNavDrawerComponent', () => {
           { path: 'dashboard/bookings', component: StubRouteComponent },
           { path: 'dashboard/calendar', component: StubRouteComponent },
           { path: 'dashboard/new', component: StubRouteComponent },
+          { path: 'dashboard/promo-codes', component: StubRouteComponent },
         ]),
       ],
       providers: [
@@ -154,6 +156,27 @@ describe('MobileNavDrawerComponent', () => {
 
     expect(router.url).toBe('/dashboard/bookings');
     expect(store.mobileDrawerOpen()).toBe(false);
+  });
+
+  it('shows promo nav item for owner and hides it for viewer', () => {
+    openDrawer();
+    expect(fixture.nativeElement.textContent).toContain('Promo Codes');
+
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setUser({
+      id: 'user-2',
+      tenantId: 'tenant-1',
+      email: 'viewer@khana.dev',
+      name: 'Viewer',
+      role: UserRole.VIEWER,
+      isActive: true,
+      onboardingCompleted: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Promo Codes');
   });
 
   it('closes on Escape key', () => {

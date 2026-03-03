@@ -1,0 +1,436 @@
+<main class="dashboard-page dashboard-page--data promo-codes-page">
+  <header class="dashboard-page__header">
+    <div class="dashboard-page__title-group">
+      <h1 class="dashboard-page__title">
+        {{ 'DASHBOARD.PAGES.PROMO_CODES.TITLE' | translate }}
+      </h1>
+      <p class="dashboard-page__subtitle">
+        {{ 'DASHBOARD.PAGES.PROMO_CODES.SUBTITLE' | translate }}
+      </p>
+    </div>
+    <div class="dashboard-page__actions dashboard-action-group">
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--secondary"
+        (click)="refresh()"
+      >
+        {{ 'DASHBOARD.ACTIONS.REFRESH' | translate }}
+      </button>
+      @if (canManage()) {
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--primary"
+        (click)="openCreateModal()"
+      >
+        {{ 'DASHBOARD.PAGES.PROMO_CODES.ACTIONS.CREATE' | translate }}
+      </button>
+      }
+    </div>
+  </header>
+
+  <section class="dashboard-card promo-filters">
+    <div class="promo-filters__grid">
+      <label class="promo-field">
+        <span class="promo-field__label">{{
+          'DASHBOARD.PAGES.PROMO_CODES.FILTERS.FACILITY' | translate
+        }}</span>
+        <select
+          [ngModel]="selectedFacilityId()"
+          (ngModelChange)="selectedFacilityId.set($event)"
+        >
+          <option value="">
+            {{
+              'DASHBOARD.PAGES.PROMO_CODES.FILTERS.ALL_FACILITIES' | translate
+            }}
+          </option>
+          @for (facility of facilities(); track facility.id) {
+          <option [value]="facility.id">{{ facility.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="promo-field">
+        <span class="promo-field__label">{{
+          'DASHBOARD.PAGES.PROMO_CODES.FILTERS.STATUS' | translate
+        }}</span>
+        <select
+          [ngModel]="selectedIsActive()"
+          (ngModelChange)="selectedIsActive.set($event)"
+        >
+          <option value="">
+            {{ 'DASHBOARD.PAGES.PROMO_CODES.FILTERS.ALL_STATUSES' | translate }}
+          </option>
+          <option value="true">
+            {{ 'DASHBOARD.PAGES.PROMO_CODES.STATE.ACTIVE' | translate }}
+          </option>
+          <option value="false">
+            {{ 'DASHBOARD.PAGES.PROMO_CODES.STATE.INACTIVE' | translate }}
+          </option>
+        </select>
+      </label>
+
+      <label class="promo-field">
+        <span class="promo-field__label">{{
+          'DASHBOARD.PAGES.PROMO_CODES.FILTERS.PAGE_SIZE' | translate
+        }}</span>
+        <select
+          [ngModel]="pageSize()"
+          (ngModelChange)="onPageSizeChange($event)"
+        >
+          <option [ngValue]="20">20</option>
+          <option [ngValue]="50">50</option>
+          <option [ngValue]="100">100</option>
+        </select>
+      </label>
+
+      <label class="promo-field promo-field--checkbox">
+        <input
+          type="checkbox"
+          [ngModel]="includeExpired()"
+          (ngModelChange)="includeExpired.set($event)"
+        />
+        <span class="promo-field__label">{{
+          'DASHBOARD.PAGES.PROMO_CODES.FILTERS.INCLUDE_EXPIRED' | translate
+        }}</span>
+      </label>
+    </div>
+
+    <div
+      class="dashboard-action-group dashboard-action-group--stack-compact promo-filters__actions"
+    >
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--primary"
+        (click)="applyFilters()"
+      >
+        {{ 'DASHBOARD.PAGES.PROMO_CODES.FILTERS.APPLY' | translate }}
+      </button>
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--secondary"
+        (click)="resetFilters()"
+      >
+        {{ 'DASHBOARD.PAGES.PROMO_CODES.FILTERS.RESET' | translate }}
+      </button>
+    </div>
+  </section>
+
+  <section class="dashboard-card promo-panel">
+    <p class="promo-state" *ngIf="loading()">
+      {{ 'DASHBOARD.PAGES.PROMO_CODES.STATE.LOADING' | translate }}
+    </p>
+
+    <div class="promo-state promo-state--error" *ngIf="error() && !loading()">
+      <span>{{ error()?.message | translate }}</span>
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--secondary"
+        (click)="refresh()"
+      >
+        {{ 'DASHBOARD.ACTIONS.RETRY' | translate }}
+      </button>
+    </div>
+
+    <p
+      class="promo-state"
+      *ngIf="!loading() && (data()?.items?.length ?? 0) === 0"
+    >
+      {{ 'DASHBOARD.PAGES.PROMO_CODES.STATE.EMPTY' | translate }}
+    </p>
+
+    <div
+      class="table-wrap"
+      *ngIf="!loading() && (data()?.items?.length ?? 0) > 0"
+    >
+      <table class="promo-table">
+        <thead>
+          <tr>
+            <th>{{ 'DASHBOARD.PAGES.PROMO_CODES.TABLE.CODE' | translate }}</th>
+            <th>
+              {{ 'DASHBOARD.PAGES.PROMO_CODES.TABLE.DISCOUNT' | translate }}
+            </th>
+            <th>{{ 'DASHBOARD.PAGES.PROMO_CODES.TABLE.SCOPE' | translate }}</th>
+            <th>{{ 'DASHBOARD.PAGES.PROMO_CODES.TABLE.USAGE' | translate }}</th>
+            <th>
+              {{ 'DASHBOARD.PAGES.PROMO_CODES.TABLE.EXPIRES_AT' | translate }}
+            </th>
+            <th>{{ 'DASHBOARD.PAGES.PROMO_CODES.TABLE.STATE' | translate }}</th>
+            <th>
+              {{ 'DASHBOARD.PAGES.PROMO_CODES.TABLE.UPDATED_AT' | translate }}
+            </th>
+            @if (canManage()) {
+            <th>
+              {{ 'DASHBOARD.PAGES.PROMO_CODES.TABLE.ACTIONS' | translate }}
+            </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of data()?.items ?? []; trackBy: trackByPromoId">
+            <td>
+              <strong>{{ item.code }}</strong>
+            </td>
+            <td>
+              <div>{{ formatDiscount(item) }}</div>
+              <small>
+                {{
+                  'DASHBOARD.PAGES.PROMO_CODES.DISCOUNT_TYPE.' +
+                    item.discountType | translate
+                }}
+              </small>
+            </td>
+            <td>{{ formatScope(item) }}</td>
+            <td>{{ usageValue(item) }}</td>
+            <td>{{ formatDateTime(item.expiresAt) }}</td>
+            <td>
+              <app-ui-status-badge
+                [label]="
+                  'DASHBOARD.PAGES.PROMO_CODES.STATE.' + stateBadge(item)
+                    | translate
+                "
+                [tone]="stateTone(item)"
+              ></app-ui-status-badge>
+            </td>
+            <td>{{ formatDateTime(item.updatedAt) }}</td>
+            @if (canManage()) {
+            <td>
+              <div
+                class="promo-actions dashboard-action-group dashboard-action-group--stack-compact"
+              >
+                <button
+                  type="button"
+                  class="dashboard-btn dashboard-btn--secondary"
+                  [disabled]="isTogglePending(item)"
+                  (click)="openEditModal(item)"
+                >
+                  {{ 'DASHBOARD.PAGES.PROMO_CODES.ACTIONS.EDIT' | translate }}
+                </button>
+                <button
+                  type="button"
+                  class="dashboard-btn dashboard-btn--ghost"
+                  [disabled]="isTogglePending(item)"
+                  (click)="openToggleDialog(item)"
+                >
+                  {{
+                    (item.isActive
+                      ? 'DASHBOARD.PAGES.PROMO_CODES.ACTIONS.DEACTIVATE'
+                      : 'DASHBOARD.PAGES.PROMO_CODES.ACTIONS.ACTIVATE'
+                    ) | translate
+                  }}
+                </button>
+                @if (toggleError(item); as rowError) {
+                <small class="promo-row-error">{{
+                  rowError | translate
+                }}</small>
+                }
+              </div>
+            </td>
+            }
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer
+      class="promo-pagination"
+      *ngIf="(data()?.total ?? 0) > (data()?.pageSize ?? 20)"
+    >
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--ghost"
+        [disabled]="page() <= 1 || loading()"
+        (click)="goToPage(page() - 1)"
+      >
+        {{ 'DASHBOARD.PAGES.PROMO_CODES.PAGINATION.PREVIOUS' | translate }}
+      </button>
+      <span>
+        {{
+          'DASHBOARD.PAGES.PROMO_CODES.PAGINATION.LABEL'
+            | translate : { page: page(), totalPages: pageCount() }
+        }}
+      </span>
+      <button
+        type="button"
+        class="dashboard-btn dashboard-btn--ghost"
+        [disabled]="page() >= pageCount() || loading()"
+        (click)="goToPage(page() + 1)"
+      >
+        {{ 'DASHBOARD.PAGES.PROMO_CODES.PAGINATION.NEXT' | translate }}
+      </button>
+    </footer>
+  </section>
+</main>
+
+@if (modal().isOpen) {
+<app-confirmation-dialog
+  [title]="
+    modal().mode === 'create'
+      ? text('DASHBOARD.PAGES.PROMO_CODES.MODAL.CREATE_TITLE')
+      : text('DASHBOARD.PAGES.PROMO_CODES.MODAL.EDIT_TITLE')
+  "
+  [message]="text('DASHBOARD.PAGES.PROMO_CODES.MODAL.SUBTITLE')"
+  [confirmLabel]="
+    modal().mode === 'create'
+      ? text('DASHBOARD.PAGES.PROMO_CODES.MODAL.SUBMIT_CREATE')
+      : text('DASHBOARD.PAGES.PROMO_CODES.MODAL.SUBMIT_SAVE')
+  "
+  [cancelLabel]="text('DASHBOARD.PAGES.PROMO_CODES.MODAL.CANCEL')"
+  [confirmDisabled]="promoForm.invalid || modalBusy()"
+  [busy]="modalBusy()"
+  (confirmed)="submitModal()"
+  (dismissed)="closeModal()"
+>
+  <form class="promo-modal-form" [formGroup]="promoForm">
+    <label>
+      <span>{{ 'DASHBOARD.PAGES.PROMO_CODES.FORM.CODE' | translate }}</span>
+      <input type="text" formControlName="code" maxlength="40" />
+    </label>
+
+    <div class="promo-modal-form__grid">
+      <label>
+        <span>{{
+          'DASHBOARD.PAGES.PROMO_CODES.FORM.DISCOUNT_TYPE' | translate
+        }}</span>
+        <select formControlName="discountType">
+          <option [value]="PromoDiscountType.PERCENTAGE">
+            {{
+              'DASHBOARD.PAGES.PROMO_CODES.DISCOUNT_TYPE.PERCENTAGE' | translate
+            }}
+          </option>
+          <option [value]="PromoDiscountType.FIXED_AMOUNT">
+            {{
+              'DASHBOARD.PAGES.PROMO_CODES.DISCOUNT_TYPE.FIXED_AMOUNT'
+                | translate
+            }}
+          </option>
+        </select>
+      </label>
+
+      <label>
+        <span>{{
+          'DASHBOARD.PAGES.PROMO_CODES.FORM.DISCOUNT_VALUE' | translate
+        }}</span>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          formControlName="discountValue"
+        />
+      </label>
+    </div>
+
+    <div class="promo-modal-form__grid">
+      <label>
+        <span>{{
+          'DASHBOARD.PAGES.PROMO_CODES.FORM.FACILITY_SCOPE' | translate
+        }}</span>
+        <select
+          formControlName="facilityScope"
+          (change)="onFacilityScopeChange()"
+        >
+          <option [value]="PromoFacilityScope.ALL_FACILITIES">
+            {{ 'DASHBOARD.PAGES.PROMO_CODES.SCOPE.ALL_FACILITIES' | translate }}
+          </option>
+          <option [value]="PromoFacilityScope.SINGLE_FACILITY">
+            {{
+              'DASHBOARD.PAGES.PROMO_CODES.SCOPE.SINGLE_FACILITY' | translate
+            }}
+          </option>
+        </select>
+      </label>
+
+      @if (promoForm.controls.facilityScope.value ===
+      PromoFacilityScope.SINGLE_FACILITY) {
+      <label>
+        <span>{{
+          'DASHBOARD.PAGES.PROMO_CODES.FORM.FACILITY' | translate
+        }}</span>
+        <select formControlName="facilityId">
+          <option value="">
+            {{ 'DASHBOARD.PAGES.PROMO_CODES.FORM.SELECT_FACILITY' | translate }}
+          </option>
+          @for (facility of facilities(); track facility.id) {
+          <option [value]="facility.id">{{ facility.name }}</option>
+          }
+        </select>
+      </label>
+      }
+    </div>
+
+    <div class="promo-modal-form__grid">
+      <label>
+        <span>{{
+          'DASHBOARD.PAGES.PROMO_CODES.FORM.MAX_USES' | translate
+        }}</span>
+        <input type="number" min="1" step="1" formControlName="maxUses" />
+      </label>
+
+      <label>
+        <span>{{
+          'DASHBOARD.PAGES.PROMO_CODES.FORM.EXPIRES_AT' | translate
+        }}</span>
+        <input type="datetime-local" formControlName="expiresAt" />
+      </label>
+    </div>
+
+    <label class="promo-modal-form__checkbox">
+      <input type="checkbox" formControlName="isActive" />
+      <span>{{ 'DASHBOARD.PAGES.PROMO_CODES.FORM.ACTIVE' | translate }}</span>
+    </label>
+
+    @if ( promoForm.controls.code.touched && promoForm.controls.code.invalid ) {
+    <p class="promo-modal-form__error">
+      {{ 'DASHBOARD.PAGES.PROMO_CODES.FORM.ERROR_CODE' | translate }}
+    </p>
+    } @if (promoForm.controls.discountValue.touched &&
+    promoForm.controls.discountValue.invalid) {
+    <p class="promo-modal-form__error">
+      {{ 'DASHBOARD.PAGES.PROMO_CODES.FORM.ERROR_DISCOUNT_VALUE' | translate }}
+    </p>
+    } @if ( promoForm.controls.maxUses.touched &&
+    promoForm.controls.maxUses.invalid ) {
+    <p class="promo-modal-form__error">
+      {{ 'DASHBOARD.PAGES.PROMO_CODES.FORM.ERROR_MAX_USES' | translate }}
+    </p>
+    } @if (promoForm.controls.facilityScope.value ===
+    PromoFacilityScope.SINGLE_FACILITY && promoForm.controls.facilityId.touched
+    && promoForm.controls.facilityId.invalid) {
+    <p class="promo-modal-form__error">
+      {{
+        'DASHBOARD.PAGES.PROMO_CODES.FORM.ERROR_FACILITY_REQUIRED' | translate
+      }}
+    </p>
+    } @if (formError()) {
+    <p class="promo-modal-form__error">{{ formError() | translate }}</p>
+    } @if (modalError()) {
+    <p class="promo-modal-form__error">{{ modalError() | translate }}</p>
+    }
+  </form>
+</app-confirmation-dialog>
+} @if (toggleTarget(); as item) {
+<app-confirmation-dialog
+  [title]="
+    item.isActive
+      ? text('DASHBOARD.PAGES.PROMO_CODES.CONFIRM.DEACTIVATE_TITLE')
+      : text('DASHBOARD.PAGES.PROMO_CODES.CONFIRM.ACTIVATE_TITLE')
+  "
+  [message]="
+    item.isActive
+      ? text('DASHBOARD.PAGES.PROMO_CODES.CONFIRM.DEACTIVATE_MESSAGE', {
+          code: item.code
+        })
+      : text('DASHBOARD.PAGES.PROMO_CODES.CONFIRM.ACTIVATE_MESSAGE', {
+          code: item.code
+        })
+  "
+  [confirmLabel]="
+    item.isActive
+      ? text('DASHBOARD.PAGES.PROMO_CODES.ACTIONS.DEACTIVATE')
+      : text('DASHBOARD.PAGES.PROMO_CODES.ACTIONS.ACTIVATE')
+  "
+  [cancelLabel]="text('DASHBOARD.PAGES.PROMO_CODES.MODAL.CANCEL')"
+  [busy]="isTogglePending(item)"
+  (confirmed)="confirmToggle()"
+  (dismissed)="closeToggleDialog()"
+></app-confirmation-dialog>
+}
