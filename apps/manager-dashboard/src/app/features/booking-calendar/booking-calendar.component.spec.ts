@@ -474,6 +474,178 @@ describe('BookingCalendarComponent', () => {
     expect(style.left).toBe('50%');
   });
 
+  it('builds expanded presentation for non-overlapping cards with enough space', () => {
+    const { component } = setupComponent();
+    const presentation = (
+      component as unknown as {
+        buildBookingPresentation: (metrics: unknown) => {
+          density: string;
+          showTagChip: boolean;
+          showTagDot: boolean;
+          showFacility: boolean;
+        };
+      }
+    ).buildBookingPresentation({
+      availableBlockPx: 40,
+      availableInlinePx: 120,
+      hasOverlap: false,
+      hasTags: true,
+      typography: {
+        paddingBlockPx: 4,
+        rowGapPx: 2,
+        nameLineHeightPx: 14,
+        metaLineHeightPx: 12,
+      },
+    });
+
+    expect(presentation).toEqual({
+      density: 'expanded',
+      showTagChip: true,
+      showTagDot: false,
+      showFacility: true,
+    });
+  });
+
+  it('builds compact presentation for tight cards', () => {
+    const { component } = setupComponent();
+    const presentation = (
+      component as unknown as {
+        buildBookingPresentation: (metrics: unknown) => {
+          density: string;
+          showTagChip: boolean;
+          showTagDot: boolean;
+          showFacility: boolean;
+        };
+      }
+    ).buildBookingPresentation({
+      availableBlockPx: 24,
+      availableInlinePx: 90,
+      hasOverlap: false,
+      hasTags: true,
+      typography: {
+        paddingBlockPx: 4,
+        rowGapPx: 2,
+        nameLineHeightPx: 14,
+        metaLineHeightPx: 12,
+      },
+    });
+
+    expect(presentation).toEqual({
+      density: 'compact',
+      showTagChip: false,
+      showTagDot: true,
+      showFacility: false,
+    });
+  });
+
+  it('builds standard presentation for overlapping cards with enough space', () => {
+    const { component } = setupComponent();
+    const presentation = (
+      component as unknown as {
+        buildBookingPresentation: (metrics: unknown) => {
+          density: string;
+          showTagChip: boolean;
+          showTagDot: boolean;
+          showFacility: boolean;
+        };
+      }
+    ).buildBookingPresentation({
+      availableBlockPx: 42,
+      availableInlinePx: 70,
+      hasOverlap: true,
+      hasTags: true,
+      typography: {
+        paddingBlockPx: 4,
+        rowGapPx: 2,
+        nameLineHeightPx: 14,
+        metaLineHeightPx: 12,
+      },
+    });
+
+    expect(presentation).toEqual({
+      density: 'standard',
+      showTagChip: false,
+      showTagDot: true,
+      showFacility: true,
+    });
+  });
+
+  it('renders compact timeline cards with tag dot and status signal', () => {
+    const booking = createTimedBooking({
+      customerTags: ['vip'],
+      facility: { id: 'f-1', name: 'Court A' },
+    });
+    storeMock.bookings.set([booking]);
+    const fixture = TestBed.createComponent(BookingCalendarComponent);
+    const component = fixture.componentInstance;
+
+    jest.spyOn(component, 'getTimelineBookingPresentation').mockReturnValue({
+      density: 'compact',
+      showTagChip: false,
+      showTagDot: true,
+      showFacility: false,
+    });
+    fixture.detectChanges();
+
+    const card = fixture.nativeElement.querySelector(
+      '.calendar__timeline-card'
+    ) as HTMLElement | null;
+    expect(card?.querySelector('.calendar__booking-tag-dot')).not.toBeNull();
+    expect(
+      card?.querySelector('.calendar__booking-status-signal')
+    ).not.toBeNull();
+    expect(card?.querySelector('app-tag-chip')).toBeNull();
+    expect(card?.querySelector('.calendar__timeline-meta')).toBeNull();
+  });
+
+  it('renders expanded timeline cards with facility and tag chip', () => {
+    const booking = createTimedBooking({
+      customerTags: ['vip'],
+      facility: { id: 'f-2', name: 'Court B' },
+    });
+    storeMock.bookings.set([booking]);
+    const fixture = TestBed.createComponent(BookingCalendarComponent);
+    const component = fixture.componentInstance;
+
+    jest.spyOn(component, 'getTimelineBookingPresentation').mockReturnValue({
+      density: 'expanded',
+      showTagChip: true,
+      showTagDot: false,
+      showFacility: true,
+    });
+    fixture.detectChanges();
+
+    const card = fixture.nativeElement.querySelector(
+      '.calendar__timeline-card'
+    ) as HTMLElement | null;
+    expect(card?.querySelector('app-tag-chip')).not.toBeNull();
+    expect(card?.querySelector('.calendar__timeline-meta')).not.toBeNull();
+    expect(card?.querySelector('.calendar__booking-tag-dot')).toBeNull();
+  });
+
+  it('includes hidden metadata in grid aria labels for compact cards', () => {
+    const booking = createTimedBooking({
+      customerName: 'Malek',
+      customerTags: ['vip'],
+      facility: { id: 'f-3', name: 'Court C' },
+      status: BookingStatus.CONFIRMED,
+    });
+    const { component } = setupComponent([booking]);
+    const segment = component.bookingSegments()[0];
+
+    const label = component.gridBookingAriaLabel(segment, {
+      density: 'compact',
+      showTagChip: false,
+      showTagDot: true,
+      showFacility: false,
+    });
+
+    expect(label).toContain('Malek');
+    expect(label).toContain('Court C');
+    expect(label.toLowerCase()).toContain('vip');
+    expect(label).toContain('Confirmed');
+  });
+
   it('tracks layout calculation duration', () => {
     const booking = createTimedBooking();
     const { component } = setupComponent([booking]);
@@ -591,7 +763,9 @@ describe('BookingCalendarComponent', () => {
     document.body.appendChild(trigger);
     trigger.focus();
 
-    component.openBooking(booking, { currentTarget: trigger } as Event);
+    component.openBooking(booking, {
+      currentTarget: trigger,
+    } as unknown as Event);
     jest.runAllTimers();
     component.closePanel();
 

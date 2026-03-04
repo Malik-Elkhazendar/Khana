@@ -19,6 +19,7 @@ import {
   AuditAction,
   AuditLog,
   Booking,
+  Customer,
   Facility,
   PromoCode,
   PromoCodeRedemption,
@@ -40,9 +41,15 @@ import {
   SlotStatus,
   UserRole,
 } from '@khana/shared-dtos';
-import { addMinutes } from '@khana/shared-utils';
+import {
+  addMinutes,
+  isValidSaudiPhone,
+  normalizeSaudiPhone,
+} from '@khana/shared-utils';
 import { EmailService } from '@khana/notifications';
 import { AppLoggerService, LOG_EVENTS } from '../logging';
+import { GoalsService } from '../goals/goals.service';
+import { CustomersService } from '../customers/customers.service';
 import {
   BookingPreviewRequestDto,
   BookingPreviewResponseDto,
@@ -93,6 +100,8 @@ export class BookingsService {
   constructor(
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
+    @InjectRepository(Customer)
+    private readonly customerRepository: Repository<Customer>,
     @InjectRepository(Facility)
     private readonly facilityRepository: Repository<Facility>,
     @InjectRepository(User)
@@ -105,14 +114,16 @@ export class BookingsService {
     private readonly auditLogRepository: Repository<AuditLog>,
     private readonly emailService: EmailService,
     private readonly appLogger: AppLoggerService,
-    private readonly waitlistService: WaitlistService
+    private readonly waitlistService: WaitlistService,
+    private readonly goalsService: GoalsService,
+    private readonly customersService: CustomersService
   ) {}
 
   async findAll(
     tenantId: string,
     user: User,
     facilityId?: string
-  ): Promise<Booking[]> {
+  ): Promise<BookingListItemDto[]> {
     const resolvedTenantId = this.requireTenantId(tenantId);
     const actorRole = this.requireUserRole(user?.role);
     const actorUserId = this.requireUserId(user?.id);
@@ -158,7 +169,41 @@ export class BookingsService {
       query.andWhere('booking.createdByUserId = :actorUserId', { actorUserId });
     }
 
-    return query.getMany();
+    const bookings = await query.getMany();
+
+    const normalizedPhones = Array.from(
+      new Set(
+        bookings
+          .map((booking) => this.normalizeCustomerPhone(booking.customerPhone))
+          .filter((phone): phone is string => Boolean(phone))
+      )
+    );
+
+    const customerTagMap = new Map<string, string[]>();
+    if (normalizedPhones.length > 0) {
+      const customers = await this.customerRepository.find({
+        select: ['phone', 'tags'],
+        where: {
+          tenantId: resolvedTenantId,
+          phone: In(normalizedPhones),
+        },
+      });
+
+      for (const customer of customers) {
+        customerTagMap.set(customer.phone, customer.tags ?? []);
+      }
+    }
+
+    return bookings.map((booking) => {
+      const normalizedPhone = this.normalizeCustomerPhone(
+        booking.customerPhone
+      );
+      const customerTags =
+        normalizedPhone && customerTagMap.has(normalizedPhone)
+          ? customerTagMap.get(normalizedPhone) ?? []
+          : [];
+      return this.toBookingListItemDto(booking, booking.facility, customerTags);
+    });
   }
 
   /**
@@ -288,6 +333,9 @@ export class BookingsService {
     const resolvedUserId = this.requireUserId(userId);
     const actorRole = this.requireUserRole(userRole);
     const normalizedPromoCode = this.normalizePromoCode(dto.promoCode);
+    const normalizedCustomerPhone =
+      this.normalizeCustomerPhone(dto.customerPhone) ??
+      dto.customerPhone.trim();
 
     if (this.isViewer(actorRole)) {
       throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
@@ -444,7 +492,7 @@ export class BookingsService {
           startTime,
           endTime,
           customerName: dto.customerName,
-          customerPhone: dto.customerPhone,
+          customerPhone: normalizedCustomerPhone,
           status,
           paymentStatus: PaymentStatus.PENDING,
           bookingReference,
@@ -504,6 +552,38 @@ export class BookingsService {
         )
       );
 
+    this.goalsService
+      .syncMilestonesForCurrentMonth(resolvedTenantId)
+      .catch((err) =>
+        this.appLogger.error(
+          LOG_EVENTS.GOALS_MILESTONE_SYNC_FAILED,
+          'Failed to sync goal milestones after booking creation',
+          {
+            tenantId: resolvedTenantId,
+            bookingId: saved.id,
+          },
+          err
+        )
+      );
+
+    try {
+      await this.customersService.upsert(
+        resolvedTenantId,
+        saved.customerName,
+        saved.customerPhone
+      );
+    } catch (err) {
+      this.appLogger.error(
+        LOG_EVENTS.CUSTOMER_UPSERT_FAILED,
+        'Failed to upsert customer after booking creation',
+        {
+          tenantId: resolvedTenantId,
+          bookingId: saved.id,
+        },
+        err
+      );
+    }
+
     this.appLogger.info(LOG_EVENTS.BOOKING_CREATE_SUCCESS, 'Booking created', {
       bookingId: saved.id,
       facilityId: saved.facility?.id,
@@ -536,6 +616,9 @@ export class BookingsService {
     const resolvedTenantId = this.requireTenantId(tenantId);
     const resolvedUserId = this.requireUserId(userId);
     const actorRole = this.requireUserRole(userRole);
+    const normalizedCustomerPhone =
+      this.normalizeCustomerPhone(dto.customerPhone) ??
+      dto.customerPhone.trim();
 
     if (this.isViewer(actorRole)) {
       throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
@@ -732,7 +815,7 @@ export class BookingsService {
               startTime: occurrence.startTime,
               endTime: occurrence.endTime,
               customerName: dto.customerName,
-              customerPhone: dto.customerPhone,
+              customerPhone: normalizedCustomerPhone,
               status,
               paymentStatus: PaymentStatus.PENDING,
               bookingReference,
@@ -784,6 +867,24 @@ export class BookingsService {
         facilityId: dto.facilityId,
       }
     );
+
+    try {
+      await this.customersService.upsert(
+        resolvedTenantId,
+        dto.customerName,
+        normalizedCustomerPhone
+      );
+    } catch (err) {
+      this.appLogger.error(
+        LOG_EVENTS.CUSTOMER_UPSERT_FAILED,
+        'Failed to upsert customer after recurring booking creation',
+        {
+          tenantId: resolvedTenantId,
+          recurrenceGroupId: created.recurrenceGroupId,
+        },
+        err
+      );
+    }
 
     return created;
   }
@@ -945,6 +1046,20 @@ export class BookingsService {
         );
     }
 
+    this.goalsService
+      .syncMilestonesForCurrentMonth(resolvedTenantId)
+      .catch((err) =>
+        this.appLogger.error(
+          LOG_EVENTS.GOALS_MILESTONE_SYNC_FAILED,
+          'Failed to sync goal milestones after booking status update',
+          {
+            tenantId: resolvedTenantId,
+            bookingId: booking.id,
+          },
+          err
+        )
+      );
+
     return booking;
   }
 
@@ -1077,6 +1192,18 @@ export class BookingsService {
           )
         );
     }
+
+    this.goalsService.syncMilestonesForCurrentMonth(tenantId).catch((err) =>
+      this.appLogger.error(
+        LOG_EVENTS.GOALS_MILESTONE_SYNC_FAILED,
+        'Failed to sync goal milestones after recurring cancellation',
+        {
+          tenantId,
+          recurrenceGroupId,
+        },
+        err
+      )
+    );
 
     return selectedBooking;
   }
@@ -1221,7 +1348,8 @@ export class BookingsService {
 
   private toBookingListItemDto(
     booking: Booking,
-    facility: Facility
+    facility: Facility,
+    customerTags: string[] = []
   ): BookingListItemDto {
     return {
       id: booking.id,
@@ -1237,6 +1365,7 @@ export class BookingsService {
       endTime: booking.endTime.toISOString(),
       customerName: booking.customerName,
       customerPhone: booking.customerPhone,
+      customerTags,
       totalAmount: booking.totalAmount,
       currency: booking.currency,
       priceBreakdown: booking.priceBreakdown,
@@ -1406,6 +1535,19 @@ export class BookingsService {
   private normalizePromoCode(promoCode?: string | null): string | undefined {
     const normalized = (promoCode ?? '').trim().toUpperCase();
     return normalized.length > 0 ? normalized : undefined;
+  }
+
+  private normalizeCustomerPhone(phone?: string | null): string | null {
+    const compact = phone?.replace(/\s+/g, '').trim() ?? '';
+    if (!compact) {
+      return null;
+    }
+
+    if (!isValidSaudiPhone(compact)) {
+      return null;
+    }
+
+    return normalizeSaudiPhone(compact);
   }
 
   private async resolvePromoForPreview(params: {

@@ -1,6 +1,8 @@
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   OnInit,
   OnDestroy,
@@ -14,6 +16,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { FacilityContextStore } from '../../shared/state';
@@ -31,6 +34,8 @@ import { HoldTimerComponent } from './hold-timer.component';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
 import {
+  resolveTagColorClass,
+  TagChipComponent,
   UiStatusBadgeComponent,
   UiToastComponent,
 } from '../../shared/components';
@@ -75,6 +80,26 @@ type ErrorRecoveryOption = {
 type BookingLayout = { column: number; columns: number };
 type BookingLayoutMap = Map<string, BookingLayout>;
 type LayoutMetrics = { layout: BookingLayoutMap; durationMs: number };
+type BookingCardDensity = 'compact' | 'standard' | 'expanded';
+type BookingCardPresentation = {
+  density: BookingCardDensity;
+  showTagChip: boolean;
+  showTagDot: boolean;
+  showFacility: boolean;
+};
+type BookingCardTypographyMetrics = {
+  paddingBlockPx: number;
+  rowGapPx: number;
+  nameLineHeightPx: number;
+  metaLineHeightPx: number;
+};
+type BookingPresentationMetrics = {
+  availableBlockPx: number;
+  availableInlinePx: number;
+  hasOverlap: boolean;
+  hasTags: boolean;
+  typography: BookingCardTypographyMetrics | null;
+};
 
 type BookingCardStyle = {
   top: string;
@@ -131,6 +156,7 @@ const ERROR_CATEGORY_BY_CODE: Record<BookingErrorCode, ErrorCategory> = {
     HoldTimerComponent,
     ConfirmationDialogComponent,
     CancellationFormComponent,
+    TagChipComponent,
     UiStatusBadgeComponent,
     UiToastComponent,
   ],
@@ -138,13 +164,16 @@ const ERROR_CATEGORY_BY_CODE: Record<BookingErrorCode, ErrorCategory> = {
   styleUrl: './booking-calendar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BookingCalendarComponent implements OnInit, OnDestroy {
+export class BookingCalendarComponent
+  implements OnInit, AfterViewInit, OnDestroy
+{
   readonly store = inject(BookingStore);
   private readonly facilityContext = inject(FacilityContextStore);
   private readonly authStore = inject(AuthStore);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
+  private readonly destroyRef = inject(DestroyRef);
   private readonly localeFormat = inject(LocaleFormatService);
   private readonly translateService = inject(TranslateService, {
     optional: true,
@@ -183,6 +212,10 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   @ViewChild('actionPanel') actionPanel?: ElementRef<HTMLElement>;
   @ViewChild('closeButton') closeButton?: ElementRef<HTMLButtonElement>;
   @ViewChildren('slotCell') slotCells?: QueryList<ElementRef<HTMLElement>>;
+  @ViewChildren('gridBookingCard')
+  gridBookingCards?: QueryList<ElementRef<HTMLElement>>;
+  @ViewChildren('timelineCard')
+  timelineCards?: QueryList<ElementRef<HTMLElement>>;
 
   private lastFocusedElement: HTMLElement | null = null;
   private toastTimer: number | null = null;
@@ -191,6 +224,17 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   private focusTimer: number | null = null;
   private panelCloseTimer: number | null = null;
   private lastLoadedFacilityId: string | null | undefined = undefined;
+  private resizeObserver: ResizeObserver | null = null;
+
+  readonly slotBlockSizePx = signal(0);
+  readonly calendarCellInlineSizePx = signal(0);
+  readonly timelineCardBlockSizePx = signal(0);
+  readonly timelineCardInlineSizePx = signal(0);
+
+  private readonly gridTypographyMetrics =
+    signal<BookingCardTypographyMetrics | null>(null);
+  private readonly timelineTypographyMetrics =
+    signal<BookingCardTypographyMetrics | null>(null);
 
   // Operating hours (00:00 - 23:00)
   readonly hours: string[] = Array.from(
@@ -420,6 +464,63 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   readonly bookingLayout = computed(() => this.layoutMetrics().layout);
   readonly layoutDurationMs = computed(() => this.layoutMetrics().durationMs);
 
+  readonly gridCardPresentations = computed(() => {
+    const layoutMap = this.bookingLayout();
+    const slotBlockSizePx = this.slotBlockSizePx();
+    const cellInlineSizePx = this.calendarCellInlineSizePx();
+    const verticalGapPx = this.readRootCssVarPx('--space-1');
+    const typography = this.gridTypographyMetrics();
+    const map = new Map<string, BookingCardPresentation>();
+
+    for (const segment of this.bookingSegments()) {
+      const layout = layoutMap.get(segment.id) ?? this.defaultLayout;
+      const hours = segment.durationMs / (1000 * 60 * 60);
+      const availableBlockPx = Math.max(
+        0,
+        slotBlockSizePx * hours - verticalGapPx
+      );
+      const availableInlinePx =
+        layout.columns > 0 ? cellInlineSizePx / layout.columns : 0;
+
+      map.set(
+        segment.id,
+        this.buildBookingPresentation({
+          availableBlockPx,
+          availableInlinePx,
+          hasOverlap: layout.columns > 1,
+          hasTags: Boolean(segment.booking.customerTags?.length),
+          typography,
+        })
+      );
+    }
+
+    return map;
+  });
+
+  readonly timelineCardPresentations = computed(() => {
+    const layoutMap = this.bookingLayout();
+    const availableBlockPx = this.timelineCardBlockSizePx();
+    const availableInlinePx = this.timelineCardInlineSizePx();
+    const typography = this.timelineTypographyMetrics();
+    const map = new Map<string, BookingCardPresentation>();
+
+    for (const segment of this.selectedDayBookings()) {
+      const layout = layoutMap.get(segment.id) ?? this.defaultLayout;
+      map.set(
+        segment.id,
+        this.buildBookingPresentation({
+          availableBlockPx,
+          availableInlinePx,
+          hasOverlap: layout.columns > 1,
+          hasTags: Boolean(segment.booking.customerTags?.length),
+          typography,
+        })
+      );
+    }
+
+    return map;
+  });
+
   constructor() {
     effect(() => {
       if (!this.facilityContext.initialized()) return;
@@ -436,7 +537,25 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     this.loadBookings(true);
   }
 
+  ngAfterViewInit(): void {
+    this.setupResizeObserver();
+
+    this.slotCells?.changes
+      ?.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.observeMeasurementTargets());
+    this.gridBookingCards?.changes
+      ?.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.observeMeasurementTargets());
+    this.timelineCards?.changes
+      ?.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.observeMeasurementTargets());
+
+    queueMicrotask(() => this.observeMeasurementTargets());
+  }
+
   ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     this.clearTimers();
   }
 
@@ -1050,22 +1169,40 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     return this.t(key, fallback, params);
   }
 
-  timelineBookingAriaLabel(booking: BookingListItemDto): string {
+  timelineBookingAriaLabel(
+    segment: BookingSegment,
+    presentation: BookingCardPresentation
+  ): string {
+    const booking = segment.booking;
     return this.t(
-      'BOOKING_CALENDAR.ARIA.TIMELINE_BOOKING',
-      'Booking: {{name}}, {{start}} to {{end}}',
+      'BOOKING_CALENDAR.ARIA.TIMELINE_BOOKING_DETAILED',
+      'Booking: {{name}}, {{start}} to {{end}}, {{status}}, {{facility}}{{tagsSuffix}}',
       {
         name: booking.customerName,
         start: this.formatTime(booking.startTime),
         end: this.formatTime(booking.endTime),
+        status: this.statusLabel(booking.status),
+        facility: booking.facility.name,
+        tagsSuffix: this.tagsSuffixForAria(booking, presentation),
       }
     );
   }
 
-  gridBookingAriaLabel(booking: BookingListItemDto): string {
-    return this.t('BOOKING_CALENDAR.ARIA.GRID_BOOKING', 'Booking: {{name}}', {
-      name: booking.customerName,
-    });
+  gridBookingAriaLabel(
+    segment: BookingSegment,
+    presentation: BookingCardPresentation
+  ): string {
+    const booking = segment.booking;
+    return this.t(
+      'BOOKING_CALENDAR.ARIA.GRID_BOOKING_DETAILED',
+      'Booking: {{name}}, {{status}}, {{facility}}{{tagsSuffix}}',
+      {
+        name: booking.customerName,
+        status: this.statusLabel(booking.status),
+        facility: booking.facility.name,
+        tagsSuffix: this.tagsSuffixForAria(booking, presentation),
+      }
+    );
   }
 
   holdUntilTitle(holdUntil: string | null | undefined): string | null {
@@ -1079,6 +1216,24 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     );
   }
 
+  private tagsSuffixForAria(
+    booking: BookingListItemDto,
+    presentation: BookingCardPresentation
+  ): string {
+    if (presentation.showTagChip) {
+      return '';
+    }
+
+    const tags = booking.customerTags?.map((tag) => tag.trim()).filter(Boolean);
+    if (!tags || tags.length === 0) {
+      return '';
+    }
+
+    return this.t('BOOKING_CALENDAR.ARIA.TAGS_SUFFIX', ', tags: {{tags}}', {
+      tags: tags.join(', '),
+    });
+  }
+
   private t(
     key: string,
     fallback: string,
@@ -1086,7 +1241,24 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
   ): string {
     this.languageService?.languageVersion();
     const translated = this.translateService?.instant(key, params);
-    return translated && translated !== key ? translated : fallback;
+    if (translated && translated !== key) {
+      return translated;
+    }
+    return this.interpolateFallback(fallback, params);
+  }
+
+  private interpolateFallback(
+    fallback: string,
+    params?: Record<string, string | number>
+  ): string {
+    if (!params) return fallback;
+    return fallback.replace(
+      /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,
+      (_match, token: string) => {
+        const value = params[token];
+        return value === undefined || value === null ? '' : String(value);
+      }
+    );
   }
 
   private getFocusableElements(container: HTMLElement): HTMLElement[] {
@@ -1215,6 +1387,108 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
     const selectedFacilityId = this.facilityContext.selectedFacilityId();
     this.lastLoadedFacilityId = selectedFacilityId;
     this.store.loadBookings(selectedFacilityId);
+  }
+
+  private setupResizeObserver(): void {
+    if (typeof ResizeObserver === 'undefined') {
+      this.observeMeasurementTargets();
+      return;
+    }
+
+    this.resizeObserver = new ResizeObserver(() => {
+      this.observeMeasurementTargets();
+    });
+  }
+
+  private observeMeasurementTargets(): void {
+    const slot = this.slotCells?.first?.nativeElement ?? null;
+    const gridCard = this.gridBookingCards?.first?.nativeElement ?? null;
+    const timelineCard = this.timelineCards?.first?.nativeElement ?? null;
+
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      if (slot) this.resizeObserver.observe(slot);
+      if (gridCard) this.resizeObserver.observe(gridCard);
+      if (timelineCard) this.resizeObserver.observe(timelineCard);
+    }
+
+    if (slot) {
+      const slotRect = slot.getBoundingClientRect();
+      this.slotBlockSizePx.set(slotRect.height);
+      this.calendarCellInlineSizePx.set(slotRect.width);
+    } else {
+      this.slotBlockSizePx.set(0);
+      this.calendarCellInlineSizePx.set(0);
+    }
+
+    if (timelineCard) {
+      const timelineRect = timelineCard.getBoundingClientRect();
+      this.timelineCardBlockSizePx.set(timelineRect.height);
+      this.timelineCardInlineSizePx.set(timelineRect.width);
+    } else {
+      this.timelineCardBlockSizePx.set(0);
+      this.timelineCardInlineSizePx.set(0);
+    }
+
+    this.gridTypographyMetrics.set(this.extractCardTypographyMetrics(gridCard));
+    this.timelineTypographyMetrics.set(
+      this.extractCardTypographyMetrics(timelineCard)
+    );
+  }
+
+  private extractCardTypographyMetrics(
+    card: HTMLElement | null
+  ): BookingCardTypographyMetrics | null {
+    if (!card) return null;
+
+    const cardStyle = getComputedStyle(card);
+    const nameEl = card.querySelector<HTMLElement>(
+      '.calendar__booking-name, .calendar__timeline-name'
+    );
+    const metaEl = card.querySelector<HTMLElement>(
+      '.calendar__booking-facility, .calendar__timeline-meta'
+    );
+
+    const nameStyle = nameEl ? getComputedStyle(nameEl) : null;
+    const metaStyle = metaEl ? getComputedStyle(metaEl) : null;
+    const nameLineHeightPx = this.readLineHeightPx(nameStyle);
+    const metaLineHeightPx = this.readLineHeightPx(metaStyle);
+
+    if (nameLineHeightPx <= 0 || metaLineHeightPx <= 0) {
+      return null;
+    }
+
+    return {
+      paddingBlockPx: Math.max(
+        this.parsePxValue(cardStyle.paddingBlockStart),
+        this.parsePxValue(cardStyle.paddingBlockEnd)
+      ),
+      rowGapPx: this.parsePxValue(cardStyle.rowGap || cardStyle.gap),
+      nameLineHeightPx,
+      metaLineHeightPx,
+    };
+  }
+
+  private readLineHeightPx(style: CSSStyleDeclaration | null): number {
+    if (!style) return 0;
+    const explicit = this.parsePxValue(style.lineHeight);
+    if (explicit > 0) return explicit;
+    const fontSize = this.parsePxValue(style.fontSize);
+    return fontSize > 0 ? fontSize * 1.2 : 0;
+  }
+
+  private parsePxValue(value: string | null | undefined): number {
+    if (!value) return 0;
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private readRootCssVarPx(cssVarName: string): number {
+    if (typeof document === 'undefined') return 0;
+    const value = getComputedStyle(document.documentElement)
+      .getPropertyValue(cssVarName)
+      .trim();
+    return this.parsePxValue(value);
   }
 
   private clearTimers(): void {
@@ -1354,6 +1628,107 @@ export class BookingCalendarComponent implements OnInit, OnDestroy {
       // Ensure z-index puts shorter bookings on top if they start same time?
       // Or just standard stacking.
       zIndex: '10',
+    };
+  }
+
+  getGridBookingPresentation(
+    segment: BookingSegment,
+    layout: BookingLayout
+  ): BookingCardPresentation {
+    return (
+      this.gridCardPresentations().get(segment.id) ??
+      this.buildBookingPresentation({
+        availableBlockPx: 0,
+        availableInlinePx: 0,
+        hasOverlap: layout.columns > 1,
+        hasTags: Boolean(segment.booking.customerTags?.length),
+        typography: null,
+      })
+    );
+  }
+
+  getTimelineBookingPresentation(
+    segment: BookingSegment,
+    layout: BookingLayout
+  ): BookingCardPresentation {
+    return (
+      this.timelineCardPresentations().get(segment.id) ??
+      this.buildBookingPresentation({
+        availableBlockPx: 0,
+        availableInlinePx: 0,
+        hasOverlap: layout.columns > 1,
+        hasTags: Boolean(segment.booking.customerTags?.length),
+        typography: null,
+      })
+    );
+  }
+
+  compactStatusCode(status: BookingStatus): string {
+    const label = this.statusLabel(status).trim();
+    return label ? label.charAt(0).toUpperCase() : '';
+  }
+
+  tagDotClass(tag: string | null | undefined): string {
+    if (!tag) {
+      return 'calendar__booking-tag-dot';
+    }
+    return `calendar__booking-tag-dot ${resolveTagColorClass(tag)}`;
+  }
+
+  private buildBookingPresentation(
+    metrics: BookingPresentationMetrics
+  ): BookingCardPresentation {
+    if (
+      !metrics.typography ||
+      metrics.availableBlockPx <= 0 ||
+      metrics.availableInlinePx <= 0
+    ) {
+      return {
+        density: 'standard',
+        showTagChip: false,
+        showTagDot: metrics.hasTags,
+        showFacility: true,
+      };
+    }
+
+    const compactMinBlockPx =
+      metrics.typography.paddingBlockPx * 2 +
+      metrics.typography.nameLineHeightPx;
+    const standardMinBlockPx =
+      compactMinBlockPx +
+      metrics.typography.rowGapPx +
+      metrics.typography.metaLineHeightPx;
+    const compactMinInlinePx = metrics.typography.nameLineHeightPx * 3.5;
+    const standardMinInlinePx =
+      metrics.typography.nameLineHeightPx * (metrics.hasTags ? 5 : 4.25);
+    const expandedMinInlinePx =
+      metrics.typography.nameLineHeightPx * (metrics.hasTags ? 7 : 5.5);
+
+    const fitsCompact =
+      metrics.availableBlockPx >= compactMinBlockPx &&
+      metrics.availableInlinePx >= compactMinInlinePx;
+    const fitsStandard =
+      metrics.availableBlockPx >= standardMinBlockPx &&
+      metrics.availableInlinePx >= standardMinInlinePx;
+    const fitsExpanded =
+      !metrics.hasOverlap &&
+      fitsStandard &&
+      metrics.availableInlinePx >= expandedMinInlinePx;
+
+    let density: BookingCardDensity = 'compact';
+    if (fitsExpanded) {
+      density = 'expanded';
+    } else if (fitsStandard) {
+      density = 'standard';
+    } else if (!fitsCompact) {
+      density = 'compact';
+    }
+
+    return {
+      density,
+      showTagChip: metrics.hasTags && density === 'expanded',
+      showTagDot: metrics.hasTags && density !== 'expanded',
+      showFacility: density !== 'compact',
     };
   }
 

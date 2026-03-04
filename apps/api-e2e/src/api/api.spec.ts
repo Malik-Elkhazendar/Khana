@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Client } from 'pg';
 
 describe('API', () => {
   let facilityId: string;
@@ -128,11 +129,79 @@ describe('API', () => {
     }
   };
 
+  const resolveTenantContext = async (): Promise<{
+    id: string;
+    name: string;
+    slug: string;
+  }> => {
+    try {
+      const response = await axios.get('/api/v1/auth/tenant');
+      return response.data;
+    } catch (error: unknown) {
+      const axiosError = error as {
+        response?: { status?: number; data?: { message?: string | string[] } };
+      };
+      const status = axiosError.response?.status;
+      const message = axiosError.response?.data?.message;
+      const messageText = Array.isArray(message) ? message.join(' ') : message;
+
+      if (status !== 400 || messageText !== 'Tenant ID is required') {
+        throw error;
+      }
+
+      const headerTenantId =
+        process.env.E2E_TENANT_ID ||
+        process.env.TENANT_ID ||
+        process.env.API_TENANT_ID;
+
+      if (headerTenantId) {
+        const response = await axios.get('/api/v1/auth/tenant', {
+          headers: { 'x-tenant-id': headerTenantId },
+        });
+        return response.data;
+      }
+
+      if (process.env.DATABASE_URL) {
+        const client = new Client({
+          connectionString: process.env.DATABASE_URL,
+        });
+        try {
+          await client.connect();
+          const result = await client.query<{ id: string }>(
+            'SELECT id FROM tenants ORDER BY "createdAt" ASC LIMIT 1'
+          );
+          const fallbackTenantId = result.rows[0]?.id;
+          if (fallbackTenantId) {
+            const response = await axios.get('/api/v1/auth/tenant', {
+              headers: { 'x-tenant-id': fallbackTenantId },
+            });
+            return response.data;
+          }
+        } finally {
+          await client.end().catch(() => undefined);
+        }
+      }
+
+      // Last-resort fallback for environments without DB credentials:
+      // create an isolated workspace and use its tenant context for this run.
+      const suffix = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+      const signupRes = await axios.post('/api/v1/auth/signup-owner', {
+        workspaceName: `E2E Workspace ${suffix}`,
+        workspaceSlug: `e2e-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: 'E2E Owner',
+        email: `e2e-owner-${suffix}@khana.dev`,
+        password: 'Password123',
+      });
+
+      return signupRes.data.tenant;
+    }
+  };
+
   beforeAll(async () => {
     const email = `bookings-e2e-${Date.now()}@khana.dev`;
     const password = 'Password123';
-    const tenantRes = await axios.get(`/api/v1/auth/tenant`);
-    tenantId = tenantRes.data?.id;
+    const tenantRes = await resolveTenantContext();
+    tenantId = tenantRes.id;
     expect(tenantId).toBeTruthy();
 
     const registerRes = await axios.post(

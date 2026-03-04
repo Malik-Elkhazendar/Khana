@@ -255,7 +255,7 @@ describe('ConfirmationDialogComponent', () => {
     const textarea = document.createElement('textarea');
 
     component.onPanelKeydown(
-      createKeyEvent('Enter', { target: textarea } as KeyboardEvent)
+      createKeyEvent('Enter', { target: textarea } as unknown as KeyboardEvent)
     );
 
     expect(confirmSpy).not.toHaveBeenCalled();
@@ -267,7 +267,7 @@ describe('ConfirmationDialogComponent', () => {
     const input = document.createElement('input');
 
     component.onPanelKeydown(
-      createKeyEvent('Enter', { target: input } as KeyboardEvent)
+      createKeyEvent('Enter', { target: input } as unknown as KeyboardEvent)
     );
 
     expect(confirmSpy).not.toHaveBeenCalled();

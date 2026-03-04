@@ -8,7 +8,10 @@ import {
   AnalyticsPeakHoursResponseDto,
   AnalyticsRevenueResponseDto,
   AnalyticsSummaryResponseDto,
+  GoalSettingsResponseDto,
+  TodaySnapshotDto,
   BookingCancellationScope,
+  CustomerSummaryDto,
   BookingPreviewRequestDto,
   BookingPreviewResponseDto,
   BookingListItemDto,
@@ -35,6 +38,7 @@ import {
   UpdateUserRoleRequestDto,
   UpdateUserStatusRequestDto,
   UpdatePromoCodeRequestDto,
+  UpdateGoalsRequestDto,
   UpdateFacilityRequestDto,
   UserDto,
   WaitlistListQueryDto,
@@ -147,6 +151,71 @@ export class ApiService {
         }
       )
       .pipe(catchError(this.handleError('load analytics peak hours')));
+  }
+
+  /**
+   * Load today's operational snapshot for owner/manager dashboard briefing.
+   */
+  getTodaySnapshot(facilityId?: string): Observable<TodaySnapshotDto> {
+    const params: Record<string, string> = {};
+    if (facilityId) {
+      params['facilityId'] = facilityId;
+    }
+
+    return this.http
+      .get<TodaySnapshotDto>(`${this.baseUrl}/v1/dashboard/today-snapshot`, {
+        params,
+      })
+      .pipe(catchError(this.handleError('load dashboard today snapshot')));
+  }
+
+  lookupCustomerByPhone(phone: string): Observable<CustomerSummaryDto | null> {
+    return this.http
+      .get<CustomerSummaryDto | null>(`${this.baseUrl}/v1/customers/lookup`, {
+        params: { phone },
+      })
+      .pipe(catchError(this.handleError('lookup customer by phone')));
+  }
+
+  updateCustomerTags(
+    customerId: string,
+    tags: string[]
+  ): Observable<CustomerSummaryDto> {
+    return this.http
+      .patch<CustomerSummaryDto>(
+        `${this.baseUrl}/v1/customers/${customerId}/tags`,
+        {
+          tags,
+        }
+      )
+      .pipe(catchError(this.handleError('update customer tags')));
+  }
+
+  getTenantTags(): Observable<string[]> {
+    return this.http
+      .get<string[]>(`${this.baseUrl}/v1/customers/tags`)
+      .pipe(catchError(this.handleError('load customer tags')));
+  }
+
+  // ============================================================
+  // GOALS / SETTINGS
+  // ============================================================
+
+  getGoalSettings(): Observable<GoalSettingsResponseDto> {
+    return this.http
+      .get<GoalSettingsResponseDto>(`${this.baseUrl}/v1/settings/goals`)
+      .pipe(catchError(this.handleError('load goal settings')));
+  }
+
+  updateGoalSettings(
+    request: UpdateGoalsRequestDto
+  ): Observable<GoalSettingsResponseDto> {
+    return this.http
+      .patch<GoalSettingsResponseDto>(
+        `${this.baseUrl}/v1/settings/goals`,
+        request
+      )
+      .pipe(catchError(this.handleError('update goal settings')));
   }
 
   // ============================================================

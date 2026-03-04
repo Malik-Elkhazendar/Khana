@@ -38,4 +38,9 @@
   </div>
 
   <app-mobile-nav-drawer></app-mobile-nav-drawer>
+  <app-goal-nudge-modal
+    [open]="showGoalNudge()"
+    (dismissed)="dismissGoalNudge()"
+    (setGoal)="setGoalFromNudge()"
+  ></app-goal-nudge-modal>
 </div>

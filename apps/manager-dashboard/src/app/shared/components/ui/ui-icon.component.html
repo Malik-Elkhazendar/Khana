@@ -12,6 +12,12 @@
   [attr.role]="ariaHidden ? null : 'img'"
 >
   <ng-container [ngSwitch]="name">
+    <ng-container *ngSwitchCase="'analytics'">
+      <polyline points="4,16 9,11 13,14 20,7"></polyline>
+      <polyline points="20,12 20,7 15,7"></polyline>
+      <line x1="4" y1="20" x2="20" y2="20"></line>
+    </ng-container>
+
     <ng-container *ngSwitchCase="'bookings'">
       <rect x="4" y="5" width="16" height="14" rx="2"></rect>
       <line x1="8" y1="9" x2="16" y2="9"></line>

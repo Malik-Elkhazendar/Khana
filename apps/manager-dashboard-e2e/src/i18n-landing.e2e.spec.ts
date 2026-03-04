@@ -1,8 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
   assertNoPlaceholderLinks,
-  getDocumentDir,
-  getDocumentLang,
   clickLanguageSwitcher,
   LANDING_SECTION_IDS,
   EN_NAV_LABELS,
@@ -58,8 +56,8 @@ test.describe('Landing Page i18n & Routing', () => {
 
     test('does not accidentally redirect to /ar', async ({ page }) => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
       await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/$/);
+      await expect(page.locator('app-landing-header')).toBeVisible();
     });
   });
 
@@ -118,8 +116,8 @@ test.describe('Landing Page i18n & Routing', () => {
 
     test('does not leak to EN route "/"', async ({ page }) => {
       await page.goto('/ar');
-      await page.waitForLoadState('networkidle');
       await expect(page).toHaveURL(/\/ar$/);
+      await expect(page.locator('app-landing-header-ar')).toBeVisible();
     });
   });
 

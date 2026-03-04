@@ -174,6 +174,7 @@ export interface BookingListItemDto {
   endTime: string;
   customerName: string;
   customerPhone: string;
+  customerTags?: string[];
   totalAmount?: number | string;
   currency?: string;
   priceBreakdown?: PriceBreakdown;

@@ -7,14 +7,10 @@ test.describe('Authentication RTL & Internationalization', () => {
     page,
   }) => {
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('h1.login-title')).toBeVisible();
     await page.getByRole('button', { name: /switch to arabic/i }).click();
-
-    const htmlDir = await page.locator('html').getAttribute('dir');
-    const htmlLang = await page.locator('html').getAttribute('lang');
-
-    expect(htmlDir).toBe('rtl');
-    expect(htmlLang).toBe('ar');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
 
     await expect(page.locator('h1.login-title')).toContainText('تسجيل الدخول');
 
@@ -25,12 +21,10 @@ test.describe('Authentication RTL & Internationalization', () => {
     page,
   }) => {
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('h1.login-title')).toBeVisible();
     await page.getByRole('button', { name: /switch to arabic/i }).click();
     await page.getByRole('link', { name: /سجل هنا/i }).click();
-
-    const htmlDir = await page.locator('html').getAttribute('dir');
-    expect(htmlDir).toBe('rtl');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 
     await expect(page.locator('h1.register-title')).toContainText('إنشاء حساب');
 

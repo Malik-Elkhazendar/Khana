@@ -5,40 +5,45 @@ setupZoneTestEnv({
   errorOnUnknownProperties: true,
 });
 
-if (typeof window !== 'undefined' && !('IntersectionObserver' in window)) {
-  class MockIntersectionObserver {
-    constructor(
-      private readonly callback: IntersectionObserverCallback,
-      private readonly options?: IntersectionObserverInit
-    ) {
-      void this.callback;
-      void this.options;
-    }
+if (typeof window !== 'undefined') {
+  const win = window as Window &
+    typeof globalThis & {
+      IntersectionObserver?: typeof IntersectionObserver;
+    };
 
-    observe(): void {
-      void this.callback;
-    }
+  if (win.IntersectionObserver) {
+    // Already available in runtime.
+  } else {
+    class MockIntersectionObserver {
+      constructor(
+        private readonly callback: IntersectionObserverCallback,
+        private readonly options?: IntersectionObserverInit
+      ) {
+        void this.callback;
+        void this.options;
+      }
 
-    unobserve(): void {
-      void this.options;
-    }
+      observe(): void {
+        void this.callback;
+      }
 
-    disconnect(): void {
-      void this.callback;
-    }
+      unobserve(): void {
+        void this.options;
+      }
 
-    takeRecords(): IntersectionObserverEntry[] {
-      return [];
+      disconnect(): void {
+        void this.callback;
+      }
+
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
     }
+    const mock =
+      MockIntersectionObserver as unknown as typeof IntersectionObserver;
+    win.IntersectionObserver = mock;
+    (
+      globalThis as { IntersectionObserver?: typeof IntersectionObserver }
+    ).IntersectionObserver = mock;
   }
-
-  const win = window as typeof window & {
-    IntersectionObserver?: typeof IntersectionObserver;
-  };
-
-  win.IntersectionObserver =
-    MockIntersectionObserver as unknown as typeof IntersectionObserver;
-  (
-    globalThis as { IntersectionObserver?: typeof IntersectionObserver }
-  ).IntersectionObserver = win.IntersectionObserver;
 }

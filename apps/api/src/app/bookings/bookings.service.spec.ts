@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import {
   Booking,
+  Customer,
   Facility,
   PromoCode,
   PromoCodeRedemption,
@@ -8,13 +9,14 @@ import {
 } from '@khana/data-access';
 import {
   BookingStatus,
+  RecurrenceFrequency,
   PaymentStatus,
   PromoDiscountType,
   PromoFacilityScope,
   PromoValidationReason,
 } from '@khana/shared-dtos';
 import { BookingsService } from './bookings.service';
-import { CreateBookingDto } from './dto';
+import { CreateBookingDto, CreateRecurringBookingDto } from './dto';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -30,6 +32,9 @@ describe('BookingsService', () => {
   };
   let facilityRepository: {
     findOne: jest.Mock;
+    find: jest.Mock;
+  };
+  let customerRepository: {
     find: jest.Mock;
   };
   let userRepository: {
@@ -51,6 +56,7 @@ describe('BookingsService', () => {
   };
   let txBookingRepository: {
     find: jest.Mock;
+    createQueryBuilder: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     exists: jest.Mock;
@@ -71,6 +77,21 @@ describe('BookingsService', () => {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
+  };
+
+  const waitlistService = {
+    markFulfilledForUserSlot: jest.fn().mockResolvedValue(undefined),
+    notifyFirstForSlot: jest.fn().mockResolvedValue({ notified: false }),
+  };
+
+  const goalsService = {
+    syncMilestonesForCurrentMonth: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const customersService = {
+    upsert: jest.fn().mockResolvedValue({
+      id: 'customer-1',
+    } as Customer),
   };
 
   const emailService = {
@@ -113,6 +134,29 @@ describe('BookingsService', () => {
     };
   };
 
+  const createRecurringDto = (
+    overrides: Partial<CreateRecurringBookingDto> = {}
+  ): CreateRecurringBookingDto => {
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    start.setHours(9, 0, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    return {
+      facilityId,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      customerName: 'Recurring Customer',
+      customerPhone: '0551234567',
+      recurrenceRule: {
+        frequency: RecurrenceFrequency.WEEKLY,
+        intervalWeeks: 1,
+        occurrences: 1,
+      },
+      ...overrides,
+    };
+  };
+
   beforeEach(() => {
     const lockQueryBuilder = {
       where: jest.fn().mockReturnThis(),
@@ -122,13 +166,30 @@ describe('BookingsService', () => {
 
     txBookingRepository = {
       find: jest.fn().mockResolvedValue([]),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      }),
       create: jest.fn((payload: unknown) => payload),
-      save: jest
-        .fn()
-        .mockImplementation(async (payload: Record<string, unknown>) => ({
+      save: jest.fn().mockImplementation(async (payload: unknown) => {
+        if (Array.isArray(payload)) {
+          return payload.map((item, index) => ({
+            id: `booking-${index + 1}`,
+            ...(item as Record<string, unknown>),
+            createdAt: new Date('2025-03-01T08:00:00.000Z'),
+            updatedAt: new Date('2025-03-01T08:00:00.000Z'),
+          }));
+        }
+
+        return {
           id: 'booking-1',
-          ...payload,
-        })),
+          ...(payload as Record<string, unknown>),
+          createdAt: new Date('2025-03-01T08:00:00.000Z'),
+          updatedAt: new Date('2025-03-01T08:00:00.000Z'),
+        };
+      }),
       exists: jest.fn().mockResolvedValue(false),
     };
 
@@ -174,6 +235,10 @@ describe('BookingsService', () => {
       find: jest.fn().mockResolvedValue([]),
     };
 
+    customerRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    };
+
     userRepository = {
       findOne: jest.fn().mockResolvedValue({
         id: userId,
@@ -206,13 +271,17 @@ describe('BookingsService', () => {
 
     service = new BookingsService(
       bookingRepository as never,
+      customerRepository as never,
       facilityRepository as never,
       userRepository as never,
       promoCodeRepository as never,
       promoCodeRedemptionRepository as never,
       auditLogRepository as never,
       emailService as never,
-      appLogger as never
+      appLogger as never,
+      waitlistService as never,
+      goalsService as never,
+      customersService as never
     );
   });
 
@@ -298,6 +367,126 @@ describe('BookingsService', () => {
         expect.objectContaining({ currentUses: 1 })
       );
       expect(txPromoCodeRedemptionRepository.save).toHaveBeenCalled();
+    });
+
+    it('normalizes customer phone to +966 before persisting booking', async () => {
+      await service.createBooking(
+        createDto({ customerPhone: '0551234567' }),
+        tenantId,
+        userId,
+        'OWNER'
+      );
+
+      expect(txBookingRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ customerPhone: '+966551234567' })
+      );
+    });
+
+    it('upserts customer after booking create', async () => {
+      const saved = await service.createBooking(
+        createDto(),
+        tenantId,
+        userId,
+        'OWNER'
+      );
+
+      expect(customersService.upsert).toHaveBeenCalledWith(
+        tenantId,
+        saved.customerName,
+        saved.customerPhone
+      );
+    });
+
+    it('does not fail booking creation if customer upsert fails', async () => {
+      customersService.upsert.mockRejectedValueOnce(new Error('upsert failed'));
+
+      const saved = await service.createBooking(
+        createDto(),
+        tenantId,
+        userId,
+        'OWNER'
+      );
+
+      expect(saved.id).toBeTruthy();
+      await Promise.resolve();
+      expect(appLogger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('findAll', () => {
+    it('maps customer tags onto booking list items using normalized phone', async () => {
+      const booking = {
+        id: 'booking-1',
+        bookingReference: 'REF-1',
+        facility: activeFacility,
+        startTime: new Date('2025-03-01T09:00:00.000Z'),
+        endTime: new Date('2025-03-01T10:00:00.000Z'),
+        customerName: 'Layla',
+        customerPhone: '0551234567',
+        totalAmount: 120,
+        currency: 'SAR',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PENDING,
+        createdAt: new Date('2025-03-01T08:00:00.000Z'),
+        updatedAt: new Date('2025-03-01T08:00:00.000Z'),
+        holdUntil: null,
+        cancellationReason: null,
+        recurrenceGroupId: null,
+        recurrenceInstanceNumber: null,
+        recurrenceRule: null,
+      } as Booking;
+
+      const expiredPendingQuery = {
+        innerJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([]),
+      };
+
+      const listQuery = {
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([booking]),
+      };
+
+      bookingRepository.createQueryBuilder
+        .mockReturnValueOnce(expiredPendingQuery)
+        .mockReturnValueOnce(listQuery);
+      customerRepository.find.mockResolvedValueOnce([
+        {
+          phone: '+966551234567',
+          tags: ['VIP', 'Corporate'],
+        } as Customer,
+      ]);
+
+      const result = await service.findAll(tenantId, {
+        id: userId,
+        role: 'MANAGER',
+      } as User);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.customerTags).toEqual(['VIP', 'Corporate']);
+    });
+  });
+
+  describe('createRecurringBookings', () => {
+    it('upserts customer after recurring booking creation', async () => {
+      const result = await service.createRecurringBookings(
+        createRecurringDto(),
+        tenantId,
+        userId,
+        'OWNER'
+      );
+
+      expect(result.createdCount).toBeGreaterThan(0);
+      expect(customersService.upsert).toHaveBeenCalledWith(
+        tenantId,
+        'Recurring Customer',
+        '+966551234567'
+      );
     });
   });
 

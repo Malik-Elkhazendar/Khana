@@ -43,6 +43,18 @@ export class Tenant {
   @Column({ type: 'timestamp', nullable: true })
   onboardingCompletedAt?: Date | null;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  monthlyRevenueTarget?: number | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  monthlyOccupancyTarget?: number | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  goalsNudgeShownAt?: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  goalsNudgeDismissedAt?: Date | null;
+
   @OneToMany(() => Facility, (facility) => facility.tenant)
   facilities!: Facility[];
 

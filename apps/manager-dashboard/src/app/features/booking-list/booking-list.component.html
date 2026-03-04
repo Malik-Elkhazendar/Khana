@@ -127,6 +127,34 @@
           />
         </div>
       </div>
+
+      <div class="filter filter--tags booking-list__tag-filter">
+        <span class="filter-label">{{
+          text('BOOKING_LIST.FILTERS.TAGS', 'Filter by tag')
+        }}</span>
+        <div class="booking-list__tag-filter-chips">
+          @for (tag of availableTags(); track tag) {
+          <button
+            type="button"
+            class="booking-list__tag-filter-chip"
+            [class.booking-list__tag-filter-chip--active]="
+              tagFilter().includes(tag)
+            "
+            (click)="toggleTagFilter(tag)"
+          >
+            <app-tag-chip [tag]="tag" [size]="'sm'" />
+          </button>
+          } @if (tagFilter().length > 0) {
+          <button
+            type="button"
+            class="booking-list__tag-filter-clear"
+            (click)="clearTagFilter()"
+          >
+            {{ text('BOOKING_LIST.FILTERS.CLEAR_TAGS', 'Clear tag filter') }}
+          </button>
+          }
+        </div>
+      </div>
     </div>
 
     @if (facilityError(); as facilityErr) {
@@ -293,6 +321,9 @@
               <th scope="col">
                 {{ text('BOOKING_LIST.TABLE.PHONE', 'Phone') }}
               </th>
+              <th scope="col">
+                {{ text('BOOKING_LIST.TABLE.TAGS_LABEL', 'Tags') }}
+              </th>
               <th scope="col" [attr.aria-sort]="getAriaSort('status')">
                 <button
                   type="button"
@@ -370,6 +401,23 @@
               </td>
               <td class="cell-mono">{{ booking.customerPhone }}</td>
               <td>
+                @if (booking.customerTags && booking.customerTags.length > 0) {
+                <div class="booking-list__row-tags">
+                  @for (tag of booking.customerTags.slice(0, 2); track tag) {
+                  <app-tag-chip [tag]="tag" [size]="'sm'" />
+                  } @if (booking.customerTags.length > 2) {
+                  <span class="booking-list__tags-overflow"
+                    >+{{ booking.customerTags.length - 2 }}</span
+                  >
+                  }
+                </div>
+                } @else {
+                <span class="cell-meta">{{
+                  text('BOOKING_LIST.TABLE.NOT_AVAILABLE', 'N/A')
+                }}</span>
+                }
+              </td>
+              <td>
                 <app-ui-status-badge
                   [tone]="statusTone(booking.status)"
                   [label]="statusLabel(booking.status)"
@@ -380,6 +428,7 @@
                     text(
                       'BOOKING_LIST.TABLE.HOLD_UNTIL',
                       'Reserved until {{time
+
 
 
 
@@ -550,6 +599,22 @@
               }}</span>
               <span class="value">{{ booking.facility.name }}</span>
             </div>
+            @if (booking.customerTags && booking.customerTags.length > 0) {
+            <div class="booking-card__row booking-card__meta">
+              <span class="label">{{
+                text('BOOKING_LIST.TABLE.TAGS_LABEL', 'Tags')
+              }}</span>
+              <div class="booking-list__row-tags">
+                @for (tag of booking.customerTags.slice(0, 2); track tag) {
+                <app-tag-chip [tag]="tag" [size]="'sm'" />
+                } @if (booking.customerTags.length > 2) {
+                <span class="booking-list__tags-overflow"
+                  >+{{ booking.customerTags.length - 2 }}</span
+                >
+                }
+              </div>
+            </div>
+            }
             <div class="booking-card__row">
               <span class="label">{{
                 text('BOOKING_LIST.CARD.PRICE', 'Price')
@@ -581,6 +646,7 @@
                   text(
                     'BOOKING_LIST.TABLE.HOLD_UNTIL',
                     'Reserved until {{time
+
 
 
 

@@ -5,9 +5,9 @@
 
 /**
  * Saudi phone number regex
- * Matches: +966XXXXXXXXX, 00966XXXXXXXXX, 05XXXXXXXX, 5XXXXXXXX
+ * Matches: +966XXXXXXXXX, 00966XXXXXXXXX, 966XXXXXXXXX, 05XXXXXXXX, 5XXXXXXXX
  */
-const SAUDI_PHONE_REGEX = /^(?:\+966|00966|0)?5\d{8}$/;
+const SAUDI_PHONE_REGEX = /^(?:\+966|00966|966|0)?5\d{8}$/;
 
 /**
  * Email regex (simple but effective)

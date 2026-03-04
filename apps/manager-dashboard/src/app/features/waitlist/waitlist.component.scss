@@ -1,0 +1,140 @@
+.waitlist-page {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.waitlist-filters {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.waitlist-filters__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.waitlist-field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.waitlist-field__label {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.waitlist-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.waitlist-filters__error {
+  margin: 0;
+  color: var(--color-error);
+}
+
+.waitlist-state {
+  margin: 0;
+}
+
+.waitlist-state--error {
+  border-inline-start: 3px solid var(--color-error);
+}
+
+.waitlist-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.waitlist-summary__item {
+  padding-block: var(--space-3);
+  padding-inline: var(--space-3);
+}
+
+.waitlist-summary__item h2 {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.waitlist-summary__item p {
+  margin-block: var(--space-2) 0;
+  margin-inline: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+}
+
+.waitlist-table {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.waitlist-table__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.waitlist-table__scroll {
+  overflow-x: auto;
+}
+
+.waitlist-table table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  min-inline-size: 48rem;
+}
+
+.waitlist-table th,
+.waitlist-table td {
+  text-align: start;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-2);
+  border-block-end: 1px solid var(--color-surface-muted);
+  font-size: var(--text-sm);
+}
+
+.waitlist-table th {
+  color: var(--color-text-muted);
+  font-weight: var(--font-semibold);
+}
+
+.waitlist-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.waitlist-pagination p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 1024px) {
+  .waitlist-filters__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .waitlist-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .waitlist-filters__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .waitlist-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .waitlist-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -1,0 +1,11 @@
+@if (open) {
+<app-confirmation-dialog
+  [title]="'DASHBOARD.PAGES.SETTINGS.GOALS.NUDGE.TITLE' | translate"
+  [message]="'DASHBOARD.PAGES.SETTINGS.GOALS.NUDGE.MESSAGE' | translate"
+  [confirmLabel]="'DASHBOARD.PAGES.SETTINGS.GOALS.NUDGE.SET_GOAL' | translate"
+  [cancelLabel]="'DASHBOARD.PAGES.SETTINGS.GOALS.NUDGE.LATER' | translate"
+  (confirmed)="setGoal.emit()"
+  (dismissed)="dismissed.emit()"
+>
+</app-confirmation-dialog>
+}

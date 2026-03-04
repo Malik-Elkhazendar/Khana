@@ -167,6 +167,7 @@
 
 
 
+
       }}', { timezone: timezoneLabel } ) }}
     </p>
 
@@ -502,6 +503,7 @@
 
 
 
+
             }}x)', { multiplier: result.priceBreakdown.timeMultiplier } ) }}
           </td>
           <td class="modifier">
@@ -515,6 +517,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.WEEKEND_RATE',
                 'Weekend Rate ({{multiplier
+
 
 
 
@@ -557,6 +560,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.PROMO_CODE',
                 'Promo ({{code
+
 
 
 
@@ -711,7 +715,7 @@
             type="tel"
             id="customerPhone"
             [ngModel]="customerPhone()"
-            (ngModelChange)="customerPhone.set($event)"
+            (ngModelChange)="onPhoneInput($event)"
             name="customerPhone"
             [attr.placeholder]="
               text(
@@ -726,6 +730,90 @@
           />
         </div>
       </div>
+      @if (lookupLoading()) {
+      <p class="booking-preview__customer-lookup-hint">
+        {{
+          text(
+            'BOOKING_PREVIEW.CUSTOMER.LOOKUP_LOADING',
+            'Looking up customer...'
+          )
+        }}
+      </p>
+      } @else if (matchedCustomer(); as customer) {
+      <div class="booking-preview__customer-tags">
+        <p class="booking-preview__customer-tags-label">
+          {{
+            text('BOOKING_PREVIEW.CUSTOMER.CUSTOMER_FOUND', 'Existing customer')
+          }}
+        </p>
+        <div class="booking-preview__customer-tags-list">
+          @for (tag of customer.tags ?? []; track tag) {
+          <app-tag-chip [tag]="tag" [size]="'sm'" />
+          }
+        </div>
+        @if (canEditTags() && !tagEditMode()) {
+        <button
+          type="button"
+          class="booking-preview__tag-edit-btn"
+          (click)="enterTagEditMode()"
+        >
+          {{ text('BOOKING_PREVIEW.CUSTOMER.EDIT_TAGS', 'Edit tags') }}
+        </button>
+        } @if (tagEditMode()) {
+        <div class="booking-preview__tag-editor">
+          @for (tag of availableTags(); track tag) {
+          <button
+            type="button"
+            class="booking-preview__tag-option"
+            [class.booking-preview__tag-option--active]="
+              (customer.tags ?? []).includes(tag)
+            "
+            (click)="toggleTag(tag)"
+          >
+            {{ tag }}
+          </button>
+          } @if (availableTags().length === 0) {
+          <p class="booking-preview__tag-editor-hint">
+            {{
+              text(
+                'BOOKING_PREVIEW.CUSTOMER.NO_TAGS_AVAILABLE',
+                'No tags yet for this tenant. Add the first tag below.'
+              )
+            }}
+          </p>
+          }
+
+          <div class="booking-preview__tag-editor-add">
+            <input
+              type="text"
+              class="booking-preview__tag-input"
+              [ngModel]="newTagInput()"
+              (ngModelChange)="onNewTagInput($event)"
+              [attr.placeholder]="
+                text(
+                  'BOOKING_PREVIEW.CUSTOMER.NEW_TAG_PLACEHOLDER',
+                  'Add a new tag'
+                )
+              "
+              maxlength="30"
+            />
+            <button
+              type="button"
+              class="booking-preview__tag-add-btn"
+              [disabled]="!canAddNewTag()"
+              (click)="addNewTag()"
+            >
+              {{ text('BOOKING_PREVIEW.CUSTOMER.ADD_TAG', 'Add tag') }}
+            </button>
+          </div>
+        </div>
+        }
+      </div>
+      } @else if (hasLookupPhoneThreshold()) {
+      <p class="booking-preview__customer-lookup-hint">
+        {{ text('BOOKING_PREVIEW.CUSTOMER.CUSTOMER_NEW', 'New customer') }}
+      </p>
+      }
       <div class="hold-toggle">
         <label for="holdAsPending">
           <input

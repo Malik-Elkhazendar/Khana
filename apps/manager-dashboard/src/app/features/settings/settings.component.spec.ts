@@ -6,6 +6,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { UserRole } from '@khana/shared-dtos';
 import { AuthStore } from '../../shared/state/auth.store';
 import { AuthService } from '../../shared/services/auth.service';
+import { ApiService } from '../../shared/services/api.service';
 import { LanguageService } from '../../shared/services/language.service';
 import { SettingsComponent } from './settings.component';
 
@@ -16,6 +17,7 @@ const mockUser = {
   role: UserRole.OWNER,
   tenantId: 'tenant-1',
   isActive: true,
+  onboardingCompleted: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -31,6 +33,28 @@ describe('SettingsComponent', () => {
   const languageServiceMock = {
     toggleLanguage: jest.fn(),
   };
+  const apiServiceMock = {
+    getGoalSettings: jest.fn(() =>
+      of({
+        monthlyRevenueTarget: null,
+        monthlyOccupancyTarget: null,
+        goalsNudgeShownAt: null,
+        goalsNudgeDismissedAt: null,
+        shouldShowNudge: false,
+        updatedAt: new Date().toISOString(),
+      })
+    ),
+    updateGoalSettings: jest.fn(() =>
+      of({
+        monthlyRevenueTarget: 24000,
+        monthlyOccupancyTarget: 70,
+        goalsNudgeShownAt: null,
+        goalsNudgeDismissedAt: null,
+        shouldShowNudge: false,
+        updatedAt: new Date().toISOString(),
+      })
+    ),
+  };
   const routerMock = {
     navigateByUrl: jest.fn(),
   };
@@ -39,6 +63,8 @@ describe('SettingsComponent', () => {
     authServiceMock.getTenantContext.mockClear();
     authServiceMock.logoutAllDevices.mockClear();
     languageServiceMock.toggleLanguage.mockClear();
+    apiServiceMock.getGoalSettings.mockClear();
+    apiServiceMock.updateGoalSettings.mockClear();
     routerMock.navigateByUrl.mockClear();
 
     await TestBed.configureTestingModule({
@@ -46,6 +72,7 @@ describe('SettingsComponent', () => {
       providers: [
         { provide: AuthStore, useValue: authStoreMock },
         { provide: AuthService, useValue: authServiceMock },
+        { provide: ApiService, useValue: apiServiceMock },
         { provide: LanguageService, useValue: languageServiceMock },
         { provide: Router, useValue: routerMock },
       ],

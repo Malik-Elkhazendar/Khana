@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   AuditLog,
   Booking,
+  Customer,
   Facility,
   PromoCode,
   PromoCodeRedemption,
@@ -15,14 +16,19 @@ import { BookingsService } from './bookings.service';
 import { WaitlistCleanupService } from './waitlist/waitlist-cleanup.service';
 import { WaitlistController } from './waitlist/waitlist.controller';
 import { WaitlistService } from './waitlist/waitlist.service';
+import { GoalsModule } from '../goals/goals.module';
+import { CustomersModule } from '../customers/customers.module';
 
 @Module({
   imports: [
     AuthModule,
+    GoalsModule,
+    CustomersModule,
     TypeOrmModule.forFeature([
       Booking,
       Facility,
       User,
+      Customer,
       PromoCode,
       PromoCodeRedemption,
       AuditLog,

@@ -115,6 +115,22 @@ export const appRoutes: Route[] = [
     canActivate: [authGuard, requireCompletedOnboarding],
     children: [
       {
+        path: 'analytics',
+        loadComponent: () =>
+          import('./features/analytics/analytics.component').then(
+            (module) => module.AnalyticsComponent
+          ),
+        canActivate: [
+          roleGuard([UserRole.OWNER, UserRole.MANAGER, UserRole.VIEWER]),
+        ],
+        title: 'Analytics | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.ANALYTICS',
+          navKey: 'DASHBOARD.NAV.ITEMS.ANALYTICS',
+          contentArchetype: 'data',
+        },
+      },
+      {
         path: 'bookings',
         loadComponent: () =>
           import('./features/booking-list/booking-list.component').then(
@@ -124,6 +140,22 @@ export const appRoutes: Route[] = [
         data: {
           breadcrumbKey: 'DASHBOARD.BREADCRUMBS.BOOKINGS',
           navKey: 'DASHBOARD.NAV.ITEMS.BOOKINGS',
+          contentArchetype: 'data',
+        },
+      },
+      {
+        path: 'waitlist',
+        loadComponent: () =>
+          import('./features/waitlist/waitlist.component').then(
+            (module) => module.WaitlistComponent
+          ),
+        canActivate: [
+          roleGuard([UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF]),
+        ],
+        title: 'Waitlist | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.WAITLIST',
+          navKey: 'DASHBOARD.NAV.ITEMS.WAITLIST',
           contentArchetype: 'data',
         },
       },
@@ -217,7 +249,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: '',
-        redirectTo: 'bookings',
+        redirectTo: 'analytics',
         pathMatch: 'full',
       },
     ],
@@ -240,6 +272,11 @@ export const appRoutes: Route[] = [
   {
     path: 'calendar',
     redirectTo: 'dashboard/calendar',
+    pathMatch: 'full',
+  },
+  {
+    path: 'waitlist',
+    redirectTo: 'dashboard/waitlist',
     pathMatch: 'full',
   },
   {

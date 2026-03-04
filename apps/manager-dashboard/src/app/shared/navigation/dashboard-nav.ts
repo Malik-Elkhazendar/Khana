@@ -1,6 +1,7 @@
 import { UserRole } from '@khana/shared-dtos';
 
 export type DashboardNavIcon =
+  | 'analytics'
   | 'bookings'
   | 'calendar'
   | 'new'
@@ -18,6 +19,13 @@ export type DashboardNavItem = {
 };
 
 export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
+  {
+    labelKey: 'DASHBOARD.NAV.ITEMS.ANALYTICS',
+    route: '/dashboard/analytics',
+    icon: 'analytics',
+    exact: true,
+    roles: [UserRole.OWNER, UserRole.MANAGER, UserRole.VIEWER],
+  },
   {
     labelKey: 'DASHBOARD.NAV.ITEMS.BOOKINGS',
     route: '/dashboard/bookings',

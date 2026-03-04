@@ -8,7 +8,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -25,19 +24,23 @@ import { ApiService } from '../../shared/services/api.service';
 import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import { FacilityContextStore } from '../../shared/state';
+import { AuthStore } from '../../shared/state/auth.store';
 import {
   FacilityListItemDto,
   BookingPreviewResponseDto,
   AlternativeSlotDto,
   BookingStatus,
   ConflictType,
+  CustomerSummaryDto,
   PromoValidationReason,
   RecurrenceFrequency,
+  UserRole,
   WaitlistStatus,
   WaitlistStatusResponseDto,
 } from '@khana/shared-dtos';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import {
+  TagChipComponent,
   UiStatusBadgeComponent,
   UiToastComponent,
 } from '../../shared/components';
@@ -86,6 +89,7 @@ type PreviewStateSnapshot = {
 type ConflictSlotDto = NonNullable<
   BookingPreviewResponseDto['conflict']
 >['conflictingSlots'][number];
+type TranslationParams = Record<string, string | number>;
 
 const PREVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -99,14 +103,16 @@ const ALTERNATIVES_EAGER_THRESHOLD = 6;
 const ALTERNATIVES_VIRTUAL_THRESHOLD = 100;
 const ALTERNATIVES_ROW_HEIGHT_PX = 72;
 const ALTERNATIVES_WINDOW_SIZE = 18;
+const CUSTOMER_TAG_MAX_LENGTH = 30;
+const CUSTOMER_TAG_MAX_COUNT = 10;
 
 @Component({
   selector: 'app-booking-preview',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     ConfirmationDialogComponent,
+    TagChipComponent,
     UiStatusBadgeComponent,
     UiToastComponent,
   ],
@@ -117,6 +123,7 @@ const ALTERNATIVES_WINDOW_SIZE = 18;
 export class BookingPreviewComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly facilityContext = inject(FacilityContextStore);
+  private readonly authStore = inject(AuthStore);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
@@ -167,6 +174,9 @@ export class BookingPreviewComponent implements OnInit {
   private lastOnlineStatus = true;
   private inFlightPreviewKey: string | null = null;
   private toastTimer: number | null = null;
+  private phoneLookupTimer: number | null = null;
+  private phoneLookupRequestId = 0;
+  private tenantTagsLoaded = false;
   private connectivityHandler?: () => void;
 
   // Form state
@@ -210,6 +220,11 @@ export class BookingPreviewComponent implements OnInit {
   // Customer details (shown when booking is available)
   customerName = signal<string>('');
   customerPhone = signal<string>('');
+  matchedCustomer = signal<CustomerSummaryDto | null>(null);
+  lookupLoading = signal<boolean>(false);
+  tagEditMode = signal<boolean>(false);
+  availableTags = signal<string[]>([]);
+  newTagInput = signal<string>('');
   holdAsPending = signal<boolean>(false);
   bookingInProgress = signal<boolean>(false);
   bookingSuccess = signal<boolean>(false);
@@ -272,6 +287,32 @@ export class BookingPreviewComponent implements OnInit {
       !this.bookingInProgress() &&
       !this.loading()
     );
+  });
+
+  readonly canEditTags = computed(() => {
+    const role = this.authStore.user()?.role;
+    return role === UserRole.OWNER || role === UserRole.MANAGER;
+  });
+  readonly hasLookupPhoneThreshold = computed(
+    () => this.customerPhone().replace(/\D/g, '').length >= 10
+  );
+  readonly canAddNewTag = computed(() => {
+    const customer = this.matchedCustomer();
+    if (!customer || !this.canEditTags()) {
+      return false;
+    }
+
+    const candidate = this.normalizeTagValue(this.newTagInput());
+    if (!candidate) {
+      return false;
+    }
+
+    const existing = customer.tags ?? [];
+    if (existing.length >= CUSTOMER_TAG_MAX_COUNT) {
+      return false;
+    }
+
+    return !this.hasTag(existing, candidate);
   });
 
   readonly errorRecoveryOptions = computed(() => {
@@ -914,6 +955,164 @@ export class BookingPreviewComponent implements OnInit {
     return this.localeFormat.formatCurrency(amount, currency);
   }
 
+  onPhoneInput(value: string): void {
+    this.customerPhone.set(value);
+
+    if (this.phoneLookupTimer) {
+      window.clearTimeout(this.phoneLookupTimer);
+      this.phoneLookupTimer = null;
+    }
+
+    const digits = value.replace(/\D/g, '');
+    if (digits.length < 10) {
+      this.phoneLookupRequestId += 1;
+      this.lookupLoading.set(false);
+      this.matchedCustomer.set(null);
+      this.tagEditMode.set(false);
+      return;
+    }
+
+    const requestId = ++this.phoneLookupRequestId;
+    this.lookupLoading.set(true);
+
+    this.phoneLookupTimer = window.setTimeout(() => {
+      this.phoneLookupTimer = null;
+      this.api
+        .lookupCustomerByPhone(value.trim())
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (customer) => {
+            if (requestId !== this.phoneLookupRequestId) {
+              return;
+            }
+            this.lookupLoading.set(false);
+            this.matchedCustomer.set(customer);
+            this.tagEditMode.set(false);
+            if (customer && this.customerName().trim() === '') {
+              this.customerName.set(customer.name);
+            }
+          },
+          error: () => {
+            if (requestId !== this.phoneLookupRequestId) {
+              return;
+            }
+            this.lookupLoading.set(false);
+            this.matchedCustomer.set(null);
+            this.tagEditMode.set(false);
+          },
+        });
+    }, 400);
+  }
+
+  enterTagEditMode(): void {
+    if (!this.canEditTags()) {
+      return;
+    }
+
+    if (!this.matchedCustomer()) {
+      return;
+    }
+
+    if (!this.tenantTagsLoaded) {
+      this.api
+        .getTenantTags()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (tags) => {
+            this.availableTags.set(tags);
+            this.tenantTagsLoaded = true;
+            this.newTagInput.set('');
+            this.tagEditMode.set(true);
+          },
+          error: () => {
+            this.newTagInput.set('');
+            this.tagEditMode.set(true);
+          },
+        });
+      return;
+    }
+
+    this.newTagInput.set('');
+    this.tagEditMode.set(true);
+  }
+
+  onNewTagInput(value: string): void {
+    this.newTagInput.set(value.slice(0, CUSTOMER_TAG_MAX_LENGTH));
+  }
+
+  addNewTag(): void {
+    if (!this.canEditTags()) {
+      return;
+    }
+
+    const customer = this.matchedCustomer();
+    if (!customer) {
+      return;
+    }
+
+    const candidate = this.normalizeTagValue(this.newTagInput());
+    if (!candidate) {
+      return;
+    }
+
+    const currentTags = customer.tags ?? [];
+    if (
+      currentTags.length >= CUSTOMER_TAG_MAX_COUNT ||
+      this.hasTag(currentTags, candidate)
+    ) {
+      return;
+    }
+
+    this.persistCustomerTags(customer.id, [...currentTags, candidate]);
+  }
+
+  toggleTag(tag: string): void {
+    if (!this.canEditTags()) {
+      return;
+    }
+
+    const customer = this.matchedCustomer();
+    if (!customer) {
+      return;
+    }
+
+    const currentTags = customer.tags ?? [];
+    const exists = currentTags.includes(tag);
+    const nextTags = exists
+      ? currentTags.filter((item) => item !== tag)
+      : [...currentTags, tag];
+
+    this.persistCustomerTags(customer.id, nextTags);
+  }
+
+  private persistCustomerTags(customerId: string, nextTags: string[]): void {
+    this.api
+      .updateCustomerTags(customerId, nextTags)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          this.matchedCustomer.set(updated);
+          this.newTagInput.set('');
+          if (updated.tags) {
+            const merged = new Set([...this.availableTags(), ...updated.tags]);
+            this.availableTags.set(Array.from(merged));
+          }
+        },
+        error: () => {
+          // No-op: keep previous UI state when save fails.
+        },
+      });
+  }
+
+  private hasTag(tags: string[], candidate: string): boolean {
+    const normalizedCandidate = candidate.trim().toLowerCase();
+    return tags.some((tag) => tag.trim().toLowerCase() === normalizedCandidate);
+  }
+
+  private normalizeTagValue(value: string): string {
+    return value.trim().replace(/\s+/g, ' ').slice(0, CUSTOMER_TAG_MAX_LENGTH);
+  }
+
   facilityOptionLabel(facility: FacilityListItemDto): string {
     // Keep native select option labels single-direction to avoid bidi reordering glitches.
     return facility.name;
@@ -928,8 +1127,22 @@ export class BookingPreviewComponent implements OnInit {
     )}/${this.text('BOOKING_PREVIEW.FORM.HOUR_SUFFIX')}`;
   }
 
-  text(key: string, params?: Record<string, string | number>): string {
-    return this.t(key, params);
+  text(key: string): string;
+  text(key: string, fallback: string): string;
+  text(key: string, params: TranslationParams): string;
+  text(key: string, fallback: string, params: TranslationParams): string;
+  text(
+    key: string,
+    fallbackOrParams?: string | TranslationParams,
+    params?: TranslationParams
+  ): string {
+    const fallback =
+      typeof fallbackOrParams === 'string' ? fallbackOrParams : undefined;
+    const resolvedParams =
+      typeof fallbackOrParams === 'string' ? params : fallbackOrParams;
+
+    const translated = this.t(key, resolvedParams);
+    return translated === key && fallback !== undefined ? fallback : translated;
   }
 
   retryCountdownMessage(seconds: number): string {
@@ -1151,6 +1364,11 @@ export class BookingPreviewComponent implements OnInit {
     this.recurringCreatedCount.set(null);
     this.customerName.set('');
     this.customerPhone.set('');
+    this.matchedCustomer.set(null);
+    this.lookupLoading.set(false);
+    this.tagEditMode.set(false);
+    this.availableTags.set([]);
+    this.tenantTagsLoaded = false;
     this.holdAsPending.set(false);
     this.toast.set(null);
   }
@@ -1307,6 +1525,11 @@ export class BookingPreviewComponent implements OnInit {
             // Reset form for next booking
             this.customerName.set('');
             this.customerPhone.set('');
+            this.matchedCustomer.set(null);
+            this.lookupLoading.set(false);
+            this.tagEditMode.set(false);
+            this.availableTags.set([]);
+            this.tenantTagsLoaded = false;
             this.holdAsPending.set(false);
             this.previewResult.set(null);
             this.lastAction.set(null);
@@ -1451,7 +1674,7 @@ export class BookingPreviewComponent implements OnInit {
     }
   }
 
-  private t(key: string, params?: Record<string, string | number>): string {
+  private t(key: string, params?: TranslationParams): string {
     this.languageService?.languageVersion();
     const translated = this.translateService?.instant(key, params);
     return translated && translated !== key ? translated : key;
@@ -1519,6 +1742,10 @@ export class BookingPreviewComponent implements OnInit {
       window.clearTimeout(this.toastTimer);
       this.toastTimer = null;
     }
+    if (this.phoneLookupTimer) {
+      window.clearTimeout(this.phoneLookupTimer);
+      this.phoneLookupTimer = null;
+    }
     this.previewAbort$.next();
     this.facilitiesAbort$.next();
     this.waitlistStatusAbort$.next();
@@ -1548,6 +1775,11 @@ export class BookingPreviewComponent implements OnInit {
     this.confirmDialogOpen.set(false);
     this.customerName.set('');
     this.customerPhone.set('');
+    this.matchedCustomer.set(null);
+    this.lookupLoading.set(false);
+    this.tagEditMode.set(false);
+    this.availableTags.set([]);
+    this.tenantTagsLoaded = false;
     this.holdAsPending.set(false);
     this.alternativesExpanded.set(false);
     this.alternativesScrollTop.set(0);

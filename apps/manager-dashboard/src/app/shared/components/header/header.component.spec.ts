@@ -147,6 +147,7 @@ describe('HeaderComponent', () => {
       role: UserRole.MANAGER,
       tenantId: 'tenant-1',
       isActive: true,
+      onboardingCompleted: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

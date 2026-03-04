@@ -14,6 +14,8 @@ import {
   WaitingListEntry,
   PromoCode,
   PromoCodeRedemption,
+  GoalMilestone,
+  Customer,
 } from '@khana/data-access';
 import { normalizeNodeEnv, resolveEnvFilePaths } from '../app/config/env-files';
 
@@ -45,6 +47,8 @@ export default new DataSource({
     WaitingListEntry,
     PromoCode,
     PromoCodeRedemption,
+    GoalMilestone,
+    Customer,
   ],
   // Migration CLI should never use synchronize.
   synchronize: false,

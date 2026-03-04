@@ -1,7 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import {
+  ActivatedRoute,
+  Params,
+  convertToParamMap,
+  provideRouter,
+} from '@angular/router';
 import { BookingListComponent } from './booking-list.component';
+import { ApiService } from '../../shared/services/api.service';
 import { FacilityContextStore } from '../../shared/state';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { AuthStore } from '../../shared/state/auth.store';
@@ -62,6 +69,10 @@ const createStoreMock = (initialBookings: BookingListItemDto[] = []) => ({
 
 describe('BookingListComponent', () => {
   let storeMock: ReturnType<typeof createStoreMock>;
+  const apiMock = {
+    getTenantTags: jest.fn(() => of(['VIP', 'Corporate'])),
+  };
+  let queryParams: Params;
   const authStoreMock = {
     user: signal({
       id: 'manager-1',
@@ -96,6 +107,7 @@ describe('BookingListComponent', () => {
   };
 
   beforeEach(async () => {
+    queryParams = {};
     storeMock = createStoreMock();
     authStoreMock.user.set({
       id: 'manager-1',
@@ -116,12 +128,24 @@ describe('BookingListComponent', () => {
     facilityContextMock.refreshFacilities.mockReset();
     facilityContextMock.selectFacility.mockClear();
     facilityContextMock.clearError.mockReset();
+    apiMock.getTenantTags.mockClear();
 
     await TestBed.configureTestingModule({
       imports: [BookingListComponent],
       providers: [
         provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              get queryParamMap() {
+                return convertToParamMap(queryParams);
+              },
+            },
+          },
+        },
         { provide: BookingStore, useValue: storeMock },
+        { provide: ApiService, useValue: apiMock },
         { provide: FacilityContextStore, useValue: facilityContextMock },
         { provide: AuthStore, useValue: authStoreMock },
       ],
@@ -139,6 +163,30 @@ describe('BookingListComponent', () => {
     expect(facilityContextMock.initialize).toHaveBeenCalled();
     expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
     expect(component.facilities().length).toBe(1);
+  });
+
+  it('hydrates status and payment filters from query params', () => {
+    queryParams = {
+      status: BookingStatus.NO_SHOW,
+      paymentStatus: PaymentStatus.PENDING,
+    };
+
+    const { component } = setupComponent();
+
+    expect(component.filterStatus()).toBe(BookingStatus.NO_SHOW);
+    expect(component.filterPaymentStatus()).toBe(PaymentStatus.PENDING);
+  });
+
+  it('ignores unsupported query param values', () => {
+    queryParams = {
+      status: 'INVALID_STATUS',
+      paymentStatus: 'INVALID_PAYMENT',
+    };
+
+    const { component } = setupComponent();
+
+    expect(component.filterStatus()).toBe('ALL');
+    expect(component.filterPaymentStatus()).toBe('ALL');
   });
 
   it('hides cancel and mark-paid actions for viewer role', () => {
@@ -288,6 +336,26 @@ describe('BookingListComponent', () => {
     const sorted = component.filteredBookings();
     expect(sorted[0].status).toBe(BookingStatus.CONFIRMED);
     expect(sorted[1].status).toBe(BookingStatus.PENDING);
+  });
+
+  it('filters bookings by selected customer tags using AND semantics', () => {
+    const bookings = [
+      createBooking({ id: 'booking-1', customerTags: ['VIP'] }),
+      createBooking({ id: 'booking-2', customerTags: ['Corporate'] }),
+      createBooking({ id: 'booking-3', customerTags: ['VIP', 'Corporate'] }),
+    ];
+    const { component } = setupComponent(bookings);
+
+    component.toggleTagFilter('VIP');
+    let filtered = component.filteredBookings();
+    expect(filtered.map((item) => item.id).sort()).toEqual([
+      'booking-1',
+      'booking-3',
+    ]);
+
+    component.toggleTagFilter('Corporate');
+    filtered = component.filteredBookings();
+    expect(filtered.map((item) => item.id)).toEqual(['booking-3']);
   });
 
   it('sorts by price when selected', () => {

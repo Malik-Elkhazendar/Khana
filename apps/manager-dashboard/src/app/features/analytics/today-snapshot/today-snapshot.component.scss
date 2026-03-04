@@ -1,0 +1,185 @@
+.today-snapshot {
+  display: grid;
+  gap: var(--space-4);
+  padding-block: var(--space-5);
+  padding-inline: var(--space-5);
+}
+
+.today-snapshot__header {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.today-snapshot__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.today-snapshot__greeting {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.today-snapshot__date {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.today-snapshot__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.today-snapshot__stat {
+  border: 1px solid var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-3);
+  min-block-size: 5rem;
+}
+
+.today-snapshot__stat-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.today-snapshot__stat-value {
+  margin-block: var(--space-2) 0;
+  margin-inline: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.today-snapshot__all-clear {
+  margin: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-success) 12%, white);
+  color: var(--color-success);
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  font-weight: 600;
+}
+
+.today-snapshot__actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.today-snapshot__action {
+  inline-size: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  text-align: start;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  transition-property: transform, box-shadow, border-color;
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    outline: none;
+  }
+}
+
+.today-snapshot__action--error {
+  background: var(--color-error-light);
+  color: var(--color-error);
+  border-color: color-mix(in srgb, var(--color-error) 30%, transparent);
+}
+
+.today-snapshot__action--warning {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+}
+
+.today-snapshot__action--info {
+  background: color-mix(in srgb, var(--color-primary-light) 15%, white);
+  color: var(--color-primary-dark);
+  border-color: color-mix(in srgb, var(--color-primary-light) 45%, transparent);
+}
+
+.today-snapshot__action--muted {
+  background: color-mix(in srgb, var(--color-text-muted) 12%, white);
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, var(--color-text-muted) 35%, transparent);
+}
+
+.today-snapshot__action--neutral {
+  background: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, var(--color-text-muted) 28%, transparent);
+}
+
+.today-snapshot__skeleton {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.today-snapshot__skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.today-snapshot__skeleton-line {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-surface-muted) 45%, transparent),
+    color-mix(
+      in srgb,
+      var(--color-surface-muted) 80%,
+      var(--color-surface-elevated)
+    ),
+    color-mix(in srgb, var(--color-surface-muted) 45%, transparent)
+  );
+  background-size: 220px 100%;
+  animation: today-snapshot-shimmer 1.4s infinite;
+}
+
+.today-snapshot__skeleton-title {
+  block-size: 1.125rem;
+  inline-size: 45%;
+}
+
+.today-snapshot__skeleton-subtitle {
+  block-size: 0.875rem;
+  inline-size: 55%;
+}
+
+.today-snapshot__skeleton-card {
+  block-size: 5rem;
+}
+
+.today-snapshot__skeleton-action {
+  block-size: 2.5rem;
+}
+
+@media (max-width: 480px) {
+  .today-snapshot__stats,
+  .today-snapshot__skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@keyframes today-snapshot-shimmer {
+  0% {
+    background-position: -220px 0;
+  }
+  100% {
+    background-position: 220px 0;
+  }
+}

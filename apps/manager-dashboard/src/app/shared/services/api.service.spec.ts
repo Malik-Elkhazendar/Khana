@@ -11,6 +11,7 @@ import { LoggerService } from './logger.service';
 import {
   BookingCancellationScope,
   BookingPreviewRequestDto,
+  InviteUserRequestDto,
   RecurrenceFrequency,
   BookingStatus,
   PaymentStatus,
@@ -55,6 +56,25 @@ describe('ApiService', () => {
     const req = httpMock.expectOne(`${API_BASE_URL}/v1/bookings/facilities`);
     expect(req.request.method).toBe('GET');
     req.flush([]);
+  });
+
+  it('should request today snapshot with optional facility filter', () => {
+    service.getTodaySnapshot('facility-1').subscribe();
+
+    const req = httpMock.expectOne(
+      `${API_BASE_URL}/v1/dashboard/today-snapshot?facilityId=facility-1`
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      bookingsToday: 0,
+      revenueToday: 0,
+      unpaidCount: 0,
+      unpaidAmount: 0,
+      expiringHoldsCount: 0,
+      waitlistToday: 0,
+      notifiedWaitlistCount: 0,
+      noShowCount: 0,
+    });
   });
 
   it('should complete onboarding using configured API base URL', () => {
@@ -179,7 +199,7 @@ describe('ApiService', () => {
   });
 
   it('should invite user using configured API base URL', () => {
-    const request = {
+    const request: InviteUserRequestDto = {
       email: 'new.staff@khana.dev',
       role: UserRole.STAFF,
     };
@@ -202,6 +222,63 @@ describe('ApiService', () => {
     );
     expect(req.request.method).toBe('GET');
     req.flush([]);
+  });
+
+  it('should lookup customer by phone', () => {
+    service.lookupCustomerByPhone('0551234567').subscribe();
+
+    const req = httpMock.expectOne(
+      `${API_BASE_URL}/v1/customers/lookup?phone=0551234567`
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      id: 'customer-1',
+      name: 'Layla',
+      phone: '+966551234567',
+      totalBookings: 0,
+      totalSpend: 0,
+      tags: ['VIP'],
+    });
+  });
+
+  it('should return null when customer lookup responds with null body', () => {
+    let result: unknown;
+    service.lookupCustomerByPhone('0551234567').subscribe((value) => {
+      result = value;
+    });
+
+    const req = httpMock.expectOne(
+      `${API_BASE_URL}/v1/customers/lookup?phone=0551234567`
+    );
+    req.flush(null);
+
+    expect(result).toBeNull();
+  });
+
+  it('should update customer tags', () => {
+    service.updateCustomerTags('customer-1', ['VIP']).subscribe();
+
+    const req = httpMock.expectOne(
+      `${API_BASE_URL}/v1/customers/customer-1/tags`
+    );
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ tags: ['VIP'] });
+    req.flush({
+      id: 'customer-1',
+      name: 'Layla',
+      phone: '+966551234567',
+      totalBookings: 0,
+      totalSpend: 0,
+      tags: ['VIP'],
+    });
+  });
+
+  it('should get tenant tags', () => {
+    service.getTenantTags().subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/customers/tags`);
+    expect(req.request.method).toBe('GET');
+    req.flush(['VIP', 'Corporate']);
   });
 
   it('should post booking preview using configured API base URL', () => {

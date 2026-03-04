@@ -114,6 +114,7 @@
 
 
 
+
         }}', { time: formatLastUpdated(retryScheduledAt()) } ) }}
       </p>
       } @if (lastSuccessfulAt()) {
@@ -122,6 +123,7 @@
           text(
             'BOOKING_CALENDAR.ERRORS.SHOWING_LAST_UPDATED',
             'Showing last updated {{time
+
 
 
 
@@ -184,7 +186,6 @@
     @if (selectedDayBookings().length > 0) {
     <div
       class="calendar__timeline"
-      role="list"
       [attr.aria-label]="
         text(
           'BOOKING_CALENDAR.ARIA.BOOKINGS_FOR_SELECTED_DAY',
@@ -193,24 +194,59 @@
       "
     >
       @for (segment of selectedDayBookings(); track trackByBooking($index,
-      segment)) { @let booking = segment.booking;
+      segment)) { @let booking = segment.booking; @let layout =
+      getBookingLayout(segment); @let presentation =
+      getTimelineBookingPresentation(segment, layout); @let topTag =
+      segment.booking.customerTags?.[0];
       <button
         type="button"
         class="calendar__timeline-card {{ getStatusClass(booking.status) }}"
         [class.calendar__timeline-card--hold]="isHoldActive(booking)"
         [class.calendar__timeline-card--recurring]="booking.recurrenceGroupId"
-        role="listitem"
-        [attr.aria-label]="timelineBookingAriaLabel(booking)"
+        [class.calendar__timeline-card--compact]="
+          presentation.density === 'compact'
+        "
+        [class.calendar__timeline-card--standard]="
+          presentation.density === 'standard'
+        "
+        [class.calendar__timeline-card--expanded]="
+          presentation.density === 'expanded'
+        "
+        [attr.aria-label]="timelineBookingAriaLabel(segment, presentation)"
         (click)="openBooking(booking, $event)"
+        #timelineCard
       >
         <div class="calendar__timeline-time">
           {{ formatTime(booking.startTime) }} –
           {{ formatTime(booking.endTime) }}
         </div>
         <div class="calendar__timeline-details">
-          <span class="calendar__timeline-name">{{
-            booking.customerName
-          }}</span>
+          <div class="calendar__timeline-header">
+            <span class="calendar__timeline-name">{{
+              booking.customerName
+            }}</span>
+            @if (topTag && presentation.showTagChip) {
+            <app-tag-chip
+              [tag]="topTag"
+              [size]="'sm'"
+              [attr.title]="segment.booking.customerTags?.join(', ')"
+            ></app-tag-chip>
+            } @if (topTag && presentation.showTagDot) {
+            <span
+              [class]="tagDotClass(topTag)"
+              [attr.title]="segment.booking.customerTags?.join(', ')"
+              aria-hidden="true"
+            ></span>
+            } @if (presentation.density === 'compact') {
+            <span
+              class="calendar__booking-status-signal"
+              [attr.title]="statusLabel(booking.status)"
+            >
+              {{ compactStatusCode(booking.status) }}
+            </span>
+            }
+          </div>
+          @if (presentation.showFacility) {
           <span class="calendar__timeline-meta">
             {{ booking.facility.name }}
             <app-ui-status-badge
@@ -218,6 +254,9 @@
               [label]="statusLabel(booking.status)"
             ></app-ui-status-badge>
           </span>
+          } @else if (presentation.density === 'compact') {
+          <span class="sr-only">{{ statusLabel(booking.status) }}</span>
+          }
         </div>
         @if (isHoldActive(booking)) {
         <span class="calendar__timeline-hold">{{
@@ -236,6 +275,7 @@
       <p>
         {{
         text('BOOKING_CALENDAR.STATE.NO_BOOKINGS_FOR_DAY', 'No bookings for {{day
+
 
 
 
@@ -308,23 +348,57 @@
     >
       @for (segment of slotBookings; track trackByBooking($index, segment)) {
       @let booking = segment.booking; @let layout = getBookingLayout(segment);
+      @let presentation = getGridBookingPresentation(segment, layout); @let
+      topTag = segment.booking.customerTags?.[0];
       <button
         type="button"
         class="calendar__booking {{ getStatusClass(booking.status) }}"
         [class.calendar__booking--hold]="isHoldActive(booking)"
         [class.calendar__booking--recurring]="booking.recurrenceGroupId"
+        [class.calendar__booking--compact]="presentation.density === 'compact'"
+        [class.calendar__booking--standard]="
+          presentation.density === 'standard'
+        "
+        [class.calendar__booking--expanded]="
+          presentation.density === 'expanded'
+        "
         [ngStyle]="getBookingStyle(segment, layout.column, layout.columns)"
-        [attr.aria-label]="gridBookingAriaLabel(booking)"
+        [attr.aria-label]="gridBookingAriaLabel(segment, presentation)"
         [attr.title]="
           isHoldActive(booking) ? holdUntilTitle(booking.holdUntil) : null
         "
         (click)="openBooking(booking, $event)"
+        #gridBookingCard
       >
-        <span class="calendar__booking-name">{{ booking.customerName }}</span>
+        <div class="calendar__booking-header">
+          <span class="calendar__booking-name">{{ booking.customerName }}</span>
+          @if (topTag && presentation.showTagChip) {
+          <app-tag-chip
+            class="calendar__booking-tag"
+            [tag]="topTag"
+            [size]="'sm'"
+            [attr.title]="segment.booking.customerTags?.join(', ')"
+          ></app-tag-chip>
+          } @if (topTag && presentation.showTagDot) {
+          <span
+            [class]="tagDotClass(topTag)"
+            [attr.title]="segment.booking.customerTags?.join(', ')"
+            aria-hidden="true"
+          ></span>
+          } @if (presentation.density === 'compact') {
+          <span
+            class="calendar__booking-status-signal"
+            [attr.title]="statusLabel(booking.status)"
+          >
+            {{ compactStatusCode(booking.status) }}
+          </span>
+          }
+        </div>
+        @if (presentation.showFacility) {
         <span class="calendar__booking-facility">{{
           booking.facility.name
         }}</span>
-        @if (isHoldActive(booking)) {
+        } @if (isHoldActive(booking)) {
         <span class="calendar__booking-hold">{{
           text('BOOKING_CALENDAR.ACTION_SHEET.HOLD', 'Hold')
         }}</span>

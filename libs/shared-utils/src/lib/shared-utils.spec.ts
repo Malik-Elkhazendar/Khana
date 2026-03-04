@@ -204,6 +204,10 @@ describe('shared-utils', () => {
         expect(isValidSaudiPhone('00966512345678')).toBe(true);
       });
 
+      it('should accept 966 format', () => {
+        expect(isValidSaudiPhone('966512345678')).toBe(true);
+      });
+
       it('should accept 05 format', () => {
         expect(isValidSaudiPhone('0512345678')).toBe(true);
       });
@@ -223,6 +227,7 @@ describe('shared-utils', () => {
         expect(normalizeSaudiPhone('0512345678')).toBe('+966512345678');
         expect(normalizeSaudiPhone('512345678')).toBe('+966512345678');
         expect(normalizeSaudiPhone('00966512345678')).toBe('+966512345678');
+        expect(normalizeSaudiPhone('966512345678')).toBe('+966512345678');
         expect(normalizeSaudiPhone('+966512345678')).toBe('+966512345678');
       });
     });

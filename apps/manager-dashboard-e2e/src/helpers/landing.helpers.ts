@@ -12,30 +12,12 @@ export async function assertNoPlaceholderLinks(
   const count = await links.count();
 
   for (let i = 0; i < count; i += 1) {
-    const href = await links.nth(i).getAttribute('href');
-    expect(
-      href,
-      `Link ${i} in ${containerSelector} should not be empty`
-    ).toBeTruthy();
-    expect(
-      href,
-      `Link ${i} in ${containerSelector} should not be bare "#"`
-    ).not.toBe('#');
+    const link = links.nth(i);
+    await expect(
+      link,
+      `Link ${i} in ${containerSelector} should not be empty or placeholder`
+    ).toHaveAttribute('href', /^(?!#?$)(?!\/#?$).+/);
   }
-}
-
-/**
- * Gets the document direction attribute.
- */
-export async function getDocumentDir(page: Page): Promise<string | null> {
-  return page.locator('html').getAttribute('dir');
-}
-
-/**
- * Gets the document lang attribute.
- */
-export async function getDocumentLang(page: Page): Promise<string | null> {
-  return page.locator('html').getAttribute('lang');
 }
 
 /**

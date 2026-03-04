@@ -1,0 +1,128 @@
+<section
+  class="dashboard-card today-snapshot"
+  [class.today-snapshot--loading]="loading()"
+>
+  @if (loading()) {
+  <div class="today-snapshot__skeleton" aria-hidden="true">
+    <div
+      class="today-snapshot__skeleton-line today-snapshot__skeleton-title"
+    ></div>
+    <div
+      class="today-snapshot__skeleton-line today-snapshot__skeleton-subtitle"
+    ></div>
+    <div class="today-snapshot__skeleton-grid">
+      <div
+        class="today-snapshot__skeleton-line today-snapshot__skeleton-card"
+      ></div>
+      <div
+        class="today-snapshot__skeleton-line today-snapshot__skeleton-card"
+      ></div>
+    </div>
+    <div
+      class="today-snapshot__skeleton-line today-snapshot__skeleton-action"
+    ></div>
+    <div
+      class="today-snapshot__skeleton-line today-snapshot__skeleton-action"
+    ></div>
+  </div>
+  } @else if (snapshot(); as snapshot) {
+  <header class="today-snapshot__header">
+    <h2 class="today-snapshot__title">
+      {{ 'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.TITLE' | translate }}
+    </h2>
+    <p class="today-snapshot__greeting">
+      {{
+        greetingKey() | translate : (firstName() ? { name: firstName() } : {})
+      }}
+    </p>
+    <p class="today-snapshot__date">{{ todayLabel() }}</p>
+  </header>
+
+  <div class="today-snapshot__stats">
+    <article class="today-snapshot__stat">
+      <p class="today-snapshot__stat-label">
+        {{ 'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.BOOKINGS_TODAY' | translate }}
+      </p>
+      <p class="today-snapshot__stat-value">{{ snapshot.bookingsToday }}</p>
+    </article>
+
+    <article class="today-snapshot__stat">
+      <p class="today-snapshot__stat-label">
+        {{ 'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.EXPECTED_REVENUE' | translate }}
+      </p>
+      <p class="today-snapshot__stat-value">
+        {{ formatCurrency(snapshot.revenueToday) }}
+      </p>
+    </article>
+  </div>
+
+  @if (isAllClear()) {
+  <p class="today-snapshot__all-clear" role="status">
+    {{ 'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.NO_URGENT_ITEMS' | translate }}
+  </p>
+  }
+
+  <div class="today-snapshot__actions">
+    @if (snapshot.unpaidCount > 0) {
+    <button
+      type="button"
+      class="today-snapshot__action today-snapshot__action--error"
+      (click)="goToUnpaidBookings()"
+    >
+      {{
+        'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.UNPAID_BOOKINGS'
+          | translate
+            : {
+                count: snapshot.unpaidCount,
+                amount: formatCurrency(snapshot.unpaidAmount)
+              }
+      }}
+    </button>
+    } @if (snapshot.expiringHoldsCount > 0) {
+    <button
+      type="button"
+      class="today-snapshot__action today-snapshot__action--warning"
+      (click)="goToExpiringHolds()"
+    >
+      {{
+        'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.EXPIRING_HOLDS'
+          | translate : { count: snapshot.expiringHoldsCount }
+      }}
+    </button>
+    } @if (snapshot.notifiedWaitlistCount > 0) {
+    <button
+      type="button"
+      class="today-snapshot__action today-snapshot__action--info"
+      (click)="goToNotifiedWaitlist()"
+    >
+      {{
+        'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.NOTIFIED_NOT_CONVERTED'
+          | translate : { count: snapshot.notifiedWaitlistCount }
+      }}
+    </button>
+    } @if (snapshot.noShowCount > 0) {
+    <button
+      type="button"
+      class="today-snapshot__action today-snapshot__action--muted"
+      (click)="goToNoShows()"
+    >
+      {{
+        'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.NO_SHOWS'
+          | translate : { count: snapshot.noShowCount }
+      }}
+    </button>
+    } @if (snapshot.waitlistToday > 0) {
+    <button
+      type="button"
+      class="today-snapshot__action today-snapshot__action--neutral"
+      (click)="goToWaitlistWaiting()"
+    >
+      {{
+        'DASHBOARD.PAGES.ANALYTICS.SNAPSHOT.WAITLIST_WAITING'
+          | translate : { count: snapshot.waitlistToday }
+      }}
+    </button>
+    }
+  </div>
+  }
+</section>

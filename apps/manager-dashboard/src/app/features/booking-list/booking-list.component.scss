@@ -116,6 +116,41 @@ input[type='date'] {
   gap: var(--space-2);
 }
 
+.booking-list__tag-filter {
+  grid-column: 1 / -1;
+}
+
+.booking-list__tag-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.booking-list__tag-filter-chip {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+}
+
+.booking-list__tag-filter-chip--active {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.booking-list__tag-filter-clear {
+  border: 1px solid var(--color-surface-muted);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  padding-block: var(--space-1);
+  padding-inline: var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+}
+
 @container (max-width: 32rem) {
   .filter-range {
     grid-template-columns: 1fr;
@@ -316,6 +351,19 @@ tbody tr:focus-visible {
   color: var(--color-text-muted);
   font-weight: var(--font-medium);
   letter-spacing: 0.02em;
+}
+
+.booking-list__row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.booking-list__tags-overflow {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
 }
 
 .col-price {

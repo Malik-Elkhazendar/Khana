@@ -27,20 +27,20 @@ const createHttpError = (
   });
 
 describe('BookingStore', () => {
-  let store: BookingStore;
+  let store: InstanceType<typeof BookingStore>;
   let apiMock: ApiServiceMock;
   let logger: jest.Mocked<LoggerService>;
 
   const seedBooking = (overrides = {}) => {
     const booking = createBooking({ id: 'booking-1', ...overrides });
-    patchState(store, { bookings: [booking] });
+    patchState(store as never, { bookings: [booking] });
     return booking;
   };
 
   const seedTwoBookings = () => {
     const first = createBooking({ id: 'booking-1' });
     const second = createBooking({ id: 'booking-2' });
-    patchState(store, { bookings: [first, second] });
+    patchState(store as never, { bookings: [first, second] });
     return { first, second };
   };
 
@@ -111,7 +111,7 @@ describe('BookingStore', () => {
   });
 
   it('clears previous error state when loading bookings', () => {
-    patchState(store, {
+    patchState(store as never, {
       error: new Error('Previous error'),
       errorCode: 'SERVER_ERROR',
     });
@@ -343,7 +343,7 @@ describe('BookingStore', () => {
 
   it('clears previous action errors for the booking before running an action', async () => {
     const booking = seedBooking({ status: BookingStatus.PENDING });
-    patchState(store, {
+    patchState(store as never, {
       actionErrorsById: { [booking.id]: 'Previous error' },
     });
     apiMock.updateBookingStatus.mockReturnValueOnce(of(booking));
@@ -355,7 +355,7 @@ describe('BookingStore', () => {
 
   it('keeps action errors cleared after a successful action', async () => {
     const booking = seedBooking({ status: BookingStatus.PENDING });
-    patchState(store, {
+    patchState(store as never, {
       actionErrorsById: { [booking.id]: 'Previous error' },
     });
     apiMock.updateBookingStatus.mockReturnValueOnce(of(booking));
@@ -496,7 +496,7 @@ describe('BookingStore', () => {
 
   it('clears global error state after a successful action', async () => {
     const booking = seedBooking({ status: BookingStatus.PENDING });
-    patchState(store, {
+    patchState(store as never, {
       error: new Error('Old error'),
       errorCode: 'SERVER_ERROR',
     });

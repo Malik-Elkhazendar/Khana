@@ -3,6 +3,7 @@ import {
   Component,
   HostListener,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -16,14 +17,18 @@ import {
 } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { filter } from 'rxjs';
+import { UserRole } from '@khana/shared-dtos';
 import {
   DashboardBreadcrumbsComponent,
   HeaderComponent,
   MobileNavDrawerComponent,
   SidebarComponent,
 } from '../../shared/components';
+import { AuthStore } from '../../shared/state/auth.store';
+import { ApiService } from '../../shared/services/api.service';
 import { FacilityContextStore } from '../../shared/state';
 import { LayoutStore } from '../../shared/state/layout.store';
+import { GoalNudgeModalComponent } from '../../features/settings/goal-nudge-modal.component';
 
 const MOBILE_BREAKPOINT = 768;
 const DESKTOP_BREAKPOINT = 1024;
@@ -42,6 +47,7 @@ const DEFAULT_CONTENT_ARCHETYPE: ContentArchetype = 'form';
     DashboardBreadcrumbsComponent,
     SidebarComponent,
     MobileNavDrawerComponent,
+    GoalNudgeModalComponent,
   ],
   templateUrl: './layout-shell.component.html',
   styleUrl: './layout-shell.component.scss',
@@ -49,9 +55,13 @@ const DEFAULT_CONTENT_ARCHETYPE: ContentArchetype = 'form';
 })
 export class LayoutShellComponent {
   readonly layoutStore = inject(LayoutStore);
+  private readonly authStore = inject(AuthStore);
+  private readonly api = inject(ApiService);
   private readonly facilityContext = inject(FacilityContextStore);
   private readonly router = inject(Router);
   readonly sidebarCollapsed = this.layoutStore.sidebarCollapsed;
+  readonly showGoalNudge = signal(false);
+  private readonly goalNudgeInitialized = signal(false);
 
   private readonly viewportWidth = signal(
     typeof window === 'undefined' ? DESKTOP_BREAKPOINT : window.innerWidth
@@ -93,6 +103,38 @@ export class LayoutShellComponent {
       .subscribe(() => {
         this.updateContentArchetypeFromRoute();
       });
+
+    effect(
+      () => {
+        const user = this.authStore.user();
+        if (this.goalNudgeInitialized()) {
+          return;
+        }
+        if (!user) {
+          return;
+        }
+
+        this.goalNudgeInitialized.set(true);
+        if (user.role !== UserRole.OWNER || !user.onboardingCompleted) {
+          return;
+        }
+
+        this.api.getGoalSettings().subscribe({
+          next: (settings) => {
+            if (!settings.shouldShowNudge) {
+              return;
+            }
+
+            this.showGoalNudge.set(true);
+            this.api
+              .updateGoalSettings({ markNudgeShown: true })
+              .subscribe({ error: () => undefined });
+          },
+          error: () => undefined,
+        });
+      },
+      { allowSignalWrites: true }
+    );
   }
 
   @HostListener('window:resize')
@@ -142,5 +184,19 @@ export class LayoutShellComponent {
     }
 
     this.contentArchetype.set(detectedArchetype ?? DEFAULT_CONTENT_ARCHETYPE);
+  }
+
+  dismissGoalNudge(): void {
+    this.showGoalNudge.set(false);
+    this.api.updateGoalSettings({ dismissNudge: true }).subscribe({
+      error: () => undefined,
+    });
+  }
+
+  setGoalFromNudge(): void {
+    this.dismissGoalNudge();
+    void this.router.navigate(['/dashboard/settings'], {
+      fragment: 'goals',
+    });
   }
 }

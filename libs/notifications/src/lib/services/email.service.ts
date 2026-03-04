@@ -11,6 +11,7 @@ import {
   RefundData,
   NewBookingAlertData,
   TeamInviteData,
+  WaitlistSlotAvailableData,
 } from '../interfaces/email.interface';
 import { securityAlertTemplate } from '../templates/security-alert.template';
 import { passwordChangedTemplate } from '../templates/password-changed.template';
@@ -154,6 +155,27 @@ export class EmailService {
       'You are invited to join Khana',
       html,
       'team_invite'
+    );
+  }
+
+  /**
+   * Send waitlist slot available email.
+   */
+  async sendWaitlistSlotAvailableEmail(
+    data: WaitlistSlotAvailableData
+  ): Promise<void> {
+    const html = [
+      `<p>Hi ${data.recipientName},</p>`,
+      `<p>A slot is available now at <strong>${data.facilityName}</strong>.</p>`,
+      `<p>${data.startTime.toLocaleString()} - ${data.endTime.toLocaleString()}</p>`,
+      '<p>Open your dashboard to confirm before someone else takes it.</p>',
+    ].join('');
+
+    await this.send(
+      data.recipientEmail,
+      `Slot available at ${data.facilityName}`,
+      html,
+      'waitlist_slot_available'
     );
   }
 

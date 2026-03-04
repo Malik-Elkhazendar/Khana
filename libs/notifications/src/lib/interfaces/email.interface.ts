@@ -88,3 +88,11 @@ export interface TeamInviteData {
   inviteToken: string;
   expiresAt: Date;
 }
+
+export interface WaitlistSlotAvailableData {
+  recipientEmail: string;
+  recipientName: string;
+  facilityName: string;
+  startTime: Date;
+  endTime: Date;
+}

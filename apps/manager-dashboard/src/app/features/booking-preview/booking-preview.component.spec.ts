@@ -1,15 +1,23 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Subject, TimeoutError, of, throwError } from 'rxjs';
+import {
+  TranslateModule,
+  TranslateService,
+  TranslationObject,
+} from '@ngx-translate/core';
 import { BookingPreviewComponent } from './booking-preview.component';
 import { ApiService } from '../../shared/services/api.service';
 import { FacilityContextStore } from '../../shared/state';
+import { AuthStore } from '../../shared/state/auth.store';
 import {
   BookingStatus,
   ConflictType,
+  CustomerSummaryDto,
   PromoDiscountType,
   PromoValidationReason,
   RecurrenceFrequency,
+  UserRole,
 } from '@khana/shared-dtos';
 import { createApiMock, ApiServiceMock } from '../../testing/api-mocks';
 import {
@@ -17,6 +25,15 @@ import {
   createBookingPreview,
   createFacility,
 } from '../../testing/factories';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+const EN_TRANSLATIONS = JSON.parse(
+  readFileSync(
+    join(process.cwd(), 'apps/manager-dashboard/public/assets/i18n/en.json'),
+    'utf8'
+  )
+) as TranslationObject;
 
 describe('BookingPreviewComponent', () => {
   let apiMock: ApiServiceMock;
@@ -30,6 +47,19 @@ describe('BookingPreviewComponent', () => {
     refreshFacilities: jest.fn(),
     selectFacility: jest.fn(),
     clearError: jest.fn(),
+  };
+  const authStoreMock = {
+    user: signal({
+      id: 'manager-1',
+      tenantId: 'tenant-1',
+      email: 'manager@khana.dev',
+      name: 'Manager User',
+      role: UserRole.MANAGER,
+      isActive: true,
+      onboardingCompleted: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
   };
 
   const setupComponent = () => {
@@ -47,12 +77,17 @@ describe('BookingPreviewComponent', () => {
     facilityContextMock.selectedFacilityId.set(null);
 
     await TestBed.configureTestingModule({
-      imports: [BookingPreviewComponent],
+      imports: [BookingPreviewComponent, TranslateModule.forRoot()],
       providers: [
         { provide: ApiService, useValue: apiMock },
         { provide: FacilityContextStore, useValue: facilityContextMock },
+        { provide: AuthStore, useValue: authStoreMock },
       ],
     }).compileComponents();
+
+    const translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', EN_TRANSLATIONS, true);
+    translateService.use('en');
   });
 
   afterEach(() => {
@@ -114,6 +149,151 @@ describe('BookingPreviewComponent', () => {
     component.onSubmit();
 
     expect(apiMock.previewBooking).not.toHaveBeenCalled();
+  });
+
+  it('performs debounced customer lookup when phone has at least 10 digits', () => {
+    jest.useFakeTimers();
+    const { component } = setupComponent();
+
+    component.onPhoneInput('0551234567');
+    expect(apiMock.lookupCustomerByPhone).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(400);
+
+    expect(apiMock.lookupCustomerByPhone).toHaveBeenCalledWith('0551234567');
+  });
+
+  it('ignores stale customer lookup responses and keeps the latest result', () => {
+    jest.useFakeTimers();
+
+    const firstLookup = new Subject<CustomerSummaryDto | null>();
+    const secondLookup = new Subject<CustomerSummaryDto | null>();
+
+    apiMock.lookupCustomerByPhone
+      .mockReturnValueOnce(firstLookup)
+      .mockReturnValueOnce(secondLookup);
+
+    const { component } = setupComponent();
+
+    component.onPhoneInput('0551234567');
+    jest.advanceTimersByTime(400);
+    expect(component.lookupLoading()).toBe(true);
+
+    component.onPhoneInput('0557654321');
+    jest.advanceTimersByTime(400);
+
+    firstLookup.next({
+      id: 'customer-old',
+      name: 'Old Customer',
+      phone: '+966551234567',
+      totalBookings: 1,
+      totalSpend: 100,
+      tags: ['VIP'],
+    });
+    firstLookup.complete();
+
+    expect(component.lookupLoading()).toBe(true);
+    expect(component.matchedCustomer()).toBeNull();
+
+    const latestCustomer = {
+      id: 'customer-new',
+      name: 'New Customer',
+      phone: '+966557654321',
+      totalBookings: 2,
+      totalSpend: 250,
+      tags: ['Corporate'],
+    };
+    secondLookup.next(latestCustomer);
+    secondLookup.complete();
+
+    expect(component.lookupLoading()).toBe(false);
+    expect(component.matchedCustomer()).toEqual(latestCustomer);
+  });
+
+  it('clears matched customer when phone has less than 10 digits', () => {
+    const { component } = setupComponent();
+    component.matchedCustomer.set({
+      id: 'customer-1',
+      name: 'Layla',
+      phone: '+966551234567',
+      totalBookings: 0,
+      totalSpend: 0,
+      tags: ['VIP'],
+    });
+
+    component.onPhoneInput('055');
+
+    expect(component.matchedCustomer()).toBeNull();
+    expect(apiMock.lookupCustomerByPhone).not.toHaveBeenCalled();
+  });
+
+  it('toggles customer tag and persists through API', () => {
+    const { component } = setupComponent();
+    component.matchedCustomer.set({
+      id: 'customer-1',
+      name: 'Layla',
+      phone: '+966551234567',
+      totalBookings: 0,
+      totalSpend: 0,
+      tags: ['VIP'],
+    });
+
+    component.toggleTag('Corporate');
+
+    expect(apiMock.updateCustomerTags).toHaveBeenCalledWith('customer-1', [
+      'VIP',
+      'Corporate',
+    ]);
+  });
+
+  it('adds a new tag when tenant tags are empty', () => {
+    const { component } = setupComponent();
+    component.matchedCustomer.set({
+      id: 'customer-1',
+      name: 'Layla',
+      phone: '+966551234567',
+      totalBookings: 0,
+      totalSpend: 0,
+      tags: [],
+    });
+    component.availableTags.set([]);
+
+    apiMock.updateCustomerTags.mockReturnValueOnce(
+      of({
+        id: 'customer-1',
+        name: 'Layla',
+        phone: '+966551234567',
+        totalBookings: 0,
+        totalSpend: 0,
+        tags: ['Corporate'],
+      })
+    );
+
+    component.onNewTagInput('Corporate');
+    component.addNewTag();
+
+    expect(apiMock.updateCustomerTags).toHaveBeenCalledWith('customer-1', [
+      'Corporate',
+    ]);
+    expect(component.newTagInput()).toBe('');
+    expect(component.availableTags()).toContain('Corporate');
+  });
+
+  it('does not add duplicate tags case-insensitively', () => {
+    const { component } = setupComponent();
+    component.matchedCustomer.set({
+      id: 'customer-1',
+      name: 'Layla',
+      phone: '+966551234567',
+      totalBookings: 0,
+      totalSpend: 0,
+      tags: ['VIP'],
+    });
+
+    component.onNewTagInput(' vip ');
+    component.addNewTag();
+
+    expect(apiMock.updateCustomerTags).not.toHaveBeenCalled();
   });
 
   it('calls preview API with selected inputs', () => {

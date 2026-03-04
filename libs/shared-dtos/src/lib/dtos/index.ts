@@ -14,3 +14,5 @@ export * from './analytics.dto';
 export * from './waitlist.dto';
 export * from './waitlist-operations.dto';
 export * from './promo-code.dto';
+export * from './goals.dto';
+export * from './today-snapshot.dto';

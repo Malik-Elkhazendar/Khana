@@ -25,6 +25,9 @@ export type ApiServiceMock = {
   getAnalyticsOccupancy: jest.Mock;
   getAnalyticsRevenue: jest.Mock;
   getAnalyticsPeakHours: jest.Mock;
+  getTodaySnapshot: jest.Mock;
+  getGoalSettings: jest.Mock;
+  updateGoalSettings: jest.Mock;
   completeOnboarding: jest.Mock;
   getFacilities: jest.Mock;
   getManagedFacilities: jest.Mock;
@@ -39,6 +42,9 @@ export type ApiServiceMock = {
   createPromoCode: jest.Mock;
   listPromoCodes: jest.Mock;
   updatePromoCode: jest.Mock;
+  lookupCustomerByPhone: jest.Mock;
+  updateCustomerTags: jest.Mock;
+  getTenantTags: jest.Mock;
   getBookings: jest.Mock;
   previewBooking: jest.Mock;
   createBooking: jest.Mock;
@@ -104,6 +110,26 @@ export const createApiMock = (
       previousPeriodValue: 6,
       percentageChange: 33.33,
     },
+    goalProgress: {
+      period: {
+        monthStart: '2026-03-01T00:00:00.000Z',
+        monthEnd: '2026-03-31T23:59:59.999Z',
+        timeZone: 'Asia/Riyadh',
+      },
+      revenue: {
+        target: 24000,
+        actual: 1440,
+        pct: 6,
+        reached: false,
+      },
+      occupancy: {
+        target: 70,
+        actual: 42.5,
+        pct: 60.71,
+        reached: false,
+      },
+    },
+    goalMilestones: [],
   };
   const analyticsOccupancy: AnalyticsOccupancyResponseDto = {
     overallOccupancyRate: 42.5,
@@ -170,6 +196,14 @@ export const createApiMock = (
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+  const customer = {
+    id: 'customer-1',
+    name: 'Layla',
+    phone: '+966551234567',
+    totalBookings: 0,
+    totalSpend: 0,
+    tags: ['VIP'],
+  };
 
   return {
     getAnalyticsSummary: jest.fn(() =>
@@ -183,6 +217,38 @@ export const createApiMock = (
     ),
     getAnalyticsPeakHours: jest.fn(() =>
       of<AnalyticsPeakHoursResponseDto>(analyticsPeakHours)
+    ),
+    getTodaySnapshot: jest.fn(() =>
+      of({
+        bookingsToday: 8,
+        revenueToday: 1440,
+        unpaidCount: 2,
+        unpaidAmount: 360,
+        expiringHoldsCount: 1,
+        waitlistToday: 3,
+        notifiedWaitlistCount: 1,
+        noShowCount: 0,
+      })
+    ),
+    getGoalSettings: jest.fn(() =>
+      of({
+        monthlyRevenueTarget: 24000,
+        monthlyOccupancyTarget: 70,
+        goalsNudgeShownAt: null,
+        goalsNudgeDismissedAt: null,
+        shouldShowNudge: false,
+        updatedAt: new Date().toISOString(),
+      })
+    ),
+    updateGoalSettings: jest.fn(() =>
+      of({
+        monthlyRevenueTarget: 24000,
+        monthlyOccupancyTarget: 70,
+        goalsNudgeShownAt: null,
+        goalsNudgeDismissedAt: null,
+        shouldShowNudge: false,
+        updatedAt: new Date().toISOString(),
+      })
     ),
     completeOnboarding: jest.fn(() =>
       of({
@@ -222,6 +288,9 @@ export const createApiMock = (
       })
     ),
     updatePromoCode: jest.fn(() => of(promoCode)),
+    lookupCustomerByPhone: jest.fn(() => of(customer)),
+    updateCustomerTags: jest.fn(() => of(customer)),
+    getTenantTags: jest.fn(() => of(['VIP', 'Corporate', 'Regular'])),
     getBookings: jest.fn(() => of<BookingListItemDto[]>([booking])),
     previewBooking: jest.fn(() => of<BookingPreviewResponseDto>(preview)),
     createBooking: jest.fn(() => of<BookingListItemDto>(booking)),

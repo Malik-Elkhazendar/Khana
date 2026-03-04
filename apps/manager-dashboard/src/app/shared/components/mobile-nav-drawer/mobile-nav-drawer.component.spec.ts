@@ -3,8 +3,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { UserRole } from '@khana/shared-dtos';
 import { MobileNavDrawerComponent } from './mobile-nav-drawer.component';
 import { FacilityContextStore } from '../../state';
+import { AuthStore } from '../../state/auth.store';
 import { LayoutStore } from '../../state/layout.store';
 import { signal } from '@angular/core';
 
@@ -159,10 +161,22 @@ describe('MobileNavDrawerComponent', () => {
   });
 
   it('shows promo nav item for owner and hides it for viewer', () => {
+    const authStore = TestBed.inject(AuthStore);
+    authStore.setUser({
+      id: 'owner-1',
+      tenantId: 'tenant-1',
+      email: 'owner@khana.dev',
+      name: 'Owner',
+      role: UserRole.OWNER,
+      isActive: true,
+      onboardingCompleted: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     openDrawer();
+    fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Promo Codes');
 
-    const authStore = TestBed.inject(AuthStore);
     authStore.setUser({
       id: 'user-2',
       tenantId: 'tenant-1',

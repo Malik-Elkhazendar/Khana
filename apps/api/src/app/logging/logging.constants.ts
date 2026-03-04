@@ -43,6 +43,15 @@ export const LOG_EVENTS = {
   // Analytics
   ANALYTICS_QUERY_SUCCESS: 'analytics.query.success',
 
+  // Goals
+  GOALS_SETTINGS_UPDATED: 'goals.settings.updated',
+  GOALS_MILESTONE_REACHED: 'goals.milestone.reached',
+  GOALS_MILESTONE_SYNC_FAILED: 'goals.milestone.sync_failed',
+
+  // Customers
+  CUSTOMER_TAGS_UPDATED: 'customer.tags.updated',
+  CUSTOMER_UPSERT_FAILED: 'customer.upsert.failed',
+
   // Email
   EMAIL_SENT: 'email.sent',
   EMAIL_FAILED: 'email.failed',

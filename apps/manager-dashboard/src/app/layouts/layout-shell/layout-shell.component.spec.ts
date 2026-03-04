@@ -2,10 +2,13 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { LayoutShellComponent } from './layout-shell.component';
 import { LayoutStore } from '../../shared/state/layout.store';
 import { FacilityContextStore } from '../../shared/state';
 import { AuthService } from '../../shared/services/auth.service';
+import { ApiService } from '../../shared/services/api.service';
+import { AuthStore } from '../../shared/state/auth.store';
 
 const EN_TRANSLATIONS = {
   DASHBOARD: {
@@ -84,6 +87,37 @@ describe('LayoutShellComponent', () => {
           provide: AuthService,
           useValue: {
             logout: jest.fn(),
+          },
+        },
+        {
+          provide: ApiService,
+          useValue: {
+            getGoalSettings: jest.fn(() =>
+              of({
+                monthlyRevenueTarget: null,
+                monthlyOccupancyTarget: null,
+                goalsNudgeShownAt: null,
+                goalsNudgeDismissedAt: null,
+                shouldShowNudge: false,
+                updatedAt: new Date().toISOString(),
+              })
+            ),
+            updateGoalSettings: jest.fn(() =>
+              of({
+                monthlyRevenueTarget: null,
+                monthlyOccupancyTarget: null,
+                goalsNudgeShownAt: null,
+                goalsNudgeDismissedAt: null,
+                shouldShowNudge: false,
+                updatedAt: new Date().toISOString(),
+              })
+            ),
+          },
+        },
+        {
+          provide: AuthStore,
+          useValue: {
+            user: signal(null),
           },
         },
         { provide: FacilityContextStore, useValue: facilityContextMock },

@@ -11,10 +11,7 @@ async function assertNoPlaceholderFooterLinks(
 
   expect(count).toBeGreaterThan(0);
   for (let i = 0; i < count; i += 1) {
-    const href = await links.nth(i).getAttribute('href');
-    expect(href).toBeTruthy();
-    expect(href).not.toBe('#');
-    expect(href).not.toBe('/#');
+    await expect(links.nth(i)).toHaveAttribute('href', /^(?!#?$)(?!\/#?$).+/);
   }
 }
 

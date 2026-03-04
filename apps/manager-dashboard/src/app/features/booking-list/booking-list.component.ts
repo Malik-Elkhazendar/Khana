@@ -1,6 +1,7 @@
-import { CommonModule } from '@angular/common';
 import {
+  ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   OnDestroy,
   OnInit,
@@ -11,17 +12,20 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { LanguageService } from '../../shared/services/language.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
+import { ApiService } from '../../shared/services/api.service';
 import { FacilityContextStore } from '../../shared/state';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { AuthStore } from '../../shared/state/auth.store';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
 import {
+  TagChipComponent,
   UiStatusBadgeComponent,
   UiToastComponent,
 } from '../../shared/components';
@@ -41,24 +45,28 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
   selector: 'app-booking-list',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     RouterModule,
     ConfirmationDialogComponent,
     CancellationFormComponent,
+    TagChipComponent,
     UiStatusBadgeComponent,
     UiToastComponent,
   ],
   templateUrl: './booking-list.component.html',
   styleUrl: './booking-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BookingListComponent implements OnInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
   private readonly localeFormat = inject(LocaleFormatService);
+  private readonly api = inject(ApiService);
   private readonly facilityContext = inject(FacilityContextStore);
   private readonly authStore = inject(AuthStore);
+  private readonly route = inject(ActivatedRoute);
   private readonly translateService = inject(TranslateService, {
     optional: true,
   });
@@ -84,6 +92,8 @@ export class BookingListComponent implements OnInit, OnDestroy {
   searchTerm = signal('');
   filterStatus = signal<BookingStatus | 'ALL'>('ALL');
   filterPaymentStatus = signal<PaymentStatus | 'ALL'>('ALL');
+  tagFilter = signal<string[]>([]);
+  availableTags = signal<string[]>([]);
   startDateFilter = signal('');
   endDateFilter = signal('');
   sortKey = signal<'date' | 'customer' | 'status' | 'price'>('date');
@@ -269,6 +279,13 @@ export class BookingListComponent implements OnInit, OnDestroy {
       });
     }
 
+    if (this.tagFilter().length > 0) {
+      const selectedTags = this.tagFilter();
+      result = result.filter((booking) =>
+        selectedTags.every((tag) => booking.customerTags?.includes(tag))
+      );
+    }
+
     if (!dateRangeError && startDate) {
       const start = new Date(`${startDate}T00:00:00`);
       result = result.filter(
@@ -392,7 +409,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
    * Initialize facility data and load bookings.
    */
   ngOnInit(): void {
+    this.hydrateFiltersFromQueryParams();
     this.facilityContext.initialize();
+    this.loadTenantTags();
   }
 
   /**
@@ -584,6 +603,21 @@ export class BookingListComponent implements OnInit, OnDestroy {
    */
   onPaymentFilterChange(value: string): void {
     this.filterPaymentStatus.set(value as PaymentStatus | 'ALL');
+    this.onFiltersChange();
+  }
+
+  toggleTagFilter(tag: string): void {
+    this.tagFilter.update((current) => {
+      if (current.includes(tag)) {
+        return current.filter((item) => item !== tag);
+      }
+      return [...current, tag];
+    });
+    this.onFiltersChange();
+  }
+
+  clearTagFilter(): void {
+    this.tagFilter.set([]);
     this.onFiltersChange();
   }
 
@@ -1056,4 +1090,47 @@ export class BookingListComponent implements OnInit, OnDestroy {
 
   readonly BookingStatus = BookingStatus;
   readonly PaymentStatus = PaymentStatus;
+
+  private hydrateFiltersFromQueryParams(): void {
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    const statusParam = queryParamMap.get('status');
+    const paymentStatusParam = queryParamMap.get('paymentStatus');
+
+    if (statusParam && this.isBookingStatus(statusParam)) {
+      this.filterStatus.set(statusParam);
+    }
+
+    if (paymentStatusParam && this.isPaymentStatus(paymentStatusParam)) {
+      this.filterPaymentStatus.set(paymentStatusParam);
+    }
+
+    if (
+      (statusParam && this.isBookingStatus(statusParam)) ||
+      (paymentStatusParam && this.isPaymentStatus(paymentStatusParam))
+    ) {
+      this.onFiltersChange();
+    }
+  }
+
+  private isBookingStatus(value: string): value is BookingStatus {
+    return (Object.values(BookingStatus) as string[]).includes(value);
+  }
+
+  private isPaymentStatus(value: string): value is PaymentStatus {
+    return (Object.values(PaymentStatus) as string[]).includes(value);
+  }
+
+  private loadTenantTags(): void {
+    this.api
+      .getTenantTags()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (tags) => {
+          this.availableTags.set(tags);
+        },
+        error: () => {
+          this.availableTags.set([]);
+        },
+      });
+  }
 }

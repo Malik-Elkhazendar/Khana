@@ -1,0 +1,401 @@
+<a class="skip-link dashboard-skip-link" href="#analytics-main">{{
+  text('DASHBOARD.PAGES.ANALYTICS.SKIP_LINK')
+}}</a>
+
+<main
+  class="analytics-page dashboard-page dashboard-page--data"
+  id="analytics-main"
+  role="main"
+>
+  <header class="dashboard-page__header">
+    <div class="dashboard-page__title-group">
+      <h1 class="dashboard-page__title">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.TITLE') }}
+      </h1>
+      <p class="dashboard-page__subtitle">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.SUBTITLE') }}
+      </p>
+    </div>
+  </header>
+
+  <section class="dashboard-card analytics-filters dashboard-adaptive-surface">
+    <div class="analytics-filters__grid">
+      <label class="analytics-field">
+        <span class="analytics-field__label">{{
+          text('DASHBOARD.PAGES.ANALYTICS.FILTERS.FROM')
+        }}</span>
+        <input
+          type="date"
+          [ngModel]="fromDate()"
+          (ngModelChange)="fromDate.set($event); onDateChange()"
+        />
+      </label>
+
+      <label class="analytics-field">
+        <span class="analytics-field__label">{{
+          text('DASHBOARD.PAGES.ANALYTICS.FILTERS.TO')
+        }}</span>
+        <input
+          type="date"
+          [ngModel]="toDate()"
+          (ngModelChange)="toDate.set($event); onDateChange()"
+        />
+      </label>
+
+      <label class="analytics-field">
+        <span class="analytics-field__label">{{
+          text('DASHBOARD.PAGES.ANALYTICS.FILTERS.GROUP_BY')
+        }}</span>
+        <select [ngModel]="groupBy()" (ngModelChange)="onGroupByChange($event)">
+          <option value="day">
+            {{ text('DASHBOARD.PAGES.ANALYTICS.FILTERS.GROUP_DAY') }}
+          </option>
+          <option value="week">
+            {{ text('DASHBOARD.PAGES.ANALYTICS.FILTERS.GROUP_WEEK') }}
+          </option>
+          <option value="month">
+            {{ text('DASHBOARD.PAGES.ANALYTICS.FILTERS.GROUP_MONTH') }}
+          </option>
+        </select>
+      </label>
+
+      <label class="analytics-field">
+        <span class="analytics-field__label">{{
+          text('DASHBOARD.PAGES.ANALYTICS.FILTERS.FACILITY')
+        }}</span>
+        <select
+          [ngModel]="facilityId()"
+          (ngModelChange)="onFacilityChange($event)"
+        >
+          <option value="">
+            {{ text('DASHBOARD.PAGES.ANALYTICS.FILTERS.ALL_FACILITIES') }}
+          </option>
+          @for (facility of facilities(); track facility.id) {
+          <option [value]="facility.id">{{ facility.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div
+      class="dashboard-action-group dashboard-action-group--stack-compact analytics-filters__actions"
+    >
+      <button
+        class="dashboard-btn dashboard-btn--primary"
+        type="button"
+        (click)="applyFilters()"
+      >
+        {{ text('DASHBOARD.PAGES.ANALYTICS.ACTIONS.APPLY_FILTERS') }}
+      </button>
+      <button
+        class="dashboard-btn dashboard-btn--secondary"
+        type="button"
+        (click)="setToday()"
+      >
+        {{ text('DASHBOARD.PAGES.ANALYTICS.ACTIONS.TODAY') }}
+      </button>
+    </div>
+
+    @if (filterError(); as rangeError) {
+    <p class="analytics-filters__error" role="alert">{{ text(rangeError) }}</p>
+    }
+  </section>
+
+  @if (error(); as err) {
+  <section class="dashboard-card analytics-error" role="alert">
+    <p>{{ text(err.message) }}</p>
+    <button
+      class="dashboard-btn dashboard-btn--secondary"
+      type="button"
+      (click)="retryLoad()"
+    >
+      {{ text('DASHBOARD.PAGES.ANALYTICS.ACTIONS.RETRY') }}
+    </button>
+  </section>
+  } @if (loading() && !hasAnyData()) {
+  <section
+    class="dashboard-card analytics-loading"
+    role="status"
+    aria-live="polite"
+  >
+    {{ text('DASHBOARD.PAGES.ANALYTICS.STATE.LOADING') }}
+  </section>
+  } @else {
+  <section
+    class="analytics-kpis"
+    [attr.aria-label]="text('DASHBOARD.PAGES.ANALYTICS.KPI.ARIA_LABEL')"
+  >
+    <article class="dashboard-card kpi-card">
+      <h2 class="kpi-card__label">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.TOTAL_BOOKINGS') }}
+      </h2>
+      <p class="kpi-card__value">
+        {{ formatNumber(summary()?.totalBookings ?? 0) }}
+      </p>
+      <p
+        class="kpi-card__comparison"
+        [class.kpi-card__comparison--positive]="
+          (summary()?.bookingsComparison?.percentageChange ?? 0) >= 0
+        "
+      >
+        {{
+          formatPercent(summary()?.bookingsComparison?.percentageChange ?? 0)
+        }}
+        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.VS_PREVIOUS_PERIOD') }}
+      </p>
+    </article>
+
+    <article class="dashboard-card kpi-card">
+      <h2 class="kpi-card__label">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.TOTAL_REVENUE') }}
+      </h2>
+      <p class="kpi-card__value">
+        {{ formatCurrency(summary()?.totalRevenue ?? 0) }}
+      </p>
+      <p
+        class="kpi-card__comparison"
+        [class.kpi-card__comparison--positive]="
+          (summary()?.revenueComparison?.percentageChange ?? 0) >= 0
+        "
+      >
+        {{ formatPercent(summary()?.revenueComparison?.percentageChange ?? 0) }}
+        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.VS_PREVIOUS_PERIOD') }}
+      </p>
+    </article>
+
+    <article class="dashboard-card kpi-card">
+      <h2 class="kpi-card__label">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.OCCUPANCY_RATE') }}
+      </h2>
+      <p class="kpi-card__value">
+        {{ formatPercent(occupancy()?.overallOccupancyRate ?? 0) }}
+      </p>
+    </article>
+
+    <article class="dashboard-card kpi-card">
+      <h2 class="kpi-card__label">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.CANCELLATION_RATE') }}
+      </h2>
+      <p class="kpi-card__value">
+        {{ formatPercent(summary()?.cancellationRate ?? 0) }}
+      </p>
+    </article>
+
+    <article class="dashboard-card kpi-card">
+      <h2 class="kpi-card__label">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.AVG_BOOKING_VALUE') }}
+      </h2>
+      <p class="kpi-card__value">
+        {{ formatCurrency(summary()?.avgBookingValue ?? 0) }}
+      </p>
+    </article>
+  </section>
+
+  <section class="analytics-grid">
+    <article class="dashboard-card analytics-card">
+      <header class="analytics-card__header">
+        <h2>{{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.BOOKINGS_TREND') }}</h2>
+      </header>
+      @if (trendPoints().length > 0) {
+      <svg
+        class="trend-chart"
+        viewBox="0 0 100 36"
+        preserveAspectRatio="none"
+        [attr.aria-label]="
+          text('DASHBOARD.PAGES.ANALYTICS.CHARTS.BOOKINGS_ARIA')
+        "
+        role="img"
+      >
+        <polyline [attr.points]="bookingsPolyline()" />
+      </svg>
+      <ul class="trend-legend">
+        @for (point of trendPoints(); track point.label) {
+        <li>
+          <span class="trend-legend__label">{{ point.label }}</span>
+          <strong>{{ formatNumber(point.bookings) }}</strong>
+        </li>
+        }
+      </ul>
+      } @else {
+      <p class="analytics-empty">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.STATE.NO_TREND_DATA') }}
+      </p>
+      }
+    </article>
+
+    <article class="dashboard-card analytics-card">
+      <header class="analytics-card__header">
+        <h2>{{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.REVENUE_TREND') }}</h2>
+      </header>
+      @if (trendPoints().length > 0) {
+      <svg
+        class="trend-chart trend-chart--revenue"
+        viewBox="0 0 100 36"
+        preserveAspectRatio="none"
+        [attr.aria-label]="
+          text('DASHBOARD.PAGES.ANALYTICS.CHARTS.REVENUE_ARIA')
+        "
+        role="img"
+      >
+        <polyline [attr.points]="revenuePolyline()" />
+      </svg>
+      <ul class="trend-legend">
+        @for (point of trendPoints(); track point.label) {
+        <li>
+          <span class="trend-legend__label">{{ point.label }}</span>
+          <strong>{{ formatCurrency(point.revenue) }}</strong>
+        </li>
+        }
+      </ul>
+      } @else {
+      <p class="analytics-empty">
+        {{ text('DASHBOARD.PAGES.ANALYTICS.STATE.NO_TREND_DATA') }}
+      </p>
+      }
+    </article>
+
+    <article class="dashboard-card analytics-card analytics-card--insights">
+      <header class="analytics-card__header">
+        <h2>{{ text('DASHBOARD.PAGES.ANALYTICS.INSIGHTS.TITLE') }}</h2>
+      </header>
+      <dl class="insights-list">
+        <div>
+          <dt>{{ text('DASHBOARD.PAGES.ANALYTICS.INSIGHTS.PEAK_HOURS') }}</dt>
+          <dd>
+            {{
+              peakHours()?.peakTimeRange ??
+                text('DASHBOARD.PAGES.ANALYTICS.STATE.NOT_AVAILABLE')
+            }}
+          </dd>
+        </div>
+        <div>
+          <dt>
+            {{
+              text('DASHBOARD.PAGES.ANALYTICS.INSIGHTS.MOST_BOOKED_FACILITY')
+            }}
+          </dt>
+          <dd>
+            {{
+              peakHours()?.mostBookedFacility ??
+                text('DASHBOARD.PAGES.ANALYTICS.STATE.NOT_AVAILABLE')
+            }}
+          </dd>
+        </div>
+        <div>
+          <dt>
+            {{ text('DASHBOARD.PAGES.ANALYTICS.INSIGHTS.MOST_BOOKED_COURT') }}
+          </dt>
+          <dd>
+            {{
+              peakHours()?.mostBookedCourt ??
+                text('DASHBOARD.PAGES.ANALYTICS.STATE.NOT_AVAILABLE')
+            }}
+          </dd>
+        </div>
+      </dl>
+    </article>
+  </section>
+
+  <section class="dashboard-card analytics-table-card">
+    <header class="analytics-card__header">
+      <h2>{{ text('DASHBOARD.PAGES.ANALYTICS.TABLE.TITLE') }}</h2>
+    </header>
+
+    @if ((revenue()?.facilityPerformance?.length ?? 0) > 0) {
+    <div class="analytics-table-wrap">
+      <table
+        [attr.aria-label]="text('DASHBOARD.PAGES.ANALYTICS.TABLE.ARIA_LABEL')"
+      >
+        <thead>
+          <tr>
+            <th>{{ text('DASHBOARD.PAGES.ANALYTICS.TABLE.FACILITY') }}</th>
+            <th>{{ text('DASHBOARD.PAGES.ANALYTICS.TABLE.BOOKINGS') }}</th>
+            <th>{{ text('DASHBOARD.PAGES.ANALYTICS.TABLE.REVENUE') }}</th>
+            <th>{{ text('DASHBOARD.PAGES.ANALYTICS.TABLE.OCCUPANCY') }}</th>
+            <th>{{ text('DASHBOARD.PAGES.ANALYTICS.TABLE.CANCELLATION') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of revenue()?.facilityPerformance ?? []; track
+          row.facilityId) {
+          <tr>
+            <td>{{ row.facilityName }}</td>
+            <td>{{ formatNumber(row.totalBookings) }}</td>
+            <td>{{ formatCurrency(row.revenue) }}</td>
+            <td>{{ formatPercent(row.occupancyRate) }}</td>
+            <td>{{ formatPercent(row.cancellationRate) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    } @else {
+    <p class="analytics-empty">
+      {{ text('DASHBOARD.PAGES.ANALYTICS.STATE.NO_FACILITY_DATA') }}
+    </p>
+    }
+  </section>
+
+  <section class="analytics-occupancy-list">
+    @for (facility of occupancySeries(); track facility.facilityId) {
+    <article class="dashboard-card analytics-occupancy-card">
+      <header class="analytics-card__header">
+        <h2>
+          {{
+            text('DASHBOARD.PAGES.ANALYTICS.OCCUPANCY.FACILITY_TITLE', {
+              name: facility.facilityName
+            })
+          }}
+        </h2>
+        <p>{{ formatPercent(facility.occupancyRate) }}</p>
+      </header>
+      <div class="analytics-table-wrap">
+        <table
+          [attr.aria-label]="
+            text('DASHBOARD.PAGES.ANALYTICS.OCCUPANCY.TABLE_ARIA_LABEL', {
+              name: facility.facilityName
+            })
+          "
+        >
+          <thead>
+            <tr>
+              <th>{{ text('DASHBOARD.PAGES.ANALYTICS.OCCUPANCY.DATE') }}</th>
+              <th>
+                {{ text('DASHBOARD.PAGES.ANALYTICS.OCCUPANCY.OCCUPIED') }}
+              </th>
+              <th>
+                {{ text('DASHBOARD.PAGES.ANALYTICS.OCCUPANCY.AVAILABLE') }}
+              </th>
+              <th>{{ text('DASHBOARD.PAGES.ANALYTICS.OCCUPANCY.RATE') }}</th>
+              <th>
+                {{ text('DASHBOARD.PAGES.ANALYTICS.OCCUPANCY.BOOKINGS') }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (day of facility.daily; track day.date) {
+            <tr>
+              <td>{{ day.date }}</td>
+              <td>{{ formatNumber(day.occupiedMinutes) }}</td>
+              <td>{{ formatNumber(day.availableMinutes) }}</td>
+              <td>{{ formatPercent(day.occupancyRate) }}</td>
+              <td>{{ formatNumber(day.bookingCount) }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+    }
+  </section>
+
+  @if (!loading() && !hasAnyData()) {
+  <section
+    class="dashboard-card analytics-empty-state"
+    role="status"
+    aria-live="polite"
+  >
+    {{ text('DASHBOARD.PAGES.ANALYTICS.STATE.NO_DATA') }}
+  </section>
+  } }
+</main>

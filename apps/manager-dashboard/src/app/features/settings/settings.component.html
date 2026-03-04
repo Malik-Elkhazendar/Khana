@@ -59,7 +59,7 @@
       </dl>
     </div>
 
-    <div class="settings-section">
+    <div class="settings-section" id="goals">
       <h2>{{ 'DASHBOARD.PAGES.SETTINGS.PREFERENCES_TITLE' | translate }}</h2>
       <button
         type="button"
@@ -68,6 +68,82 @@
       >
         {{ 'DASHBOARD.PAGES.SETTINGS.TOGGLE_LANGUAGE' | translate }}
       </button>
+    </div>
+
+    <div class="settings-section">
+      <h2>{{ 'DASHBOARD.PAGES.SETTINGS.GOALS.TITLE' | translate }}</h2>
+      <p class="settings-section__hint">
+        {{ 'DASHBOARD.PAGES.SETTINGS.GOALS.SUBTITLE' | translate }}
+      </p>
+
+      <p class="settings-state" *ngIf="goalsLoading()">
+        {{ 'DASHBOARD.PAGES.SETTINGS.GOALS.LOADING' | translate }}
+      </p>
+
+      <div class="settings-goals-grid" *ngIf="!goalsLoading()">
+        <label>
+          <span>
+            {{
+              'DASHBOARD.PAGES.SETTINGS.GOALS.MONTHLY_REVENUE_LABEL' | translate
+            }}
+          </span>
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            [value]="monthlyRevenueTarget()"
+            (input)="
+              monthlyRevenueTarget.set(
+                ($any($event.target).value ?? '').toString()
+              )
+            "
+            [disabled]="!isOwner() || goalsSaving()"
+          />
+        </label>
+
+        <label>
+          <span>
+            {{
+              'DASHBOARD.PAGES.SETTINGS.GOALS.MONTHLY_OCCUPANCY_LABEL'
+                | translate
+            }}
+          </span>
+          <input
+            type="number"
+            min="0.01"
+            max="100"
+            step="0.01"
+            [value]="monthlyOccupancyTarget()"
+            (input)="
+              monthlyOccupancyTarget.set(
+                ($any($event.target).value ?? '').toString()
+              )
+            "
+            [disabled]="!isOwner() || goalsSaving()"
+          />
+        </label>
+      </div>
+
+      <div class="settings-actions" *ngIf="isOwner()">
+        <button
+          type="button"
+          class="dashboard-btn dashboard-btn--primary"
+          (click)="saveGoals()"
+          [disabled]="goalsSaving() || goalsLoading()"
+        >
+          {{ 'DASHBOARD.PAGES.SETTINGS.GOALS.SAVE' | translate }}
+        </button>
+      </div>
+
+      <p class="settings-state" *ngIf="!isOwner()">
+        {{ 'DASHBOARD.PAGES.SETTINGS.GOALS.READ_ONLY' | translate }}
+      </p>
+      <p class="settings-state settings-state--success" *ngIf="goalsMessage()">
+        {{ goalsMessage()! | translate }}
+      </p>
+      <p class="settings-state settings-state--error" *ngIf="goalsError()">
+        {{ goalsError()! | translate }}
+      </p>
     </div>
 
     <div class="settings-section">

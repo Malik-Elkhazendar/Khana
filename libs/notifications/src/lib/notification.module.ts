@@ -2,6 +2,7 @@ import { Global, Module, Logger } from '@nestjs/common';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EmailService } from './services/email.service';
+import { WhatsAppService } from './services/whatsapp.service';
 
 const logger = new Logger('NotificationModule');
 
@@ -45,7 +46,7 @@ const logger = new Logger('NotificationModule');
       inject: [ConfigService],
     }),
   ],
-  providers: [EmailService],
-  exports: [EmailService],
+  providers: [EmailService, WhatsAppService],
+  exports: [EmailService, WhatsAppService],
 })
 export class NotificationModule {}

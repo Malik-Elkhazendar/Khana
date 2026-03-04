@@ -15,7 +15,10 @@ import { FacilitiesModule } from './facilities/facilities.module';
 import { UsersModule } from './users/users.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { CustomersModule } from './customers/customers.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
+import { SettingsModule } from './settings/settings.module';
 
 const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
 
@@ -54,7 +57,10 @@ const NODE_ENV = normalizeNodeEnv(process.env['NODE_ENV']);
     UsersModule,
     OnboardingModule,
     AnalyticsModule,
+    DashboardModule,
+    CustomersModule,
     PromoCodesModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService, SeedService],

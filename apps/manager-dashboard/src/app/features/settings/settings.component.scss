@@ -30,6 +30,12 @@
   font-size: var(--text-lg);
 }
 
+.settings-section__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
 .settings-section dl {
   margin: 0;
   display: grid;
@@ -60,6 +66,32 @@
   gap: var(--space-3);
 }
 
+.settings-goals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.settings-goals-grid label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.settings-goals-grid span {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.settings-goals-grid input {
+  inline-size: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-surface-muted);
+  background: var(--color-surface-elevated);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-3);
+  color: var(--color-text-primary);
+}
+
 .settings-state {
   margin: 0;
   color: var(--color-text-secondary);
@@ -86,6 +118,10 @@
   .settings-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .settings-goals-grid {
+    grid-template-columns: 1fr;
   }
 
   .settings-actions > .dashboard-btn {

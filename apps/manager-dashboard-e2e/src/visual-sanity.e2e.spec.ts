@@ -6,7 +6,7 @@ test.describe('Visual Sanity — Screenshot Checks', () => {
 
   test('EN landing page — no major layout break', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('app-landing-header')).toBeVisible();
 
     await expect(page).toHaveScreenshot('landing-en-desktop.png', {
       fullPage: false,
@@ -16,7 +16,7 @@ test.describe('Visual Sanity — Screenshot Checks', () => {
 
   test('AR landing page — no major layout break', async ({ page }) => {
     await page.goto('/ar');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('app-landing-header-ar')).toBeVisible();
 
     await expect(page).toHaveScreenshot('landing-ar-desktop.png', {
       fullPage: false,
@@ -26,7 +26,7 @@ test.describe('Visual Sanity — Screenshot Checks', () => {
 
   test('EN→AR switch — visual direction change', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('app-landing-header')).toBeVisible();
 
     // Take EN screenshot first
     await expect(page).toHaveScreenshot('landing-before-switch-en.png', {
@@ -40,7 +40,7 @@ test.describe('Visual Sanity — Screenshot Checks', () => {
       .first()
       .click();
     await expect(page).toHaveURL(/\/ar$/);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('app-landing-header-ar')).toBeVisible();
 
     // Take AR screenshot — should be visually different (RTL)
     await expect(page).toHaveScreenshot('landing-after-switch-ar.png', {
@@ -52,7 +52,8 @@ test.describe('Visual Sanity — Screenshot Checks', () => {
   test('Dashboard bookings page — layout intact', async ({ page }) => {
     await setupAuthenticatedDashboard(page);
     await page.goto('/dashboard/bookings');
-    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(/\/dashboard\/bookings$/);
+    await expect(page.locator('app-booking-list')).toBeVisible();
 
     await expect(page).toHaveScreenshot('dashboard-bookings-en.png', {
       fullPage: false,
@@ -62,7 +63,7 @@ test.describe('Visual Sanity — Screenshot Checks', () => {
 
   test('Reset password page — form renders correctly', async ({ page }) => {
     await page.goto('/reset-password?token=visual-test-token');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('app-reset-password form')).toBeVisible();
 
     await expect(page).toHaveScreenshot('reset-password-form.png', {
       fullPage: false,
