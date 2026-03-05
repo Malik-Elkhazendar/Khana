@@ -10,6 +10,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { AnalyticsGroupBy, UserRole } from '@khana/shared-dtos';
+import { MinutesToHoursPipe } from '../../shared/pipes/minutes-to-hours.pipe';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import { FacilityContextStore } from '../../shared/state';
 import { AuthStore } from '../../shared/state/auth.store';
@@ -95,7 +96,13 @@ const GROUP_RANK: Record<AnalyticsGroupBy, number> = {
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule, TodaySnapshotComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TranslateModule,
+    TodaySnapshotComponent,
+    MinutesToHoursPipe,
+  ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

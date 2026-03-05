@@ -684,8 +684,8 @@
             @for (day of facility.daily; track day.date) {
             <tr>
               <td>{{ day.date }}</td>
-              <td>{{ formatNumber(day.occupiedMinutes) }}</td>
-              <td>{{ formatNumber(day.availableMinutes) }}</td>
+              <td>{{ day.occupiedMinutes | minutesToHours }}</td>
+              <td>{{ day.availableMinutes | minutesToHours }} avail.</td>
               <td>{{ formatPercent(day.occupancyRate) }}</td>
               <td>{{ formatNumber(day.bookingCount) }}</td>
             </tr>
