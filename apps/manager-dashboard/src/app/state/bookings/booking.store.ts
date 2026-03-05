@@ -14,22 +14,28 @@ import {
 
 type BookingState = {
   bookings: BookingListItemDto[];
+  bookingDetailsById: Record<string, BookingListItemDto>;
   loading: boolean;
   error: Error | null;
   errorCode: string | null;
   filter: { facilityId: string | null };
   actionLoadingById: Record<string, boolean>;
   actionErrorsById: Record<string, string | null>;
+  detailLoadingById: Record<string, boolean>;
+  detailErrorsById: Record<string, string | null>;
 };
 
 const initialState: BookingState = {
   bookings: [],
+  bookingDetailsById: {},
   loading: false,
   error: null,
   errorCode: null,
   filter: { facilityId: null },
   actionLoadingById: {},
   actionErrorsById: {},
+  detailLoadingById: {},
+  detailErrorsById: {},
 };
 
 type BookingErrorCode =
@@ -91,6 +97,27 @@ export const BookingStore = signalStore(
   withMethods(
     (store, api = inject(ApiService), logger = inject(LoggerService)) => {
       const inFlightActions = new Map<string, Promise<boolean>>();
+      const inFlightDetailLoads = new Map<string, Promise<void>>();
+      const detailRequestVersionById = new Map<string, number>();
+
+      const upsertBookingDetail = (
+        details: Record<string, BookingListItemDto>,
+        booking: BookingListItemDto
+      ): Record<string, BookingListItemDto> => ({
+        ...details,
+        [booking.id]: booking,
+      });
+
+      const mergeBookingsIntoDetails = (
+        details: Record<string, BookingListItemDto>,
+        bookings: BookingListItemDto[]
+      ): Record<string, BookingListItemDto> => {
+        let next = details;
+        for (const booking of bookings) {
+          next = upsertBookingDetail(next, booking);
+        }
+        return next;
+      };
 
       const runStatusAction = async (
         id: string,
@@ -158,6 +185,18 @@ export const BookingStore = signalStore(
 
           patchState(store, (state) => ({
             bookings: state.bookings.map((b) => (b.id === id ? optimistic : b)),
+            bookingDetailsById: state.bookingDetailsById[id]
+              ? {
+                  ...state.bookingDetailsById,
+                  [id]: {
+                    ...state.bookingDetailsById[id],
+                    ...optimistic,
+                    facility:
+                      optimistic.facility ??
+                      state.bookingDetailsById[id].facility,
+                  },
+                }
+              : state.bookingDetailsById,
             error: null,
             errorCode: null,
             actionLoadingById: { ...state.actionLoadingById, [id]: true },
@@ -182,9 +221,13 @@ export const BookingStore = signalStore(
               const refreshedBookings = await firstValueFrom(
                 api.getBookings(store.filter().facilityId ?? undefined)
               );
-              patchState(store, {
+              patchState(store, (state) => ({
                 bookings: refreshedBookings,
-              });
+                bookingDetailsById: mergeBookingsIntoDetails(
+                  state.bookingDetailsById,
+                  refreshedBookings
+                ),
+              }));
               return true;
             }
 
@@ -203,6 +246,18 @@ export const BookingStore = signalStore(
                     }
                   : b
               ),
+              bookingDetailsById: state.bookingDetailsById[id]
+                ? {
+                    ...state.bookingDetailsById,
+                    [id]: {
+                      ...state.bookingDetailsById[id],
+                      ...updated,
+                      facility:
+                        updated?.facility ??
+                        state.bookingDetailsById[id].facility,
+                    },
+                  }
+                : state.bookingDetailsById,
             }));
             return true;
           } catch (err) {
@@ -223,6 +278,18 @@ export const BookingStore = signalStore(
               bookings: state.bookings.map((b) =>
                 b.id === id ? previousBooking : b
               ),
+              bookingDetailsById: state.bookingDetailsById[id]
+                ? {
+                    ...state.bookingDetailsById,
+                    [id]: {
+                      ...state.bookingDetailsById[id],
+                      ...previousBooking,
+                      facility:
+                        previousBooking.facility ??
+                        state.bookingDetailsById[id].facility,
+                    },
+                  }
+                : state.bookingDetailsById,
               error: toBookingError(resolved.message),
               errorCode: resolved.code,
               actionErrorsById: {
@@ -273,6 +340,115 @@ export const BookingStore = signalStore(
             cancellationScope,
           });
         },
+        loadBookingById: async (id: string): Promise<void> => {
+          const bookingId = id.trim();
+          if (!bookingId) return;
+
+          const existing = inFlightDetailLoads.get(bookingId);
+          if (existing) {
+            await existing;
+            return;
+          }
+
+          const requestVersion =
+            (detailRequestVersionById.get(bookingId) ?? 0) + 1;
+          detailRequestVersionById.set(bookingId, requestVersion);
+
+          patchState(store, (state) => ({
+            detailLoadingById: {
+              ...state.detailLoadingById,
+              [bookingId]: true,
+            },
+            detailErrorsById: {
+              ...state.detailErrorsById,
+              [bookingId]: null,
+            },
+          }));
+
+          const loadPromise = (async () => {
+            try {
+              const booking = await firstValueFrom(api.getBooking(bookingId));
+              if (detailRequestVersionById.get(bookingId) !== requestVersion) {
+                return;
+              }
+
+              patchState(store, (state) => ({
+                bookings: state.bookings.some((item) => item.id === bookingId)
+                  ? state.bookings.map((item) =>
+                      item.id === bookingId ? { ...item, ...booking } : item
+                    )
+                  : state.bookings,
+                bookingDetailsById: upsertBookingDetail(
+                  state.bookingDetailsById,
+                  booking
+                ),
+              }));
+            } catch (err) {
+              if (detailRequestVersionById.get(bookingId) !== requestVersion) {
+                return;
+              }
+
+              const resolved = resolveBookingError(err);
+              const requestId = resolveRequestId(err);
+              const context: Record<string, unknown> = { bookingId };
+              if (requestId) {
+                context['requestId'] = requestId;
+              }
+
+              logger.error(
+                'client.booking.detail.load.failed',
+                'Failed to load booking details',
+                context,
+                err
+              );
+
+              patchState(store, (state) => ({
+                detailErrorsById: {
+                  ...state.detailErrorsById,
+                  [bookingId]: resolved.message,
+                },
+              }));
+            } finally {
+              if (detailRequestVersionById.get(bookingId) === requestVersion) {
+                patchState(store, (state) => ({
+                  detailLoadingById: {
+                    ...state.detailLoadingById,
+                    [bookingId]: false,
+                  },
+                }));
+              }
+            }
+          })();
+
+          inFlightDetailLoads.set(bookingId, loadPromise);
+          try {
+            await loadPromise;
+          } finally {
+            const current = inFlightDetailLoads.get(bookingId);
+            if (current === loadPromise) {
+              inFlightDetailLoads.delete(bookingId);
+            }
+          }
+        },
+        getBookingDetail: (id: string): BookingListItemDto | null => {
+          const bookingId = id.trim();
+          if (!bookingId) return null;
+          const fromDetails = store.bookingDetailsById()[bookingId];
+          if (fromDetails) {
+            return fromDetails;
+          }
+          return store.bookings().find((item) => item.id === bookingId) ?? null;
+        },
+        clearBookingDetailError: (id: string): void => {
+          const bookingId = id.trim();
+          if (!bookingId) return;
+          patchState(store, (state) => ({
+            detailErrorsById: {
+              ...state.detailErrorsById,
+              [bookingId]: null,
+            },
+          }));
+        },
         setFacilityFilter: (facilityId: string | null) => {
           patchState(store, { filter: { facilityId } });
         },
@@ -287,7 +463,14 @@ export const BookingStore = signalStore(
             switchMap((facilityId) =>
               api.getBookings(facilityId ?? undefined).pipe(
                 tap((bookings) =>
-                  patchState(store, { bookings, loading: false })
+                  patchState(store, (state) => ({
+                    bookings,
+                    loading: false,
+                    bookingDetailsById: mergeBookingsIntoDetails(
+                      state.bookingDetailsById,
+                      bookings
+                    ),
+                  }))
                 ),
                 catchError((err) => {
                   const resolved = resolveBookingError(err);

@@ -37,6 +37,15 @@ describe('BookingStore', () => {
     return booking;
   };
 
+  const seedBookingWithDetail = (overrides = {}) => {
+    const booking = createBooking({ id: 'booking-1', ...overrides });
+    patchState(store as never, {
+      bookings: [booking],
+      bookingDetailsById: { [booking.id]: booking },
+    });
+    return booking;
+  };
+
   const seedTwoBookings = () => {
     const first = createBooking({ id: 'booking-1' });
     const second = createBooking({ id: 'booking-2' });
@@ -68,10 +77,13 @@ describe('BookingStore', () => {
 
   it('initializes with empty state', () => {
     expect(store.bookings()).toEqual([]);
+    expect(store.bookingDetailsById()).toEqual({});
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
     expect(store.errorCode()).toBeNull();
     expect(store.filter()).toEqual({ facilityId: null });
+    expect(store.detailLoadingById()).toEqual({});
+    expect(store.detailErrorsById()).toEqual({});
   });
 
   it('calls getBookings without facility filter by default', () => {
@@ -84,6 +96,31 @@ describe('BookingStore', () => {
     store.loadBookings('facility-1');
 
     expect(apiMock.getBookings).toHaveBeenCalledWith('facility-1');
+  });
+
+  it('loads and caches booking details by id', async () => {
+    const booking = createBooking({ id: 'booking-details-1' });
+    apiMock.getBooking.mockReturnValueOnce(of(booking));
+
+    await store.loadBookingById('booking-details-1');
+
+    expect(apiMock.getBooking).toHaveBeenCalledWith('booking-details-1');
+    expect(store.bookingDetailsById()['booking-details-1']).toEqual(booking);
+    expect(store.detailLoadingById()['booking-details-1']).toBe(false);
+    expect(store.detailErrorsById()['booking-details-1']).toBeNull();
+  });
+
+  it('stores per-booking detail errors when detail loading fails', async () => {
+    apiMock.getBooking.mockReturnValueOnce(
+      throwError(() => createHttpError(404, 'Booking not found'))
+    );
+
+    await store.loadBookingById('missing-booking');
+
+    expect(store.detailLoadingById()['missing-booking']).toBe(false);
+    expect(store.detailErrorsById()['missing-booking']).toBe(
+      'Booking not found'
+    );
   });
 
   it('sets loading true while bookings request is in flight', () => {
@@ -178,6 +215,23 @@ describe('BookingStore', () => {
     expect(store.bookings()).toEqual([booking]);
   });
 
+  it('returns booking detail from cache, then falls back to list state', () => {
+    const booking = seedBookingWithDetail({ id: 'booking-lookup-1' });
+
+    expect(store.getBookingDetail('booking-lookup-1')).toEqual(booking);
+    expect(store.getBookingDetail('unknown-booking')).toBeNull();
+  });
+
+  it('clears a booking detail error by id', () => {
+    patchState(store as never, {
+      detailErrorsById: { 'booking-1': 'Load failed' },
+    });
+
+    store.clearBookingDetailError('booking-1');
+
+    expect(store.detailErrorsById()['booking-1']).toBeNull();
+  });
+
   it('includes requestId in booking load failure logs when present', () => {
     apiMock.getBookings.mockReturnValueOnce(
       throwError(() => createHttpError(500, undefined, 'req-load-123'))
@@ -215,7 +269,7 @@ describe('BookingStore', () => {
   });
 
   it('optimistically confirms a booking', async () => {
-    const booking = seedBooking({ status: BookingStatus.PENDING });
+    const booking = seedBookingWithDetail({ status: BookingStatus.PENDING });
     apiMock.updateBookingStatus.mockReturnValueOnce(
       of({ ...booking, status: BookingStatus.CONFIRMED })
     );
@@ -223,6 +277,9 @@ describe('BookingStore', () => {
     const action = store.confirmBooking(booking.id);
 
     expect(store.bookings()[0].status).toBe(BookingStatus.CONFIRMED);
+    expect(store.bookingDetailsById()[booking.id]?.status).toBe(
+      BookingStatus.CONFIRMED
+    );
     await action;
   });
 

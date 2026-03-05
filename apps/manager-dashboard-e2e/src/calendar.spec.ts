@@ -1,11 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { mockAuthRoutes } from './fixtures/auth.fixtures';
-import { validCredentials } from './fixtures/users.fixtures';
-import { login } from './utils/auth.utils';
+import { mockAuthRoutes, seedSessionTokens } from './fixtures/auth.fixtures';
 
 test.describe('Booking Calendar', () => {
   test.beforeEach(async ({ page }) => {
     await mockAuthRoutes(page);
+    await seedSessionTokens(page);
 
     await page.route('**/api/v1/bookings/facilities', async (route) => {
       await route.fulfill({
@@ -80,8 +79,46 @@ test.describe('Booking Calendar', () => {
       });
     });
 
-    await login(page, validCredentials.email, validCredentials.password);
-    await expect(page).toHaveURL(/\/dashboard\/bookings/);
+    await page.route(/\/api\/v1\/bookings\/[^/]+$/, async (route) => {
+      const now = new Date();
+      const todayAt = (hour: number, minute = 0) => {
+        const date = new Date(now);
+        date.setHours(hour, minute, 0, 0);
+        return date.toISOString();
+      };
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '1',
+          bookingReference: 'BK-001',
+          startTime: todayAt(10, 0),
+          endTime: todayAt(11, 0),
+          customerName: 'Standard Booking',
+          customerPhone: '1234567890',
+          status: 'CONFIRMED',
+          paymentStatus: 'PAID',
+          currency: 'SAR',
+          priceBreakdown: {
+            basePrice: 200,
+            timeMultiplier: 1,
+            dayMultiplier: 1,
+            durationDiscount: 0,
+            subtotal: 200,
+            discountAmount: 20,
+            promoDiscount: 20,
+            promoCode: 'SAVE20',
+            total: 180,
+            currency: 'SAR',
+          },
+          facility: { id: 'f1', name: 'Tennis Court 1' },
+        }),
+      });
+    });
+
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/dashboard\/(bookings|analytics)/);
 
     await page.goto('/dashboard/calendar');
     await expect(page).toHaveURL(/\/dashboard\/calendar/);
@@ -114,10 +151,9 @@ test.describe('Booking Calendar', () => {
 
     expect(longBox).not.toBeNull();
     expect(overlapBox).not.toBeNull();
-
-    if (longBox && overlapBox) {
-      expect(Math.abs(longBox.y - overlapBox.y)).toBeLessThan(8);
-    }
+    const longRect = longBox as NonNullable<typeof longBox>;
+    const overlapRect = overlapBox as NonNullable<typeof overlapBox>;
+    expect(Math.abs(longRect.y - overlapRect.y)).toBeLessThan(8);
   });
 
   test('should render precise height for 90-minute booking', async ({
@@ -136,11 +172,13 @@ test.describe('Booking Calendar', () => {
     const standardBox = await standardBooking.boundingBox();
     const longBox = await longBooking.boundingBox();
 
-    if (standardBox && longBox) {
-      const ratio = longBox.height / standardBox.height;
-      expect(ratio).toBeGreaterThan(1.35);
-      expect(ratio).toBeLessThan(1.7);
-    }
+    expect(standardBox).not.toBeNull();
+    expect(longBox).not.toBeNull();
+    const standardRect = standardBox as NonNullable<typeof standardBox>;
+    const longRect = longBox as NonNullable<typeof longBox>;
+    const ratio = longRect.height / standardRect.height;
+    expect(ratio).toBeGreaterThan(1.35);
+    expect(ratio).toBeLessThan(1.7);
   });
 
   test('should jump to a selected date and return to today', async ({
@@ -178,5 +216,38 @@ test.describe('Booking Calendar', () => {
     await todayButton.click();
 
     await expect(jumpDateInput).toHaveValue(todayValue);
+  });
+
+  test('opens inline booking detail panel without navigating away', async ({
+    page,
+  }) => {
+    const bookingCard = page.locator('.calendar__booking', {
+      hasText: 'Standard Booking',
+    });
+
+    await expect(bookingCard).toBeVisible();
+    await bookingCard.click();
+
+    await expect(page).toHaveURL(/\/dashboard\/calendar/);
+    await expect(page.locator('.calendar-detail-panel')).toBeVisible();
+    await expect(page.locator('.calendar-detail-panel')).toContainText(
+      'Standard Booking'
+    );
+  });
+
+  test('navigates to full details page from inline panel', async ({ page }) => {
+    const bookingCard = page.locator('.calendar__booking', {
+      hasText: 'Standard Booking',
+    });
+    await bookingCard.click();
+
+    const fullDetails = page.locator('.calendar-detail-panel__full-link');
+    await expect(fullDetails).toBeVisible();
+    await fullDetails.click();
+
+    await expect(page).toHaveURL(/\/dashboard\/bookings\/1$/);
+    await expect(page.locator('h1.dashboard-page__title')).toContainText(
+      'Booking details'
+    );
   });
 });

@@ -131,6 +131,19 @@ export const appRoutes: Route[] = [
         },
       },
       {
+        path: 'bookings/:id',
+        loadComponent: () =>
+          import('./features/booking-detail/booking-detail.component').then(
+            (module) => module.BookingDetailComponent
+          ),
+        title: 'Booking Details | Khana',
+        data: {
+          breadcrumbKey: 'DASHBOARD.BREADCRUMBS.BOOKING_DETAIL',
+          navKey: 'DASHBOARD.NAV.ITEMS.BOOKINGS',
+          contentArchetype: 'data',
+        },
+      },
+      {
         path: 'bookings',
         loadComponent: () =>
           import('./features/booking-list/booking-list.component').then(

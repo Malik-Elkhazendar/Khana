@@ -7,7 +7,6 @@ import {
   OnInit,
   OnDestroy,
   QueryList,
-  ViewChild,
   ViewChildren,
   computed,
   effect,
@@ -16,6 +15,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { BookingStore } from '../../state/bookings/booking.store';
@@ -31,7 +31,7 @@ import {
   UserRole,
   parseCancellationReason,
 } from '@khana/shared-dtos';
-import { HoldTimerComponent } from './hold-timer.component';
+import { CalendarBookingDetailComponent } from './components/calendar-booking-detail.component';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
 import {
@@ -153,7 +153,7 @@ const ERROR_CATEGORY_BY_CODE: Record<BookingErrorCode, ErrorCategory> = {
   imports: [
     CommonModule,
     FormsModule,
-    HoldTimerComponent,
+    CalendarBookingDetailComponent,
     ConfirmationDialogComponent,
     CancellationFormComponent,
     TagChipComponent,
@@ -175,11 +175,10 @@ export class BookingCalendarComponent
   });
   private readonly destroyRef = inject(DestroyRef);
   private readonly localeFormat = inject(LocaleFormatService);
+  private readonly router = inject(Router);
   private readonly translateService = inject(TranslateService, {
     optional: true,
   });
-  readonly BookingStatus = BookingStatus;
-  readonly PaymentStatus = PaymentStatus;
   readonly currentUser = this.authStore.user;
   readonly currentUserRole = computed(() => this.currentUser()?.role ?? null);
 
@@ -192,6 +191,7 @@ export class BookingCalendarComponent
   // Local signals
   readonly currentDate = signal<Date>(new Date());
   readonly selectedBooking = signal<BookingListItemDto | null>(null);
+  readonly selectedBookingId = signal<string | null>(null);
   readonly actionInProgress = signal<boolean>(false);
   readonly toast = signal<ToastNotice | null>(null);
   readonly actionDialog = signal<ActionDialogState | null>(null);
@@ -208,8 +208,6 @@ export class BookingCalendarComponent
   readonly selectedDay = signal<Date>(new Date());
   readonly errorDescriptionId = ERROR_DESCRIPTION_ID;
 
-  @ViewChild('actionPanel') actionPanel?: ElementRef<HTMLElement>;
-  @ViewChild('closeButton') closeButton?: ElementRef<HTMLButtonElement>;
   @ViewChildren('slotCell') slotCells?: QueryList<ElementRef<HTMLElement>>;
   @ViewChildren('gridBookingCard')
   gridBookingCards?: QueryList<ElementRef<HTMLElement>>;
@@ -220,7 +218,6 @@ export class BookingCalendarComponent
   private toastTimer: number | null = null;
   private navigationTimer: number | null = null;
   private retryTimer: number | null = null;
-  private focusTimer: number | null = null;
   private panelCloseTimer: number | null = null;
   private lastLoadedFacilityId: string | null | undefined = undefined;
   private resizeObserver: ResizeObserver | null = null;
@@ -242,15 +239,33 @@ export class BookingCalendarComponent
   );
 
   readonly selectedBookingLive = computed(() => {
-    const selected = this.selectedBooking();
-    if (!selected) return null;
-    const live = this.bookings().find((b) => b.id === selected.id);
-    if (!live) return selected;
+    const fallbackSelected = this.selectedBooking();
+    const selectedId = this.selectedBookingId() ?? fallbackSelected?.id ?? null;
+    if (!selectedId) return null;
+
+    const detail = this.store.getBookingDetail(selectedId);
+    const live = this.bookings().find((b) => b.id === selectedId);
+    if (!detail && !live) return fallbackSelected;
+    if (!detail) return live ?? null;
+    if (!live) return detail;
+
     return {
-      ...selected,
+      ...detail,
       ...live,
-      facility: live.facility ?? selected.facility,
+      facility: live.facility ?? detail.facility,
     };
+  });
+
+  readonly selectedBookingLoading = computed(() => {
+    const selectedId = this.selectedBookingId();
+    if (!selectedId) return false;
+    return Boolean(this.store.detailLoadingById()[selectedId]);
+  });
+
+  readonly selectedBookingError = computed(() => {
+    const selectedId = this.selectedBookingId();
+    if (!selectedId) return null;
+    return this.store.detailErrorsById()[selectedId] ?? null;
   });
 
   readonly dialogCopy = computed<DialogCopy | null>(() => {
@@ -303,11 +318,7 @@ export class BookingCalendarComponent
   );
   readonly canCancel = computed(() => {
     const role = this.currentUserRole();
-    return (
-      role === UserRole.OWNER ||
-      role === UserRole.MANAGER ||
-      role === UserRole.STAFF
-    );
+    return role === UserRole.OWNER || role === UserRole.MANAGER;
   });
   readonly canConfirm = computed(() => {
     const role = this.currentUserRole();
@@ -572,22 +583,13 @@ export class BookingCalendarComponent
     }
     this.actionInProgress.set(false);
     this.cancelReason.set('');
+    this.store.clearBookingDetailError(booking.id);
     this.lastFocusedElement =
       (event?.currentTarget as HTMLElement) ??
       (document.activeElement as HTMLElement);
     this.selectedBooking.set(booking);
-
-    if (this.focusTimer) {
-      window.clearTimeout(this.focusTimer);
-    }
-    this.focusTimer = window.setTimeout(() => {
-      if (this.closeButton?.nativeElement) {
-        this.closeButton.nativeElement.focus();
-      } else {
-        this.actionPanel?.nativeElement?.focus();
-      }
-      this.focusTimer = null;
-    }, 0);
+    this.selectedBookingId.set(booking.id);
+    void this.store.loadBookingById(booking.id);
   }
 
   /**
@@ -595,43 +597,13 @@ export class BookingCalendarComponent
    */
   closePanel(): void {
     this.selectedBooking.set(null);
+    this.selectedBookingId.set(null);
     this.actionInProgress.set(false);
     this.actionDialog.set(null);
     this.cancelReason.set('');
     if (this.lastFocusedElement) {
       this.lastFocusedElement.focus();
       this.lastFocusedElement = null;
-    }
-  }
-
-  /**
-   * Trap focus inside the panel and support ESC close.
-   * @param event Keyboard event for focus management.
-   */
-  onPanelKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.closePanel();
-      return;
-    }
-
-    if (event.key !== 'Tab') return;
-
-    const panel = this.actionPanel?.nativeElement;
-    if (!panel) return;
-    const focusable = this.getFocusableElements(panel);
-    if (focusable.length === 0) return;
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement as HTMLElement | null;
-
-    if (event.shiftKey && active === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault();
-      first.focus();
     }
   }
 
@@ -801,6 +773,12 @@ export class BookingCalendarComponent
     this.cancelReason.set('');
     this.cancelScope.set(BookingCancellationScope.SINGLE);
     this.actionDialog.set({ type: 'cancel', bookingId: booking.id });
+  }
+
+  viewFullDetails(): void {
+    const booking = this.selectedBookingLive();
+    if (!booking) return;
+    void this.router.navigate(['/dashboard/bookings', booking.id]);
   }
 
   /**
@@ -1263,20 +1241,6 @@ export class BookingCalendarComponent
     );
   }
 
-  private getFocusableElements(container: HTMLElement): HTMLElement[] {
-    const selectors = [
-      'button:not([disabled])',
-      'a[href]',
-      'input:not([disabled])',
-      'select:not([disabled])',
-      'textarea:not([disabled])',
-      '[tabindex]:not([tabindex="-1"])',
-    ];
-    return Array.from(
-      container.querySelectorAll<HTMLElement>(selectors.join(','))
-    );
-  }
-
   private registerEffects(): void {
     effect(() => {
       const loading = this.loading();
@@ -1505,10 +1469,6 @@ export class BookingCalendarComponent
     if (this.retryTimer) {
       window.clearTimeout(this.retryTimer);
       this.retryTimer = null;
-    }
-    if (this.focusTimer) {
-      window.clearTimeout(this.focusTimer);
-      this.focusTimer = null;
     }
     if (this.panelCloseTimer) {
       window.clearTimeout(this.panelCloseTimer);

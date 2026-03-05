@@ -132,4 +132,18 @@ export class BookingsController {
   getFacilities(@TenantId() tenantId: string) {
     return this.bookingsService.getFacilities(tenantId);
   }
+
+  /**
+   * GET /api/v1/bookings/:id
+   *
+   * Get a single booking by id.
+   */
+  @Get(':id')
+  findOne(
+    @Param('id') id: string,
+    @TenantId() tenantId: string,
+    @CurrentUser() user: User
+  ) {
+    return this.bookingsService.findOne(tenantId, user, id);
+  }
 }

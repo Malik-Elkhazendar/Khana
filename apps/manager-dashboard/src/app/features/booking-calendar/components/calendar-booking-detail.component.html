@@ -1,0 +1,209 @@
+<button
+  type="button"
+  class="calendar-detail-backdrop"
+  [attr.aria-label]="
+    text('BOOKING_CALENDAR.DETAIL_PANEL.CLOSE_LABEL', 'Close booking details')
+  "
+  tabindex="-1"
+  (click)="closeRequested.emit()"
+></button>
+
+<section
+  class="calendar-detail-panel"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="
+    text('BOOKING_CALENDAR.DETAIL_PANEL.TITLE', 'Booking details')
+  "
+  (keydown)="onPanelKeydown($event)"
+  tabindex="-1"
+  #panel
+>
+  <header class="calendar-detail-panel__header">
+    <h3 class="calendar-detail-panel__title">
+      {{ text('BOOKING_CALENDAR.DETAIL_PANEL.TITLE', 'Booking details') }}
+    </h3>
+    <button
+      #closeButton
+      type="button"
+      class="calendar-detail-panel__close"
+      (click)="closeRequested.emit()"
+    >
+      {{ text('BOOKING_CALENDAR.DETAIL_PANEL.CLOSE', 'Close') }}
+    </button>
+  </header>
+
+  <div class="calendar-detail-panel__content">
+    @if (loading) {
+    <div
+      class="calendar-detail-panel__loading"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="calendar-detail-panel__spinner" aria-hidden="true"></div>
+      <span>
+        {{
+          text(
+            'BOOKING_CALENDAR.DETAIL_PANEL.LOADING',
+            'Loading booking details...'
+          )
+        }}
+      </span>
+    </div>
+    } @else if (loadError) {
+    <div class="calendar-detail-panel__error" role="alert">
+      {{ loadError }}
+    </div>
+    } @else if (booking) {
+    <div class="calendar-detail-panel__section">
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.DETAIL_PANEL.CUSTOMER', 'Customer')
+        }}</span>
+        <span class="value">{{ booking.customerName }}</span>
+      </div>
+
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.DETAIL_PANEL.CUSTOMER_PHONE', 'Phone')
+        }}</span>
+        <a
+          class="value calendar-detail-panel__phone"
+          [href]="'tel:' + booking.customerPhone"
+        >
+          {{ booking.customerPhone }}
+        </a>
+      </div>
+
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.DETAIL_PANEL.BOOKING_REFERENCE', 'Reference')
+        }}</span>
+        <span class="value">{{ bookingReference }}</span>
+      </div>
+
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.ACTION_SHEET.STATUS', 'Status')
+        }}</span>
+        <span class="value">
+          <app-ui-status-badge
+            [tone]="statusTone(booking.status)"
+            [label]="statusLabel(booking.status)"
+          ></app-ui-status-badge>
+        </span>
+      </div>
+
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.ACTION_SHEET.PAYMENT', 'Payment')
+        }}</span>
+        <span class="value">
+          <app-ui-status-badge
+            [tone]="paymentTone(booking.paymentStatus)"
+            [label]="paymentLabel(booking.paymentStatus)"
+          ></app-ui-status-badge>
+        </span>
+      </div>
+
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.ACTION_SHEET.TIME', 'Time')
+        }}</span>
+        <span class="value"
+          >{{ formatTime(booking.startTime) }} -
+          {{ formatTime(booking.endTime) }}</span
+        >
+      </div>
+
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.DETAIL_PANEL.DATE_FACILITY', 'Date & facility')
+        }}</span>
+        <span class="value"
+          >{{ formatDate(booking.startTime) }} -
+          {{ booking.facility.name }}</span
+        >
+      </div>
+
+      @if (showPromo) {
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.DETAIL_PANEL.PROMO_CODE', 'Promo code')
+        }}</span>
+        <span class="value">{{ promoCode }}</span>
+      </div>
+
+      <div class="calendar-detail-panel__row">
+        <span class="label">{{
+          text('BOOKING_CALENDAR.DETAIL_PANEL.DISCOUNT_AMOUNT', 'Discount')
+        }}</span>
+        <span class="value">{{
+          formatCurrency(
+            promoDiscount,
+            booking.priceBreakdown?.currency || booking.currency || 'SAR'
+          )
+        }}</span>
+      </div>
+      }
+    </div>
+
+    <div class="calendar-detail-panel__actions">
+      @if (canManageActions) {
+      <button
+        type="button"
+        class="btn secondary"
+        [disabled]="markPaidDisabled"
+        (click)="markPaidRequested.emit()"
+      >
+        {{ text('BOOKING_CALENDAR.ACTIONS.MARK_PAID', 'Mark Paid') }}
+      </button>
+
+      <button
+        type="button"
+        class="btn danger"
+        [disabled]="cancelDisabled"
+        (click)="cancelRequested.emit()"
+      >
+        {{ text('BOOKING_CALENDAR.ACTIONS.CANCEL', 'Cancel') }}
+      </button>
+
+      @if (showPaidBookingNote) {
+      <p class="calendar-detail-panel__note">
+        {{
+          text(
+            'BOOKING_CALENDAR.ACTIONS.PAID_BOOKING_NOTE',
+            'Paid booking - cancellation will require refund once payment gateway is integrated.'
+          )
+        }}
+      </p>
+      } } @else {
+      <p class="calendar-detail-panel__note">
+        {{
+          text(
+            'BOOKING_CALENDAR.DETAIL_PANEL.READ_ONLY',
+            'This account can view details but cannot run booking actions.'
+          )
+        }}
+      </p>
+      }
+
+      <button
+        type="button"
+        class="calendar-detail-panel__full-link"
+        (click)="viewFullDetailsRequested.emit()"
+      >
+        <span>{{
+          text(
+            'BOOKING_CALENDAR.DETAIL_PANEL.VIEW_FULL_DETAILS',
+            'View full details'
+          )
+        }}</span>
+        <span class="calendar-detail-panel__full-link-arrow" aria-hidden="true">
+          →
+        </span>
+      </button>
+    </div>
+    }
+  </div>
+</section>

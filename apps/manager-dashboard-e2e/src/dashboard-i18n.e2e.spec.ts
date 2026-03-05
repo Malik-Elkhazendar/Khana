@@ -132,7 +132,8 @@ test.describe('Dashboard i18n & Route Transitions', () => {
         .locator('h1.dashboard-page__title')
         .boundingBox();
       expect(titleBox).not.toBeNull();
-      expect(titleBox!.y).toBeLessThan(260);
+      const safeTitleBox = titleBox as NonNullable<typeof titleBox>;
+      expect(safeTitleBox.y).toBeLessThan(260);
 
       const breadcrumbCurrent = page.locator(
         'app-dashboard-breadcrumbs [aria-current="page"]'

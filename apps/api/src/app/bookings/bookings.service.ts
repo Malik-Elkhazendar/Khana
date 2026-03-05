@@ -209,6 +209,41 @@ export class BookingsService {
     });
   }
 
+  async findOne(
+    tenantId: string,
+    user: User,
+    bookingId: string
+  ): Promise<BookingListItemDto> {
+    const resolvedTenantId = this.requireTenantId(tenantId);
+    const actorRole = this.requireUserRole(user?.role);
+    const actorUserId = this.requireUserId(user?.id);
+
+    const booking = await this.validateBookingOwnership(
+      bookingId,
+      resolvedTenantId
+    );
+
+    if (this.isStaff(actorRole) && booking.createdByUserId !== actorUserId) {
+      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
+    }
+
+    const normalizedPhone = this.normalizeCustomerPhone(booking.customerPhone);
+    let customerTags: string[] = [];
+
+    if (normalizedPhone) {
+      const customer = await this.customerRepository.findOne({
+        select: ['id', 'tags'],
+        where: {
+          tenantId: resolvedTenantId,
+          phone: normalizedPhone,
+        },
+      });
+      customerTags = customer?.tags ?? [];
+    }
+
+    return this.toBookingListItemDto(booking, booking.facility, customerTags);
+  }
+
   /**
    * Preview a booking
    *

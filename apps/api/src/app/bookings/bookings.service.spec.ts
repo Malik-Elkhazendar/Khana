@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   Booking,
   Customer,
@@ -39,6 +44,7 @@ describe('BookingsService', () => {
   };
   let customerRepository: {
     find: jest.Mock;
+    findOne: jest.Mock;
   };
   let userRepository: {
     findOne: jest.Mock;
@@ -243,6 +249,7 @@ describe('BookingsService', () => {
 
     customerRepository = {
       find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
     };
 
     userRepository = {
@@ -475,6 +482,86 @@ describe('BookingsService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]?.customerTags).toEqual(['VIP', 'Corporate']);
+    });
+  });
+
+  describe('findOne', () => {
+    const buildOwnedBooking = (overrides: Partial<Booking> = {}): Booking =>
+      ({
+        id: 'booking-find-one-1',
+        bookingReference: 'REF-FIND-ONE-1',
+        facility: {
+          ...activeFacility,
+          tenant: { id: tenantId },
+        },
+        startTime: new Date('2025-03-01T09:00:00.000Z'),
+        endTime: new Date('2025-03-01T10:00:00.000Z'),
+        customerName: 'Layla',
+        customerPhone: '0551234567',
+        createdByUserId: userId,
+        totalAmount: 120,
+        currency: 'SAR',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PENDING,
+        createdAt: new Date('2025-03-01T08:00:00.000Z'),
+        updatedAt: new Date('2025-03-01T08:00:00.000Z'),
+        holdUntil: null,
+        cancellationReason: null,
+        recurrenceGroupId: null,
+        recurrenceInstanceNumber: null,
+        recurrenceRule: null,
+        ...overrides,
+      } as Booking);
+
+    it('returns a booking dto with customer tags for owner/manager roles', async () => {
+      bookingRepository.findOne.mockResolvedValue(buildOwnedBooking());
+      customerRepository.findOne.mockResolvedValue({
+        id: 'customer-1',
+        tags: ['VIP'],
+      } as Customer);
+
+      const result = await service.findOne(
+        tenantId,
+        { id: userId, role: 'MANAGER' } as User,
+        'booking-find-one-1'
+      );
+
+      expect(result.id).toBe('booking-find-one-1');
+      expect(result.bookingReference).toBe('REF-FIND-ONE-1');
+      expect(result.customerTags).toEqual(['VIP']);
+      expect(customerRepository.findOne).toHaveBeenCalledWith({
+        select: ['id', 'tags'],
+        where: {
+          tenantId,
+          phone: '+966551234567',
+        },
+      });
+    });
+
+    it('forbids staff from reading bookings they did not create', async () => {
+      bookingRepository.findOne.mockResolvedValue(
+        buildOwnedBooking({ createdByUserId: 'another-user' })
+      );
+
+      await expect(
+        service.findOne(
+          tenantId,
+          { id: userId, role: 'STAFF' } as User,
+          'booking-find-one-1'
+        )
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws not found when booking does not exist', async () => {
+      bookingRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.findOne(
+          tenantId,
+          { id: userId, role: 'OWNER' } as User,
+          'missing-booking'
+        )
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

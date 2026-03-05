@@ -46,6 +46,7 @@ export type ApiServiceMock = {
   updateCustomerTags: jest.Mock;
   getTenantTags: jest.Mock;
   getBookings: jest.Mock;
+  getBooking: jest.Mock;
   previewBooking: jest.Mock;
   createBooking: jest.Mock;
   createRecurringBooking: jest.Mock;
@@ -292,6 +293,7 @@ export const createApiMock = (
     updateCustomerTags: jest.fn(() => of(customer)),
     getTenantTags: jest.fn(() => of(['VIP', 'Corporate', 'Regular'])),
     getBookings: jest.fn(() => of<BookingListItemDto[]>([booking])),
+    getBooking: jest.fn(() => of<BookingListItemDto>(booking)),
     previewBooking: jest.fn(() => of<BookingPreviewResponseDto>(preview)),
     createBooking: jest.fn(() => of<BookingListItemDto>(booking)),
     createRecurringBooking: jest.fn(() =>

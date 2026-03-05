@@ -1,0 +1,167 @@
+<a class="skip-link dashboard-skip-link" href="#booking-detail-main">{{
+  text('BOOKING_DETAIL.PAGE.SKIP_LINK', 'Skip to booking details')
+}}</a>
+
+<main
+  id="booking-detail-main"
+  class="booking-detail dashboard-page dashboard-page--data"
+  [attr.aria-busy]="loading() ? 'true' : null"
+>
+  <header class="booking-detail__header dashboard-page__header">
+    <div class="dashboard-page__title-group">
+      <h1 class="dashboard-page__title">
+        {{ text('BOOKING_DETAIL.PAGE.TITLE', 'Booking details') }}
+      </h1>
+      <p class="dashboard-page__subtitle">
+        {{
+          text(
+            'BOOKING_DETAIL.PAGE.SUBTITLE',
+            'Detailed booking information and payment state'
+          )
+        }}
+      </p>
+    </div>
+
+    <div class="dashboard-page__actions">
+      <a
+        class="booking-detail__back-link"
+        [routerLink]="['/dashboard/calendar']"
+      >
+        {{ text('BOOKING_DETAIL.PAGE.BACK_TO_CALENDAR', 'Back to calendar') }}
+      </a>
+    </div>
+  </header>
+
+  @if (loading()) {
+  <section class="booking-detail__state" role="status" aria-live="polite">
+    <div class="booking-detail__spinner" aria-hidden="true"></div>
+    <span>{{
+      text('BOOKING_DETAIL.STATE.LOADING', 'Loading booking...')
+    }}</span>
+  </section>
+  } @else if (loadError()) {
+  <section
+    class="booking-detail__state booking-detail__state--error"
+    role="alert"
+  >
+    {{ loadError() }}
+  </section>
+  } @else if (booking(); as detail) {
+  <section class="booking-detail__card">
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.CUSTOMER', 'Customer')
+      }}</span>
+      <span class="value">{{ detail.customerName }}</span>
+    </div>
+
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.PHONE', 'Phone')
+      }}</span>
+      <a
+        class="value booking-detail__phone"
+        [href]="'tel:' + detail.customerPhone"
+      >
+        {{ detail.customerPhone }}
+      </a>
+    </div>
+
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.REFERENCE', 'Reference')
+      }}</span>
+      <span class="value">{{ detail.bookingReference || detail.id }}</span>
+    </div>
+
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.STATUS', 'Status')
+      }}</span>
+      <span class="value">
+        <app-ui-status-badge
+          [tone]="statusTone(detail.status)"
+          [label]="statusLabel(detail.status)"
+        ></app-ui-status-badge>
+      </span>
+    </div>
+
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.PAYMENT_STATUS', 'Payment')
+      }}</span>
+      <span class="value">
+        <app-ui-status-badge
+          [tone]="paymentTone(detail.paymentStatus)"
+          [label]="paymentLabel(detail.paymentStatus)"
+        ></app-ui-status-badge>
+      </span>
+    </div>
+
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.FACILITY', 'Facility')
+      }}</span>
+      <span class="value">{{ detail.facility.name }}</span>
+    </div>
+
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.DATE', 'Date')
+      }}</span>
+      <span class="value">{{ formatDate(detail.startTime) }}</span>
+    </div>
+
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.TIME', 'Time')
+      }}</span>
+      <span class="value"
+        >{{ formatTime(detail.startTime) }} -
+        {{ formatTime(detail.endTime) }}</span
+      >
+    </div>
+
+    @if (detail.priceBreakdown?.promoCode) {
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.PROMO_CODE', 'Promo code')
+      }}</span>
+      <span class="value">{{ detail.priceBreakdown?.promoCode }}</span>
+    </div>
+
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.DISCOUNT', 'Discount')
+      }}</span>
+      <span class="value">{{
+        formatCurrency(
+          promoDiscountAmount(detail),
+          detail.priceBreakdown?.currency || detail.currency || 'SAR'
+        )
+      }}</span>
+    </div>
+    } @if (detail.totalAmount !== undefined && detail.totalAmount !== null) {
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.TOTAL', 'Total')
+      }}</span>
+      <span class="value">{{
+        formatCurrency(totalAmountValue(detail), detail.currency || 'SAR')
+      }}</span>
+    </div>
+    } @if (detail.cancellationReason) {
+    <div class="booking-detail__row">
+      <span class="label">{{
+        text('BOOKING_DETAIL.FIELDS.CANCELLATION_REASON', 'Cancellation reason')
+      }}</span>
+      <span class="value">{{ detail.cancellationReason }}</span>
+    </div>
+    }
+  </section>
+  } @else {
+  <section class="booking-detail__state" role="status">
+    {{ text('BOOKING_DETAIL.STATE.NOT_FOUND', 'Booking not found.') }}
+  </section>
+  }
+</main>

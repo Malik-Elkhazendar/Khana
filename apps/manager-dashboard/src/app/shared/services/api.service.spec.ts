@@ -224,6 +224,14 @@ describe('ApiService', () => {
     req.flush([]);
   });
 
+  it('should request a single booking by id', () => {
+    service.getBooking('booking-1').subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/bookings/booking-1`);
+    expect(req.request.method).toBe('GET');
+    req.flush({});
+  });
+
   it('should lookup customer by phone', () => {
     service.lookupCustomerByPhone('0551234567').subscribe();
 

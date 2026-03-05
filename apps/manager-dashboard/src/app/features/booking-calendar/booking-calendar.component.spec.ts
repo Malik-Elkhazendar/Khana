@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { ElementRef, signal } from '@angular/core';
+import { signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { BookingCalendarComponent } from './booking-calendar.component';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { FacilityContextStore } from '../../shared/state';
@@ -15,6 +16,7 @@ import { createStoreMock, BookingStoreMock } from '../../testing/store-mocks';
 
 describe('BookingCalendarComponent', () => {
   let storeMock: BookingStoreMock;
+  let routerMock: { navigate: jest.Mock };
   const authStoreMock = {
     user: signal({
       id: 'manager-1',
@@ -78,6 +80,9 @@ describe('BookingCalendarComponent', () => {
     facilityContextMock.clearError.mockReset();
     facilityContextMock.selectedFacilityId.set(null);
     facilityContextMock.initialized.set(true);
+    routerMock = {
+      navigate: jest.fn(),
+    };
 
     await TestBed.configureTestingModule({
       imports: [BookingCalendarComponent],
@@ -85,6 +90,7 @@ describe('BookingCalendarComponent', () => {
         { provide: BookingStore, useValue: storeMock },
         { provide: FacilityContextStore, useValue: facilityContextMock },
         { provide: AuthStore, useValue: authStoreMock },
+        { provide: Router, useValue: routerMock },
       ],
     }).compileComponents();
   });
@@ -102,7 +108,7 @@ describe('BookingCalendarComponent', () => {
     expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
   });
 
-  it('shows confirm/pay/cancel actions for manager role', () => {
+  it('shows mark-paid and cancel actions for manager role', () => {
     authStoreMock.user.update((user) => ({ ...user, role: UserRole.MANAGER }));
     const booking = createTimedBooking({ id: 'booking-manager-actions' });
     const { fixture, component } = setupComponent([booking]);
@@ -111,18 +117,20 @@ describe('BookingCalendarComponent', () => {
     fixture.detectChanges();
 
     const actionButtons = Array.from(
-      fixture.nativeElement.querySelectorAll('.action-sheet__actions button')
+      fixture.nativeElement.querySelectorAll(
+        '.calendar-detail-panel__actions .btn'
+      )
     ) as HTMLButtonElement[];
     const actionLabels = actionButtons
       .map((button) => button.textContent?.trim() ?? '')
       .filter(Boolean);
 
     expect(actionLabels).toEqual(
-      expect.arrayContaining(['Confirm', 'Mark Paid', 'Cancel'])
+      expect.arrayContaining(['Mark Paid', 'Cancel'])
     );
   });
 
-  it('shows cancel-only actions for staff role', () => {
+  it('hides action buttons for staff role', () => {
     authStoreMock.user.update((user) => ({ ...user, role: UserRole.STAFF }));
     const booking = createTimedBooking({ id: 'booking-staff-actions' });
     const { fixture, component } = setupComponent([booking]);
@@ -130,14 +138,11 @@ describe('BookingCalendarComponent', () => {
     component.openBooking(booking);
     fixture.detectChanges();
 
-    const actionButtons = Array.from(
-      fixture.nativeElement.querySelectorAll('.action-sheet__actions button')
-    ) as HTMLButtonElement[];
-    const actionLabels = actionButtons
-      .map((button) => button.textContent?.trim() ?? '')
-      .filter(Boolean);
+    const actionButtons = fixture.nativeElement.querySelectorAll(
+      '.calendar-detail-panel__actions .btn'
+    );
 
-    expect(actionLabels).toEqual(['Cancel']);
+    expect(actionButtons.length).toBe(0);
   });
 
   it('shows read-only actions for viewer role', () => {
@@ -149,12 +154,12 @@ describe('BookingCalendarComponent', () => {
     fixture.detectChanges();
 
     const actionButtons = fixture.nativeElement.querySelectorAll(
-      '.action-sheet__actions button'
+      '.calendar-detail-panel__actions .btn'
     );
     const panelText = fixture.nativeElement.textContent;
 
     expect(actionButtons.length).toBe(0);
-    expect(panelText).toContain('read-only access');
+    expect(panelText).toContain('cannot run booking actions');
   });
 
   it('renders error banner and retries loading bookings', () => {
@@ -538,7 +543,10 @@ describe('BookingCalendarComponent', () => {
       .find((item) => item.booking.id === booking.id);
 
     expect(segment).toBeDefined();
-    const style = component.getBookingStyle(segment!, 1, 2);
+    if (!segment) {
+      throw new Error('Expected booking segment to be present');
+    }
+    const style = component.getBookingStyle(segment, 1, 2);
 
     expect(style.top).toBe('25%');
     expect(style.height).toBe('calc(150% - var(--space-1))');
@@ -798,20 +806,8 @@ describe('BookingCalendarComponent', () => {
     component.openBooking(booking);
 
     expect(component.selectedBooking()).toEqual(booking);
-  });
-
-  it('focuses the close button when opening the panel', () => {
-    const booking = createTimedBooking();
-    const { component } = setupComponent([booking]);
-    const closeButton = document.createElement('button');
-    document.body.appendChild(closeButton);
-    component.closeButton = new ElementRef(closeButton);
-
-    component.openBooking(booking);
-    jest.runAllTimers();
-
-    expect(document.activeElement).toBe(closeButton);
-    document.body.removeChild(closeButton);
+    expect(component.selectedBookingId()).toBe(booking.id);
+    expect(storeMock.loadBookingById).toHaveBeenCalledWith(booking.id);
   });
 
   it('closes the panel and resets dialog state', () => {
@@ -843,70 +839,6 @@ describe('BookingCalendarComponent', () => {
 
     expect(document.activeElement).toBe(trigger);
     document.body.removeChild(trigger);
-  });
-
-  it('closes the panel when pressing Escape', () => {
-    const booking = createTimedBooking();
-    const { component } = setupComponent([booking]);
-    component.selectedBooking.set(booking);
-    const closeSpy = jest.spyOn(component, 'closePanel');
-
-    component.onPanelKeydown({
-      key: 'Escape',
-      preventDefault: jest.fn(),
-    } as unknown as KeyboardEvent);
-
-    expect(closeSpy).toHaveBeenCalled();
-  });
-
-  it('cycles focus forward within the panel', () => {
-    const { component } = setupComponent();
-    const panel = document.createElement('div');
-    const first = document.createElement('button');
-    const last = document.createElement('button');
-    panel.appendChild(first);
-    panel.appendChild(last);
-    document.body.appendChild(panel);
-    component.actionPanel = new ElementRef(panel);
-
-    last.focus();
-
-    const event = {
-      key: 'Tab',
-      shiftKey: false,
-      preventDefault: jest.fn(),
-    } as unknown as KeyboardEvent;
-
-    component.onPanelKeydown(event);
-
-    expect(document.activeElement).toBe(first);
-    expect(event.preventDefault).toHaveBeenCalled();
-    document.body.removeChild(panel);
-  });
-
-  it('cycles focus backward within the panel', () => {
-    const { component } = setupComponent();
-    const panel = document.createElement('div');
-    const first = document.createElement('button');
-    const last = document.createElement('button');
-    panel.appendChild(first);
-    panel.appendChild(last);
-    document.body.appendChild(panel);
-    component.actionPanel = new ElementRef(panel);
-
-    first.focus();
-
-    const event = {
-      key: 'Tab',
-      shiftKey: true,
-      preventDefault: jest.fn(),
-    } as unknown as KeyboardEvent;
-
-    component.onPanelKeydown(event);
-
-    expect(document.activeElement).toBe(last);
-    expect(event.preventDefault).toHaveBeenCalled();
-    document.body.removeChild(panel);
   });
 
   it('moves slot focus with arrow keys', () => {
@@ -997,6 +929,19 @@ describe('BookingCalendarComponent', () => {
       bookingId: booking.id,
     });
     expect(component.cancelReason()).toBe('');
+  });
+
+  it('navigates to full booking details route', () => {
+    const booking = createTimedBooking({ id: 'booking-details-nav' });
+    const { component } = setupComponent([booking]);
+    component.selectedBooking.set(booking);
+
+    component.viewFullDetails();
+
+    expect(routerMock.navigate).toHaveBeenCalledWith([
+      '/dashboard/bookings',
+      'booking-details-nav',
+    ]);
   });
 
   it('closes the dialog when requested', () => {

@@ -131,6 +131,7 @@
 
 
 
+
         }}', { time: formatLastUpdated(retryScheduledAt()) } ) }}
       </p>
       } @if (lastSuccessfulAt()) {
@@ -139,6 +140,7 @@
           text(
             'BOOKING_CALENDAR.ERRORS.SHOWING_LAST_UPDATED',
             'Showing last updated {{time
+
 
 
 
@@ -298,6 +300,7 @@
 
 
 
+
         }}', { day: selectedDayLabel() }) }}
       </p>
     </div>
@@ -439,168 +442,18 @@
   }
 </main>
 
-@if (selectedBookingLive(); as booking) {
-<button
-  type="button"
-  class="sheet-backdrop"
-  (click)="closePanel()"
-  [attr.aria-label]="
-    text('BOOKING_CALENDAR.ACTION_SHEET.CLOSE_ACTIONS', 'Close booking actions')
-  "
-  tabindex="-1"
-></button>
-
-<section
-  class="action-sheet"
-  role="dialog"
-  [attr.aria-modal]="actionDialog() !== null ? 'false' : 'true'"
-  aria-labelledby="booking-actions-title"
-  [attr.aria-hidden]="actionDialog() !== null ? 'true' : null"
-  (keydown)="onPanelKeydown($event)"
-  tabindex="-1"
-  #actionPanel
->
-  <header class="action-sheet__header">
-    <div>
-      <h3 id="booking-actions-title">
-        {{ text('BOOKING_CALENDAR.ACTION_SHEET.TITLE', 'Booking Actions') }}
-      </h3>
-      <p class="action-sheet__meta">
-        {{ booking.customerName }} - {{ booking.facility.name }}
-      </p>
-    </div>
-    <button
-      #closeButton
-      type="button"
-      class="action-sheet__close"
-      (click)="closePanel()"
-    >
-      {{ text('BOOKING_CALENDAR.ACTION_SHEET.CLOSE', 'Close') }}
-    </button>
-  </header>
-
-  <div class="action-sheet__body">
-    <div class="action-sheet__row">
-      <span class="label">{{
-        text('BOOKING_CALENDAR.ACTION_SHEET.DATE', 'Date')
-      }}</span>
-      <span class="value">{{ formatDate(booking.startTime) }}</span>
-    </div>
-    <div class="action-sheet__row">
-      <span class="label">{{
-        text('BOOKING_CALENDAR.ACTION_SHEET.TIME', 'Time')
-      }}</span>
-      <span class="value"
-        >{{ formatTime(booking.startTime) }} -
-        {{ formatTime(booking.endTime) }}</span
-      >
-    </div>
-    <div class="action-sheet__row">
-      <span class="label">{{
-        text('BOOKING_CALENDAR.ACTION_SHEET.CUSTOMER_PHONE', 'Customer Phone')
-      }}</span>
-      <a class="value link" [href]="'tel:' + booking.customerPhone">
-        {{ booking.customerPhone }}
-      </a>
-    </div>
-    <div class="action-sheet__row">
-      <span class="label">{{
-        text('BOOKING_CALENDAR.ACTION_SHEET.STATUS', 'Status')
-      }}</span>
-      <span class="value">
-        <app-ui-status-badge
-          [tone]="statusTone(booking.status)"
-          [label]="statusLabel(booking.status)"
-        ></app-ui-status-badge>
-      </span>
-    </div>
-    <div class="action-sheet__row">
-      <span class="label">{{
-        text('BOOKING_CALENDAR.ACTION_SHEET.PAYMENT', 'Payment')
-      }}</span>
-      <span class="value">
-        <app-ui-status-badge
-          [tone]="paymentTone(booking.paymentStatus)"
-          [label]="paymentLabel(booking.paymentStatus)"
-        ></app-ui-status-badge>
-      </span>
-    </div>
-    @if (booking.status === BookingStatus.PENDING && booking.holdUntil) {
-    <div class="action-sheet__row action-sheet__row--hold">
-      <span class="label">{{
-        text('BOOKING_CALENDAR.ACTION_SHEET.HOLD', 'Hold')
-      }}</span>
-      <span class="value">
-        <app-hold-timer
-          [holdUntil]="booking.holdUntil"
-          [prefix]="text('BOOKING_CALENDAR.HOLD_TIMER.PREFIX', 'Expires in')"
-          [expiredLabel]="
-            text('BOOKING_CALENDAR.HOLD_TIMER.EXPIRED', 'Expired')
-          "
-          [emptyLabel]="
-            text('BOOKING_CALENDAR.HOLD_TIMER.UNAVAILABLE', 'Unavailable')
-          "
-        ></app-hold-timer>
-        <span class="hold-time">{{ formatTime(booking.holdUntil) }}</span>
-      </span>
-    </div>
-    }
-  </div>
-
-  <div class="action-sheet__actions">
-    @if (canConfirm()) {
-    <button
-      type="button"
-      class="btn primary"
-      (click)="openConfirmDialog()"
-      [disabled]="!dialogAvailable()"
-    >
-      {{ text('BOOKING_CALENDAR.ACTIONS.CONFIRM', 'Confirm') }}
-    </button>
-    } @if (canMarkPaid()) {
-    <button
-      type="button"
-      class="btn secondary"
-      (click)="openPayDialog()"
-      [disabled]="!dialogAvailable()"
-    >
-      {{ text('BOOKING_CALENDAR.ACTIONS.MARK_PAID', 'Mark Paid') }}
-    </button>
-    } @if (canCancel()) {
-    <button
-      type="button"
-      class="btn danger"
-      (click)="openCancelDialog()"
-      [disabled]="
-        !dialogAvailable() ||
-        booking.paymentStatus === PaymentStatus.PAID ||
-        booking.paymentStatus === PaymentStatus.PARTIALLY_PAID
-      "
-    >
-      {{ text('BOOKING_CALENDAR.ACTIONS.CANCEL', 'Cancel') }}
-    </button>
-    @if ( booking.paymentStatus === PaymentStatus.PAID || booking.paymentStatus
-    === PaymentStatus.PARTIALLY_PAID ) {
-    <p class="action-sheet__note">
-      {{
-        text(
-          'BOOKING_CALENDAR.ACTIONS.PAID_BOOKING_NOTE',
-          'Paid booking - cancellation will require refund once payment gateway is integrated.'
-        )
-      }}
-    </p>
-    } } @if (!canConfirm() && !canMarkPaid() && !canCancel()) {
-    <p class="action-sheet__note">
-      {{
-        text(
-          'BOOKING_CALENDAR.ACTIONS.READ_ONLY',
-          'This account has read-only access.'
-        )
-      }}
-    </p>
-    }
-  </div>
-</section>
+@if (selectedBookingId()) {
+<app-calendar-booking-detail
+  [booking]="selectedBookingLive()"
+  [loading]="selectedBookingLoading()"
+  [loadError]="selectedBookingError()"
+  [canManageActions]="canMarkPaid() || canCancel()"
+  [actionsDisabled]="!dialogAvailable()"
+  (closeRequested)="closePanel()"
+  (cancelRequested)="openCancelDialog()"
+  (markPaidRequested)="openPayDialog()"
+  (viewFullDetailsRequested)="viewFullDetails()"
+></app-calendar-booking-detail>
 } @if (actionDialog(); as dialog) { @let copy = dialogCopy();
 <app-confirmation-dialog
   [title]="

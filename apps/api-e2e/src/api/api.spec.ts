@@ -430,6 +430,13 @@ describe('API', () => {
     it('should return 401 for GET /api/v1/bookings/facilities without token', async () => {
       await expectHttpError(axios.get(`/api/v1/bookings/facilities`), 401);
     });
+
+    it('should return 401 for GET /api/v1/bookings/:id without token', async () => {
+      await expectHttpError(
+        axios.get(`/api/v1/bookings/00000000-0000-4000-8000-000000000000`),
+        401
+      );
+    });
   });
 
   describe('GET /api/v1/bookings/facilities', () => {
@@ -865,6 +872,31 @@ describe('API', () => {
     });
   });
 
+  describe('GET /api/v1/bookings/:id', () => {
+    it('returns a single booking with detailed fields for authenticated users', async () => {
+      const listRes = await axios.get(`/api/v1/bookings`, {
+        headers: authHeaders(),
+      });
+      expect(Array.isArray(listRes.data)).toBe(true);
+      expect(listRes.data.length).toBeGreaterThan(0);
+
+      const bookingId = listRes.data[0]?.id as string;
+      expect(bookingId).toBeTruthy();
+
+      const res = await axios.get(`/api/v1/bookings/${bookingId}`, {
+        headers: authHeaders(),
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.data.id).toBe(bookingId);
+      expect(res.data).toHaveProperty('bookingReference');
+      expect(res.data).toHaveProperty('priceBreakdown');
+      expect(res.data).toHaveProperty('customerName');
+      expect(res.data).toHaveProperty('customerPhone');
+      expect(res.data).toHaveProperty('facility');
+    });
+  });
+
   describe('PATCH /api/v1/bookings/:id/status', () => {
     it('should reject invalid status transitions', async () => {
       const transitionDay = new Date();
@@ -1026,6 +1058,22 @@ describe('API', () => {
           (booking: { id: string }) => booking.id === ownerBooking.data.id
         )
       ).toBe(false);
+
+      await expectHttpError(
+        axios.get(`/api/v1/bookings/${ownerBooking.data.id}`, {
+          headers: authHeadersFor(staffToken),
+        }),
+        403
+      );
+
+      const ownDetails = await axios.get(
+        `/api/v1/bookings/${staffBooking.data.id}`,
+        {
+          headers: authHeadersFor(staffToken),
+        }
+      );
+      expect(ownDetails.status).toBe(200);
+      expect(ownDetails.data.id).toBe(staffBooking.data.id);
 
       await expectHttpError(
         axios.patch(

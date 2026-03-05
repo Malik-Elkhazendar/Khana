@@ -52,5 +52,6 @@ test.describe('Authentication - core flows', () => {
     page,
   }) => {
     await expectProtectedAccess(page);
+    await expect(page).toHaveURL(/\/login/);
   });
 });

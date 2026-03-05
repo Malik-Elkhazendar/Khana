@@ -412,6 +412,15 @@ export class ApiService {
   }
 
   /**
+   * Get a single booking by id.
+   */
+  getBooking(id: string): Observable<BookingListItemDto> {
+    return this.http
+      .get<BookingListItemDto>(`${this.baseUrl}/v1/bookings/${id}`)
+      .pipe(catchError(this.handleError('load booking details')));
+  }
+
+  /**
    * Preview a booking without persisting it
    * Returns price calculation, conflict status, promoValidation, and suggested alternatives
    */

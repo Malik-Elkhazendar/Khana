@@ -52,6 +52,7 @@ test.describe('Landing Page i18n & Routing', () => {
     test('footer links have no placeholder "#" hrefs', async ({ page }) => {
       await page.goto('/');
       await assertNoPlaceholderLinks(page, 'app-landing-footer footer');
+      await expect(page.locator('app-landing-footer footer')).toBeVisible();
     });
 
     test('does not accidentally redirect to /ar', async ({ page }) => {
@@ -112,6 +113,7 @@ test.describe('Landing Page i18n & Routing', () => {
     test('footer links have no placeholder "#" hrefs', async ({ page }) => {
       await page.goto('/ar');
       await assertNoPlaceholderLinks(page, 'app-landing-footer-ar footer');
+      await expect(page.locator('app-landing-footer-ar footer')).toBeVisible();
     });
 
     test('does not leak to EN route "/"', async ({ page }) => {
@@ -168,11 +170,13 @@ test.describe('Landing Page i18n & Routing', () => {
     test('EN landing has no dead "#" links in header', async ({ page }) => {
       await page.goto('/');
       await assertNoPlaceholderLinks(page, 'app-landing-header');
+      await expect(page.locator('app-landing-header')).toBeVisible();
     });
 
     test('AR landing has no dead "#" links in header', async ({ page }) => {
       await page.goto('/ar');
       await assertNoPlaceholderLinks(page, 'app-landing-header-ar');
+      await expect(page.locator('app-landing-header-ar')).toBeVisible();
     });
 
     test('EN landing actionable CTA links are not bare "#"', async ({
@@ -186,9 +190,7 @@ test.describe('Landing Page i18n & Routing', () => {
       const count = await ctaLinks.count();
       for (let i = 0; i < count; i += 1) {
         const href = await ctaLinks.nth(i).getAttribute('href');
-        if (href) {
-          expect(href).not.toBe('#');
-        }
+        expect(href ?? '').not.toBe('#');
       }
     });
   });
