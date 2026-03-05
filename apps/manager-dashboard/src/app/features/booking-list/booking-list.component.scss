@@ -414,6 +414,50 @@ tbody tr:focus-visible {
   color: var(--color-text-primary);
 }
 
+.booking-list__phone-link--table {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  transition: var(--transition-fast);
+  transition-property: color;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+.booking-list__phone-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-accent-dark);
+  opacity: 0;
+  transition: var(--transition-fast);
+  transition-property: opacity;
+
+  svg {
+    inline-size: var(--text-sm);
+    block-size: var(--text-sm);
+    fill: currentColor;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .booking-list__phone-link--table:hover,
+  .booking-list__phone-link--table:focus-visible {
+    color: var(--color-accent-dark);
+  }
+
+  .booking-list__phone-link--table:hover .booking-list__phone-icon,
+  .booking-list__phone-link--table:focus-visible .booking-list__phone-icon {
+    opacity: 1;
+  }
+}
+
 .cell-meta {
   margin-block-start: var(--space-1);
   font-size: var(--text-xs);

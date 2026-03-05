@@ -225,6 +225,83 @@ describe('BookingListComponent', () => {
     expect(allChip?.getAttribute('aria-pressed')).toBe('false');
   });
 
+  it('normalizes Saudi local numbers for click-to-call links', () => {
+    const { component } = setupComponent();
+
+    expect(component.phoneHref('0551234567')).toBe('tel:+966551234567');
+  });
+
+  it('keeps valid non-Saudi E.164 numbers callable', () => {
+    const { component } = setupComponent();
+
+    expect(component.phoneHref('+14155552671')).toBe('tel:+14155552671');
+  });
+
+  it('keeps Saudi country-code numbers canonical', () => {
+    const { component } = setupComponent();
+
+    expect(component.phoneHref('+966512345678')).toBe('tel:+966512345678');
+  });
+
+  it('returns null for non-dialable phone values', () => {
+    const { component } = setupComponent();
+
+    expect(component.phoneHref('invalid-phone')).toBeNull();
+  });
+
+  it('renders table phone as a tel link with hover icon when dialable', () => {
+    const booking = createBooking({
+      id: 'booking-phone-table',
+      customerPhone: '0551234567',
+    });
+    const { fixture } = setupComponent([booking]);
+
+    const tablePhoneLink = fixture.nativeElement.querySelector(
+      '.booking-table tbody .cell-mono .booking-list__phone-link--table'
+    ) as HTMLAnchorElement | null;
+    const phoneIcon = tablePhoneLink?.querySelector(
+      '.booking-list__phone-icon svg'
+    );
+
+    expect(tablePhoneLink).not.toBeNull();
+    expect(tablePhoneLink?.getAttribute('href')).toBe('tel:+966551234567');
+    expect(phoneIcon).not.toBeNull();
+  });
+
+  it('renders table phone as plain text when number is non-dialable', () => {
+    const booking = createBooking({
+      id: 'booking-phone-table-invalid',
+      customerPhone: 'invalid-phone',
+    });
+    const { fixture } = setupComponent([booking]);
+
+    const tablePhoneLink = fixture.nativeElement.querySelector(
+      '.booking-table tbody .cell-mono .booking-list__phone-link--table'
+    ) as HTMLAnchorElement | null;
+    const tablePhoneText = fixture.nativeElement.querySelector(
+      '.booking-table tbody .cell-mono > span'
+    ) as HTMLSpanElement | null;
+
+    expect(tablePhoneLink).toBeNull();
+    expect(tablePhoneText?.textContent?.trim()).toBe('invalid-phone');
+  });
+
+  it('keeps mobile card phone as tap-to-call with normalized href', () => {
+    const booking = createBooking({
+      id: 'booking-phone-card',
+      customerPhone: '0551234567',
+    });
+    const { fixture } = setupComponent([booking]);
+
+    const mobilePhoneLink = fixture.nativeElement.querySelector(
+      '.card-list .booking-card__row .value.link[href^="tel:"]'
+    ) as HTMLAnchorElement | null;
+
+    expect(mobilePhoneLink).not.toBeNull();
+    expect(mobilePhoneLink?.getAttribute('href')).toBe('tel:+966551234567');
+    expect(mobilePhoneLink?.textContent?.trim()).toBe('0551234567');
+  });
+
   it('ignores unsupported query param values', () => {
     queryParams = {
       status: 'INVALID_STATUS',

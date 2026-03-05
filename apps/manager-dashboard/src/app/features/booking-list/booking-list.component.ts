@@ -42,6 +42,8 @@ type BookingStatusTone = 'success' | 'warning' | 'danger' | 'default';
 type BookingStatusFilter = BookingStatus | 'ALL' | 'ON_HOLD';
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
+const E164_PHONE_REGEX = /^\+[1-9]\d{6,14}$/;
+const SAUDI_PHONE_REGEX = /^(?:\+966|00966|966|0)?5\d{8}$/;
 
 @Component({
   selector: 'app-booking-list',
@@ -545,6 +547,60 @@ export class BookingListComponent implements OnInit, OnDestroy {
    */
   formatTimeRange(startIso: string, endIso: string): string {
     return `${this.formatTime(startIso)} - ${this.formatTime(endIso)}`;
+  }
+
+  /**
+   * Convert a phone value into a dialable E.164-compatible number when possible.
+   */
+  toDialablePhone(phone: string | null | undefined): string | null {
+    const compact = phone?.trim().replace(/\s+/g, '') ?? '';
+    if (!compact) {
+      return null;
+    }
+
+    if (this.isValidSaudiPhoneNumber(compact)) {
+      return this.normalizeSaudiPhoneNumber(compact);
+    }
+
+    if (E164_PHONE_REGEX.test(compact)) {
+      return compact;
+    }
+
+    return null;
+  }
+
+  /**
+   * Build a phone URI for click-to-call interactions.
+   */
+  phoneHref(phone: string | null | undefined): string | null {
+    const dialable = this.toDialablePhone(phone);
+    return dialable ? `tel:${dialable}` : null;
+  }
+
+  private isValidSaudiPhoneNumber(phone: string): boolean {
+    return SAUDI_PHONE_REGEX.test(phone);
+  }
+
+  private normalizeSaudiPhoneNumber(phone: string): string {
+    let normalized = phone;
+
+    if (normalized.startsWith('+')) {
+      normalized = normalized.substring(1);
+    }
+
+    if (normalized.startsWith('00')) {
+      normalized = normalized.substring(2);
+    }
+
+    if (normalized.startsWith('0')) {
+      normalized = normalized.substring(1);
+    }
+
+    if (!normalized.startsWith('966')) {
+      normalized = `966${normalized}`;
+    }
+
+    return `+${normalized}`;
   }
 
   /**

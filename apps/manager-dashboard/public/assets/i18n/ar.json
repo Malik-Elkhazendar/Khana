@@ -171,7 +171,8 @@
       "PROMO_CODES": "الأكواد الترويجية",
       "TEAM": "الفريق",
       "SETTINGS": "الإعدادات",
-      "ANALYTICS": "التحليلات"
+      "ANALYTICS": "التحليلات",
+      "BOOKING_DETAIL": "تفاصيل الحجز"
     },
     "ACTIONS": {
       "RETRY": "إعادة المحاولة",
@@ -603,7 +604,8 @@
       "SELECT_ALL_PAGE": "تحديد جميع حجوزات هذه الصفحة",
       "SELECT_BOOKING": "تحديد الحجز للعميل {{name}}",
       "CANCEL_BOOKING_FOR": "إلغاء الحجز للعميل {{name}}",
-      "MARK_PAID_FOR": "تحديث حجز {{name}} إلى مدفوع"
+      "MARK_PAID_FOR": "تحديث حجز {{name}} إلى مدفوع",
+      "CALL_PHONE": "الاتصال بـ {{phone}}"
     },
     "TOOLBAR": {
       "SELECTED_COUNT": "{{count}} محدد"
@@ -777,6 +779,20 @@
       "HOLD": "حجز مبدئي",
       "HOLD_UNTIL": "محجوز حتى {{time}}"
     },
+    "DETAIL_PANEL": {
+      "TITLE": "تفاصيل الحجز",
+      "CLOSE": "إغلاق",
+      "CLOSE_LABEL": "إغلاق تفاصيل الحجز",
+      "LOADING": "جارٍ تحميل تفاصيل الحجز...",
+      "READ_ONLY": "يمكن لهذا الحساب عرض التفاصيل فقط ولا يمكنه تنفيذ إجراءات الحجز.",
+      "CUSTOMER": "العميل",
+      "CUSTOMER_PHONE": "الهاتف",
+      "BOOKING_REFERENCE": "المرجع",
+      "DATE_FACILITY": "التاريخ والمرفق",
+      "PROMO_CODE": "رمز الخصم",
+      "DISCOUNT_AMOUNT": "قيمة الخصم",
+      "VIEW_FULL_DETAILS": "عرض التفاصيل الكاملة"
+    },
     "HOLD_TIMER": {
       "PREFIX": "ينتهي خلال",
       "EXPIRED": "منتهي",
@@ -840,6 +856,32 @@
       "AUTH_DISMISS_DESCRIPTION": "العودة إلى آخر بيانات تقويم تم تحميلها.",
       "NOT_FOUND_REFRESH_DESCRIPTION": "أعد التحميل للحصول على قائمة حجوزات محدثة.",
       "UNKNOWN_RETRY_DESCRIPTION": "حاول تحميل الحجوزات مرة أخرى."
+    }
+  },
+  "BOOKING_DETAIL": {
+    "PAGE": {
+      "SKIP_LINK": "تخطي إلى تفاصيل الحجز",
+      "TITLE": "تفاصيل الحجز",
+      "SUBTITLE": "معلومات تفصيلية عن الحجز وحالة الدفع",
+      "BACK_TO_CALENDAR": "العودة إلى التقويم"
+    },
+    "STATE": {
+      "LOADING": "جارٍ تحميل الحجز...",
+      "NOT_FOUND": "لم يتم العثور على الحجز."
+    },
+    "FIELDS": {
+      "CUSTOMER": "العميل",
+      "PHONE": "الهاتف",
+      "REFERENCE": "المرجع",
+      "STATUS": "الحالة",
+      "PAYMENT_STATUS": "الدفع",
+      "FACILITY": "المرفق",
+      "DATE": "التاريخ",
+      "TIME": "الوقت",
+      "PROMO_CODE": "رمز الخصم",
+      "DISCOUNT": "الخصم",
+      "TOTAL": "الإجمالي",
+      "CANCELLATION_REASON": "سبب الإلغاء"
     }
   },
   "BOOKING_PREVIEW": {

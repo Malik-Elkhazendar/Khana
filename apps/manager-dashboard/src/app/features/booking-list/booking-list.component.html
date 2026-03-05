@@ -431,7 +431,30 @@
                 <div class="cell-meta">{{ booking.bookingReference }}</div>
                 }
               </td>
-              <td class="cell-mono">{{ booking.customerPhone }}</td>
+              <td class="cell-mono">
+                @if (phoneHref(booking.customerPhone); as callHref) {
+                <a
+                  class="booking-list__phone-link booking-list__phone-link--table"
+                  [href]="callHref"
+                  [attr.aria-label]="
+                    text('BOOKING_LIST.ARIA.CALL_PHONE', 'Call {{phone}}', {
+                      phone: booking.customerPhone
+                    })
+                  "
+                >
+                  <span>{{ booking.customerPhone }}</span>
+                  <span class="booking-list__phone-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path
+                        d="M7.2 4.5c0.3-0.3 0.8-0.4 1.2-0.3l2.3 1c0.5 0.2 0.8 0.8 0.7 1.3l-0.5 2.2a0.9 0.9 0 0 0 0.2 0.8l2.3 2.3a0.9 0.9 0 0 0 0.8 0.2l2.2-0.5c0.5-0.1 1 0.2 1.3 0.7l1 2.3c0.2 0.4 0.1 0.9-0.3 1.2l-1.7 1.7a2 2 0 0 1-1.9 0.5 16.8 16.8 0 0 1-5.6-3.6A16.8 16.8 0 0 1 4.9 8a2 2 0 0 1 0.5-1.9l1.8-1.6Z"
+                      />
+                    </svg>
+                  </span>
+                </a>
+                } @else {
+                <span>{{ booking.customerPhone }}</span>
+                }
+              </td>
               <td>
                 @if (booking.customerTags && booking.customerTags.length > 0) {
                 <div class="booking-list__row-tags">
@@ -460,6 +483,7 @@
                     text(
                       'BOOKING_LIST.TABLE.HOLD_UNTIL',
                       'Reserved until {{time
+
 
 
 
@@ -623,9 +647,21 @@
               <span class="label">{{
                 text('BOOKING_LIST.CARD.PHONE', 'Phone')
               }}</span>
-              <a class="value link" [href]="'tel:' + booking.customerPhone">
+              @if (phoneHref(booking.customerPhone); as callHref) {
+              <a
+                class="value link"
+                [href]="callHref"
+                [attr.aria-label]="
+                  text('BOOKING_LIST.ARIA.CALL_PHONE', 'Call {{phone}}', {
+                    phone: booking.customerPhone,
+                  })
+                "
+              >
                 {{ booking.customerPhone }}
               </a>
+              } @else {
+              <span class="value">{{ booking.customerPhone }}</span>
+              }
             </div>
             <div class="booking-card__row">
               <span class="label">{{
@@ -680,6 +716,7 @@
                   text(
                     'BOOKING_LIST.TABLE.HOLD_UNTIL',
                     'Reserved until {{time
+
 
 
 

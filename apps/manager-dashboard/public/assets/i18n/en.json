@@ -171,7 +171,8 @@
       "PROMO_CODES": "Promo Codes",
       "TEAM": "Team",
       "SETTINGS": "Settings",
-      "ANALYTICS": "Analytics"
+      "ANALYTICS": "Analytics",
+      "BOOKING_DETAIL": "Booking Detail"
     },
     "ACTIONS": {
       "RETRY": "Retry",
@@ -603,7 +604,8 @@
       "SELECT_ALL_PAGE": "Select all bookings on this page",
       "SELECT_BOOKING": "Select booking for {{name}}",
       "CANCEL_BOOKING_FOR": "Cancel booking for {{name}}",
-      "MARK_PAID_FOR": "Mark booking as paid for {{name}}"
+      "MARK_PAID_FOR": "Mark booking as paid for {{name}}",
+      "CALL_PHONE": "Call {{phone}}"
     },
     "TOOLBAR": {
       "SELECTED_COUNT": "{{count}} selected"
@@ -777,6 +779,20 @@
       "HOLD": "Hold",
       "HOLD_UNTIL": "Reserved until {{time}}"
     },
+    "DETAIL_PANEL": {
+      "TITLE": "Booking details",
+      "CLOSE": "Close",
+      "CLOSE_LABEL": "Close booking details",
+      "LOADING": "Loading booking details...",
+      "READ_ONLY": "This account can view details but cannot run booking actions.",
+      "CUSTOMER": "Customer",
+      "CUSTOMER_PHONE": "Phone",
+      "BOOKING_REFERENCE": "Reference",
+      "DATE_FACILITY": "Date & facility",
+      "PROMO_CODE": "Promo code",
+      "DISCOUNT_AMOUNT": "Discount",
+      "VIEW_FULL_DETAILS": "View full details"
+    },
     "HOLD_TIMER": {
       "PREFIX": "Expires in",
       "EXPIRED": "Expired",
@@ -840,6 +856,32 @@
       "AUTH_DISMISS_DESCRIPTION": "Return to the last loaded calendar data.",
       "NOT_FOUND_REFRESH_DESCRIPTION": "Reload to find an updated booking list.",
       "UNKNOWN_RETRY_DESCRIPTION": "Try loading bookings again."
+    }
+  },
+  "BOOKING_DETAIL": {
+    "PAGE": {
+      "SKIP_LINK": "Skip to booking details",
+      "TITLE": "Booking details",
+      "SUBTITLE": "Detailed booking information and payment state",
+      "BACK_TO_CALENDAR": "Back to calendar"
+    },
+    "STATE": {
+      "LOADING": "Loading booking...",
+      "NOT_FOUND": "Booking not found."
+    },
+    "FIELDS": {
+      "CUSTOMER": "Customer",
+      "PHONE": "Phone",
+      "REFERENCE": "Reference",
+      "STATUS": "Status",
+      "PAYMENT_STATUS": "Payment",
+      "FACILITY": "Facility",
+      "DATE": "Date",
+      "TIME": "Time",
+      "PROMO_CODE": "Promo code",
+      "DISCOUNT": "Discount",
+      "TOTAL": "Total",
+      "CANCELLATION_REASON": "Cancellation reason"
     }
   },
   "BOOKING_PREVIEW": {
