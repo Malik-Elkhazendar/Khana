@@ -233,6 +233,48 @@ describe('BookingListComponent', () => {
     expect(markPaidButton).not.toBeNull();
   });
 
+  it('shows bulk mark-paid button for manager when payable selection exists', () => {
+    authStoreMock.user.update((user) => ({ ...user, role: UserRole.MANAGER }));
+    const booking = createBooking({
+      id: 'booking-manager-bulk',
+      paymentStatus: PaymentStatus.PENDING,
+      status: BookingStatus.CONFIRMED,
+    });
+    const { fixture, component } = setupComponent([booking]);
+
+    component.selectedBookingIds.set(new Set([booking.id]));
+    fixture.detectChanges();
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('button')
+    ) as HTMLButtonElement[];
+    const bulkMarkPaidButton = buttons.find((button) =>
+      button.textContent?.includes('Mark selected as paid')
+    );
+    expect(bulkMarkPaidButton).toBeTruthy();
+  });
+
+  it('hides bulk mark-paid button for staff even with selection', () => {
+    authStoreMock.user.update((user) => ({ ...user, role: UserRole.STAFF }));
+    const booking = createBooking({
+      id: 'booking-staff-bulk',
+      paymentStatus: PaymentStatus.PENDING,
+      status: BookingStatus.CONFIRMED,
+    });
+    const { fixture, component } = setupComponent([booking]);
+
+    component.selectedBookingIds.set(new Set([booking.id]));
+    fixture.detectChanges();
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('button')
+    ) as HTMLButtonElement[];
+    const bulkMarkPaidButton = buttons.find((button) =>
+      button.textContent?.includes('Mark selected as paid')
+    );
+    expect(bulkMarkPaidButton).toBeUndefined();
+  });
+
   it('reloads bookings and clears selection when facility changes', () => {
     const booking = createBooking({ id: 'booking-1' });
     const { component } = setupComponent([booking]);
@@ -677,6 +719,31 @@ describe('BookingListComponent', () => {
     expect(component.bulkCancelOpen()).toBe(true);
   });
 
+  it('opens bulk mark-paid dialog only when payable selection exists', () => {
+    const pendingBooking = createBooking({
+      id: 'booking-pending',
+      paymentStatus: PaymentStatus.PENDING,
+      status: BookingStatus.CONFIRMED,
+    });
+    const paidBooking = createBooking({
+      id: 'booking-paid',
+      paymentStatus: PaymentStatus.PAID,
+      status: BookingStatus.CONFIRMED,
+    });
+    const { component } = setupComponent([pendingBooking, paidBooking]);
+
+    component.openBulkMarkPaidDialog();
+    expect(component.bulkMarkPaidOpen()).toBe(false);
+
+    component.selectedBookingIds.set(new Set([paidBooking.id]));
+    component.openBulkMarkPaidDialog();
+    expect(component.bulkMarkPaidOpen()).toBe(false);
+
+    component.selectedBookingIds.set(new Set([pendingBooking.id]));
+    component.openBulkMarkPaidDialog();
+    expect(component.bulkMarkPaidOpen()).toBe(true);
+  });
+
   it('shows an error when bulk cancellation fails', async () => {
     const bookings = [
       createBooking({ id: 'booking-1' }),
@@ -694,6 +761,108 @@ describe('BookingListComponent', () => {
 
     expect(component.bulkCancelError()).toContain('1 of 2');
     expect(component.toast()?.tone).toBe('error');
+  });
+
+  it('submits bulk mark-paid and clears processed selection on success', async () => {
+    const bookings = [
+      createBooking({
+        id: 'booking-1',
+        paymentStatus: PaymentStatus.PENDING,
+        status: BookingStatus.CONFIRMED,
+      }),
+      createBooking({
+        id: 'booking-2',
+        paymentStatus: PaymentStatus.PENDING,
+        status: BookingStatus.COMPLETED,
+      }),
+    ];
+    const { component } = setupComponent(bookings);
+
+    component.selectedBookingIds.set(new Set(['booking-1', 'booking-2']));
+    component.openBulkMarkPaidDialog();
+    storeMock.loadBookings.mockClear();
+
+    await component.submitBulkMarkPaid();
+
+    expect(storeMock.markBookingPaid).toHaveBeenCalledTimes(2);
+    expect(storeMock.markBookingPaid).toHaveBeenCalledWith('booking-1');
+    expect(storeMock.markBookingPaid).toHaveBeenCalledWith('booking-2');
+    expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
+    expect(component.selectedBookingIds().size).toBe(0);
+    expect(component.bulkMarkPaidOpen()).toBe(false);
+    expect(component.toast()).toEqual({
+      message: '2 bookings marked as paid.',
+      tone: 'success',
+    });
+  });
+
+  it('handles partial bulk mark-paid failure with mixed feedback and retained failed selection', async () => {
+    const bookings = [
+      createBooking({
+        id: 'booking-1',
+        paymentStatus: PaymentStatus.PENDING,
+        status: BookingStatus.CONFIRMED,
+      }),
+      createBooking({
+        id: 'booking-2',
+        paymentStatus: PaymentStatus.PENDING,
+        status: BookingStatus.CONFIRMED,
+      }),
+    ];
+    storeMock.markBookingPaid
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    const { component } = setupComponent(bookings);
+    const showToastSpy = jest.spyOn(
+      component as unknown as {
+        showToast: (message: string, tone: string) => void;
+      },
+      'showToast'
+    );
+
+    component.selectedBookingIds.set(new Set(['booking-1', 'booking-2']));
+    component.openBulkMarkPaidDialog();
+    storeMock.loadBookings.mockClear();
+
+    await component.submitBulkMarkPaid();
+
+    expect(component.bulkMarkPaidError()).toContain('1 of 2');
+    expect(component.selectedBookingIds()).toEqual(new Set(['booking-2']));
+    expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
+    expect(showToastSpy).toHaveBeenCalledWith(
+      '1 bookings marked as paid.',
+      'success'
+    );
+    expect(showToastSpy).toHaveBeenCalledWith(
+      'Some mark-as-paid updates failed. Please retry.',
+      'error'
+    );
+  });
+
+  it('keeps selection and sets error when bulk mark-paid throws', async () => {
+    const booking = createBooking({
+      id: 'booking-error',
+      paymentStatus: PaymentStatus.PENDING,
+      status: BookingStatus.CONFIRMED,
+    });
+    storeMock.markBookingPaid.mockRejectedValueOnce(new Error('Network error'));
+    const { component } = setupComponent([booking]);
+
+    component.selectedBookingIds.set(new Set([booking.id]));
+    component.openBulkMarkPaidDialog();
+    storeMock.loadBookings.mockClear();
+
+    await component.submitBulkMarkPaid();
+
+    expect(component.bulkMarkPaidError()).toBe(
+      'Bulk mark as paid failed. Please try again.'
+    );
+    expect(component.selectedBookingIds()).toEqual(new Set([booking.id]));
+    expect(component.toast()).toEqual({
+      message: 'Bulk mark as paid failed. Please try again.',
+      tone: 'error',
+    });
+    expect(storeMock.loadBookings).toHaveBeenCalledWith(null);
   });
 
   it('shows facility error and retries loading facilities', () => {

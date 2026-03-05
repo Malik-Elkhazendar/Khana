@@ -118,6 +118,9 @@ export class BookingListComponent implements OnInit, OnDestroy {
   readonly bulkCancelReason = signal('');
   readonly bulkCancelError = signal<string | null>(null);
   readonly bulkActionInProgress = signal(false);
+  readonly bulkMarkPaidOpen = signal(false);
+  readonly bulkMarkPaidError = signal<string | null>(null);
+  readonly bulkMarkPaidInProgress = signal(false);
   readonly toast = signal<{
     message: string;
     tone: 'success' | 'error';
@@ -187,6 +190,29 @@ export class BookingListComponent implements OnInit, OnDestroy {
       confirmLabel: this.t(
         'BOOKING_LIST.DIALOG.BULK_CANCEL_CONFIRM',
         'Cancel bookings'
+      ),
+    };
+  }
+
+  get bulkMarkPaidDialogCopy(): {
+    title: string;
+    message: string;
+    confirmLabel: string;
+  } {
+    const count = this.selectedMarkPaidCount();
+    return {
+      title: this.t(
+        'BOOKING_LIST.DIALOG.BULK_MARK_PAID_TITLE',
+        'Mark selected bookings as paid'
+      ),
+      message: this.t(
+        'BOOKING_LIST.DIALOG.BULK_MARK_PAID_MESSAGE',
+        `Mark ${count} bookings as paid?`,
+        { count }
+      ),
+      confirmLabel: this.t(
+        'BOOKING_LIST.DIALOG.BULK_MARK_PAID_CONFIRM',
+        'Mark as paid'
       ),
     };
   }
@@ -376,6 +402,15 @@ export class BookingListComponent implements OnInit, OnDestroy {
       (booking) => selected.has(booking.id) && this.isCancellable(booking)
     );
   });
+  readonly selectedMarkPaidBookings = computed(() => {
+    const selected = this.selectedBookingIds();
+    return this.bookings().filter(
+      (booking) => selected.has(booking.id) && this.isBulkMarkPayable(booking)
+    );
+  });
+  readonly selectedMarkPaidCount = computed(
+    () => this.selectedMarkPaidBookings().length
+  );
   readonly allPageSelected = computed(() => {
     const pageBookings = this.pagedBookings().filter((booking) =>
       this.isCancellable(booking)
@@ -696,6 +731,15 @@ export class BookingListComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Determine whether a selected booking can be marked as paid in bulk.
+   */
+  isBulkMarkPayable(booking: BookingListItemDto): boolean {
+    if (!this.canMarkPaid()) return false;
+    if (booking.status === BookingStatus.CANCELLED) return false;
+    return booking.paymentStatus === PaymentStatus.PENDING;
+  }
+
+  /**
    * Toggle selection for a single booking.
    */
   toggleBookingSelection(booking: BookingListItemDto, checked: boolean): void {
@@ -752,6 +796,26 @@ export class BookingListComponent implements OnInit, OnDestroy {
     this.bulkCancelReason.set('');
     this.bulkCancelError.set(null);
     this.bulkActionInProgress.set(false);
+  }
+
+  /**
+   * Open the bulk mark-paid dialog if payable selections exist.
+   */
+  openBulkMarkPaidDialog(): void {
+    if (!this.canMarkPaid() || this.selectedMarkPaidCount() === 0) {
+      return;
+    }
+    this.bulkMarkPaidError.set(null);
+    this.bulkMarkPaidOpen.set(true);
+  }
+
+  /**
+   * Close the bulk mark-paid dialog and reset state.
+   */
+  closeBulkMarkPaidDialog(): void {
+    this.bulkMarkPaidOpen.set(false);
+    this.bulkMarkPaidError.set(null);
+    this.bulkMarkPaidInProgress.set(false);
   }
 
   /**
@@ -831,6 +895,111 @@ export class BookingListComponent implements OnInit, OnDestroy {
       );
     } finally {
       this.bulkActionInProgress.set(false);
+    }
+  }
+
+  /**
+   * Submit mark-as-paid for selected payable bookings.
+   */
+  async submitBulkMarkPaid(): Promise<void> {
+    if (this.bulkMarkPaidInProgress()) return;
+
+    const targets = this.selectedMarkPaidBookings();
+    if (!this.canMarkPaid() || targets.length === 0) {
+      this.bulkMarkPaidError.set(
+        this.t(
+          'BOOKING_LIST.ERRORS.NO_PAYABLE_SELECTED',
+          'No payable bookings selected.'
+        )
+      );
+      return;
+    }
+
+    this.bulkMarkPaidInProgress.set(true);
+    let shouldRefresh = false;
+    try {
+      shouldRefresh = true;
+      const results = await Promise.all(
+        targets.map(async (booking) => ({
+          id: booking.id,
+          success: await this.store.markBookingPaid(booking.id),
+        }))
+      );
+
+      const successfulIds = results
+        .filter((result) => result.success)
+        .map((result) => result.id);
+      const successCount = successfulIds.length;
+      const failureCount = results.length - successCount;
+
+      if (successfulIds.length > 0) {
+        this.selectedBookingIds.update((current) => {
+          const next = new Set(current);
+          for (const id of successfulIds) {
+            next.delete(id);
+          }
+          return next;
+        });
+      }
+
+      if (failureCount > 0) {
+        this.bulkMarkPaidError.set(
+          this.t(
+            'BOOKING_LIST.ERRORS.BULK_MARK_PAID_FAILED_COUNT',
+            `${failureCount} of ${targets.length} mark-as-paid updates failed.`,
+            { failures: failureCount, total: targets.length }
+          )
+        );
+
+        if (successCount > 0) {
+          this.showToast(
+            this.t(
+              'BOOKING_LIST.TOAST.SELECTED_BOOKINGS_MARKED_PAID',
+              `${successCount} bookings marked as paid.`,
+              { count: successCount }
+            ),
+            'success'
+          );
+        }
+
+        this.showToast(
+          this.t(
+            'BOOKING_LIST.ERRORS.SOME_MARK_PAID_FAILED',
+            'Some mark-as-paid updates failed. Please retry.'
+          ),
+          'error'
+        );
+        return;
+      }
+
+      this.showToast(
+        this.t(
+          'BOOKING_LIST.TOAST.SELECTED_BOOKINGS_MARKED_PAID',
+          `${successCount} bookings marked as paid.`,
+          { count: successCount }
+        ),
+        'success'
+      );
+      this.closeBulkMarkPaidDialog();
+    } catch {
+      this.bulkMarkPaidError.set(
+        this.t(
+          'BOOKING_LIST.ERRORS.BULK_MARK_PAID_FAILED',
+          'Bulk mark as paid failed. Please try again.'
+        )
+      );
+      this.showToast(
+        this.t(
+          'BOOKING_LIST.ERRORS.BULK_MARK_PAID_FAILED',
+          'Bulk mark as paid failed. Please try again.'
+        ),
+        'error'
+      );
+    } finally {
+      if (shouldRefresh) {
+        this.store.loadBookings(this.getFacilityFilter());
+      }
+      this.bulkMarkPaidInProgress.set(false);
     }
   }
 

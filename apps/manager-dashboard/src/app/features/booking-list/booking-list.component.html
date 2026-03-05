@@ -222,6 +222,21 @@
         >
           {{ text('BOOKING_LIST.ACTIONS.CANCEL_SELECTED', 'Cancel Selected') }}
         </button>
+        } @if (canMarkPaid() && selectionCount() > 0 && selectedMarkPaidCount()
+        > 0) {
+        <button
+          type="button"
+          class="btn-ghost"
+          (click)="openBulkMarkPaidDialog()"
+          [disabled]="bulkMarkPaidInProgress()"
+        >
+          {{
+            text(
+              'BOOKING_LIST.ACTIONS.MARK_SELECTED_PAID',
+              'Mark selected as paid'
+            )
+          }}
+        </button>
         } @if (selectionCount() > 0) {
         <button type="button" class="btn-ghost" (click)="clearSelection()">
           {{ text('BOOKING_LIST.ACTIONS.CLEAR', 'Clear') }}
@@ -428,6 +443,7 @@
                     text(
                       'BOOKING_LIST.TABLE.HOLD_UNTIL',
                       'Reserved until {{time
+
 
 
 
@@ -652,6 +668,7 @@
 
 
 
+
                 }}', { time: formatTime(booking.holdUntil) } ) }}
               </span>
             </div>
@@ -824,6 +841,22 @@
   @if (bulkCancelError()) {
   <p class="dialog-error" role="alert" aria-live="assertive">
     {{ bulkCancelError() }}
+  </p>
+  }
+</app-confirmation-dialog>
+} @if (bulkMarkPaidOpen() && canMarkPaid()) {
+<app-confirmation-dialog
+  [title]="bulkMarkPaidDialogCopy.title"
+  [message]="bulkMarkPaidDialogCopy.message"
+  [confirmLabel]="bulkMarkPaidDialogCopy.confirmLabel"
+  [confirmDisabled]="selectedMarkPaidCount() === 0"
+  [busy]="bulkMarkPaidInProgress()"
+  (confirmed)="submitBulkMarkPaid()"
+  (dismissed)="closeBulkMarkPaidDialog()"
+>
+  @if (bulkMarkPaidError()) {
+  <p class="dialog-error" role="alert" aria-live="assertive">
+    {{ bulkMarkPaidError() }}
   </p>
   }
 </app-confirmation-dialog>
