@@ -87,6 +87,7 @@ const CHART_TOP_Y = 4;
 const CHART_GRID_LINES: ReadonlyArray<number> = [4, 16, 28, 40];
 const CHART_MAX_RENDER_POINTS = 60;
 const CHART_HEADROOM_RATIO = 1.12;
+const DAY_IN_MS = 86_400_000;
 const GROUP_RANK: Record<AnalyticsGroupBy, number> = {
   day: 1,
   week: 2,
@@ -144,6 +145,59 @@ export class AnalyticsComponent {
     'last_30_days',
     'last_90_days',
   ];
+  readonly previousPeriodTooltipMeta = computed<{
+    key:
+      | 'DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_TOOLTIP_SINGLE'
+      | 'DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_TOOLTIP_MULTI';
+    params: { from: string; to: string; count?: number };
+  }>(() => {
+    const filters = this.store.filters();
+    const currentFrom = new Date(filters.from);
+    const currentTo = new Date(filters.to);
+
+    if (
+      Number.isNaN(currentFrom.getTime()) ||
+      Number.isNaN(currentTo.getTime()) ||
+      currentFrom.getTime() > currentTo.getTime()
+    ) {
+      return {
+        key: 'DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_TOOLTIP_MULTI',
+        params: { from: '', to: '', count: 0 },
+      };
+    }
+
+    const currentFromDay = new Date(currentFrom);
+    currentFromDay.setHours(0, 0, 0, 0);
+    const currentToDay = new Date(currentTo);
+    currentToDay.setHours(0, 0, 0, 0);
+
+    const diffMs = currentToDay.getTime() - currentFromDay.getTime();
+    const days = Math.max(1, Math.floor(diffMs / DAY_IN_MS) + 1);
+
+    const prevTo = new Date(currentFromDay.getTime() - 1);
+    const prevFrom = new Date(prevTo.getTime() - (days - 1) * DAY_IN_MS);
+
+    const from = this.localeFormat.formatDate(prevFrom.toISOString(), {
+      day: 'numeric',
+      month: 'short',
+    });
+    const to = this.localeFormat.formatDate(prevTo.toISOString(), {
+      day: 'numeric',
+      month: 'short',
+    });
+
+    if (days === 1) {
+      return {
+        key: 'DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_TOOLTIP_SINGLE',
+        params: { from, to },
+      };
+    }
+
+    return {
+      key: 'DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_TOOLTIP_MULTI',
+      params: { from, to, count: days },
+    };
+  });
 
   readonly chartGridLines = CHART_GRID_LINES;
   readonly showBookingsDetails = signal(false);
@@ -235,6 +289,8 @@ export class AnalyticsComponent {
       case 'last_90_days':
         return 'DASHBOARD.PAGES.ANALYTICS.DATE_PRESETS.LAST_90_DAYS';
     }
+
+    return 'DASHBOARD.PAGES.ANALYTICS.DATE_PRESETS.TODAY';
   }
 
   async applyFilters(): Promise<void> {

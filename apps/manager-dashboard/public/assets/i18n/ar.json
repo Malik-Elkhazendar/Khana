@@ -272,6 +272,25 @@
         "LOGOUT_ALL": "تسجيل خروج كل الأجهزة الأخرى",
         "LOGOUT_ALL_SUCCESS": "تم تسجيل خروج الجلسات الأخرى بنجاح.",
         "LOGOUT_ALL_ERROR": "تعذّر تسجيل خروج الجلسات الأخرى.",
+        "GOALS": {
+          "TITLE": "الأهداف الشهرية",
+          "SUBTITLE": "حدّد أهداف الإيراد والإشغال للشهر الحالي.",
+          "LOADING": "جارٍ تحميل الأهداف...",
+          "MONTHLY_REVENUE_LABEL": "هدف الإيراد الشهري (ريال)",
+          "MONTHLY_OCCUPANCY_LABEL": "هدف الإشغال الشهري (%)",
+          "SAVE": "حفظ الأهداف",
+          "READ_ONLY": "يمكن للمالك فقط تعديل الأهداف.",
+          "LOAD_ERROR": "تعذّر تحميل إعدادات الأهداف.",
+          "VALIDATION_ERROR": "أدخل قيماً صحيحة للأهداف قبل الحفظ.",
+          "SAVE_SUCCESS": "تم حفظ الأهداف بنجاح.",
+          "SAVE_ERROR": "تعذّر حفظ الأهداف.",
+          "NUDGE": {
+            "TITLE": "حدّد أهداف هذا الشهر",
+            "MESSAGE": "تابع الأداء عبر أهداف الإيراد والإشغال الشهرية.",
+            "SET_GOAL": "تحديد الأهداف",
+            "LATER": "لاحقًا"
+          }
+        },
         "FIELDS": {
           "NAME": "الاسم",
           "EMAIL": "البريد الإلكتروني",
@@ -461,7 +480,10 @@
           "OCCUPANCY_RATE": "نسبة الإشغال",
           "CANCELLATION_RATE": "نسبة الإلغاء",
           "AVG_BOOKING_VALUE": "متوسط قيمة الحجز",
-          "VS_PREVIOUS_PERIOD": "مقارنة بالفترة السابقة"
+          "VS_PREVIOUS_PERIOD": "مقارنة بالفترة السابقة",
+          "PERIOD_INFO_ARIA": "ما هي الفترة السابقة؟",
+          "PERIOD_TOOLTIP_SINGLE": "مقارنةً بالفترة السابقة ليوم واحد ({{from}} – {{to}})",
+          "PERIOD_TOOLTIP_MULTI": "مقارنةً بالفترة السابقة لعدد {{count}} أيام ({{from}} – {{to}})"
         },
         "CHARTS": {
           "BOOKINGS_TREND": "اتجاه الحجوزات",
@@ -563,7 +585,8 @@
       "MARK_AS_PAID": "تحديث إلى مدفوع",
       "CANCEL": "إلغاء",
       "MARK_PAID": "تحديث إلى مدفوع",
-      "PAID_BOOKING_NOTE": "الحجز مدفوع، وسيستلزم الإلغاء إجراء استرداد عند دمج بوابة الدفع."
+      "PAID_BOOKING_NOTE": "الحجز مدفوع، وسيستلزم الإلغاء إجراء استرداد عند دمج بوابة الدفع.",
+      "MARK_SELECTED_PAID": "تحديث المحدد إلى مدفوع"
     },
     "ARIA": {
       "SELECT_ALL_PAGE": "تحديد جميع حجوزات هذه الصفحة",
@@ -583,7 +606,10 @@
       "CANCEL_SCOPE_FUTURE": "إلغاء هذا الحجز وجميع الحجوزات المستقبلية",
       "BULK_CANCEL_TITLE": "إلغاء الحجوزات المحددة",
       "BULK_CANCEL_MESSAGE": "سيتم إلغاء جميع الحجوزات المحددة ولا يمكن التراجع عن هذا الإجراء.",
-      "BULK_CANCEL_CONFIRM": "إلغاء الحجوزات"
+      "BULK_CANCEL_CONFIRM": "إلغاء الحجوزات",
+      "BULK_MARK_PAID_TITLE": "تحديث الحجوزات المحددة إلى مدفوع",
+      "BULK_MARK_PAID_MESSAGE": "تحديث {{count}} حجز إلى مدفوع؟",
+      "BULK_MARK_PAID_CONFIRM": "تحديث إلى مدفوع"
     },
     "STATE": {
       "LOADING": "جارٍ تحميل الحجوزات...",
@@ -656,12 +682,17 @@
       "BULK_CANCELLATIONS_FAILED_COUNT": "فشل {{failures}} من أصل {{total}} عمليات إلغاء.",
       "SOME_CANCELLATIONS_FAILED": "فشلت بعض عمليات الإلغاء. يرجى إعادة المحاولة.",
       "BULK_CANCELLATION_FAILED": "فشل الإلغاء الجماعي. يرجى المحاولة مرة أخرى.",
-      "MARK_PAID_FAILED": "فشل تحديث الحجز إلى مدفوع."
+      "MARK_PAID_FAILED": "فشل تحديث الحجز إلى مدفوع.",
+      "NO_PAYABLE_SELECTED": "لا توجد حجوزات قابلة للتحديث إلى مدفوع ضمن المحدد.",
+      "BULK_MARK_PAID_FAILED": "فشل التحديث الجماعي إلى مدفوع. يرجى المحاولة مرة أخرى.",
+      "BULK_MARK_PAID_FAILED_COUNT": "فشل {{failures}} من أصل {{total}} تحديثات إلى مدفوع.",
+      "SOME_MARK_PAID_FAILED": "فشلت بعض تحديثات إلى مدفوع. يرجى إعادة المحاولة."
     },
     "TOAST": {
       "SELECTED_BOOKINGS_CANCELLED": "تم إلغاء الحجوزات المحددة.",
       "BOOKING_CANCELLED": "تم إلغاء الحجز.",
-      "BOOKING_MARKED_PAID": "تم تحديث الحجز إلى مدفوع."
+      "BOOKING_MARKED_PAID": "تم تحديث الحجز إلى مدفوع.",
+      "SELECTED_BOOKINGS_MARKED_PAID": "تم تحديث {{count}} حجز إلى مدفوع."
     },
     "CSV": {
       "HEADERS": {

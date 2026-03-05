@@ -272,6 +272,25 @@
         "LOGOUT_ALL": "Logout All Other Devices",
         "LOGOUT_ALL_SUCCESS": "Other sessions were logged out successfully.",
         "LOGOUT_ALL_ERROR": "Unable to log out other sessions.",
+        "GOALS": {
+          "TITLE": "Monthly goals",
+          "SUBTITLE": "Set your monthly revenue and occupancy targets.",
+          "LOADING": "Loading goals...",
+          "MONTHLY_REVENUE_LABEL": "Monthly revenue target (SAR)",
+          "MONTHLY_OCCUPANCY_LABEL": "Monthly occupancy target (%)",
+          "SAVE": "Save goals",
+          "READ_ONLY": "Only owners can update goals.",
+          "LOAD_ERROR": "Unable to load goal settings.",
+          "VALIDATION_ERROR": "Enter valid goal values before saving.",
+          "SAVE_SUCCESS": "Goals saved successfully.",
+          "SAVE_ERROR": "Unable to save goals.",
+          "NUDGE": {
+            "TITLE": "Set this month’s goals",
+            "MESSAGE": "Track progress with monthly revenue and occupancy targets.",
+            "SET_GOAL": "Set goals",
+            "LATER": "Later"
+          }
+        },
         "FIELDS": {
           "NAME": "Name",
           "EMAIL": "Email",
@@ -461,7 +480,10 @@
           "OCCUPANCY_RATE": "Occupancy rate",
           "CANCELLATION_RATE": "Cancellation rate",
           "AVG_BOOKING_VALUE": "Average booking value",
-          "VS_PREVIOUS_PERIOD": "vs previous period"
+          "VS_PREVIOUS_PERIOD": "vs previous period",
+          "PERIOD_INFO_ARIA": "What is the previous period?",
+          "PERIOD_TOOLTIP_SINGLE": "Compared to previous 1 day ({{from}} – {{to}})",
+          "PERIOD_TOOLTIP_MULTI": "Compared to previous {{count}} days ({{from}} – {{to}})"
         },
         "CHARTS": {
           "BOOKINGS_TREND": "Bookings trend",
@@ -563,7 +585,8 @@
       "MARK_AS_PAID": "Mark as Paid",
       "CANCEL": "Cancel",
       "MARK_PAID": "Mark Paid",
-      "PAID_BOOKING_NOTE": "Paid booking - cancellation will require refund once payment gateway is integrated."
+      "PAID_BOOKING_NOTE": "Paid booking - cancellation will require refund once payment gateway is integrated.",
+      "MARK_SELECTED_PAID": "Mark selected as paid"
     },
     "ARIA": {
       "SELECT_ALL_PAGE": "Select all bookings on this page",
@@ -583,7 +606,10 @@
       "CANCEL_SCOPE_FUTURE": "Cancel this and all future bookings",
       "BULK_CANCEL_TITLE": "Cancel selected bookings",
       "BULK_CANCEL_MESSAGE": "This action will cancel all selected bookings and cannot be undone.",
-      "BULK_CANCEL_CONFIRM": "Cancel bookings"
+      "BULK_CANCEL_CONFIRM": "Cancel bookings",
+      "BULK_MARK_PAID_TITLE": "Mark selected bookings as paid",
+      "BULK_MARK_PAID_MESSAGE": "Mark {{count}} bookings as paid?",
+      "BULK_MARK_PAID_CONFIRM": "Mark as paid"
     },
     "STATE": {
       "LOADING": "Loading bookings...",
@@ -656,12 +682,17 @@
       "BULK_CANCELLATIONS_FAILED_COUNT": "{{failures}} of {{total}} cancellations failed.",
       "SOME_CANCELLATIONS_FAILED": "Some cancellations failed. Please retry.",
       "BULK_CANCELLATION_FAILED": "Bulk cancellation failed. Please try again.",
-      "MARK_PAID_FAILED": "Failed to mark booking as paid."
+      "MARK_PAID_FAILED": "Failed to mark booking as paid.",
+      "NO_PAYABLE_SELECTED": "No payable bookings selected.",
+      "BULK_MARK_PAID_FAILED": "Bulk mark as paid failed. Please try again.",
+      "BULK_MARK_PAID_FAILED_COUNT": "{{failures}} of {{total}} mark-as-paid updates failed.",
+      "SOME_MARK_PAID_FAILED": "Some mark-as-paid updates failed. Please retry."
     },
     "TOAST": {
       "SELECTED_BOOKINGS_CANCELLED": "Selected bookings cancelled.",
       "BOOKING_CANCELLED": "Booking cancelled.",
-      "BOOKING_MARKED_PAID": "Booking marked as paid."
+      "BOOKING_MARKED_PAID": "Booking marked as paid.",
+      "SELECTED_BOOKINGS_MARKED_PAID": "{{count}} bookings marked as paid."
     },
     "CSV": {
       "HEADERS": {

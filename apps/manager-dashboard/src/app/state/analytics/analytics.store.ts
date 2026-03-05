@@ -20,6 +20,13 @@ type AnalyticsFilters = {
   timeZone: string;
 };
 
+export type RangePreset =
+  | 'today'
+  | 'this_week'
+  | 'this_month'
+  | 'last_30_days'
+  | 'last_90_days';
+
 type AnalyticsErrorCode =
   | 'NETWORK'
   | 'VALIDATION'
@@ -67,6 +74,84 @@ const getDefaultDateRange = (): Pick<AnalyticsFilters, 'from' | 'to'> => {
   return {
     from: start.toISOString(),
     to: end.toISOString(),
+  };
+};
+
+const toStartOfLocalDay = (source: Date): Date => {
+  const value = new Date(source);
+  value.setHours(0, 0, 0, 0);
+  return value;
+};
+
+const toEndOfLocalDay = (source: Date): Date => {
+  const value = new Date(source);
+  value.setHours(23, 59, 59, 999);
+  return value;
+};
+
+const minusDays = (source: Date, days: number): Date => {
+  const value = new Date(source);
+  value.setDate(value.getDate() - days);
+  return value;
+};
+
+const getWeekStart = (source: Date, weekStartsOnSunday: boolean): Date => {
+  const value = toStartOfLocalDay(source);
+  const day = value.getDay();
+  const offset = weekStartsOnSunday ? day : day === 0 ? 6 : day - 1;
+  value.setDate(value.getDate() - offset);
+  return value;
+};
+
+const getQuickRange = (
+  preset: RangePreset,
+  weekStartsOnSunday: boolean
+): Pick<AnalyticsFilters, 'from' | 'to'> => {
+  const now = new Date();
+  const todayStart = toStartOfLocalDay(now);
+  const todayEnd = toEndOfLocalDay(now);
+
+  switch (preset) {
+    case 'today':
+      return {
+        from: todayStart.toISOString(),
+        to: todayEnd.toISOString(),
+      };
+    case 'this_week': {
+      const weekStart = getWeekStart(now, weekStartsOnSunday);
+      return {
+        from: weekStart.toISOString(),
+        to: todayEnd.toISOString(),
+      };
+    }
+    case 'this_month': {
+      const monthStart = toStartOfLocalDay(
+        new Date(now.getFullYear(), now.getMonth(), 1)
+      );
+      return {
+        from: monthStart.toISOString(),
+        to: todayEnd.toISOString(),
+      };
+    }
+    case 'last_30_days': {
+      const from = toStartOfLocalDay(minusDays(now, 29));
+      return {
+        from: from.toISOString(),
+        to: todayEnd.toISOString(),
+      };
+    }
+    case 'last_90_days': {
+      const from = toStartOfLocalDay(minusDays(now, 89));
+      return {
+        from: from.toISOString(),
+        to: todayEnd.toISOString(),
+      };
+    }
+  }
+
+  return {
+    from: todayStart.toISOString(),
+    to: todayEnd.toISOString(),
   };
 };
 
@@ -229,6 +314,19 @@ export const AnalyticsStore = signalStore(
         },
         clearError: (): void => {
           patchState(store, { error: null, errorCode: null });
+        },
+        setQuickRange: (
+          preset: RangePreset,
+          weekStartsOnSunday = false
+        ): void => {
+          const range = getQuickRange(preset, weekStartsOnSunday);
+          patchState(store, (state) => ({
+            filters: {
+              ...state.filters,
+              from: range.from,
+              to: range.to,
+            },
+          }));
         },
         resetToToday: (): void => {
           const today = getDefaultDateRange();

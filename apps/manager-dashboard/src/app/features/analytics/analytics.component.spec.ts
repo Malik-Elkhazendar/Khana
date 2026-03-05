@@ -129,6 +129,56 @@ describe('AnalyticsComponent', () => {
     expect(title?.textContent).toContain('Analytics');
   });
 
+  it('renders KPI period info buttons with matching tooltip bindings', () => {
+    const infoButtons = fixture.nativeElement.querySelectorAll(
+      '.kpi-period-info__btn'
+    );
+    const bookingsTip = fixture.nativeElement.querySelector(
+      '#period-tip-bookings'
+    );
+    const revenueTip = fixture.nativeElement.querySelector(
+      '#period-tip-revenue'
+    );
+
+    expect(infoButtons).toHaveLength(2);
+    expect(infoButtons[0].getAttribute('aria-describedby')).toBe(
+      'period-tip-bookings'
+    );
+    expect(infoButtons[1].getAttribute('aria-describedby')).toBe(
+      'period-tip-revenue'
+    );
+    expect(bookingsTip?.getAttribute('role')).toBe('tooltip');
+    expect(revenueTip?.getAttribute('role')).toBe('tooltip');
+  });
+
+  it('uses previous-period single-day tooltip key for one-day filters', () => {
+    const from = new Date(2026, 2, 5, 0, 0, 0, 0).toISOString();
+    const to = new Date(2026, 2, 5, 23, 59, 59, 999).toISOString();
+    component.store.setDateRange(from, to);
+    fixture.detectChanges();
+
+    const meta = component.previousPeriodTooltipMeta();
+    expect(meta.key).toBe(
+      'DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_TOOLTIP_SINGLE'
+    );
+    expect(meta.params.count).toBeUndefined();
+    expect(meta.params.from).toBeTruthy();
+    expect(meta.params.to).toBeTruthy();
+  });
+
+  it('uses previous-period multi-day tooltip key with day count', () => {
+    const from = new Date(2026, 2, 1, 0, 0, 0, 0).toISOString();
+    const to = new Date(2026, 2, 5, 23, 59, 59, 999).toISOString();
+    component.store.setDateRange(from, to);
+    fixture.detectChanges();
+
+    const meta = component.previousPeriodTooltipMeta();
+    expect(meta.key).toBe('DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_TOOLTIP_MULTI');
+    expect(meta.params.count).toBe(5);
+    expect(meta.params.from).toBeTruthy();
+    expect(meta.params.to).toBeTruthy();
+  });
+
   it('renders trend and insights cards', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('DASHBOARD.PAGES.ANALYTICS.CHARTS.BOOKINGS_TREND');

@@ -140,6 +140,7 @@
     class="analytics-kpis"
     [attr.aria-label]="text('DASHBOARD.PAGES.ANALYTICS.KPI.ARIA_LABEL')"
   >
+    @let previousPeriodMeta = previousPeriodTooltipMeta();
     <article class="dashboard-card kpi-card">
       <h2 class="kpi-card__label">
         {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.TOTAL_BOOKINGS') }}
@@ -156,7 +157,28 @@
         {{
           formatPercent(summary()?.bookingsComparison?.percentageChange ?? 0)
         }}
-        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.VS_PREVIOUS_PERIOD') }}
+        <span class="kpi-card__period-label">
+          {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.VS_PREVIOUS_PERIOD') }}
+          <span class="kpi-period-info">
+            <button
+              type="button"
+              class="kpi-period-info__btn"
+              [attr.aria-label]="
+                text('DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_INFO_ARIA')
+              "
+              [attr.aria-describedby]="'period-tip-bookings'"
+            >
+              ⓘ
+            </button>
+            <span
+              class="kpi-period-info__tip"
+              id="period-tip-bookings"
+              role="tooltip"
+            >
+              {{ text(previousPeriodMeta.key, previousPeriodMeta.params) }}
+            </span>
+          </span>
+        </span>
       </p>
     </article>
 
@@ -174,7 +196,28 @@
         "
       >
         {{ formatPercent(summary()?.revenueComparison?.percentageChange ?? 0) }}
-        {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.VS_PREVIOUS_PERIOD') }}
+        <span class="kpi-card__period-label">
+          {{ text('DASHBOARD.PAGES.ANALYTICS.KPI.VS_PREVIOUS_PERIOD') }}
+          <span class="kpi-period-info">
+            <button
+              type="button"
+              class="kpi-period-info__btn"
+              [attr.aria-label]="
+                text('DASHBOARD.PAGES.ANALYTICS.KPI.PERIOD_INFO_ARIA')
+              "
+              [attr.aria-describedby]="'period-tip-revenue'"
+            >
+              ⓘ
+            </button>
+            <span
+              class="kpi-period-info__tip"
+              id="period-tip-revenue"
+              role="tooltip"
+            >
+              {{ text(previousPeriodMeta.key, previousPeriodMeta.params) }}
+            </span>
+          </span>
+        </span>
       </p>
     </article>
 
