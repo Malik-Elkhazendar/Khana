@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { BookingCancellationReasonKey } from '@khana/shared-dtos';
 import { CancellationFormComponent } from './cancellation-form.component';
 
 describe('CancellationFormComponent', () => {
@@ -16,112 +17,107 @@ describe('CancellationFormComponent', () => {
     }).compileComponents();
   });
 
-  it('renders the label and placeholder', () => {
-    const { fixture } = setup({ placeholder: 'Reason here' });
-
-    const label = fixture.nativeElement.querySelector('label');
-    const textarea = fixture.nativeElement.querySelector('textarea');
-    expect(label?.textContent).toContain('Cancellation reason');
-    expect(textarea?.getAttribute('placeholder')).toBe('Reason here');
-  });
-
-  it('binds the reason value to the textarea', () => {
-    const { fixture } = setup({ reason: 'Late notice' });
-
-    const textarea = fixture.nativeElement.querySelector('textarea');
-    expect(textarea?.value).toBe('Late notice');
-  });
-
-  it('shows the default minimum length', () => {
+  it('renders label and select placeholder', () => {
     const { fixture } = setup();
 
-    const hint = fixture.nativeElement.querySelector('.cancel-form__hint');
-    const count = fixture.nativeElement.querySelector('.cancel-form__count');
-    expect(hint?.textContent).toContain('Minimum 5 characters');
-    expect(count?.textContent).toContain('0 / 5');
+    const label = fixture.nativeElement.querySelector('label');
+    const select = fixture.nativeElement.querySelector('select');
+    expect(label?.textContent).toContain('Cancellation reason');
+    expect(select).toBeTruthy();
+    expect(select?.value).toBe('');
   });
 
-  it('respects custom minLength input', () => {
+  it('binds selected reason key from canonical value', () => {
+    const { fixture, component } = setup({ reason: 'customer_request' });
+
+    const select = fixture.nativeElement.querySelector('select');
+    const optionValues = Array.from((select as HTMLSelectElement).options).map(
+      (option) => option.value
+    );
+
+    expect(component.selectedReasonKey).toBe(
+      BookingCancellationReasonKey.CUSTOMER_REQUEST
+    );
+    expect(optionValues).toContain('customer_request');
+  });
+
+  it('shows error hint when no reason is selected', () => {
+    const { fixture, component } = setup({ reason: '' });
+
+    const hint = fixture.nativeElement.querySelector('.cancel-form__hint');
+    expect(component.isValid).toBe(false);
+    expect(hint?.classList.contains('cancel-form__hint--error')).toBe(true);
+    expect(hint?.textContent).toContain('Please choose a cancellation reason.');
+  });
+
+  it('shows success helper when reason is valid', () => {
     const { fixture, component } = setup({
-      minLength: 10,
-      reason: '1234567890',
+      reason: BookingCancellationReasonKey.NO_PAYMENT,
     });
 
     const hint = fixture.nativeElement.querySelector('.cancel-form__hint');
-    const count = fixture.nativeElement.querySelector('.cancel-form__count');
-    expect(hint?.textContent).toContain('Minimum 10 characters');
-    expect(count?.textContent).toContain('10 / 10');
     expect(component.isValid).toBe(true);
+    expect(hint?.classList.contains('cancel-form__hint--error')).toBe(false);
+    expect(hint?.textContent).toContain('Reason key will be saved');
   });
 
-  it('trims whitespace for validation', () => {
-    const { component } = setup({ reason: '  abc  ', minLength: 5 });
-
-    expect(component.trimmedLength).toBe(3);
-    expect(component.isValid).toBe(false);
-  });
-
-  it('marks input as valid when trimmed length meets minimum', () => {
-    const { component } = setup({ reason: 'valid', minLength: 5 });
-
-    expect(component.isValid).toBe(true);
-  });
-
-  it('emits reasonChange on input', () => {
+  it('emits selected preset key on change', () => {
     const { fixture, component } = setup();
     const emitSpy = jest.spyOn(component.reasonChange, 'emit');
-    const textarea = fixture.nativeElement.querySelector('textarea');
+    const select = fixture.nativeElement.querySelector('select');
 
-    textarea.value = 'Changed reason';
-    textarea.dispatchEvent(new Event('input'));
+    select.value = BookingCancellationReasonKey.DOUBLE_BOOKING;
+    select.dispatchEvent(new Event('change'));
 
-    expect(emitSpy).toHaveBeenCalledWith('Changed reason');
+    expect(emitSpy).toHaveBeenCalledWith('double_booking');
   });
 
-  it('emits empty string when input target is missing', () => {
+  it('shows other note input when other is selected', () => {
+    const { fixture } = setup({ reason: BookingCancellationReasonKey.OTHER });
+
+    const noteInput = fixture.nativeElement.querySelector('input[type="text"]');
+    expect(noteInput).toBeTruthy();
+  });
+
+  it('hides other note input when other is not selected', () => {
+    const { fixture } = setup({
+      reason: BookingCancellationReasonKey.CUSTOMER_REQUEST,
+    });
+
+    const noteInput = fixture.nativeElement.querySelector('input[type="text"]');
+    expect(noteInput).toBeNull();
+  });
+
+  it('binds existing other note from canonical value', () => {
+    const { fixture } = setup({ reason: 'other|Customer asked to move slot' });
+
+    const noteInput = fixture.nativeElement.querySelector(
+      'input[type="text"]'
+    ) as HTMLInputElement | null;
+    expect(noteInput?.value).toBe('Customer asked to move slot');
+  });
+
+  it('emits canonical other value with note on input', () => {
+    const { fixture, component } = setup({ reason: 'other' });
+    const emitSpy = jest.spyOn(component.reasonChange, 'emit');
+    const noteInput = fixture.nativeElement.querySelector(
+      'input[type="text"]'
+    ) as HTMLInputElement;
+
+    noteInput.value = '  Manager override  ';
+    noteInput.dispatchEvent(new Event('input'));
+
+    expect(emitSpy).toHaveBeenCalledWith('other|Manager override');
+  });
+
+  it('emits empty reason when selected option is invalid', () => {
     const { component } = setup();
     const emitSpy = jest.spyOn(component.reasonChange, 'emit');
 
-    component.onInput({ target: null } as unknown as Event);
+    component.onReasonKeyChange({
+      target: { value: 'invalid_reason' },
+    } as unknown as Event);
 
     expect(emitSpy).toHaveBeenCalledWith('');
-  });
-
-  it('supports Arabic text', () => {
-    const { component } = setup({ reason: 'مرحبا', minLength: 5 });
-
-    expect(component.trimmedLength).toBe(5);
-    expect(component.isValid).toBe(true);
-  });
-
-  it('sets minlength attribute on textarea', () => {
-    const { fixture } = setup({ minLength: 7 });
-
-    const textarea = fixture.nativeElement.querySelector('textarea');
-    expect(textarea?.getAttribute('minlength')).toBe('7');
-  });
-
-  it('links the label to the textarea id', () => {
-    const { fixture, component } = setup();
-
-    const label = fixture.nativeElement.querySelector('label');
-    const textarea = fixture.nativeElement.querySelector('textarea');
-    expect(label?.getAttribute('for')).toBe(component.textAreaId);
-    expect(textarea?.getAttribute('id')).toBe(component.textAreaId);
-  });
-
-  it('toggles error hint class based on validity', () => {
-    const { fixture } = setup({ reason: 'no', minLength: 5 });
-
-    const hint = fixture.nativeElement.querySelector('.cancel-form__hint');
-    expect(hint?.classList.contains('cancel-form__hint--error')).toBe(true);
-
-    fixture.componentRef.setInput('reason', 'valid reason');
-    fixture.detectChanges();
-    const updatedHint =
-      fixture.nativeElement.querySelector('.cancel-form__hint');
-    expect(updatedHint?.classList.contains('cancel-form__hint--error')).toBe(
-      false
-    );
   });
 });

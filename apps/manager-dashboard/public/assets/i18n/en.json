@@ -558,8 +558,19 @@
     },
     "CANCELLATION_FORM": {
       "LABEL": "Cancellation reason",
-      "PLACEHOLDER": "Add a cancellation reason",
-      "MINIMUM_HINT": "Minimum {{minLength}} characters"
+      "SELECT_PLACEHOLDER": "Select a reason",
+      "OTHER_NOTE_LABEL": "Other details (optional)",
+      "OTHER_NOTE_PLACEHOLDER": "Add a note",
+      "HELPER": "Reason key will be saved for reporting.",
+      "REQUIRED_HINT": "Please choose a cancellation reason.",
+      "OPTIONS": {
+        "CUSTOMER_REQUEST": "Customer request",
+        "NO_PAYMENT": "No payment received",
+        "DOUBLE_BOOKING": "Double booking",
+        "FACILITY_UNAVAILABLE": "Facility unavailable",
+        "STAFF_ERROR": "Staff error",
+        "OTHER": "Other (specify...)"
+      }
     },
     "LANGUAGE": {
       "SWITCH_TO_ARABIC": "Switch to Arabic",
@@ -640,6 +651,7 @@
     },
     "STATUS": {
       "ALL": "All",
+      "ON_HOLD": "On Hold",
       "PENDING": "Pending",
       "CONFIRMED": "Confirmed",
       "COMPLETED": "Completed",
@@ -660,6 +672,7 @@
       "SEARCH_ARIA_LABEL": "Search bookings",
       "FACILITY_LABEL": "Facility",
       "STATUS_LABEL": "Status",
+      "STATUS_ARIA_LABEL": "Filter by status",
       "PAYMENT_LABEL": "Payment",
       "DATE_RANGE_LABEL": "Date Range",
       "ALL": "All",
@@ -717,7 +730,8 @@
     "NAV": {
       "PREVIOUS_WEEK": "Previous week",
       "NEXT_WEEK": "Next week",
-      "TODAY": "Today"
+      "TODAY": "Today",
+      "JUMP_TO_DATE_LABEL": "Jump to a date"
     },
     "DIALOG": {
       "CONFIRM_TITLE": "Confirm booking",

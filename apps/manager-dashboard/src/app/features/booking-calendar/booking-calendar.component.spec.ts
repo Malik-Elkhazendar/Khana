@@ -263,6 +263,63 @@ describe('BookingCalendarComponent', () => {
     expect(component.weekRange()).toContain('2025');
   });
 
+  it('renders jump-to-date input with today button in the toolbar', () => {
+    const { fixture, component } = setupComponent();
+
+    const jumpDateInput = fixture.nativeElement.querySelector(
+      '#calendar-jump-date'
+    ) as HTMLInputElement | null;
+    const todayButton = fixture.nativeElement.querySelector(
+      '.calendar__today-btn'
+    ) as HTMLButtonElement | null;
+
+    expect(jumpDateInput).not.toBeNull();
+    expect(todayButton).not.toBeNull();
+    expect(jumpDateInput?.value).toBe(
+      component.formatDateForInput(component.currentDate())
+    );
+  });
+
+  it('jumps to the week containing the selected date', () => {
+    const { fixture, component } = setupComponent();
+    const previousWeekRange = component.weekRange();
+    const jumpDateInput = fixture.nativeElement.querySelector(
+      '#calendar-jump-date'
+    ) as HTMLInputElement;
+
+    jumpDateInput.value = '2025-05-20';
+    jumpDateInput.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const containsSelectedDate = component
+      .weekDays()
+      .some(
+        (day) =>
+          day.getFullYear() === 2025 &&
+          day.getMonth() === 4 &&
+          day.getDate() === 20
+      );
+
+    expect(containsSelectedDate).toBe(true);
+    expect(component.selectedDay().getFullYear()).toBe(2025);
+    expect(component.selectedDay().getMonth()).toBe(4);
+    expect(component.selectedDay().getDate()).toBe(20);
+    expect(component.weekRange()).not.toBe(previousWeekRange);
+  });
+
+  it('ignores invalid jump-to-date values', () => {
+    const { component } = setupComponent();
+    const previousCurrentDate = component.currentDate().getTime();
+    const previousSelectedDay = component.selectedDay().getTime();
+
+    component.onJumpDateChange({
+      target: { value: '2025-13-40' },
+    } as unknown as Event);
+
+    expect(component.currentDate().getTime()).toBe(previousCurrentDate);
+    expect(component.selectedDay().getTime()).toBe(previousSelectedDay);
+  });
+
   it('navigates to the previous week', () => {
     const { component } = setupComponent();
     const current = component.currentDate().getTime();
@@ -320,6 +377,21 @@ describe('BookingCalendarComponent', () => {
 
     expect(component.isToday(today)).toBe(true);
     expect(component.isToday(otherDay)).toBe(false);
+  });
+
+  it('marks today header with aria-current and today number class', () => {
+    const booking = createTimedBooking();
+    const { fixture } = setupComponent([booking]);
+
+    const todayHeader = fixture.nativeElement.querySelector(
+      '.calendar__day-header--today'
+    ) as HTMLElement | null;
+    const todayNumber = fixture.nativeElement.querySelector(
+      '.calendar__day-header--today .calendar__day-number--today'
+    ) as HTMLElement | null;
+
+    expect(todayHeader?.getAttribute('aria-current')).toBe('date');
+    expect(todayNumber).not.toBeNull();
   });
 
   it('returns bookings for a specific day/hour slot', () => {
@@ -747,7 +819,7 @@ describe('BookingCalendarComponent', () => {
     const { component } = setupComponent([booking]);
     component.selectedBooking.set(booking);
     component.actionDialog.set({ type: 'confirm', bookingId: booking.id });
-    component.cancelReason.set('Reason');
+    component.cancelReason.set('customer_request');
 
     component.closePanel();
 
@@ -930,7 +1002,7 @@ describe('BookingCalendarComponent', () => {
   it('closes the dialog when requested', () => {
     const { component } = setupComponent();
     component.actionDialog.set({ type: 'confirm', bookingId: 'booking-1' });
-    component.cancelReason.set('Reason');
+    component.cancelReason.set('customer_request');
 
     component.closeDialog();
 
@@ -974,18 +1046,18 @@ describe('BookingCalendarComponent', () => {
     expect(component.actionDialog()).toBeNull();
   });
 
-  it('submits cancel action through the dialog with trimmed reason', async () => {
+  it('submits cancel action through the dialog with canonical reason', async () => {
     const booking = createTimedBooking();
     const { component } = setupComponent([booking]);
     component.selectedBooking.set(booking);
     component.actionDialog.set({ type: 'cancel', bookingId: booking.id });
-    component.cancelReason.set('  Too late  ');
+    component.cancelReason.set('  customer_request  ');
 
     await component.submitDialogAction();
 
     expect(storeMock.cancelBookingWithScope).toHaveBeenCalledWith(
       booking.id,
-      'Too late',
+      'customer_request',
       BookingCancellationScope.SINGLE
     );
     expect(component.actionDialog()).toBeNull();

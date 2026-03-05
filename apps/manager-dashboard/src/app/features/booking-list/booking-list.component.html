@@ -66,20 +66,37 @@
         </select>
       </label>
 
-      <label class="filter">
+      <div class="filter filter--status-chips">
         <span class="filter-label">{{
           text('BOOKING_LIST.FILTERS.STATUS_LABEL', 'Status')
         }}</span>
-        <select
-          [ngModel]="filterStatus()"
-          (ngModelChange)="onStatusFilterChange($event)"
-          name="status"
+        <div
+          class="booking-list__status-filter-chips"
+          role="group"
+          [attr.aria-label]="
+            text('BOOKING_LIST.FILTERS.STATUS_ARIA_LABEL', 'Filter by status')
+          "
         >
           @for (option of statusFilterOptions; track option.value) {
-          <option [value]="option.value">{{ option.label }}</option>
+          <button
+            type="button"
+            class="booking-list__status-filter-chip"
+            [class.booking-list__status-filter-chip--active]="
+              filterStatus() === option.value
+            "
+            [attr.aria-pressed]="filterStatus() === option.value"
+            (click)="onStatusFilterChange(option.value)"
+          >
+            <span>{{ option.label }}</span>
+            @if (option.count !== undefined) {
+            <span class="booking-list__status-filter-count">{{
+              option.count
+            }}</span>
+            }
+          </button>
           }
-        </select>
-      </label>
+        </div>
+      </div>
 
       <label class="filter">
         <span class="filter-label">{{
@@ -450,6 +467,7 @@
 
 
 
+
                   }}', { time: formatTime(booking.holdUntil) } ) }}
                 </div>
                 }
@@ -669,6 +687,7 @@
 
 
 
+
                 }}', { time: formatTime(booking.holdUntil) } ) }}
               </span>
             </div>
@@ -786,7 +805,6 @@
 >
   <app-cancellation-form
     [reason]="cancelReason()"
-    [minLength]="cancelReasonMinLength"
     (reasonChange)="cancelReason.set($event)"
   ></app-cancellation-form>
   @if (booking.recurrenceGroupId) {
@@ -828,14 +846,13 @@
   [message]="bulkCancelDialogCopy.message"
   [confirmLabel]="bulkCancelDialogCopy.confirmLabel"
   confirmTone="danger"
-  [confirmDisabled]="bulkCancelReason().trim().length < cancelReasonMinLength"
+  [confirmDisabled]="!bulkCancelReasonValid()"
   [busy]="bulkActionInProgress()"
   (confirmed)="submitBulkCancel()"
   (dismissed)="closeBulkCancelDialog()"
 >
   <app-cancellation-form
     [reason]="bulkCancelReason()"
-    [minLength]="cancelReasonMinLength"
     (reasonChange)="bulkCancelReason.set($event)"
   ></app-cancellation-form>
   @if (bulkCancelError()) {

@@ -38,6 +38,7 @@
   --color-text-secondary: #5a6a7a;
   --color-text-muted: #8a9aaa;
   --color-text-inverse: #faf8f5;
+  --color-text-on-primary: var(--color-text-inverse);
 
   // Typography
   --font-brand: 'Plus Jakarta Sans', sans-serif;

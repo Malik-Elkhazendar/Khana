@@ -1,22 +1,38 @@
 <div class="cancel-form">
-  <label class="cancel-form__label" [for]="textAreaId">
-    {{ labelText }}
+  <label class="cancel-form__label" [for]="reasonSelectId">
+    {{ reasonLabelText }}
   </label>
-  <textarea
+  <select
     class="cancel-form__input"
-    [id]="textAreaId"
-    rows="3"
-    [attr.minlength]="minLength"
-    [placeholder]="placeholderText"
-    [value]="reason"
-    (input)="onInput($event)"
-  ></textarea>
+    [id]="reasonSelectId"
+    [value]="selectedReasonKey ?? ''"
+    (change)="onReasonKeyChange($event)"
+  >
+    <option value="">
+      {{ reasonPlaceholderText }}
+    </option>
+    @for (key of reasonKeys; track key) {
+    <option [value]="key">{{ optionLabel(key) }}</option>
+    }
+  </select>
+
+  @if (isOtherSelected) {
+  <label class="cancel-form__label" [for]="otherReasonInputId">
+    {{ otherLabelText }}
+  </label>
+  <input
+    type="text"
+    class="cancel-form__input"
+    [id]="otherReasonInputId"
+    [placeholder]="otherPlaceholderText"
+    [value]="otherReasonNote"
+    (input)="onOtherNoteInput($event)"
+  />
+  }
+
   <div class="cancel-form__meta">
     <span class="cancel-form__hint" [class.cancel-form__hint--error]="!isValid">
-      {{ minimumHintText }}
-    </span>
-    <span class="cancel-form__count">
-      {{ trimmedLength }} / {{ minLength }}
+      {{ helperText }}
     </span>
   </div>
 </div>

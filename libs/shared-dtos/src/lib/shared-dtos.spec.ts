@@ -5,9 +5,13 @@ import {
   InventoryType,
   SlotStatus,
   BookingStatus,
+  BookingCancellationReasonKey,
   PaymentStatus,
   ConflictType,
   UserRole,
+  serializeCancellationReason,
+  parseCancellationReason,
+  isBookingCancellationReasonKey,
   // Interfaces
   TimeSlot,
   PriceBreakdown,
@@ -53,6 +57,21 @@ describe('shared-dtos', () => {
       expect(BookingStatus.CANCELLED).toBe('CANCELLED');
     });
 
+    it('should export BookingCancellationReasonKey enum', () => {
+      expect(BookingCancellationReasonKey.CUSTOMER_REQUEST).toBe(
+        'customer_request'
+      );
+      expect(BookingCancellationReasonKey.NO_PAYMENT).toBe('no_payment');
+      expect(BookingCancellationReasonKey.DOUBLE_BOOKING).toBe(
+        'double_booking'
+      );
+      expect(BookingCancellationReasonKey.FACILITY_UNAVAILABLE).toBe(
+        'facility_unavailable'
+      );
+      expect(BookingCancellationReasonKey.STAFF_ERROR).toBe('staff_error');
+      expect(BookingCancellationReasonKey.OTHER).toBe('other');
+    });
+
     it('should export PaymentStatus enum', () => {
       expect(PaymentStatus.PENDING).toBe('PENDING');
       expect(PaymentStatus.PAID).toBe('PAID');
@@ -71,6 +90,64 @@ describe('shared-dtos', () => {
       expect(UserRole.OWNER).toBe('OWNER');
       expect(UserRole.MANAGER).toBe('MANAGER');
       expect(UserRole.STAFF).toBe('STAFF');
+    });
+  });
+
+  describe('Cancellation reason helpers', () => {
+    it('serializes non-other reasons as key only', () => {
+      expect(
+        serializeCancellationReason(
+          BookingCancellationReasonKey.CUSTOMER_REQUEST,
+          'ignored'
+        )
+      ).toBe('customer_request');
+    });
+
+    it('serializes other with optional note', () => {
+      expect(
+        serializeCancellationReason(BookingCancellationReasonKey.OTHER)
+      ).toBe('other');
+      expect(
+        serializeCancellationReason(
+          BookingCancellationReasonKey.OTHER,
+          '  Customer asked to move slot  '
+        )
+      ).toBe('other|Customer asked to move slot');
+    });
+
+    it('parses canonical values', () => {
+      expect(parseCancellationReason('customer_request')).toEqual({
+        isValid: true,
+        key: BookingCancellationReasonKey.CUSTOMER_REQUEST,
+        note: null,
+        raw: 'customer_request',
+      });
+      expect(parseCancellationReason('other|Need a different day')).toEqual({
+        isValid: true,
+        key: BookingCancellationReasonKey.OTHER,
+        note: 'Need a different day',
+        raw: 'other|Need a different day',
+      });
+    });
+
+    it('marks invalid values as invalid', () => {
+      expect(parseCancellationReason('free text')).toEqual({
+        isValid: false,
+        key: null,
+        note: null,
+        raw: 'free text',
+      });
+      expect(parseCancellationReason('')).toEqual({
+        isValid: false,
+        key: null,
+        note: null,
+        raw: '',
+      });
+    });
+
+    it('detects valid cancellation reason keys', () => {
+      expect(isBookingCancellationReasonKey('customer_request')).toBe(true);
+      expect(isBookingCancellationReasonKey('unknown')).toBe(false);
     });
   });
 

@@ -558,8 +558,19 @@
     },
     "CANCELLATION_FORM": {
       "LABEL": "سبب الإلغاء",
-      "PLACEHOLDER": "أضف سبب الإلغاء",
-      "MINIMUM_HINT": "الحد الأدنى {{minLength}} أحرف"
+      "SELECT_PLACEHOLDER": "اختر السبب",
+      "OTHER_NOTE_LABEL": "تفاصيل إضافية (اختياري)",
+      "OTHER_NOTE_PLACEHOLDER": "أضف ملاحظة",
+      "HELPER": "سيتم حفظ مفتاح السبب لأغراض التقارير.",
+      "REQUIRED_HINT": "يرجى اختيار سبب الإلغاء.",
+      "OPTIONS": {
+        "CUSTOMER_REQUEST": "طلب من العميل",
+        "NO_PAYMENT": "عدم استلام الدفع",
+        "DOUBLE_BOOKING": "حجز مزدوج",
+        "FACILITY_UNAVAILABLE": "المرفق غير متاح",
+        "STAFF_ERROR": "خطأ من الموظف",
+        "OTHER": "سبب آخر (مع توضيح...)"
+      }
     },
     "LANGUAGE": {
       "SWITCH_TO_ARABIC": "التبديل إلى العربية",
@@ -640,6 +651,7 @@
     },
     "STATUS": {
       "ALL": "الكل",
+      "ON_HOLD": "قيد الحجز المؤقت",
       "PENDING": "معلّق",
       "CONFIRMED": "مؤكد",
       "COMPLETED": "مكتمل",
@@ -660,6 +672,7 @@
       "SEARCH_ARIA_LABEL": "البحث في الحجوزات",
       "FACILITY_LABEL": "المرفق",
       "STATUS_LABEL": "الحالة",
+      "STATUS_ARIA_LABEL": "التصفية حسب الحالة",
       "PAYMENT_LABEL": "الدفع",
       "DATE_RANGE_LABEL": "نطاق التاريخ",
       "ALL": "الكل",
@@ -717,7 +730,8 @@
     "NAV": {
       "PREVIOUS_WEEK": "الأسبوع السابق",
       "NEXT_WEEK": "الأسبوع التالي",
-      "TODAY": "اليوم"
+      "TODAY": "اليوم",
+      "JUMP_TO_DATE_LABEL": "الانتقال إلى تاريخ"
     },
     "DIALOG": {
       "CONFIRM_TITLE": "تأكيد الحجز",

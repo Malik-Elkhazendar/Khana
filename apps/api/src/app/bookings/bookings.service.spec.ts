@@ -8,12 +8,14 @@ import {
   User,
 } from '@khana/data-access';
 import {
+  BookingCancellationReasonKey,
   BookingStatus,
   RecurrenceFrequency,
   PaymentStatus,
   PromoDiscountType,
   PromoFacilityScope,
   PromoValidationReason,
+  serializeCancellationReason,
 } from '@khana/shared-dtos';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto, CreateRecurringBookingDto } from './dto';
@@ -27,6 +29,7 @@ describe('BookingsService', () => {
     createQueryBuilder: jest.Mock;
     find: jest.Mock;
     update: jest.Mock;
+    save: jest.Mock;
     findOne: jest.Mock;
     exists: jest.Mock;
   };
@@ -226,6 +229,9 @@ describe('BookingsService', () => {
       createQueryBuilder: jest.fn(),
       find: jest.fn().mockResolvedValue([]),
       update: jest.fn(),
+      save: jest
+        .fn()
+        .mockImplementation(async (payload: unknown) => payload as Booking),
       findOne: jest.fn(),
       exists: jest.fn(),
     };
@@ -469,6 +475,123 @@ describe('BookingsService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]?.customerTags).toEqual(['VIP', 'Corporate']);
+    });
+  });
+
+  describe('updateStatus cancellation reason validation', () => {
+    const buildOwnedBooking = (): Booking =>
+      ({
+        id: 'booking-status-1',
+        bookingReference: 'REF-STATUS-1',
+        facility: {
+          ...activeFacility,
+          tenant: { id: tenantId },
+        },
+        startTime: new Date('2025-03-10T09:00:00.000Z'),
+        endTime: new Date('2025-03-10T10:00:00.000Z'),
+        customerName: 'Status User',
+        customerPhone: '+966500000111',
+        createdByUserId: userId,
+        totalAmount: 100,
+        currency: 'SAR',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PENDING,
+        holdUntil: null,
+        cancellationReason: null,
+        recurrenceGroupId: null,
+        recurrenceInstanceNumber: null,
+        recurrenceRule: null,
+        createdAt: new Date('2025-03-01T08:00:00.000Z'),
+        updatedAt: new Date('2025-03-01T08:00:00.000Z'),
+      } as Booking);
+
+    it('accepts and stores canonical preset key reason', async () => {
+      bookingRepository.findOne.mockResolvedValue(buildOwnedBooking());
+
+      const updated = await service.updateStatus(
+        'booking-status-1',
+        {
+          status: BookingStatus.CANCELLED,
+          cancellationReason: BookingCancellationReasonKey.CUSTOMER_REQUEST,
+        },
+        tenantId,
+        {
+          id: userId,
+          role: 'MANAGER',
+        } as User
+      );
+
+      expect(updated.status).toBe(BookingStatus.CANCELLED);
+      expect(updated.cancellationReason).toBe(
+        BookingCancellationReasonKey.CUSTOMER_REQUEST
+      );
+      expect(bookingRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cancellationReason: BookingCancellationReasonKey.CUSTOMER_REQUEST,
+        })
+      );
+    });
+
+    it('normalizes and stores canonical other reason with note', async () => {
+      bookingRepository.findOne.mockResolvedValue(buildOwnedBooking());
+
+      const updated = await service.updateStatus(
+        'booking-status-1',
+        {
+          status: BookingStatus.CANCELLED,
+          cancellationReason: '  other|  Customer asked to reschedule  ',
+        },
+        tenantId,
+        {
+          id: userId,
+          role: 'MANAGER',
+        } as User
+      );
+
+      expect(updated.cancellationReason).toBe(
+        serializeCancellationReason(
+          BookingCancellationReasonKey.OTHER,
+          'Customer asked to reschedule'
+        )
+      );
+    });
+
+    it('rejects unsupported cancellation reason keys', async () => {
+      bookingRepository.findOne.mockResolvedValue(buildOwnedBooking());
+
+      await expect(
+        service.updateStatus(
+          'booking-status-1',
+          {
+            status: BookingStatus.CANCELLED,
+            cancellationReason: 'unsupported_reason_key',
+          },
+          tenantId,
+          {
+            id: userId,
+            role: 'MANAGER',
+          } as User
+        )
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects notes when reason key is not other', async () => {
+      bookingRepository.findOne.mockResolvedValue(buildOwnedBooking());
+
+      await expect(
+        service.updateStatus(
+          'booking-status-1',
+          {
+            status: BookingStatus.CANCELLED,
+            cancellationReason: 'customer_request|manual note',
+          },
+          tenantId,
+          {
+            id: userId,
+            role: 'MANAGER',
+          } as User
+        )
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

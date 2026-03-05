@@ -177,6 +177,54 @@ describe('BookingListComponent', () => {
     expect(component.filterPaymentStatus()).toBe(PaymentStatus.PENDING);
   });
 
+  it('hydrates ON_HOLD status filter from query params', () => {
+    queryParams = {
+      status: 'ON_HOLD',
+    };
+
+    const { component } = setupComponent();
+
+    expect(component.filterStatus()).toBe('ON_HOLD');
+  });
+
+  it('marks selected status chip with aria-pressed and active class', () => {
+    const { fixture, component } = setupComponent([createBooking()]);
+
+    const chips = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        '.booking-list__status-filter-chip'
+      )
+    ) as HTMLButtonElement[];
+    const confirmedIndex = component.statusFilterOptions.findIndex(
+      (option) => option.value === BookingStatus.CONFIRMED
+    );
+    const allIndex = component.statusFilterOptions.findIndex(
+      (option) => option.value === 'ALL'
+    );
+    expect(confirmedIndex).toBeGreaterThan(-1);
+    expect(allIndex).toBeGreaterThan(-1);
+
+    chips[confirmedIndex]?.click();
+    fixture.detectChanges();
+
+    const updatedChips = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        '.booking-list__status-filter-chip'
+      )
+    ) as HTMLButtonElement[];
+    const activeConfirmedChip = updatedChips[confirmedIndex];
+    const allChip = updatedChips[allIndex];
+
+    expect(component.filterStatus()).toBe(BookingStatus.CONFIRMED);
+    expect(activeConfirmedChip?.getAttribute('aria-pressed')).toBe('true');
+    expect(
+      activeConfirmedChip?.classList.contains(
+        'booking-list__status-filter-chip--active'
+      )
+    ).toBe(true);
+    expect(allChip?.getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('ignores unsupported query param values', () => {
     queryParams = {
       status: 'INVALID_STATUS',
@@ -479,6 +527,55 @@ describe('BookingListComponent', () => {
     expect(filtered[0].paymentStatus).toBe(PaymentStatus.PAID);
   });
 
+  it('filters ON_HOLD as pending bookings with non-null holdUntil', () => {
+    const bookings = [
+      createBooking({
+        id: 'booking-hold',
+        status: BookingStatus.PENDING,
+        holdUntil: '2025-03-01T11:00:00.000Z',
+      }),
+      createBooking({
+        id: 'booking-pending-no-hold',
+        status: BookingStatus.PENDING,
+        holdUntil: null,
+      }),
+      createBooking({
+        id: 'booking-confirmed',
+        status: BookingStatus.CONFIRMED,
+        holdUntil: '2025-03-01T11:00:00.000Z',
+      }),
+    ];
+    const { component } = setupComponent(bookings);
+
+    component.filterStatus.set('ON_HOLD');
+
+    const filtered = component.filteredBookings();
+    expect(filtered.map((item) => item.id)).toEqual(['booking-hold']);
+  });
+
+  it('computes onHoldCount after non-status filters', () => {
+    const bookings = [
+      createBooking({
+        id: 'booking-hold-unpaid',
+        status: BookingStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        holdUntil: '2025-03-01T11:00:00.000Z',
+      }),
+      createBooking({
+        id: 'booking-hold-paid',
+        status: BookingStatus.PENDING,
+        paymentStatus: PaymentStatus.PAID,
+        holdUntil: '2025-03-01T11:00:00.000Z',
+      }),
+    ];
+    const { component } = setupComponent(bookings);
+
+    expect(component.onHoldCount()).toBe(2);
+
+    component.filterPaymentStatus.set(PaymentStatus.PENDING);
+    expect(component.onHoldCount()).toBe(1);
+  });
+
   it('filters by search term', () => {
     const bookings = [
       createBooking({ id: 'booking-1', customerName: 'Lina' }),
@@ -662,13 +759,13 @@ describe('BookingListComponent', () => {
 
     component.selectedBookingIds.set(new Set(['booking-1']));
     component.cancelDialogBooking.set(booking);
-    component.cancelReason.set('Customer requested cancellation');
+    component.cancelReason.set('customer_request');
 
     await component.submitCancelDialog();
 
     expect(storeMock.cancelBookingWithScope).toHaveBeenCalledWith(
       'booking-1',
-      'Customer requested cancellation',
+      'customer_request',
       BookingCancellationScope.SINGLE
     );
     expect(component.cancelDialogBooking()).toBeNull();
@@ -682,7 +779,7 @@ describe('BookingListComponent', () => {
     const { component } = setupComponent([booking]);
 
     component.cancelDialogBooking.set(booking);
-    component.cancelReason.set('Customer request');
+    component.cancelReason.set('customer_request');
 
     await component.submitCancelDialog();
 
@@ -755,7 +852,7 @@ describe('BookingListComponent', () => {
     const { component } = setupComponent(bookings);
 
     component.selectedBookingIds.set(new Set(['booking-1', 'booking-2']));
-    component.bulkCancelReason.set('Customer request');
+    component.bulkCancelReason.set('customer_request');
 
     await component.submitBulkCancel();
 

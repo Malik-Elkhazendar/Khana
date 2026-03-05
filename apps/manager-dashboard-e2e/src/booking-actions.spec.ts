@@ -92,8 +92,8 @@ test.describe('Booking Actions', () => {
     const dialog = page.locator('.confirmation-dialog');
     await expect(dialog).toBeVisible();
     await dialog
-      .locator('textarea.cancel-form__input')
-      .fill('Customer requested cancellation');
+      .locator('select.cancel-form__input')
+      .selectOption('customer_request');
 
     await dialog
       .getByRole('button', { name: /cancel booking|إلغاء الحجز/i })

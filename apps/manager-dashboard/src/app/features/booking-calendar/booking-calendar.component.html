@@ -18,11 +18,11 @@
     </div>
 
     <div
-      class="calendar__nav calendar__nav--compact-two-row dashboard-page__actions"
+      class="calendar__nav calendar__nav--compact-three-row dashboard-page__actions"
     >
       <button
         type="button"
-        class="calendar__nav-btn"
+        class="calendar__nav-btn calendar__nav-btn--previous"
         (click)="previousWeek()"
         [attr.aria-label]="
           text('BOOKING_CALENDAR.NAV.PREVIOUS_WEEK', 'Previous week')
@@ -41,17 +41,7 @@
 
       <button
         type="button"
-        class="calendar__today-btn"
-        (click)="goToToday()"
-        [disabled]="!canNavigate()"
-        [attr.aria-disabled]="!canNavigate()"
-      >
-        {{ text('BOOKING_CALENDAR.NAV.TODAY', 'Today') }}
-      </button>
-
-      <button
-        type="button"
-        class="calendar__nav-btn"
+        class="calendar__nav-btn calendar__nav-btn--next"
         (click)="nextWeek()"
         [attr.aria-label]="text('BOOKING_CALENDAR.NAV.NEXT_WEEK', 'Next week')"
         [disabled]="!canNavigate()"
@@ -64,6 +54,31 @@
             clip-rule="evenodd"
           />
         </svg>
+      </button>
+
+      <label class="sr-only" for="calendar-jump-date">
+        {{ text('BOOKING_CALENDAR.NAV.JUMP_TO_DATE_LABEL', 'Jump to a date') }}
+      </label>
+      <input
+        id="calendar-jump-date"
+        type="date"
+        class="calendar__jump-date"
+        [value]="jumpDateValue()"
+        (change)="onJumpDateChange($event)"
+        [attr.aria-label]="
+          text('BOOKING_CALENDAR.NAV.JUMP_TO_DATE_LABEL', 'Jump to a date')
+        "
+        [disabled]="!canNavigate()"
+      />
+
+      <button
+        type="button"
+        class="calendar__today-btn"
+        (click)="goToToday()"
+        [disabled]="!canNavigate()"
+        [attr.aria-disabled]="!canNavigate()"
+      >
+        {{ text('BOOKING_CALENDAR.NAV.TODAY', 'Today') }}
       </button>
     </div>
   </header>
@@ -115,6 +130,7 @@
 
 
 
+
         }}', { time: formatLastUpdated(retryScheduledAt()) } ) }}
       </p>
       } @if (lastSuccessfulAt()) {
@@ -123,6 +139,7 @@
           text(
             'BOOKING_CALENDAR.ERRORS.SHOWING_LAST_UPDATED',
             'Showing last updated {{time
+
 
 
 
@@ -280,6 +297,7 @@
 
 
 
+
         }}', { day: selectedDayLabel() }) }}
       </p>
     </div>
@@ -318,10 +336,16 @@
     <div
       class="calendar__day-header"
       [class.calendar__day-header--today]="isToday(day)"
+      [attr.aria-current]="isToday(day) ? 'date' : null"
       role="columnheader"
     >
       <span class="calendar__day-name">{{ dayName(day) }}</span>
-      <span class="calendar__day-number">{{ formatDayNumber(day) }}</span>
+      <span
+        class="calendar__day-number"
+        [class.calendar__day-number--today]="isToday(day)"
+      >
+        {{ formatDayNumber(day) }}
+      </span>
     </div>
     }
 
@@ -597,7 +621,6 @@
   @if (dialog.type === 'cancel') {
   <app-cancellation-form
     [reason]="cancelReason()"
-    [minLength]="cancelReasonMinLength"
     (reasonChange)="cancelReason.set($event)"
   ></app-cancellation-form>
   @if (showRecurringCancellationScope()) {

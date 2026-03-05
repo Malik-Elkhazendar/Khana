@@ -29,6 +29,7 @@ import {
   BookingStatus,
   PaymentStatus,
   UserRole,
+  parseCancellationReason,
 } from '@khana/shared-dtos';
 import { HoldTimerComponent } from './hold-timer.component';
 import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
@@ -122,7 +123,6 @@ type BookingSegment = {
 
 type SlotFocus = { dayIndex: number; hourIndex: number };
 
-const CANCEL_REASON_MIN_LENGTH = 5;
 const AUTO_RETRY_MAX_ATTEMPTS = 3;
 const AUTO_RETRY_BASE_DELAY_MS = 800;
 const AUTO_RETRY_MAX_DELAY_MS = 8000;
@@ -199,7 +199,6 @@ export class BookingCalendarComponent
   readonly cancelScope = signal<BookingCancellationScope>(
     BookingCancellationScope.SINGLE
   );
-  readonly cancelReasonMinLength = CANCEL_REASON_MIN_LENGTH;
   readonly lastSuccessfulBookings = signal<BookingListItemDto[]>([]);
   readonly lastSuccessfulAt = signal<number | null>(null);
   readonly retryAttempt = signal<number>(0);
@@ -261,7 +260,7 @@ export class BookingCalendarComponent
   });
 
   readonly cancelReasonValid = computed(() => {
-    return this.cancelReason().trim().length >= this.cancelReasonMinLength;
+    return parseCancellationReason(this.cancelReason()).isValid;
   });
 
   readonly errorCategory = computed<ErrorCategory | null>(() => {
@@ -295,6 +294,9 @@ export class BookingCalendarComponent
 
   readonly canNavigate = computed(
     () => !this.loading() && !this.navigationLocked()
+  );
+  readonly jumpDateValue = computed(() =>
+    this.formatDateForInput(this.currentDate())
   );
   readonly dialogAvailable = computed(
     () => this.actionDialog() === null && !this.actionInProgress()
@@ -1525,6 +1527,27 @@ export class BookingCalendarComponent
     return `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`;
   }
 
+  private parseDateInput(value: string): Date | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (!match) return null;
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  }
+
   private buildBookingSegments(
     bookings: BookingListItemDto[]
   ): BookingSegment[] {
@@ -1817,6 +1840,17 @@ export class BookingCalendarComponent
     this.lockNavigation();
   }
 
+  onJumpDateChange(event: Event): void {
+    if (!this.canNavigate()) return;
+    const input = event.target as HTMLInputElement | null;
+    const parsedDate = this.parseDateInput(input?.value ?? '');
+    if (!parsedDate) return;
+
+    this.currentDate.set(parsedDate);
+    this.selectedDay.set(parsedDate);
+    this.lockNavigation();
+  }
+
   /**
    * Select a day for the mobile day view.
    * @param day Day to select.
@@ -1954,6 +1988,13 @@ export class BookingCalendarComponent
 
   dayName(day: Date): string {
     return this.localeFormat.formatDate(day, { weekday: 'short' });
+  }
+
+  formatDateForInput(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   /**

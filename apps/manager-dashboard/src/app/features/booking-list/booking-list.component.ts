@@ -35,9 +35,11 @@ import {
   PaymentStatus,
   BookingListItemDto,
   UserRole,
+  parseCancellationReason,
 } from '@khana/shared-dtos';
 
 type BookingStatusTone = 'success' | 'warning' | 'danger' | 'default';
+type BookingStatusFilter = BookingStatus | 'ALL' | 'ON_HOLD';
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
@@ -90,7 +92,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
 
   searchInput = signal('');
   searchTerm = signal('');
-  filterStatus = signal<BookingStatus | 'ALL'>('ALL');
+  filterStatus = signal<BookingStatusFilter>('ALL');
   filterPaymentStatus = signal<PaymentStatus | 'ALL'>('ALL');
   tagFilter = signal<string[]>([]);
   availableTags = signal<string[]>([]);
@@ -108,15 +110,17 @@ export class BookingListComponent implements OnInit, OnDestroy {
     BookingCancellationScope.SINGLE
   );
   readonly cancelReason = signal('');
-  readonly cancelReasonMinLength = 5;
   readonly cancelError = signal<string | null>(null);
   readonly cancelReasonValid = computed(
-    () => this.cancelReason().trim().length >= this.cancelReasonMinLength
+    () => parseCancellationReason(this.cancelReason()).isValid
   );
   readonly actionInProgress = signal(false);
   readonly bulkCancelOpen = signal(false);
   readonly bulkCancelReason = signal('');
   readonly bulkCancelError = signal<string | null>(null);
+  readonly bulkCancelReasonValid = computed(
+    () => parseCancellationReason(this.bulkCancelReason()).isValid
+  );
   readonly bulkActionInProgress = signal(false);
   readonly bulkMarkPaidOpen = signal(false);
   readonly bulkMarkPaidError = signal<string | null>(null);
@@ -218,11 +222,17 @@ export class BookingListComponent implements OnInit, OnDestroy {
   }
 
   get statusFilterOptions(): Array<{
-    value: BookingStatus | 'ALL';
+    value: BookingStatusFilter;
     label: string;
+    count?: number;
   }> {
     return [
       { value: 'ALL', label: this.t('BOOKING_LIST.STATUS.ALL', 'All') },
+      {
+        value: 'ON_HOLD',
+        label: this.t('BOOKING_LIST.STATUS.ON_HOLD', 'On Hold'),
+        count: this.onHoldCount(),
+      },
       {
         value: BookingStatus.PENDING,
         label: this.t('BOOKING_LIST.STATUS.PENDING', 'Pending'),
@@ -272,19 +282,37 @@ export class BookingListComponent implements OnInit, OnDestroy {
   }
 
   readonly filteredBookings = computed(() => {
+    const statusFilter = this.filterStatus();
+    let result = [...this.bookingsAfterNonStatusFilters()];
+
+    if (statusFilter === 'ON_HOLD') {
+      result = result.filter((booking) => this.isOnHoldBooking(booking));
+    } else if (statusFilter !== 'ALL') {
+      result = result.filter((booking) => booking.status === statusFilter);
+    }
+
+    const key = this.sortKey();
+    const direction = this.sortDirection() === 'asc' ? 1 : -1;
+    result.sort((a, b) => {
+      const valueA = this.getSortValue(a, key);
+      const valueB = this.getSortValue(b, key);
+      if (valueA < valueB) return -1 * direction;
+      if (valueA > valueB) return 1 * direction;
+      return 0;
+    });
+
+    return result;
+  });
+
+  readonly bookingsAfterNonStatusFilters = computed(() => {
     const raw = [...this.bookings()];
     const term = this.searchTerm().trim().toLowerCase();
-    const statusFilter = this.filterStatus();
     const paymentFilter = this.filterPaymentStatus();
     const startDate = this.startDateFilter();
     const endDate = this.endDateFilter();
     const dateRangeError = this.dateRangeError();
 
     let result = raw;
-
-    if (statusFilter !== 'ALL') {
-      result = result.filter((booking) => booking.status === statusFilter);
-    }
     if (paymentFilter !== 'ALL') {
       result = result.filter(
         (booking) => booking.paymentStatus === paymentFilter
@@ -325,19 +353,15 @@ export class BookingListComponent implements OnInit, OnDestroy {
       );
     }
 
-    const key = this.sortKey();
-    const direction = this.sortDirection() === 'asc' ? 1 : -1;
-
-    result.sort((a, b) => {
-      const valueA = this.getSortValue(a, key);
-      const valueB = this.getSortValue(b, key);
-      if (valueA < valueB) return -1 * direction;
-      if (valueA > valueB) return 1 * direction;
-      return 0;
-    });
-
     return result;
   });
+
+  readonly onHoldCount = computed(
+    () =>
+      this.bookingsAfterNonStatusFilters().filter((booking) =>
+        this.isOnHoldBooking(booking)
+      ).length
+  );
 
   readonly totalFilteredCount = computed(() => this.filteredBookings().length);
 
@@ -628,8 +652,8 @@ export class BookingListComponent implements OnInit, OnDestroy {
   /**
    * Update status filter and reset pagination.
    */
-  onStatusFilterChange(value: string): void {
-    this.filterStatus.set(value as BookingStatus | 'ALL');
+  onStatusFilterChange(value: BookingStatusFilter): void {
+    this.filterStatus.set(value);
     this.onFiltersChange();
   }
 
@@ -824,7 +848,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
   async submitBulkCancel(): Promise<void> {
     if (this.bulkActionInProgress()) return;
     const reason = this.bulkCancelReason().trim();
-    if (reason.length < this.cancelReasonMinLength) {
+    if (!parseCancellationReason(reason).isValid) {
       this.bulkCancelError.set(
         this.t(
           'BOOKING_LIST.ERRORS.CANCELLATION_REASON_REQUIRED',
@@ -1265,7 +1289,7 @@ export class BookingListComponent implements OnInit, OnDestroy {
     const statusParam = queryParamMap.get('status');
     const paymentStatusParam = queryParamMap.get('paymentStatus');
 
-    if (statusParam && this.isBookingStatus(statusParam)) {
+    if (statusParam && this.isStatusFilter(statusParam)) {
       this.filterStatus.set(statusParam);
     }
 
@@ -1274,11 +1298,17 @@ export class BookingListComponent implements OnInit, OnDestroy {
     }
 
     if (
-      (statusParam && this.isBookingStatus(statusParam)) ||
+      (statusParam && this.isStatusFilter(statusParam)) ||
       (paymentStatusParam && this.isPaymentStatus(paymentStatusParam))
     ) {
       this.onFiltersChange();
     }
+  }
+
+  private isStatusFilter(value: string): value is BookingStatusFilter {
+    return (
+      value === 'ALL' || value === 'ON_HOLD' || this.isBookingStatus(value)
+    );
   }
 
   private isBookingStatus(value: string): value is BookingStatus {
@@ -1287,6 +1317,14 @@ export class BookingListComponent implements OnInit, OnDestroy {
 
   private isPaymentStatus(value: string): value is PaymentStatus {
     return (Object.values(PaymentStatus) as string[]).includes(value);
+  }
+
+  private isOnHoldBooking(booking: BookingListItemDto): boolean {
+    return (
+      booking.status === BookingStatus.PENDING &&
+      booking.holdUntil !== null &&
+      typeof booking.holdUntil !== 'undefined'
+    );
   }
 
   private loadTenantTags(): void {

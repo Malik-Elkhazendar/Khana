@@ -142,4 +142,41 @@ test.describe('Booking Calendar', () => {
       expect(ratio).toBeLessThan(1.7);
     }
   });
+
+  test('should jump to a selected date and return to today', async ({
+    page,
+  }) => {
+    const jumpDateInput = page.locator('#calendar-jump-date');
+    const weekLabel = page.locator('.dashboard-page__subtitle');
+    const todayButton = page.locator('.calendar__today-btn');
+
+    await expect(jumpDateInput).toBeVisible();
+    await expect(todayButton).toBeVisible();
+
+    const initialWeekLabel = await weekLabel.textContent();
+    const todayValue = await page.evaluate(() => {
+      const date = new Date();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${date.getFullYear()}-${month}-${day}`;
+    });
+    const futureValue = await page.evaluate(() => {
+      const date = new Date();
+      date.setMonth(date.getMonth() + 2);
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${date.getFullYear()}-${month}-${day}`;
+    });
+
+    await jumpDateInput.fill(futureValue);
+    await jumpDateInput.dispatchEvent('change');
+
+    await expect(jumpDateInput).toHaveValue(futureValue);
+    await expect(weekLabel).not.toHaveText(initialWeekLabel ?? '');
+
+    await expect(todayButton).toBeEnabled();
+    await todayButton.click();
+
+    await expect(jumpDateInput).toHaveValue(todayValue);
+  });
 });

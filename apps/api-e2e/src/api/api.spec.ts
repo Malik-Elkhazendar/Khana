@@ -409,7 +409,7 @@ describe('API', () => {
           `/api/v1/bookings/00000000-0000-4000-8000-000000000000/status`,
           {
             status: 'CANCELLED',
-            cancellationReason: 'No longer needed',
+            cancellationReason: 'customer_request',
           }
         ),
         401
@@ -890,7 +890,7 @@ describe('API', () => {
         `/api/v1/bookings/${bookingId}/status`,
         {
           status: 'CANCELLED',
-          cancellationReason: 'Customer requested cancellation',
+          cancellationReason: 'customer_request',
         },
         { headers: authHeaders() }
       );
@@ -902,6 +902,41 @@ describe('API', () => {
           { headers: authHeaders() }
         ),
         currentUserRole === 'STAFF' ? 403 : 400
+      );
+    });
+
+    it('should reject non-canonical cancellation reasons with 400', async () => {
+      if (currentUserRole === 'STAFF') {
+        return;
+      }
+
+      const invalidReasonDay = new Date();
+      invalidReasonDay.setDate(invalidReasonDay.getDate() + 6);
+      invalidReasonDay.setHours(12, 0, 0, 0);
+      const slot = await findAvailableSlot(invalidReasonDay);
+
+      const created = await axios.post(
+        `/api/v1/bookings`,
+        {
+          facilityId,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          customerName: 'Invalid Reason Test',
+          customerPhone: '+966512345699',
+        },
+        { headers: authHeaders() }
+      );
+
+      await expectHttpError(
+        axios.patch(
+          `/api/v1/bookings/${created.data.id}/status`,
+          {
+            status: 'CANCELLED',
+            cancellationReason: 'Customer changed mind',
+          },
+          { headers: authHeaders() }
+        ),
+        400
       );
     });
   });
@@ -997,7 +1032,7 @@ describe('API', () => {
           `/api/v1/bookings/${ownerBooking.data.id}/status`,
           {
             status: 'CANCELLED',
-            cancellationReason: 'Attempt to cancel another user booking',
+            cancellationReason: 'customer_request',
           },
           { headers: authHeadersFor(staffToken) }
         ),
@@ -1017,7 +1052,7 @@ describe('API', () => {
         `/api/v1/bookings/${staffBooking.data.id}/status`,
         {
           status: 'CANCELLED',
-          cancellationReason: 'Staff own cancellation',
+          cancellationReason: 'customer_request',
         },
         { headers: authHeadersFor(staffToken) }
       );

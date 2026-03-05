@@ -27,6 +27,7 @@ import {
 } from '@khana/data-access';
 import {
   BookingCancellationScope,
+  BookingCancellationReasonKey,
   BookingListItemDto,
   BookingRecurrenceRuleDto,
   CreateRecurringBookingResponseDto,
@@ -40,6 +41,8 @@ import {
   RecurrenceFrequency,
   SlotStatus,
   UserRole,
+  parseCancellationReason,
+  serializeCancellationReason,
 } from '@khana/shared-dtos';
 import {
   addMinutes,
@@ -951,6 +954,24 @@ export class BookingsService {
         'Cancellation reason is only allowed when cancelling a booking.'
       );
     }
+    let normalizedCancellationReason: string | null = null;
+    if (effectiveStatus === BookingStatus.CANCELLED) {
+      const parsed = parseCancellationReason(trimmedReason);
+      if (!parsed.isValid || !parsed.key) {
+        throw new BadRequestException(
+          'Cancellation reason must use a supported reason key.'
+        );
+      }
+      if (parsed.note && parsed.key !== BookingCancellationReasonKey.OTHER) {
+        throw new BadRequestException(
+          'Cancellation note is only allowed with "other" reason.'
+        );
+      }
+      normalizedCancellationReason = serializeCancellationReason(
+        parsed.key,
+        parsed.note
+      );
+    }
     if (
       cancellationScope === BookingCancellationScope.THIS_AND_FUTURE &&
       (!booking.recurrenceGroupId || dto.status !== BookingStatus.CANCELLED)
@@ -966,7 +987,7 @@ export class BookingsService {
     ) {
       return this.cancelRecurringSeriesFromInstance(
         booking,
-        trimmedReason ?? '',
+        normalizedCancellationReason ?? '',
         resolvedTenantId,
         actorUserId
       );
@@ -985,7 +1006,7 @@ export class BookingsService {
     }
     if (effectiveStatus === BookingStatus.CANCELLED) {
       booking.cancellationReason =
-        trimmedReason ?? booking.cancellationReason ?? null;
+        normalizedCancellationReason ?? booking.cancellationReason ?? null;
     } else if (dto.status && dto.status !== BookingStatus.CANCELLED) {
       booking.cancellationReason = null;
     }

@@ -99,9 +99,10 @@ Mandatory rules:
   - Stacked actions must use full-width controls for consistent tap targets and visual rhythm.
   - Mixed cramped wraps (one narrow button beside another) are not allowed.
 - Calendar compact exception:
-  - Header navigation uses a deterministic two-row pattern at compact widths.
+  - Header navigation uses a deterministic three-row pattern at compact widths when date jump is present.
   - Row 1: previous + next.
-  - Row 2: today button spans full width.
+  - Row 2: date picker spans full width.
+  - Row 3: today button spans full width.
 
 ## 7) Shell Alignment Rules
 
