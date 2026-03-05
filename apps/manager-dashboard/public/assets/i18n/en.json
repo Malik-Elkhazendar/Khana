@@ -432,6 +432,13 @@
           "FACILITY": "Facility",
           "ALL_FACILITIES": "All facilities"
         },
+        "DATE_PRESETS": {
+          "TODAY": "Today",
+          "THIS_WEEK": "This Week",
+          "THIS_MONTH": "This Month",
+          "LAST_30_DAYS": "Last 30 Days",
+          "LAST_90_DAYS": "Last 90 Days"
+        },
         "ACTIONS": {
           "APPLY_FILTERS": "Apply filters",
           "TODAY": "Today",
@@ -460,7 +467,38 @@
           "BOOKINGS_TREND": "Bookings trend",
           "REVENUE_TREND": "Revenue trend",
           "BOOKINGS_ARIA": "Bookings trend chart",
-          "REVENUE_ARIA": "Revenue trend chart"
+          "REVENUE_ARIA": "Revenue trend chart",
+          "SINGLE_POINT_HINT": "Only one data point in selected range.",
+          "SPARSE_DATA_HINT": "Data is limited in this period.",
+          "SYNTHETIC_BREAKDOWN": "{{observed}} observed points, {{synthetic}} estimated gaps.",
+          "DELTA_UP": "{{metric}} increased by {{pct}}.",
+          "DELTA_DOWN": "{{metric}} decreased by {{pct}}.",
+          "DELTA_FLAT": "{{metric}} is flat in this period.",
+          "VIEW_DATA_POINTS": "View data points",
+          "HIDE_DATA_POINTS": "Hide data points",
+          "START_LABEL": "Start",
+          "MID_LABEL": "Mid",
+          "END_LABEL": "End",
+          "DATA_TABLE_ARIA": "{{metric}} trend data points",
+          "DATA_TABLE_PERIOD": "Period",
+          "DATA_TABLE_VALUE": "Value"
+        },
+        "SNAPSHOT": {
+          "TITLE": "Today snapshot",
+          "GREETING_MORNING": "Good morning, {{name}}",
+          "GREETING_AFTERNOON": "Good afternoon, {{name}}",
+          "GREETING_EVENING": "Good evening, {{name}}",
+          "GREETING_ANONYMOUS_MORNING": "Good morning",
+          "GREETING_ANONYMOUS_AFTERNOON": "Good afternoon",
+          "GREETING_ANONYMOUS_EVENING": "Good evening",
+          "BOOKINGS_TODAY": "Bookings today",
+          "EXPECTED_REVENUE": "Expected revenue",
+          "UNPAID_BOOKINGS": "{{count}} unpaid ({{amount}})",
+          "EXPIRING_HOLDS": "{{count}} expiring holds",
+          "WAITLIST_WAITING": "{{count}} waiting in waitlist",
+          "NOTIFIED_NOT_CONVERTED": "{{count}} notified not converted",
+          "NO_SHOWS": "{{count}} no-shows",
+          "NO_URGENT_ITEMS": "No urgent items for today ✓"
         },
         "INSIGHTS": {
           "TITLE": "Mini insights",

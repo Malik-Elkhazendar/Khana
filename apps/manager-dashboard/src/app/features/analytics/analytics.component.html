@@ -18,7 +18,29 @@
     </div>
   </header>
 
+  @if (canViewSnapshot()) {
+  <app-today-snapshot
+    [snapshot]="snapshot()"
+    [loading]="loadingSnapshot()"
+    [facilityId]="facilityId() || null"
+  />
+  }
+
   <section class="dashboard-card analytics-filters dashboard-adaptive-surface">
+    <div class="analytics-filters__presets">
+      @for (preset of quickRanges; track preset) {
+      <button
+        class="dashboard-btn dashboard-btn--secondary analytics-preset-btn"
+        type="button"
+        [class.analytics-preset-btn--active]="activePreset() === preset"
+        [attr.aria-pressed]="activePreset() === preset"
+        (click)="selectQuickRange(preset)"
+      >
+        {{ text(presetLabelKey(preset)) }}
+      </button>
+      }
+    </div>
+
     <div class="analytics-filters__grid">
       <label class="analytics-field">
         <span class="analytics-field__label">{{
@@ -27,7 +49,7 @@
         <input
           type="date"
           [ngModel]="fromDate()"
-          (ngModelChange)="fromDate.set($event); onDateChange()"
+          (ngModelChange)="onFromDateChange($event)"
         />
       </label>
 
@@ -38,7 +60,7 @@
         <input
           type="date"
           [ngModel]="toDate()"
-          (ngModelChange)="toDate.set($event); onDateChange()"
+          (ngModelChange)="onToDateChange($event)"
         />
       </label>
 
@@ -86,13 +108,6 @@
         (click)="applyFilters()"
       >
         {{ text('DASHBOARD.PAGES.ANALYTICS.ACTIONS.APPLY_FILTERS') }}
-      </button>
-      <button
-        class="dashboard-btn dashboard-btn--secondary"
-        type="button"
-        (click)="setToday()"
-      >
-        {{ text('DASHBOARD.PAGES.ANALYTICS.ACTIONS.TODAY') }}
       </button>
     </div>
 
@@ -192,62 +207,355 @@
   </section>
 
   <section class="analytics-grid">
+    @let bookingsTrend = bookingsTrendVm();
     <article class="dashboard-card analytics-card">
       <header class="analytics-card__header">
         <h2>{{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.BOOKINGS_TREND') }}</h2>
+        <div class="trend-chart__meta">
+          <p class="trend-chart__latest">
+            {{ formatTrendMetricValue('bookings', bookingsTrend.latestValue) }}
+          </p>
+          <p
+            class="trend-chart__delta"
+            [class.trend-chart__delta--up]="
+              trendDeltaClass(bookingsTrend) === 'trend-chart__delta--up'
+            "
+            [class.trend-chart__delta--down]="
+              trendDeltaClass(bookingsTrend) === 'trend-chart__delta--down'
+            "
+            [class.trend-chart__delta--flat]="
+              trendDeltaClass(bookingsTrend) === 'trend-chart__delta--flat'
+            "
+          >
+            {{ trendDeltaLabel('bookings', bookingsTrend) }}
+          </p>
+        </div>
       </header>
-      @if (trendPoints().length > 0) {
+      @if (bookingsTrend.state !== 'empty') {
       <svg
         class="trend-chart"
-        viewBox="0 0 100 36"
+        [class.trend-chart--sparse]="bookingsTrend.state === 'sparse'"
+        viewBox="0 0 100 44"
         preserveAspectRatio="none"
         [attr.aria-label]="
           text('DASHBOARD.PAGES.ANALYTICS.CHARTS.BOOKINGS_ARIA')
         "
         role="img"
       >
-        <polyline [attr.points]="bookingsPolyline()" />
-      </svg>
-      <ul class="trend-legend">
-        @for (point of trendPoints(); track point.label) {
-        <li>
-          <span class="trend-legend__label">{{ point.label }}</span>
-          <strong>{{ formatNumber(point.bookings) }}</strong>
-        </li>
+        <g class="trend-chart__grid" aria-hidden="true">
+          @for (lineY of chartGridLines; track lineY) {
+          <line
+            class="trend-chart__grid-line"
+            x1="0"
+            [attr.y1]="lineY"
+            x2="100"
+            [attr.y2]="lineY"
+          />
+          }
+        </g>
+        <path class="trend-chart__area" [attr.d]="bookingsTrend.areaPath" />
+        @for (segment of bookingsTrend.segments; track $index) {
+        <path
+          class="trend-chart__line"
+          [class.trend-chart__line--synthetic]="segment.synthetic"
+          [attr.d]="segment.path"
+        />
+        } @for (marker of bookingsTrend.markers; track marker.kind + '-' +
+        marker.x) {
+        <circle
+          class="trend-chart__marker"
+          [class.trend-chart__marker--last]="marker.kind === 'last'"
+          [class.trend-chart__marker--synthetic]="!marker.isObserved"
+          [attr.cx]="marker.x"
+          [attr.cy]="marker.y"
+          [attr.r]="marker.kind === 'last' ? 2.2 : 1.6"
+        />
         }
-      </ul>
-      } @else {
+      </svg>
+
+      <div
+        class="trend-chart__ticks"
+        [class.trend-chart__ticks--single]="
+          bookingsTrend.displayPoints.length <= 1
+        "
+      >
+        @for (tick of bookingsTrend.tickLabels; track tick.index) {
+        <span
+          class="trend-chart__tick"
+          [style.--trend-tick-position]="
+            trendTickPosition(bookingsTrend, tick) + '%'
+          "
+        >
+          {{ tick.label }}
+        </span>
+        }
+      </div>
+
+      <p class="trend-chart__summary">
+        {{ trendSummary('bookings', bookingsTrend) }}
+      </p>
+      @if (bookingsTrend.syntheticCount > 0) {
+      <p class="trend-state-hint">
+        {{ trendObservedSyntheticSummary(bookingsTrend) }}
+      </p>
+      } @if (trendStateHintKey(bookingsTrend.state); as hintKey) {
+      <p class="trend-state-hint">{{ text(hintKey) }}</p>
+      }
+
+      <table
+        class="trend-data-table trend-data-table--sr-only sr-only"
+        [attr.aria-label]="
+          text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_ARIA', {
+            metric: text('DASHBOARD.PAGES.ANALYTICS.CHARTS.BOOKINGS_TREND')
+          })
+        "
+      >
+        <thead>
+          <tr>
+            <th>
+              {{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_PERIOD') }}
+            </th>
+            <th>
+              {{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_VALUE') }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (point of bookingsTrend.points; track point.dateKey +
+          point.periodStart) {
+          <tr>
+            <td>{{ point.label }}</td>
+            <td>{{ formatTrendMetricValue('bookings', point.bookings) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+
+      <button
+        class="dashboard-btn dashboard-btn--secondary trend-details-toggle"
+        type="button"
+        [attr.aria-expanded]="isTrendDetailsOpen('bookings')"
+        (click)="toggleTrendDetails('bookings')"
+      >
+        {{
+          text(
+            isTrendDetailsOpen('bookings')
+              ? 'DASHBOARD.PAGES.ANALYTICS.CHARTS.HIDE_DATA_POINTS'
+              : 'DASHBOARD.PAGES.ANALYTICS.CHARTS.VIEW_DATA_POINTS'
+          )
+        }}
+      </button>
+      @if (isTrendDetailsOpen('bookings')) {
+      <div class="trend-data-table-wrap">
+        <table
+          class="trend-data-table"
+          [attr.aria-label]="
+            text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_ARIA', {
+              metric: text('DASHBOARD.PAGES.ANALYTICS.CHARTS.BOOKINGS_TREND')
+            })
+          "
+        >
+          <thead>
+            <tr>
+              <th>
+                {{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_PERIOD') }}
+              </th>
+              <th>
+                {{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_VALUE') }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (point of bookingsTrend.points; track point.dateKey +
+            point.periodStart) {
+            <tr>
+              <td>{{ point.label }}</td>
+              <td>{{ formatTrendMetricValue('bookings', point.bookings) }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      } } @else {
       <p class="analytics-empty">
         {{ text('DASHBOARD.PAGES.ANALYTICS.STATE.NO_TREND_DATA') }}
       </p>
       }
     </article>
 
+    @let revenueTrend = revenueTrendVm();
     <article class="dashboard-card analytics-card">
       <header class="analytics-card__header">
         <h2>{{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.REVENUE_TREND') }}</h2>
+        <div class="trend-chart__meta">
+          <p class="trend-chart__latest">
+            {{ formatTrendMetricValue('revenue', revenueTrend.latestValue) }}
+          </p>
+          <p
+            class="trend-chart__delta"
+            [class.trend-chart__delta--up]="
+              trendDeltaClass(revenueTrend) === 'trend-chart__delta--up'
+            "
+            [class.trend-chart__delta--down]="
+              trendDeltaClass(revenueTrend) === 'trend-chart__delta--down'
+            "
+            [class.trend-chart__delta--flat]="
+              trendDeltaClass(revenueTrend) === 'trend-chart__delta--flat'
+            "
+          >
+            {{ trendDeltaLabel('revenue', revenueTrend) }}
+          </p>
+        </div>
       </header>
-      @if (trendPoints().length > 0) {
+      @if (revenueTrend.state !== 'empty') {
       <svg
         class="trend-chart trend-chart--revenue"
-        viewBox="0 0 100 36"
+        [class.trend-chart--sparse]="revenueTrend.state === 'sparse'"
+        viewBox="0 0 100 44"
         preserveAspectRatio="none"
         [attr.aria-label]="
           text('DASHBOARD.PAGES.ANALYTICS.CHARTS.REVENUE_ARIA')
         "
         role="img"
       >
-        <polyline [attr.points]="revenuePolyline()" />
-      </svg>
-      <ul class="trend-legend">
-        @for (point of trendPoints(); track point.label) {
-        <li>
-          <span class="trend-legend__label">{{ point.label }}</span>
-          <strong>{{ formatCurrency(point.revenue) }}</strong>
-        </li>
+        <g class="trend-chart__grid" aria-hidden="true">
+          @for (lineY of chartGridLines; track lineY) {
+          <line
+            class="trend-chart__grid-line"
+            x1="0"
+            [attr.y1]="lineY"
+            x2="100"
+            [attr.y2]="lineY"
+          />
+          }
+        </g>
+        <path
+          class="trend-chart__area trend-chart__area--revenue"
+          [attr.d]="revenueTrend.areaPath"
+        />
+        @for (segment of revenueTrend.segments; track $index) {
+        <path
+          class="trend-chart__line trend-chart__line--revenue"
+          [class.trend-chart__line--synthetic]="segment.synthetic"
+          [attr.d]="segment.path"
+        />
+        } @for (marker of revenueTrend.markers; track marker.kind + '-' +
+        marker.x) {
+        <circle
+          class="trend-chart__marker trend-chart__marker--revenue"
+          [class.trend-chart__marker--last]="marker.kind === 'last'"
+          [class.trend-chart__marker--synthetic]="!marker.isObserved"
+          [attr.cx]="marker.x"
+          [attr.cy]="marker.y"
+          [attr.r]="marker.kind === 'last' ? 2.2 : 1.6"
+        />
         }
-      </ul>
-      } @else {
+      </svg>
+
+      <div
+        class="trend-chart__ticks"
+        [class.trend-chart__ticks--single]="
+          revenueTrend.displayPoints.length <= 1
+        "
+      >
+        @for (tick of revenueTrend.tickLabels; track tick.index) {
+        <span
+          class="trend-chart__tick"
+          [style.--trend-tick-position]="
+            trendTickPosition(revenueTrend, tick) + '%'
+          "
+        >
+          {{ tick.label }}
+        </span>
+        }
+      </div>
+
+      <p class="trend-chart__summary">
+        {{ trendSummary('revenue', revenueTrend) }}
+      </p>
+      @if (revenueTrend.syntheticCount > 0) {
+      <p class="trend-state-hint">
+        {{ trendObservedSyntheticSummary(revenueTrend) }}
+      </p>
+      } @if (trendStateHintKey(revenueTrend.state); as hintKey) {
+      <p class="trend-state-hint">{{ text(hintKey) }}</p>
+      }
+
+      <table
+        class="trend-data-table trend-data-table--sr-only sr-only"
+        [attr.aria-label]="
+          text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_ARIA', {
+            metric: text('DASHBOARD.PAGES.ANALYTICS.CHARTS.REVENUE_TREND')
+          })
+        "
+      >
+        <thead>
+          <tr>
+            <th>
+              {{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_PERIOD') }}
+            </th>
+            <th>
+              {{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_VALUE') }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (point of revenueTrend.points; track point.dateKey +
+          point.periodStart) {
+          <tr>
+            <td>{{ point.label }}</td>
+            <td>{{ formatTrendMetricValue('revenue', point.revenue) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+
+      <button
+        class="dashboard-btn dashboard-btn--secondary trend-details-toggle"
+        type="button"
+        [attr.aria-expanded]="isTrendDetailsOpen('revenue')"
+        (click)="toggleTrendDetails('revenue')"
+      >
+        {{
+          text(
+            isTrendDetailsOpen('revenue')
+              ? 'DASHBOARD.PAGES.ANALYTICS.CHARTS.HIDE_DATA_POINTS'
+              : 'DASHBOARD.PAGES.ANALYTICS.CHARTS.VIEW_DATA_POINTS'
+          )
+        }}
+      </button>
+      @if (isTrendDetailsOpen('revenue')) {
+      <div class="trend-data-table-wrap">
+        <table
+          class="trend-data-table"
+          [attr.aria-label]="
+            text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_ARIA', {
+              metric: text('DASHBOARD.PAGES.ANALYTICS.CHARTS.REVENUE_TREND')
+            })
+          "
+        >
+          <thead>
+            <tr>
+              <th>
+                {{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_PERIOD') }}
+              </th>
+              <th>
+                {{ text('DASHBOARD.PAGES.ANALYTICS.CHARTS.DATA_TABLE_VALUE') }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (point of revenueTrend.points; track point.dateKey +
+            point.periodStart) {
+            <tr>
+              <td>{{ point.label }}</td>
+              <td>{{ formatTrendMetricValue('revenue', point.revenue) }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      } } @else {
       <p class="analytics-empty">
         {{ text('DASHBOARD.PAGES.ANALYTICS.STATE.NO_TREND_DATA') }}
       </p>

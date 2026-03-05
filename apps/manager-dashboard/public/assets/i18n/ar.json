@@ -432,6 +432,13 @@
           "FACILITY": "المرفق",
           "ALL_FACILITIES": "كل المرافق"
         },
+        "DATE_PRESETS": {
+          "TODAY": "اليوم",
+          "THIS_WEEK": "هذا الأسبوع",
+          "THIS_MONTH": "هذا الشهر",
+          "LAST_30_DAYS": "آخر 30 يوماً",
+          "LAST_90_DAYS": "آخر 90 يوماً"
+        },
         "ACTIONS": {
           "APPLY_FILTERS": "تطبيق الفلاتر",
           "TODAY": "اليوم",
@@ -460,7 +467,38 @@
           "BOOKINGS_TREND": "اتجاه الحجوزات",
           "REVENUE_TREND": "اتجاه الإيرادات",
           "BOOKINGS_ARIA": "مخطط اتجاه الحجوزات",
-          "REVENUE_ARIA": "مخطط اتجاه الإيرادات"
+          "REVENUE_ARIA": "مخطط اتجاه الإيرادات",
+          "SINGLE_POINT_HINT": "توجد نقطة بيانات واحدة فقط في النطاق المحدد.",
+          "SPARSE_DATA_HINT": "البيانات محدودة خلال هذه الفترة.",
+          "SYNTHETIC_BREAKDOWN": "{{observed}} نقاط فعلية و{{synthetic}} فجوات تقديرية.",
+          "DELTA_UP": "ارتفع {{metric}} بمقدار {{pct}}.",
+          "DELTA_DOWN": "انخفض {{metric}} بمقدار {{pct}}.",
+          "DELTA_FLAT": "{{metric}} مستقر خلال هذه الفترة.",
+          "VIEW_DATA_POINTS": "عرض نقاط البيانات",
+          "HIDE_DATA_POINTS": "إخفاء نقاط البيانات",
+          "START_LABEL": "البداية",
+          "MID_LABEL": "الوسط",
+          "END_LABEL": "النهاية",
+          "DATA_TABLE_ARIA": "نقاط بيانات اتجاه {{metric}}",
+          "DATA_TABLE_PERIOD": "الفترة",
+          "DATA_TABLE_VALUE": "القيمة"
+        },
+        "SNAPSHOT": {
+          "TITLE": "ملخص اليوم",
+          "GREETING_MORNING": "صباح الخير، {{name}}",
+          "GREETING_AFTERNOON": "مساء الخير، {{name}}",
+          "GREETING_EVENING": "مساء الخير، {{name}}",
+          "GREETING_ANONYMOUS_MORNING": "صباح الخير",
+          "GREETING_ANONYMOUS_AFTERNOON": "مساء الخير",
+          "GREETING_ANONYMOUS_EVENING": "مساء الخير",
+          "BOOKINGS_TODAY": "حجوزات اليوم",
+          "EXPECTED_REVENUE": "الإيراد المتوقع",
+          "UNPAID_BOOKINGS": "{{count}} غير مدفوع ({{amount}})",
+          "EXPIRING_HOLDS": "{{count}} حجوزات معلقة تنتهي قريباً",
+          "WAITLIST_WAITING": "{{count}} في قائمة الانتظار",
+          "NOTIFIED_NOT_CONVERTED": "{{count}} تم إشعارهم ولم يحجزوا",
+          "NO_SHOWS": "{{count}} لم يحضروا",
+          "NO_URGENT_ITEMS": "لا توجد عناصر عاجلة اليوم ✓"
         },
         "INSIGHTS": {
           "TITLE": "ملخص سريع",

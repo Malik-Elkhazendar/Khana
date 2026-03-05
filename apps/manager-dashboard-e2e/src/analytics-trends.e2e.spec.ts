@@ -116,16 +116,27 @@ test.describe('Analytics trends', () => {
     await expect(page).toHaveURL(/\/dashboard\/analytics$/);
     await expect(page.locator('app-analytics')).toBeVisible();
 
-    await expect(page.locator('.analytics-range-presets button')).toHaveCount(
-      4
+    await expect(
+      page.locator('.analytics-filters__presets button')
+    ).toHaveCount(5);
+    await expect(page.locator('.analytics-kpis .kpi-card')).toHaveCount(5);
+    await expect(page.locator('.analytics-grid .analytics-card')).toHaveCount(
+      3
     );
-    await expect(page.locator('.trend-chart__line')).toHaveCount(2);
-    await expect(page.locator('.trend-chart__axis')).toHaveCount(2);
+    await expect(page.locator('.trend-chart')).toHaveCount(2);
+    await expect(page.locator('.trend-chart__marker--last')).toHaveCount(2);
+    await expect(page.locator('.trend-chart__ticks')).toHaveCount(2);
     await expect(page.locator('.trend-state-hint').first()).toBeVisible();
 
     const toggle = page.locator('.trend-details-toggle').first();
     await toggle.click();
     await expect(page.locator('.trend-data-table').first()).toBeVisible();
+    await expect(
+      page.locator('.analytics-card--insights .insights-list dt')
+    ).toHaveCount(3);
+    await expect(
+      page.locator('.analytics-card--insights .insights-list dd').first()
+    ).toBeVisible();
   });
 
   test('supports analytics chart layout on mobile viewport', async ({
@@ -138,7 +149,7 @@ test.describe('Analytics trends', () => {
     await page.goto('/dashboard/analytics');
     await expect(page).toHaveURL(/\/dashboard\/analytics$/);
     await expect(page.locator('.trend-chart').first()).toBeVisible();
-    await expect(page.locator('.trend-chart__axis span')).toHaveCount(6);
+    await expect(page.locator('.trend-chart__tick')).toHaveCount(2);
   });
 
   test('keeps analytics usable after switching to Arabic RTL', async ({
