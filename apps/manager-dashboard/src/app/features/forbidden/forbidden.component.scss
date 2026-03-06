@@ -8,42 +8,44 @@
 
 .forbidden-card {
   text-align: center;
-  max-inline-size: 500px;
+  max-inline-size: min(31.25rem, 100%);
 }
 
 .forbidden-title {
-  font-size: 96px;
-  font-weight: 700;
-  color: var(--error, #c75d4a);
+  font-size: clamp(4rem, 12vw, 6rem);
+  font-weight: var(--font-bold);
+  color: var(--color-error);
   margin: 0;
 }
 
 .forbidden-subtitle {
-  font-size: 32px;
-  font-weight: 600;
-  color: var(--text-primary, #1a1f3c);
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
   margin-block: var(--space-4);
 }
 
 .forbidden-text {
-  font-size: 16px;
-  color: var(--text-secondary, #6b7280);
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
   margin-block-end: var(--space-6);
 }
 
 .btn-primary {
   display: inline-block;
-  padding-inline: var(--space-6, 24px);
-  padding-block: var(--space-3, 12px);
-  background: var(--gold, #d4af37);
-  color: var(--navy, #1a1f3c);
+  min-block-size: var(--space-12);
+  padding-inline: var(--space-6);
+  padding-block: var(--space-3);
+  background: var(--color-accent);
+  color: var(--color-primary);
   text-decoration: none;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 0.2s ease;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-semibold);
+  transition: background-color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .btn-primary:hover {
-  background: #c49d2f;
+  background: var(--color-accent-dark);
   transform: translateY(-1px);
 }

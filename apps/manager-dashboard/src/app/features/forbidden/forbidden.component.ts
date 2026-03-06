@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
 /**
@@ -12,5 +12,6 @@ import { RouterModule } from '@angular/router';
   imports: [RouterModule],
   templateUrl: './forbidden.component.html',
   styleUrl: './forbidden.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ForbiddenComponent {}
