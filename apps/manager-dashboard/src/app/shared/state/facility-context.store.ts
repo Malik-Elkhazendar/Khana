@@ -141,6 +141,17 @@ export const FacilityContextStore = signalStore(
       clearError(): void {
         patchState(store, { error: null });
       },
+
+      reset(): void {
+        persistFacilityId(null);
+        patchState(store, {
+          facilities: [],
+          selectedFacilityId: null,
+          loading: false,
+          error: null,
+          initialized: false,
+        });
+      },
     })
   )
 );

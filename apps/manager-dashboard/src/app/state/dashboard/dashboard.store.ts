@@ -1,4 +1,5 @@
 import { inject } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 import { TodaySnapshotDto } from '@khana/shared-dtos';
@@ -25,6 +26,12 @@ const toError = (error: unknown): Error => {
   return new Error('Failed to load dashboard snapshot');
 };
 
+const isAuthSensitiveError = (error: unknown): boolean => {
+  return (
+    error instanceof HttpErrorResponse && [401, 403].includes(error.status)
+  );
+};
+
 export const DashboardStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
@@ -33,6 +40,13 @@ export const DashboardStore = signalStore(
       let inFlightLoad: Promise<void> | null = null;
 
       return {
+        reset: (): void => {
+          patchState(store, {
+            snapshot: null,
+            loadingSnapshot: false,
+            error: null,
+          });
+        },
         loadSnapshot: async (facilityId?: string): Promise<void> => {
           if (inFlightLoad) {
             return inFlightLoad;
@@ -62,6 +76,7 @@ export const DashboardStore = signalStore(
               );
 
               patchState(store, {
+                snapshot: isAuthSensitiveError(error) ? null : store.snapshot(),
                 error: toError(error),
                 loadingSnapshot: false,
               });

@@ -25,7 +25,12 @@ export type AuthRouteOverrides = {
 const defaultRoutes: Required<AuthRouteOverrides> = {
   tenant: {
     status: 200,
-    body: { id: mockTenant.id, name: mockTenant.name },
+    body: {
+      id: mockTenant.id,
+      name: mockTenant.name,
+      slug: mockTenant.slug,
+      timezone: mockTenant.timezone,
+    },
   },
   login: { status: 200, body: mockLoginResponse },
   register: { status: 200, body: mockLoginResponse },

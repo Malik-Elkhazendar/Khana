@@ -1,12 +1,14 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { AuthService } from '../../../shared/services/auth.service';
 import { AuthStore } from '../../../shared/state/auth.store';
 import { LanguageService } from '../../../shared/services/language.service';
 import { LoginResponseDto, UserRole } from '@khana/shared-dtos';
+import { DestroyRef } from '@angular/core';
 
 /**
  * LoginComponent
@@ -31,7 +33,9 @@ import { LoginResponseDto, UserRole } from '@khana/shared-dtos';
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   public readonly languageService = inject(LanguageService);
 
   readonly authStore = inject(AuthStore);
@@ -40,6 +44,16 @@ export class LoginComponent {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
   });
+
+  constructor() {
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        if (params.get('switch') === '1') {
+          this.authService.beginAccountSwitch();
+        }
+      });
+  }
 
   onSubmit(): void {
     if (this.loginForm.invalid) {

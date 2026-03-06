@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
-import { of, throwError } from 'rxjs';
+import { BehaviorSubject, of, throwError } from 'rxjs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { UserRole } from '@khana/shared-dtos';
 import { LoginComponent } from './login.component';
@@ -57,13 +57,16 @@ describe('LoginComponent', () => {
   let navigateByUrlSpy: jest.SpyInstance;
   let storageMock: ReturnType<typeof setupStorageMock>;
   let translateService: TranslateService;
+  let queryParamMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   beforeEach(async () => {
     storageMock = setupStorageMock();
+    queryParamMap$ = new BehaviorSubject(convertToParamMap({}));
 
     // Create mock services
     authService = {
       login: jest.fn(),
+      beginAccountSwitch: jest.fn(),
     } as unknown as jest.Mocked<AuthService>;
 
     await TestBed.configureTestingModule({
@@ -72,7 +75,16 @@ describe('LoginComponent', () => {
         TranslateModule.forRoot(),
         RouterTestingModule.withRoutes([]),
       ],
-      providers: [{ provide: AuthService, useValue: authService }, AuthStore],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            queryParamMap: queryParamMap$.asObservable(),
+          },
+        },
+        AuthStore,
+      ],
     }).compileComponents();
 
     translateService = TestBed.inject(TranslateService);
@@ -97,6 +109,38 @@ describe('LoginComponent', () => {
   describe('component initialization', () => {
     it('should create', () => {
       expect(component).toBeTruthy();
+    });
+
+    it('clears local auth state when login is opened in switch mode', async () => {
+      TestBed.resetTestingModule();
+      queryParamMap$ = new BehaviorSubject(convertToParamMap({ switch: '1' }));
+      authService = {
+        login: jest.fn(),
+        beginAccountSwitch: jest.fn(),
+      } as unknown as jest.Mocked<AuthService>;
+
+      await TestBed.configureTestingModule({
+        imports: [
+          LoginComponent,
+          TranslateModule.forRoot(),
+          RouterTestingModule.withRoutes([]),
+        ],
+        providers: [
+          { provide: AuthService, useValue: authService },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              queryParamMap: queryParamMap$.asObservable(),
+            },
+          },
+          AuthStore,
+        ],
+      }).compileComponents();
+
+      const switchFixture = TestBed.createComponent(LoginComponent);
+      switchFixture.detectChanges();
+
+      expect(authService.beginAccountSwitch).toHaveBeenCalledTimes(1);
     });
 
     it('should initialize form with empty values', () => {

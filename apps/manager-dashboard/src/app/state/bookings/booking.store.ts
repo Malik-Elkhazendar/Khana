@@ -91,6 +91,10 @@ const resolveRequestId = (err: unknown): string | undefined => {
   return err.headers?.get('x-request-id') ?? undefined;
 };
 
+const isAuthSensitiveError = (err: unknown): boolean => {
+  return err instanceof HttpErrorResponse && [401, 403].includes(err.status);
+};
+
 export const BookingStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
@@ -455,6 +459,20 @@ export const BookingStore = signalStore(
         clearError: () => {
           patchState(store, { error: null, errorCode: null });
         },
+        reset: (): void => {
+          patchState(store, {
+            bookings: [],
+            bookingDetailsById: {},
+            loading: false,
+            error: null,
+            errorCode: null,
+            filter: { facilityId: null },
+            actionLoadingById: {},
+            actionErrorsById: {},
+            detailLoadingById: {},
+            detailErrorsById: {},
+          });
+        },
         loadBookings: rxMethod<string | null>(
           pipe(
             tap(() =>
@@ -484,6 +502,10 @@ export const BookingStore = signalStore(
 
                   patchState(store, {
                     loading: false,
+                    bookings: isAuthSensitiveError(err) ? [] : store.bookings(),
+                    bookingDetailsById: isAuthSensitiveError(err)
+                      ? {}
+                      : store.bookingDetailsById(),
                     error: toBookingError(resolved.message),
                     errorCode: resolved.code,
                   });

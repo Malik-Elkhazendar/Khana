@@ -215,6 +215,21 @@ describe('BookingStore', () => {
     expect(store.bookings()).toEqual([booking]);
   });
 
+  it('clears cached bookings and details on auth-sensitive load failures', () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const booking = seedBookingWithDetail();
+    apiMock.getBookings.mockReturnValueOnce(
+      throwError(() => createHttpError(401))
+    );
+
+    store.loadBookings(null);
+
+    expect(store.bookings()).toEqual([]);
+    expect(store.bookingDetailsById()).toEqual({});
+    expect(store.errorCode()).toBe('UNAUTHORIZED');
+    expect(booking.id).toBeTruthy();
+  });
+
   it('returns booking detail from cache, then falls back to list state', () => {
     const booking = seedBookingWithDetail({ id: 'booking-lookup-1' });
 
@@ -230,6 +245,33 @@ describe('BookingStore', () => {
     store.clearBookingDetailError('booking-1');
 
     expect(store.detailErrorsById()['booking-1']).toBeNull();
+  });
+
+  it('resets all session-scoped booking state', () => {
+    const booking = seedBookingWithDetail();
+    patchState(store as never, {
+      loading: true,
+      error: new Error('boom'),
+      errorCode: 'SERVER_ERROR',
+      filter: { facilityId: 'facility-2' },
+      actionLoadingById: { [booking.id]: true },
+      actionErrorsById: { [booking.id]: 'Failed' },
+      detailLoadingById: { [booking.id]: true },
+      detailErrorsById: { [booking.id]: 'Failed detail' },
+    });
+
+    store.reset();
+
+    expect(store.bookings()).toEqual([]);
+    expect(store.bookingDetailsById()).toEqual({});
+    expect(store.loading()).toBe(false);
+    expect(store.error()).toBeNull();
+    expect(store.errorCode()).toBeNull();
+    expect(store.filter()).toEqual({ facilityId: null });
+    expect(store.actionLoadingById()).toEqual({});
+    expect(store.actionErrorsById()).toEqual({});
+    expect(store.detailLoadingById()).toEqual({});
+    expect(store.detailErrorsById()).toEqual({});
   });
 
   it('includes requestId in booking load failure logs when present', () => {

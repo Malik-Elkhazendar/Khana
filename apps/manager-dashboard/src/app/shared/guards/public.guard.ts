@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivateFn, Router } from '@angular/router';
 import { AuthStore } from '../state/auth.store';
 
 /**
@@ -15,11 +15,14 @@ import { AuthStore } from '../state/auth.store';
  *
  * Usage: canActivate: [publicGuard]
  */
-export const publicGuard: CanActivateFn = () => {
+export const publicGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
   const authStore = inject(AuthStore);
   const router = inject(Router);
+  const allowsAccountSwitch =
+    route.routeConfig?.path === 'login' &&
+    route.queryParamMap.get('switch') === '1';
 
-  if (authStore.isAuthenticated()) {
+  if (authStore.isAuthenticated() && !allowsAccountSwitch) {
     return router.createUrlTree(['/dashboard']);
   }
 
