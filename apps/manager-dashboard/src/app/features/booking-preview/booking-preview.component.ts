@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
   Observable,
@@ -69,6 +70,17 @@ type OfflineAction = {
 };
 
 type RecurrenceEndMode = 'COUNT' | 'DATE';
+type BookingSubmissionMode = 'CONFIRMED' | 'HOLD';
+type RecurringPresetKey =
+  | 'FOUR_WEEKS'
+  | 'EIGHT_WEEKS'
+  | 'THREE_MONTHS'
+  | 'SIX_MONTHS';
+type RecurringPresetDefinition = {
+  key: RecurringPresetKey;
+  weeks: number;
+  labelKey: `BOOKING_PREVIEW.RECURRING_PRESETS.${RecurringPresetKey}`;
+};
 
 type ErrorRecoveryAction = 'retry' | 'refresh' | 'dismiss';
 type ErrorRecoveryOption = {
@@ -86,6 +98,14 @@ type PreviewStateSnapshot = {
   hasPreview: boolean;
   confirmDialogOpen: boolean;
 };
+
+type BookingPrefillQueryParams = {
+  facilityId: string | null;
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+};
+
 type ConflictSlotDto = NonNullable<
   BookingPreviewResponseDto['conflict']
 >['conflictingSlots'][number];
@@ -105,6 +125,28 @@ const ALTERNATIVES_ROW_HEIGHT_PX = 72;
 const ALTERNATIVES_WINDOW_SIZE = 18;
 const CUSTOMER_TAG_MAX_LENGTH = 30;
 const CUSTOMER_TAG_MAX_COUNT = 10;
+const RECURRING_PRESETS: ReadonlyArray<RecurringPresetDefinition> = [
+  {
+    key: 'FOUR_WEEKS',
+    weeks: 4,
+    labelKey: 'BOOKING_PREVIEW.RECURRING_PRESETS.FOUR_WEEKS',
+  },
+  {
+    key: 'EIGHT_WEEKS',
+    weeks: 8,
+    labelKey: 'BOOKING_PREVIEW.RECURRING_PRESETS.EIGHT_WEEKS',
+  },
+  {
+    key: 'THREE_MONTHS',
+    weeks: 13,
+    labelKey: 'BOOKING_PREVIEW.RECURRING_PRESETS.THREE_MONTHS',
+  },
+  {
+    key: 'SIX_MONTHS',
+    weeks: 26,
+    labelKey: 'BOOKING_PREVIEW.RECURRING_PRESETS.SIX_MONTHS',
+  },
+];
 
 @Component({
   selector: 'app-booking-preview',
@@ -124,6 +166,8 @@ export class BookingPreviewComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly facilityContext = inject(FacilityContextStore);
   private readonly authStore = inject(AuthStore);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly languageService = inject(LanguageService, {
     optional: true,
   });
@@ -136,7 +180,9 @@ export class BookingPreviewComponent implements OnInit {
     string,
     { result: BookingPreviewResponseDto; expiresAt: number }
   >();
-  readonly timezoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  readonly timezoneLabel = computed(() =>
+    this.localeFormat.getCurrentTimeZone()
+  );
   readonly inputLang = computed(() =>
     this.localeFormat.getCurrentLocale() === 'ar-SA' ? 'ar' : 'en'
   );
@@ -148,6 +194,15 @@ export class BookingPreviewComponent implements OnInit {
     confirmLabel: string;
     cancelLabel: string;
   } {
+    if (this.isHoldMode()) {
+      return {
+        title: this.t('BOOKING_PREVIEW.DIALOG.HOLD_TITLE'),
+        message: this.t('BOOKING_PREVIEW.DIALOG.HOLD_MESSAGE'),
+        confirmLabel: this.t('BOOKING_PREVIEW.DIALOG.HOLD_LABEL'),
+        cancelLabel: this.t('BOOKING_PREVIEW.DIALOG.CANCEL_LABEL'),
+      };
+    }
+
     return {
       title: this.t('BOOKING_PREVIEW.DIALOG.CONFIRM_TITLE'),
       message: this.t('BOOKING_PREVIEW.DIALOG.CONFIRM_MESSAGE'),
@@ -178,6 +233,7 @@ export class BookingPreviewComponent implements OnInit {
   private phoneLookupRequestId = 0;
   private tenantTagsLoaded = false;
   private connectivityHandler?: () => void;
+  private queryPrefillParams: BookingPrefillQueryParams | null = null;
 
   // Form state
   facilities = signal<FacilityListItemDto[]>([]);
@@ -191,6 +247,7 @@ export class BookingPreviewComponent implements OnInit {
   recurrenceEndMode = signal<RecurrenceEndMode>('COUNT');
   recurrenceWeeksCount = signal<number>(8);
   recurrenceEndDate = signal<string>('');
+  activeRecurringPreset = signal<RecurringPresetKey | null>(null);
 
   // Result state
   previewResult = signal<BookingPreviewResponseDto | null>(null);
@@ -225,7 +282,8 @@ export class BookingPreviewComponent implements OnInit {
   tagEditMode = signal<boolean>(false);
   availableTags = signal<string[]>([]);
   newTagInput = signal<string>('');
-  holdAsPending = signal<boolean>(false);
+  bookingSubmissionMode = signal<BookingSubmissionMode>('CONFIRMED');
+  lastSuccessfulBookingMode = signal<BookingSubmissionMode | null>(null);
   bookingInProgress = signal<boolean>(false);
   bookingSuccess = signal<boolean>(false);
   bookingReference = signal<string | null>(null);
@@ -272,6 +330,17 @@ export class BookingPreviewComponent implements OnInit {
   readonly showEndDateField = computed(
     () => this.repeatWeekly() && this.recurrenceEndMode() === 'DATE'
   );
+  readonly recurringPresets = RECURRING_PRESETS;
+  readonly isHoldMode = computed(() => this.bookingSubmissionMode() === 'HOLD');
+  readonly canSelectHoldMode = computed(() => {
+    const result = this.previewResult();
+    return (
+      Boolean(result?.canBook) &&
+      !this.previewStale() &&
+      !this.isPreviewStale() &&
+      !this.loading()
+    );
+  });
 
   canSubmit = computed(() => {
     return this.inputsValid() && !this.loading() && !this.facilitiesLoading();
@@ -379,10 +448,30 @@ export class BookingPreviewComponent implements OnInit {
   readonly isOnWaitlist = computed(
     () => this.waitlistStatus()?.status === WaitlistStatus.WAITING
   );
-
-  readonly waitlistQueuePosition = computed(
-    () => this.waitlistStatus()?.queuePosition ?? null
+  readonly selectedSlotIsInFuture = computed(() =>
+    this.isSelectedSlotInFuture()
   );
+  readonly hasActiveWaitlistEntry = computed(() => {
+    const status = this.waitlistStatus()?.status;
+    return (
+      status === WaitlistStatus.WAITING || status === WaitlistStatus.NOTIFIED
+    );
+  });
+
+  readonly waitlistQueuePosition = computed(() => {
+    const queuePosition = this.waitlistStatus()?.queuePosition;
+    const normalizedQueuePosition =
+      typeof queuePosition === 'number' ? queuePosition : Number.NaN;
+
+    if (
+      !Number.isFinite(normalizedQueuePosition) ||
+      normalizedQueuePosition < 1
+    ) {
+      return null;
+    }
+
+    return Math.floor(normalizedQueuePosition);
+  });
 
   readonly canJoinWaitlist = computed(() => {
     const result = this.previewResult();
@@ -390,10 +479,19 @@ export class BookingPreviewComponent implements OnInit {
       result !== null &&
       result.canBook === false &&
       this.inputsValid() &&
-      this.isSelectedSlotInFuture() &&
+      this.selectedSlotIsInFuture() &&
       !this.waitlistLoading() &&
       !this.joinWaitlistInProgress() &&
-      !this.isOnWaitlist()
+      !this.hasActiveWaitlistEntry()
+    );
+  });
+
+  readonly canOpenWaitlistOperations = computed(() => {
+    const status = this.waitlistStatus()?.status;
+    return (
+      !!this.selectedFacilityId() &&
+      !!this.selectedDate() &&
+      (status === WaitlistStatus.WAITING || status === WaitlistStatus.NOTIFIED)
     );
   });
 
@@ -530,6 +628,30 @@ export class BookingPreviewComponent implements OnInit {
     hasPreview: Boolean(this.previewResult()),
     confirmDialogOpen: this.confirmDialogOpen(),
   }));
+  readonly bookingSuccessCopy = computed(() => {
+    const isRecurring = this.recurringCreatedCount() !== null;
+    const successfulMode = this.lastSuccessfulBookingMode();
+
+    if (successfulMode === 'HOLD') {
+      return {
+        title: this.t(
+          isRecurring
+            ? 'BOOKING_PREVIEW.SUCCESS.HOLD_RECURRING_TITLE'
+            : 'BOOKING_PREVIEW.SUCCESS.HOLD_TITLE'
+        ),
+        subtitle: this.t(
+          isRecurring
+            ? 'BOOKING_PREVIEW.SUCCESS.HOLD_RECURRING_SUBTITLE'
+            : 'BOOKING_PREVIEW.SUCCESS.HOLD_SUBTITLE'
+        ),
+      };
+    }
+
+    return {
+      title: this.t('BOOKING_PREVIEW.SUCCESS.TITLE'),
+      subtitle: this.t('BOOKING_PREVIEW.SUCCESS.SUBTITLE'),
+    };
+  });
 
   constructor() {
     effect(() => {
@@ -548,6 +670,7 @@ export class BookingPreviewComponent implements OnInit {
 
   ngOnInit(): void {
     this.facilityContext.initialize();
+    this.capturePrefillFromQueryParams();
     this.setupConnectivityListeners();
     this.startHeartbeat();
     this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
@@ -584,14 +707,11 @@ export class BookingPreviewComponent implements OnInit {
         next: (facilities) => {
           if (requestId !== this.facilitiesRequestId) return;
           this.facilities.set(facilities);
-          const sharedSelection = this.facilityContext.selectedFacilityId();
           const nextSelection =
-            sharedSelection &&
-            facilities.some((facility) => facility.id === sharedSelection)
-              ? sharedSelection
-              : facilities[0]?.id ?? '';
+            this.resolveInitialFacilitySelection(facilities);
           this.selectedFacilityId.set(nextSelection);
           this.facilityContext.selectFacility(nextSelection || null);
+          this.applyPrefillAfterFacilitiesLoad();
           this.lastAction.set(null);
           this.facilitiesLoading.set(false);
           this.resetRetryState();
@@ -617,6 +737,12 @@ export class BookingPreviewComponent implements OnInit {
       return;
     }
 
+    const activePreset = this.activeRecurringPreset();
+    if (activePreset) {
+      this.applyRecurringPreset(activePreset);
+      return;
+    }
+
     if (this.recurrenceEndMode() === 'COUNT') {
       this.syncEndDateFromWeeksCount();
       return;
@@ -631,6 +757,7 @@ export class BookingPreviewComponent implements OnInit {
   onRepeatWeeklyChange(value: boolean): void {
     this.repeatWeekly.set(value);
     if (!value) {
+      this.activeRecurringPreset.set(null);
       return;
     }
     if (this.recurrenceEndMode() === 'COUNT') {
@@ -653,6 +780,11 @@ export class BookingPreviewComponent implements OnInit {
   onRecurrenceEndModeChange(value: string): void {
     const mode: RecurrenceEndMode = value === 'DATE' ? 'DATE' : 'COUNT';
     this.recurrenceEndMode.set(mode);
+    const activePreset = this.activeRecurringPreset();
+    if (activePreset) {
+      this.applyRecurringPreset(activePreset);
+      return;
+    }
     if (mode === 'COUNT') {
       this.syncEndDateFromWeeksCount();
       return;
@@ -663,6 +795,7 @@ export class BookingPreviewComponent implements OnInit {
   }
 
   onRecurrenceWeeksCountChange(value: string | number): void {
+    this.activeRecurringPreset.set(null);
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
       this.recurrenceWeeksCount.set(1);
@@ -679,6 +812,7 @@ export class BookingPreviewComponent implements OnInit {
   }
 
   onRecurrenceEndDateChange(value: string): void {
+    this.activeRecurringPreset.set(null);
     if (!value) {
       this.recurrenceEndDate.set('');
       return;
@@ -689,6 +823,40 @@ export class BookingPreviewComponent implements OnInit {
     this.syncWeeksCountFromEndDate(normalized);
   }
 
+  onBookingSubmissionModeChange(value: string): void {
+    if (value === 'HOLD') {
+      if (!this.canSelectHoldMode()) {
+        return;
+      }
+      this.bookingSubmissionMode.set('HOLD');
+      return;
+    }
+
+    this.bookingSubmissionMode.set('CONFIRMED');
+  }
+
+  applyRecurringPreset(key: RecurringPresetKey): void {
+    const preset = this.recurringPresets.find((item) => item.key === key);
+    if (!preset) {
+      return;
+    }
+
+    if (this.recurrenceEndMode() === 'COUNT') {
+      this.recurrenceWeeksCount.set(preset.weeks);
+      this.syncEndDateFromWeeksCount();
+      this.activeRecurringPreset.set(key);
+      return;
+    }
+
+    const endDate = this.getDateAfterWeeks(
+      this.selectedDate(),
+      Math.max(0, preset.weeks - 1)
+    );
+    this.recurrenceEndDate.set(endDate);
+    this.syncWeeksCountFromEndDate(endDate);
+    this.activeRecurringPreset.set(key);
+  }
+
   onStartTimeChange(value: string): void {
     this.startTime.set(value);
     this.handleSlotSelectionChanged();
@@ -697,6 +865,138 @@ export class BookingPreviewComponent implements OnInit {
   onEndTimeChange(value: string): void {
     this.endTime.set(value);
     this.handleSlotSelectionChanged();
+  }
+
+  private capturePrefillFromQueryParams(): void {
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    const prefill: BookingPrefillQueryParams = {
+      facilityId: this.normalizeFacilityIdParam(
+        queryParamMap.get('facilityId')
+      ),
+      date: this.normalizeDateParam(queryParamMap.get('date')),
+      startTime: this.normalizeTimeParam(queryParamMap.get('startTime')),
+      endTime: this.normalizeTimeParam(queryParamMap.get('endTime')),
+    };
+
+    const hasPrefill = Object.values(prefill).some((value) => value !== null);
+    if (!hasPrefill) {
+      return;
+    }
+
+    this.queryPrefillParams = prefill;
+
+    if (prefill.date) {
+      this.selectedDate.set(prefill.date);
+    }
+    if (prefill.startTime) {
+      this.startTime.set(prefill.startTime);
+    }
+    if (prefill.endTime) {
+      this.endTime.set(prefill.endTime);
+    }
+    if (prefill.facilityId) {
+      this.selectedFacilityId.set(prefill.facilityId);
+    }
+  }
+
+  private resolveInitialFacilitySelection(
+    facilities: FacilityListItemDto[]
+  ): string {
+    const prefilledFacilityId = this.queryPrefillParams?.facilityId;
+    if (
+      prefilledFacilityId &&
+      facilities.some((facility) => facility.id === prefilledFacilityId)
+    ) {
+      return prefilledFacilityId;
+    }
+
+    const sharedSelection = this.facilityContext.selectedFacilityId();
+    if (
+      sharedSelection &&
+      facilities.some((facility) => facility.id === sharedSelection)
+    ) {
+      return sharedSelection;
+    }
+
+    const currentSelection = this.selectedFacilityId();
+    if (
+      currentSelection &&
+      facilities.some((facility) => facility.id === currentSelection)
+    ) {
+      return currentSelection;
+    }
+
+    return facilities[0]?.id ?? '';
+  }
+
+  private applyPrefillAfterFacilitiesLoad(): void {
+    const prefill = this.queryPrefillParams;
+    if (!prefill) {
+      return;
+    }
+
+    if (prefill.date) {
+      this.selectedDate.set(prefill.date);
+    }
+    if (prefill.startTime) {
+      this.startTime.set(prefill.startTime);
+    }
+    if (prefill.endTime) {
+      this.endTime.set(prefill.endTime);
+    }
+
+    this.queryPrefillParams = null;
+    this.handleSlotSelectionChanged();
+  }
+
+  private normalizeFacilityIdParam(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private normalizeDateParam(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = value.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return null;
+    }
+
+    const parsed = new Date(`${normalized}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : normalized;
+  }
+
+  private normalizeTimeParam(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = value.trim();
+    const match = /^(\d{2}):(\d{2})$/.exec(normalized);
+    if (!match) {
+      return null;
+    }
+
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (
+      !Number.isInteger(hours) ||
+      !Number.isInteger(minutes) ||
+      hours < 0 ||
+      hours > 23 ||
+      minutes < 0 ||
+      minutes > 59
+    ) {
+      return null;
+    }
+
+    return normalized;
   }
 
   /**
@@ -808,6 +1108,7 @@ export class BookingPreviewComponent implements OnInit {
     this.bookingReference.set(null);
     this.recurrenceGroupId.set(null);
     this.recurringCreatedCount.set(null);
+    this.lastSuccessfulBookingMode.set(null);
     this.confirmDialogOpen.set(false);
     this.alternativesExpanded.set(false);
     this.alternativesScrollTop.set(0);
@@ -1277,16 +1578,23 @@ export class BookingPreviewComponent implements OnInit {
       .subscribe({
         next: (response) => {
           this.joinWaitlistInProgress.set(false);
+          const queuePosition =
+            Number.isFinite(response.queuePosition) &&
+            response.queuePosition > 0
+              ? Math.floor(response.queuePosition)
+              : null;
           this.waitlistStatus.set({
             isOnWaitlist: response.status === WaitlistStatus.WAITING,
             entryId: response.entryId,
             status: response.status,
-            queuePosition: response.queuePosition,
+            queuePosition: queuePosition ?? undefined,
           });
           this.showToast(
-            this.t('BOOKING_PREVIEW.WAITLIST.JOIN_SUCCESS', {
-              position: response.queuePosition,
-            }),
+            queuePosition !== null
+              ? this.t('BOOKING_PREVIEW.WAITLIST.JOIN_SUCCESS', {
+                  position: queuePosition,
+                })
+              : this.t('BOOKING_PREVIEW.WAITLIST.ALREADY_JOINED'),
             'info'
           );
         },
@@ -1295,6 +1603,31 @@ export class BookingPreviewComponent implements OnInit {
           this.waitlistError.set(this.t('CLIENT_ERRORS.WAITLIST.JOIN_FAILED'));
         },
       });
+  }
+
+  openWaitlistOperations(): void {
+    const slotQuery = this.buildWaitlistStatusQuery();
+    const date = this.selectedDate();
+    const status = this.waitlistStatus()?.status;
+
+    if (
+      !slotQuery ||
+      !date ||
+      (status !== WaitlistStatus.WAITING && status !== WaitlistStatus.NOTIFIED)
+    ) {
+      return;
+    }
+
+    void this.router.navigate(['/dashboard/waitlist'], {
+      queryParams: {
+        date,
+        facilityId: slotQuery.facilityId,
+        status,
+        slotStart: slotQuery.startTime,
+        slotEnd: slotQuery.endTime,
+        source: 'booking-preview',
+      },
+    });
   }
 
   /**
@@ -1362,14 +1695,8 @@ export class BookingPreviewComponent implements OnInit {
     this.bookingReference.set(null);
     this.recurrenceGroupId.set(null);
     this.recurringCreatedCount.set(null);
-    this.customerName.set('');
-    this.customerPhone.set('');
-    this.matchedCustomer.set(null);
-    this.lookupLoading.set(false);
-    this.tagEditMode.set(false);
-    this.availableTags.set([]);
-    this.tenantTagsLoaded = false;
-    this.holdAsPending.set(false);
+    this.lastSuccessfulBookingMode.set(null);
+    this.resetBookingDraftState();
     this.toast.set(null);
   }
 
@@ -1425,7 +1752,9 @@ export class BookingPreviewComponent implements OnInit {
       `${this.selectedDate()}T${this.startTime()}`
     );
     const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
-    const status = this.holdAsPending() ? BookingStatus.PENDING : undefined;
+    const submissionMode = this.bookingSubmissionMode();
+    const status =
+      submissionMode === 'HOLD' ? BookingStatus.PENDING : undefined;
     const payload: {
       facilityId: string;
       startTime: string;
@@ -1498,6 +1827,7 @@ export class BookingPreviewComponent implements OnInit {
           next: (createdBooking: unknown) => {
             this.bookingInProgress.set(false);
             this.bookingSuccess.set(true);
+            this.lastSuccessfulBookingMode.set(submissionMode);
             if (isRecurring) {
               const series = createdBooking as {
                 recurrenceGroupId: string;
@@ -1517,20 +1847,21 @@ export class BookingPreviewComponent implements OnInit {
             }
             this.confirmDialogOpen.set(false);
             this.showToast(
-              isRecurring
-                ? this.t('BOOKING_PREVIEW.TOAST.RECURRING_BOOKING_CONFIRMED')
-                : this.t('BOOKING_PREVIEW.TOAST.BOOKING_CONFIRMED'),
+              submissionMode === 'HOLD'
+                ? this.t(
+                    isRecurring
+                      ? 'BOOKING_PREVIEW.TOAST.RECURRING_BOOKING_ON_HOLD'
+                      : 'BOOKING_PREVIEW.TOAST.BOOKING_ON_HOLD'
+                  )
+                : this.t(
+                    isRecurring
+                      ? 'BOOKING_PREVIEW.TOAST.RECURRING_BOOKING_CONFIRMED'
+                      : 'BOOKING_PREVIEW.TOAST.BOOKING_CONFIRMED'
+                  ),
               'success'
             );
             // Reset form for next booking
-            this.customerName.set('');
-            this.customerPhone.set('');
-            this.matchedCustomer.set(null);
-            this.lookupLoading.set(false);
-            this.tagEditMode.set(false);
-            this.availableTags.set([]);
-            this.tenantTagsLoaded = false;
-            this.holdAsPending.set(false);
+            this.resetBookingDraftState();
             this.previewResult.set(null);
             this.lastAction.set(null);
             this.resetRetryState();
@@ -1687,6 +2018,25 @@ export class BookingPreviewComponent implements OnInit {
       this.enforceStateConsistency(snapshot);
     });
 
+    effect(() => {
+      if (this.bookingSubmissionMode() !== 'HOLD') {
+        return;
+      }
+
+      if (this.loading()) {
+        return;
+      }
+
+      const result = this.previewResult();
+      if (!result) {
+        return;
+      }
+
+      if (!result.canBook || this.previewStale() || this.isPreviewStale()) {
+        this.bookingSubmissionMode.set('CONFIRMED');
+      }
+    });
+
     effect((onCleanup) => {
       const scheduledAt = this.retryScheduledAt();
       if (!scheduledAt) return;
@@ -1772,7 +2122,14 @@ export class BookingPreviewComponent implements OnInit {
     this.bookingReference.set(null);
     this.recurrenceGroupId.set(null);
     this.recurringCreatedCount.set(null);
+    this.lastSuccessfulBookingMode.set(null);
     this.confirmDialogOpen.set(false);
+    this.resetBookingDraftState();
+    this.alternativesExpanded.set(false);
+    this.alternativesScrollTop.set(0);
+  }
+
+  private resetBookingDraftState(): void {
     this.customerName.set('');
     this.customerPhone.set('');
     this.matchedCustomer.set(null);
@@ -1780,9 +2137,7 @@ export class BookingPreviewComponent implements OnInit {
     this.tagEditMode.set(false);
     this.availableTags.set([]);
     this.tenantTagsLoaded = false;
-    this.holdAsPending.set(false);
-    this.alternativesExpanded.set(false);
-    this.alternativesScrollTop.set(0);
+    this.bookingSubmissionMode.set('CONFIRMED');
   }
 
   private enforceStateConsistency(snapshot: PreviewStateSnapshot): void {
@@ -1998,7 +2353,7 @@ export class BookingPreviewComponent implements OnInit {
     this.waitlistStatus.set(null);
     this.waitlistLoading.set(false);
 
-    if (!this.inputsValid() || !this.isSelectedSlotInFuture()) {
+    if (!this.inputsValid() || !this.selectedSlotIsInFuture()) {
       return;
     }
 
@@ -2045,7 +2400,7 @@ export class BookingPreviewComponent implements OnInit {
 
   private refreshWaitlistStatus(): void {
     const query = this.buildWaitlistStatusQuery();
-    if (!query || !this.isSelectedSlotInFuture()) {
+    if (!query || !this.selectedSlotIsInFuture()) {
       this.waitlistStatus.set(null);
       this.waitlistLoading.set(false);
       return;

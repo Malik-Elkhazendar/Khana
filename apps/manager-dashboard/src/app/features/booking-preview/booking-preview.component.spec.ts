@@ -1,5 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import {
+  ActivatedRoute,
+  Params,
+  Router,
+  convertToParamMap,
+  provideRouter,
+} from '@angular/router';
 import { Subject, TimeoutError, of, throwError } from 'rxjs';
 import {
   TranslateModule,
@@ -18,6 +25,7 @@ import {
   PromoValidationReason,
   RecurrenceFrequency,
   UserRole,
+  WaitlistStatus,
 } from '@khana/shared-dtos';
 import { createApiMock, ApiServiceMock } from '../../testing/api-mocks';
 import {
@@ -37,6 +45,7 @@ const EN_TRANSLATIONS = JSON.parse(
 
 describe('BookingPreviewComponent', () => {
   let apiMock: ApiServiceMock;
+  let queryParams: Params;
   const facilityContextMock = {
     facilities: signal([]),
     selectedFacilityId: signal<string | null>(null),
@@ -70,15 +79,32 @@ describe('BookingPreviewComponent', () => {
 
   beforeEach(async () => {
     apiMock = createApiMock();
+    queryParams = {};
     facilityContextMock.initialize.mockReset();
     facilityContextMock.refreshFacilities.mockReset();
     facilityContextMock.selectFacility.mockReset();
+    facilityContextMock.selectFacility.mockImplementation(
+      (facilityId: string | null) => {
+        facilityContextMock.selectedFacilityId.set(facilityId);
+      }
+    );
     facilityContextMock.clearError.mockReset();
     facilityContextMock.selectedFacilityId.set(null);
 
     await TestBed.configureTestingModule({
       imports: [BookingPreviewComponent, TranslateModule.forRoot()],
       providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              get queryParamMap() {
+                return convertToParamMap(queryParams);
+              },
+            },
+          },
+        },
         { provide: ApiService, useValue: apiMock },
         { provide: FacilityContextStore, useValue: facilityContextMock },
         { provide: AuthStore, useValue: authStoreMock },
@@ -103,6 +129,43 @@ describe('BookingPreviewComponent', () => {
     expect(apiMock.getFacilities).toHaveBeenCalled();
     expect(component.facilities().length).toBe(1);
     expect(component.selectedFacilityId()).toBe(component.facilities()[0].id);
+  });
+
+  it('pre-fills facility, date, and times from query params on load', () => {
+    queryParams = {
+      facilityId: 'facility-1',
+      date: '2026-04-12',
+      startTime: '14:30',
+      endTime: '15:30',
+    };
+
+    const { component } = setupComponent();
+
+    expect(component.selectedFacilityId()).toBe('facility-1');
+    expect(component.selectedDate()).toBe('2026-04-12');
+    expect(component.startTime()).toBe('14:30');
+    expect(component.endTime()).toBe('15:30');
+  });
+
+  it('gives query prefill precedence over shared facility selection', () => {
+    const facilityA = createFacility({ id: 'facility-a', name: 'Court A' });
+    const facilityB = createFacility({ id: 'facility-b', name: 'Court B' });
+
+    facilityContextMock.selectedFacilityId.set('facility-a');
+    apiMock.getFacilities.mockReturnValueOnce(of([facilityA, facilityB]));
+    queryParams = {
+      facilityId: 'facility-b',
+      date: '2026-04-12',
+      startTime: '16:00',
+      endTime: '17:00',
+    };
+
+    const { component } = setupComponent();
+
+    expect(component.selectedFacilityId()).toBe('facility-b');
+    expect(facilityContextMock.selectFacility).toHaveBeenCalledWith(
+      'facility-b'
+    );
   });
 
   it('handles an empty facility list', () => {
@@ -323,6 +386,240 @@ describe('BookingPreviewComponent', () => {
     component.onSubmit();
 
     expect(component.previewResult()).toEqual(result);
+  });
+
+  it('renders the waitlist panel with a join CTA for an unavailable slot', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist"]'
+      )
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-join"]'
+      )
+    ).not.toBeNull();
+  });
+
+  it('renders an explanatory message instead of a join CTA for unavailable past slots', () => {
+    const { component, fixture } = setupComponent();
+
+    component.selectedDate.set('2024-01-01');
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist"]'
+      )
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-future-only"]'
+      )?.textContent
+    ).toContain('future slots');
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-join"]'
+      )
+    ).toBeNull();
+  });
+
+  it('renders waitlist loading state while checking status', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    component.waitlistLoading.set(true);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-loading"]'
+      )?.textContent
+    ).toContain('Checking your waitlist status');
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-join"]'
+      )
+    ).toBeNull();
+  });
+
+  it('shows queue position and hides join CTA when already waiting', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    component.waitlistStatus.set({
+      isOnWaitlist: true,
+      entryId: 'waitlist-1',
+      status: WaitlistStatus.WAITING,
+      queuePosition: 3,
+    });
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-waiting"]'
+      )?.textContent
+    ).toContain('position #3');
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-join"]'
+      )
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('.booking-preview__waitlist-link')
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('.booking-preview__waitlist-link')
+        ?.textContent
+    ).toContain('View queue for this slot');
+  });
+
+  it('falls back to a generic waitlist message when queue position is invalid', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    component.waitlistStatus.set({
+      isOnWaitlist: true,
+      entryId: 'waitlist-1',
+      status: WaitlistStatus.WAITING,
+      queuePosition: 0,
+    });
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-waiting"]'
+      )?.textContent
+    ).toContain("You're on the waitlist");
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-waiting"]'
+      )?.textContent
+    ).not.toContain('position #0');
+  });
+
+  it('shows notified state and hides join CTA when the user was already notified', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    component.waitlistStatus.set({
+      isOnWaitlist: false,
+      entryId: 'waitlist-1',
+      status: WaitlistStatus.NOTIFIED,
+    });
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-notified"]'
+      )?.textContent
+    ).toContain('already notified');
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-join"]'
+      )
+    ).toBeNull();
+  });
+
+  it('shows join CTA again when the latest waitlist entry is fulfilled', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    component.waitlistStatus.set({
+      isOnWaitlist: false,
+      entryId: 'waitlist-1',
+      status: WaitlistStatus.FULFILLED,
+    });
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-join"]'
+      )
+    ).not.toBeNull();
+  });
+
+  it('joins the waitlist from the unavailable preview and updates the UI state', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    fixture.detectChanges();
+
+    const joinButton = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      '[data-testid="booking-preview-waitlist-join"]'
+    );
+    joinButton?.click();
+    fixture.detectChanges();
+
+    expect(apiMock.joinBookingWaitlist).toHaveBeenCalledTimes(1);
+    expect(component.waitlistStatus()?.status).toBe(WaitlistStatus.WAITING);
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist-join"]'
+      )
+    ).toBeNull();
+  });
+
+  it('opens waitlist operations with matching filters for active waitlist entries', async () => {
+    const { component } = setupComponent();
+    const router = TestBed.inject(Router);
+    const navigateSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+    component.selectedDate.set('2026-03-04');
+    component.startTime.set('10:00');
+    component.endTime.set('11:00');
+    const expectedSlotStart = new Date('2026-03-04T10:00').toISOString();
+    const expectedSlotEnd = new Date('2026-03-04T11:00').toISOString();
+
+    component.waitlistStatus.set({
+      isOnWaitlist: true,
+      entryId: 'waitlist-1',
+      status: WaitlistStatus.WAITING,
+      queuePosition: 2,
+    });
+
+    component.openWaitlistOperations();
+
+    expect(navigateSpy).toHaveBeenCalledWith(['/dashboard/waitlist'], {
+      queryParams: {
+        date: component.selectedDate(),
+        facilityId: component.selectedFacilityId(),
+        status: WaitlistStatus.WAITING,
+        slotStart: expectedSlotStart,
+        slotEnd: expectedSlotEnd,
+        source: 'booking-preview',
+      },
+    });
+  });
+
+  it('still allows opening waitlist operations when active status has no entry id', () => {
+    const { component } = setupComponent();
+
+    component.waitlistStatus.set({
+      isOnWaitlist: true,
+      status: WaitlistStatus.WAITING,
+      queuePosition: 1,
+    });
+
+    expect(component.canOpenWaitlistOperations()).toBe(true);
+  });
+
+  it('does not render the waitlist panel for an available slot', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="booking-preview-waitlist"]'
+      )
+    ).toBeNull();
   });
 
   it('clears error and booking success before previewing', () => {
@@ -835,6 +1132,34 @@ describe('BookingPreviewComponent', () => {
     expect(apiMock.createBooking).not.toHaveBeenCalled();
   });
 
+  it('renders booking mode controls before a preview is available', () => {
+    const { fixture } = setupComponent();
+
+    const fieldset = fixture.nativeElement.querySelector(
+      '.booking-preview__booking-mode'
+    );
+    const holdInput = fixture.nativeElement.querySelector<HTMLInputElement>(
+      'input[name="bookingSubmissionMode"][value="HOLD"]'
+    );
+
+    expect(fieldset).not.toBeNull();
+    expect(holdInput).not.toBeNull();
+    expect(holdInput?.disabled).toBe(true);
+  });
+
+  it('enables place-on-hold mode when the preview is bookable', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    fixture.detectChanges();
+
+    const holdInput = fixture.nativeElement.querySelector<HTMLInputElement>(
+      'input[name="bookingSubmissionMode"][value="HOLD"]'
+    );
+
+    expect(holdInput?.disabled).toBe(false);
+  });
+
   it('sends a pending status when holding a booking', () => {
     const { component } = setupComponent();
     apiMock.createBooking.mockReturnValueOnce(of(createBooking()));
@@ -842,7 +1167,7 @@ describe('BookingPreviewComponent', () => {
     component.previewResult.set(createBookingPreview({ canBook: true }));
     component.customerName.set('Layla');
     component.customerPhone.set('0555555555');
-    component.holdAsPending.set(true);
+    component.bookingSubmissionMode.set('HOLD');
     component.onBook();
 
     const payload = apiMock.createBooking.mock.calls[0][0];
@@ -856,11 +1181,34 @@ describe('BookingPreviewComponent', () => {
     component.previewResult.set(createBookingPreview({ canBook: true }));
     component.customerName.set('Layla');
     component.customerPhone.set('0555555555');
-    component.holdAsPending.set(false);
+    component.bookingSubmissionMode.set('CONFIRMED');
     component.onBook();
 
     const payload = apiMock.createBooking.mock.calls[0][0];
     expect(payload.status).toBeUndefined();
+  });
+
+  it('resets hold mode when the preview becomes unavailable', () => {
+    const { component, fixture } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.bookingSubmissionMode.set('HOLD');
+    fixture.detectChanges();
+
+    component.previewResult.set(createBookingPreview({ canBook: false }));
+    fixture.detectChanges();
+
+    expect(component.bookingSubmissionMode()).toBe('CONFIRMED');
+  });
+
+  it('uses hold-specific confirmation copy when hold mode is selected', () => {
+    const { component } = setupComponent();
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.bookingSubmissionMode.set('HOLD');
+
+    expect(component.confirmCopy.title).toBe('Place booking on hold');
+    expect(component.confirmCopy.confirmLabel).toBe('Place on hold');
   });
 
   it('trims customer details before creating a booking', () => {
@@ -947,6 +1295,113 @@ describe('BookingPreviewComponent', () => {
     component.onRecurrenceEndModeChange('DATE');
 
     expect(component.recurrenceEndDate()).toBe('2026-04-18');
+  });
+
+  it('shows recurring preset shortcuts only when repeat is enabled', () => {
+    const { component, fixture } = setupComponent();
+
+    expect(
+      fixture.nativeElement.querySelector('.booking-preview__recurring-presets')
+    ).toBeNull();
+
+    component.onRepeatWeeklyChange(true);
+    fixture.detectChanges();
+
+    const buttons = fixture.nativeElement.querySelectorAll(
+      '.booking-preview__recurring-preset-btn'
+    );
+    expect(buttons.length).toBe(4);
+  });
+
+  it('applies four-week preset in count mode and marks it active', () => {
+    const { component, fixture } = setupComponent();
+
+    component.selectedDate.set('2026-03-01');
+    component.onRepeatWeeklyChange(true);
+    component.onRecurrenceEndModeChange('COUNT');
+    fixture.detectChanges();
+
+    const buttons = fixture.nativeElement.querySelectorAll<HTMLButtonElement>(
+      '.booking-preview__recurring-preset-btn'
+    );
+    buttons[0].click();
+    fixture.detectChanges();
+
+    expect(component.recurrenceWeeksCount()).toBe(4);
+    expect(component.recurrenceEndDate()).toBe('2026-03-22');
+    expect(component.activeRecurringPreset()).toBe('FOUR_WEEKS');
+    expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('applies three-month preset in date mode using duration weeks', () => {
+    const { component } = setupComponent();
+
+    component.selectedDate.set('2026-03-01');
+    component.onRepeatWeeklyChange(true);
+    component.onRecurrenceEndModeChange('DATE');
+    component.applyRecurringPreset('THREE_MONTHS');
+
+    expect(component.recurrenceEndDate()).toBe('2026-05-24');
+    expect(component.recurrenceWeeksCount()).toBe(13);
+    expect(component.activeRecurringPreset()).toBe('THREE_MONTHS');
+  });
+
+  it('clears active recurring preset when weeks count is manually edited', () => {
+    const { component } = setupComponent();
+
+    component.onRepeatWeeklyChange(true);
+    component.onRecurrenceEndModeChange('COUNT');
+    component.applyRecurringPreset('EIGHT_WEEKS');
+
+    expect(component.activeRecurringPreset()).toBe('EIGHT_WEEKS');
+
+    component.onRecurrenceWeeksCountChange(9);
+
+    expect(component.activeRecurringPreset()).toBeNull();
+  });
+
+  it('clears active recurring preset when end date is manually edited', () => {
+    const { component } = setupComponent();
+
+    component.onRepeatWeeklyChange(true);
+    component.onRecurrenceEndModeChange('DATE');
+    component.applyRecurringPreset('SIX_MONTHS');
+
+    expect(component.activeRecurringPreset()).toBe('SIX_MONTHS');
+
+    component.onRecurrenceEndDateChange('2026-10-10');
+
+    expect(component.activeRecurringPreset()).toBeNull();
+  });
+
+  it('keeps active preset duration when selected date changes', () => {
+    const { component } = setupComponent();
+
+    component.selectedDate.set('2026-03-01');
+    component.onRepeatWeeklyChange(true);
+    component.onRecurrenceEndModeChange('DATE');
+    component.applyRecurringPreset('FOUR_WEEKS');
+
+    component.onDateChange('2026-03-08');
+
+    expect(component.recurrenceEndDate()).toBe('2026-03-29');
+    expect(component.recurrenceWeeksCount()).toBe(4);
+    expect(component.activeRecurringPreset()).toBe('FOUR_WEEKS');
+  });
+
+  it('keeps preset-applied horizon stable when frequency changes', () => {
+    const { component } = setupComponent();
+
+    component.selectedDate.set('2026-03-01');
+    component.onRepeatWeeklyChange(true);
+    component.onRecurrenceEndModeChange('COUNT');
+    component.applyRecurringPreset('EIGHT_WEEKS');
+
+    component.onRecurrenceFrequencyChange(RecurrenceFrequency.BIWEEKLY);
+
+    expect(component.recurrenceWeeksCount()).toBe(8);
+    expect(component.recurrenceEndDate()).toBe('2026-04-19');
+    expect(component.activeRecurringPreset()).toBe('EIGHT_WEEKS');
   });
 
   it('maps count mode to an inclusive recurrence end date for recurring bookings', () => {
@@ -1048,12 +1503,31 @@ describe('BookingPreviewComponent', () => {
     component.previewResult.set(createBookingPreview({ canBook: true }));
     component.customerName.set('Layla');
     component.customerPhone.set('0555555555');
-    component.holdAsPending.set(true);
+    component.bookingSubmissionMode.set('HOLD');
     component.onBook();
 
     expect(component.customerName()).toBe('');
     expect(component.customerPhone()).toBe('');
-    expect(component.holdAsPending()).toBe(false);
+    expect(component.bookingSubmissionMode()).toBe('CONFIRMED');
+  });
+
+  it('shows hold-specific success and toast copy after creating a hold', () => {
+    const { component } = setupComponent();
+    apiMock.createBooking.mockReturnValueOnce(
+      of(createBooking({ bookingReference: 'REF-HOLD' }))
+    );
+
+    component.previewResult.set(createBookingPreview({ canBook: true }));
+    component.customerName.set('Layla');
+    component.customerPhone.set('0555555555');
+    component.bookingSubmissionMode.set('HOLD');
+    component.onBook();
+
+    expect(component.lastSuccessfulBookingMode()).toBe('HOLD');
+    expect(component.bookingSuccessCopy().title).toBe(
+      'Booking Placed on Hold!'
+    );
+    expect(component.toast()?.message).toBe('Booking placed on hold');
   });
 
   it('clears preview results after booking success', () => {
@@ -1129,14 +1603,16 @@ describe('BookingPreviewComponent', () => {
     component.bookingReference.set('REF-2');
     component.customerName.set('Layla');
     component.customerPhone.set('0555555555');
-    component.holdAsPending.set(true);
+    component.bookingSubmissionMode.set('HOLD');
+    component.lastSuccessfulBookingMode.set('HOLD');
     component.resetBooking();
 
     expect(component.bookingSuccess()).toBe(false);
     expect(component.bookingReference()).toBeNull();
     expect(component.customerName()).toBe('');
     expect(component.customerPhone()).toBe('');
-    expect(component.holdAsPending()).toBe(false);
+    expect(component.bookingSubmissionMode()).toBe('CONFIRMED');
+    expect(component.lastSuccessfulBookingMode()).toBeNull();
   });
 
   it('keeps preview results when loading facilities succeeds', () => {

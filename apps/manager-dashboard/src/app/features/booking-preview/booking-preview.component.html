@@ -162,13 +162,7 @@
         text(
           'BOOKING_PREVIEW.FORM.TIMEZONE_HINT',
           'Times shown in {{timezone
-
-
-
-
-
-
-      }}', { timezone: timezoneLabel } ) }}
+      }}', { timezone: timezoneLabel() } ) }}
     </p>
 
     <!-- Promo Code -->
@@ -199,7 +193,7 @@
       }
     </div>
 
-    <div class="hold-toggle">
+    <div class="booking-preview__recurrence-controls">
       <label for="repeatWeekly">
         <input
           type="checkbox"
@@ -272,6 +266,34 @@
           </select>
         </div>
       </div>
+      <div
+        class="booking-preview__recurring-presets"
+        role="group"
+        [attr.aria-label]="
+          text('BOOKING_PREVIEW.RECURRING_PRESETS.LABEL', 'Recurring presets')
+        "
+      >
+        <p class="booking-preview__recurring-presets-label">
+          {{
+            text('BOOKING_PREVIEW.RECURRING_PRESETS.LABEL', 'Recurring presets')
+          }}
+        </p>
+        <div class="booking-preview__recurring-presets-grid">
+          @for (preset of recurringPresets; track preset.key) {
+          <button
+            type="button"
+            class="dashboard-btn dashboard-btn--secondary booking-preview__recurring-preset-btn"
+            [class.booking-preview__recurring-preset-btn--active]="
+              activeRecurringPreset() === preset.key
+            "
+            [attr.aria-pressed]="activeRecurringPreset() === preset.key"
+            (click)="applyRecurringPreset(preset.key)"
+          >
+            {{ text(preset.labelKey) }}
+          </button>
+          }
+        </div>
+      </div>
       @if (showWeeksCountField()) {
       <div class="form-group">
         <label for="recurrenceWeeksCount">{{
@@ -305,6 +327,120 @@
       </div>
       } }
     </div>
+
+    <fieldset
+      class="booking-preview__booking-mode"
+      [disabled]="loading() || facilitiesLoading() || bookingInProgress()"
+      aria-describedby="booking-submission-mode-note"
+    >
+      <legend>
+        {{
+          text(
+            'BOOKING_PREVIEW.BOOKING_MODE.TITLE',
+            'How should this booking be created?'
+          )
+        }}
+      </legend>
+      <p class="booking-preview__booking-mode-description">
+        {{
+          text(
+            'BOOKING_PREVIEW.BOOKING_MODE.DESCRIPTION',
+            'Choose whether to confirm immediately or place the slot on hold once the preview is available.'
+          )
+        }}
+      </p>
+      <div class="booking-preview__booking-mode-options">
+        <label
+          class="booking-preview__booking-mode-option"
+          [class.booking-preview__booking-mode-option--selected]="
+            bookingSubmissionMode() === 'CONFIRMED'
+          "
+        >
+          <input
+            type="radio"
+            name="bookingSubmissionMode"
+            value="CONFIRMED"
+            [checked]="bookingSubmissionMode() === 'CONFIRMED'"
+            (change)="onBookingSubmissionModeChange('CONFIRMED')"
+          />
+          <span class="booking-preview__booking-mode-card">
+            <span class="booking-preview__booking-mode-title">
+              {{
+                text(
+                  'BOOKING_PREVIEW.BOOKING_MODE.CONFIRMED_LABEL',
+                  'Confirm booking'
+                )
+              }}
+            </span>
+            <span class="booking-preview__booking-mode-hint">
+              {{
+                text(
+                  'BOOKING_PREVIEW.BOOKING_MODE.CONFIRMED_HINT',
+                  'Create the booking immediately once you confirm the final details.'
+                )
+              }}
+            </span>
+          </span>
+        </label>
+
+        <label
+          class="booking-preview__booking-mode-option"
+          [class.booking-preview__booking-mode-option--selected]="
+            bookingSubmissionMode() === 'HOLD'
+          "
+          [class.booking-preview__booking-mode-option--disabled]="
+            !canSelectHoldMode()
+          "
+        >
+          <input
+            type="radio"
+            name="bookingSubmissionMode"
+            value="HOLD"
+            [checked]="bookingSubmissionMode() === 'HOLD'"
+            [disabled]="!canSelectHoldMode()"
+            (change)="onBookingSubmissionModeChange('HOLD')"
+          />
+          <span class="booking-preview__booking-mode-card">
+            <span class="booking-preview__booking-mode-title">
+              {{
+                text(
+                  'BOOKING_PREVIEW.BOOKING_MODE.HOLD_LABEL',
+                  'Reserve as hold (pending)'
+                )
+              }}
+            </span>
+            <span class="booking-preview__booking-mode-hint">
+              {{
+                text(
+                  'BOOKING_PREVIEW.BOOKING_MODE.HOLD_HINT',
+                  'Temporarily reserve this slot until confirmation.'
+                )
+              }}
+            </span>
+          </span>
+        </label>
+      </div>
+      <p
+        class="booking-preview__booking-mode-note"
+        id="booking-submission-mode-note"
+      >
+        @if (canSelectHoldMode()) {
+        {{
+          text(
+            'BOOKING_PREVIEW.BOOKING_MODE.HOLD_HINT',
+            'Temporarily reserve this slot until confirmation.'
+          )
+        }}
+        } @else {
+        {{
+          text(
+            'BOOKING_PREVIEW.BOOKING_MODE.HOLD_UNAVAILABLE_HINT',
+            'Place on hold becomes available after a bookable preview is loaded.'
+          )
+        }}
+        }
+      </p>
+    </fieldset>
 
     <!-- Submit Button -->
     <button type="submit" class="btn-primary" [disabled]="!canSubmit()">
@@ -468,6 +604,87 @@
       </div>
       }
     </div>
+    } @if (!result.canBook) {
+    <section
+      class="booking-preview__waitlist"
+      aria-live="polite"
+      data-testid="booking-preview-waitlist"
+    >
+      <div class="booking-preview__waitlist-header">
+        <h3>{{ text('BOOKING_PREVIEW.WAITLIST.TITLE') }}</h3>
+        <p>
+          {{ text('BOOKING_PREVIEW.WAITLIST.SUBTITLE') }}
+        </p>
+      </div>
+
+      @if (!selectedSlotIsInFuture()) {
+      <p
+        class="booking-preview__waitlist-message"
+        data-testid="booking-preview-waitlist-future-only"
+      >
+        {{ text('BOOKING_PREVIEW.WAITLIST.FUTURE_ONLY') }}
+      </p>
+      } @else if (waitlistLoading()) {
+      <p
+        class="booking-preview__waitlist-message"
+        data-testid="booking-preview-waitlist-loading"
+      >
+        {{ text('BOOKING_PREVIEW.WAITLIST.CHECKING_STATUS') }}
+      </p>
+      } @else if (waitlistStatus()?.status === WaitlistStatus.WAITING) {
+      <p
+        class="booking-preview__waitlist-message"
+        data-testid="booking-preview-waitlist-waiting"
+      >
+        @if (waitlistQueuePosition() !== null) {
+        {{
+          text('BOOKING_PREVIEW.WAITLIST.INDICATOR', {
+            position: waitlistQueuePosition() ?? 1
+          })
+        }}
+        } @else {
+        {{ text('BOOKING_PREVIEW.WAITLIST.ALREADY_JOINED') }}
+        }
+      </p>
+      } @else if (waitlistStatus()?.status === WaitlistStatus.NOTIFIED) {
+      <p
+        class="booking-preview__waitlist-message"
+        data-testid="booking-preview-waitlist-notified"
+      >
+        {{ text('BOOKING_PREVIEW.WAITLIST.NOTIFIED') }}
+      </p>
+      } @if (waitlistError()) {
+      <p class="booking-preview__waitlist-error" role="alert">
+        {{ waitlistError() }}
+      </p>
+      } @if (canJoinWaitlist()) {
+      <button
+        type="button"
+        class="btn-secondary booking-preview__waitlist-cta"
+        data-testid="booking-preview-waitlist-join"
+        [disabled]="joinWaitlistInProgress()"
+        (click)="joinWaitlist()"
+      >
+        @if (joinWaitlistInProgress()) {
+        {{ text('BOOKING_PREVIEW.WAITLIST.JOINING') }}
+        } @else {
+        {{ text('BOOKING_PREVIEW.WAITLIST.JOIN') }}
+        }
+      </button>
+      } @if (canOpenWaitlistOperations()) {
+      <div
+        class="dashboard-action-group dashboard-action-group--stack-compact booking-preview__waitlist-actions"
+      >
+        <button
+          type="button"
+          class="dashboard-btn dashboard-btn--secondary booking-preview__waitlist-link"
+          (click)="openWaitlistOperations()"
+        >
+          {{ text('BOOKING_PREVIEW.WAITLIST.VIEW_OPERATIONS') }}
+        </button>
+      </div>
+      }
+    </section>
     }
 
     <!-- Price Breakdown -->
@@ -504,6 +721,7 @@
 
 
 
+
             }}x)', { multiplier: result.priceBreakdown.timeMultiplier } ) }}
           </td>
           <td class="modifier">
@@ -517,6 +735,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.WEEKEND_RATE',
                 'Weekend Rate ({{multiplier
+
 
 
 
@@ -560,6 +779,7 @@
               text(
                 'BOOKING_PREVIEW.PRICING.PROMO_CODE',
                 'Promo ({{code
+
 
 
 
@@ -814,33 +1034,6 @@
         {{ text('BOOKING_PREVIEW.CUSTOMER.CUSTOMER_NEW', 'New customer') }}
       </p>
       }
-      <div class="hold-toggle">
-        <label for="holdAsPending">
-          <input
-            type="checkbox"
-            [ngModel]="holdAsPending()"
-            (ngModelChange)="holdAsPending.set($event)"
-            name="holdAsPending"
-            id="holdAsPending"
-            aria-describedby="hold-hint"
-            [disabled]="bookingInProgress()"
-          />
-          {{
-            text(
-              'BOOKING_PREVIEW.CUSTOMER.HOLD_LABEL',
-              'Reserve as hold (pending)'
-            )
-          }}
-        </label>
-        <p class="hold-hint" id="hold-hint">
-          {{
-            text(
-              'BOOKING_PREVIEW.CUSTOMER.HOLD_HINT',
-              'Temporarily reserve this slot until confirmation.'
-            )
-          }}
-        </p>
-      </div>
     </div>
 
     <!-- Confirm Booking Button -->
@@ -850,11 +1043,17 @@
       [disabled]="!canBook()"
       (click)="openConfirmDialog()"
     >
-      @if (bookingInProgress()) {
+      @if (bookingInProgress()) { @if (isHoldMode()) {
+      {{
+        text('BOOKING_PREVIEW.ACTIONS.PLACING_ON_HOLD', 'Placing on hold...')
+      }}
+      } @else {
       {{ text('BOOKING_PREVIEW.ACTIONS.CONFIRMING', 'Confirming...') }}
+      } } @else { @if (isHoldMode()) {
+      {{ text('BOOKING_PREVIEW.ACTIONS.PLACE_ON_HOLD', 'Place on Hold') }}
       } @else {
       {{ text('BOOKING_PREVIEW.ACTIONS.CONFIRM_BOOKING', 'Confirm Booking') }}
-      }
+      } }
     </button>
     }
   </div>
@@ -910,7 +1109,7 @@
           )
         }}</span>
       </div>
-      @if (holdAsPending()) {
+      @if (isHoldMode()) {
       <div class="confirm-row">
         <span class="label">{{
           text('BOOKING_PREVIEW.CONFIRM_SUMMARY.HOLD_LABEL', 'Hold')
@@ -952,7 +1151,7 @@
   @if (bookingSuccess()) {
   <div class="success-message" role="status" aria-live="polite">
     <span class="success-icon" aria-hidden="true">✓</span>
-    <p>{{ text('BOOKING_PREVIEW.SUCCESS.TITLE', 'Booking Confirmed!') }}</p>
+    <p>{{ bookingSuccessCopy().title }}</p>
     @if (bookingReference()) {
     <p class="success-reference">
       {{ text('BOOKING_PREVIEW.SUCCESS.REFERENCE_PREFIX', 'Reference:') }}
@@ -973,12 +1172,7 @@
     </p>
     }
     <p class="success-subtitle">
-      {{
-        text(
-          'BOOKING_PREVIEW.SUCCESS.SUBTITLE',
-          'You will receive a confirmation shortly.'
-        )
-      }}
+      {{ bookingSuccessCopy().subtitle }}
     </p>
     <button type="button" class="btn-secondary" (click)="resetBooking()">
       {{ text('BOOKING_PREVIEW.SUCCESS.CTA_ANOTHER', 'Make Another Booking') }}
