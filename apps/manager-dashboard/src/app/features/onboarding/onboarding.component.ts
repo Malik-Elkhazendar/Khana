@@ -51,12 +51,29 @@ const ASSIGNABLE_ROLES: ReadonlyArray<Exclude<UserRole, UserRole.OWNER>> = [
   UserRole.STAFF,
   UserRole.VIEWER,
 ];
+const ONBOARDING_STEPS = [
+  { titleKey: 'ONBOARDING.STEPS.BUSINESS' },
+  { titleKey: 'ONBOARDING.STEPS.FACILITY' },
+  { titleKey: 'ONBOARDING.STEPS.INVITE' },
+  { titleKey: 'ONBOARDING.STEPS.CONFIRM' },
+] as const;
+const TOTAL_ONBOARDING_STEPS = ONBOARDING_STEPS.length;
+
+type OnboardingStepState = 'completed' | 'current' | 'upcoming';
 
 type InviteResult = {
   email: string;
   role: Exclude<UserRole, UserRole.OWNER>;
   success: boolean;
   message: string;
+};
+
+type OnboardingStepViewModel = {
+  index: number;
+  titleKey: string;
+  state: OnboardingStepState;
+  stateKey: string;
+  isCurrent: boolean;
 };
 
 const operatingHoursValidator: ValidatorFn = (
@@ -100,10 +117,29 @@ export class OnboardingComponent {
   readonly inviteResults = signal<InviteResult[]>([]);
   readonly completionLoading = signal(false);
   readonly completionError = signal<string | null>(null);
+  readonly totalSteps = TOTAL_ONBOARDING_STEPS;
 
   readonly businessTypes = BUSINESS_TYPE_OPTIONS;
   readonly facilityTypes = FACILITY_TYPE_OPTIONS;
   readonly assignableRoles = ASSIGNABLE_ROLES;
+  readonly onboardingSteps = computed<ReadonlyArray<OnboardingStepViewModel>>(
+    () => {
+      const current = this.currentStep();
+
+      return ONBOARDING_STEPS.map((step, idx) => {
+        const index = idx + 1;
+        const state = this.resolveStepState(index, current);
+
+        return {
+          index,
+          titleKey: step.titleKey,
+          state,
+          stateKey: `ONBOARDING.STEP_STATE.${state.toUpperCase()}`,
+          isCurrent: state === 'current',
+        };
+      });
+    }
+  );
 
   readonly successfulInviteCount = computed(
     () => this.inviteResults().filter((item) => item.success).length
@@ -344,5 +380,20 @@ export class OnboardingComponent {
 
     const phonePattern = /^[+]?[0-9\s()-]{7,}$/;
     return phonePattern.test(value) ? null : { phone: true };
+  }
+
+  private resolveStepState(
+    stepIndex: number,
+    currentStep: number
+  ): OnboardingStepState {
+    if (stepIndex < currentStep) {
+      return 'completed';
+    }
+
+    if (stepIndex === currentStep) {
+      return 'current';
+    }
+
+    return 'upcoming';
   }
 }

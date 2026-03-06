@@ -14,23 +14,32 @@
     <p class="onboarding-progress__counter">
       {{
         'ONBOARDING.STEP_COUNTER'
-          | translate : { current: currentStep(), total: 4 }
+          | translate : { current: currentStep(), total: totalSteps }
       }}
     </p>
 
     <ol class="onboarding-progress__steps">
-      <li [class.onboarding-progress__step--active]="currentStep() >= 1">
-        {{ 'ONBOARDING.STEPS.BUSINESS' | translate }}
+      @for (step of onboardingSteps(); track step.index) {
+      <li
+        class="onboarding-progress__step"
+        [class.onboarding-progress__step--completed]="
+          step.state === 'completed'
+        "
+        [class.onboarding-progress__step--current]="step.state === 'current'"
+        [class.onboarding-progress__step--upcoming]="step.state === 'upcoming'"
+        [attr.aria-current]="step.isCurrent ? 'step' : null"
+      >
+        <span class="onboarding-progress__step-number" aria-hidden="true">
+          {{ step.index }}
+        </span>
+        <span class="onboarding-progress__step-title">
+          {{ step.titleKey | translate }}
+        </span>
+        <span class="onboarding-progress__step-state">
+          {{ step.stateKey | translate }}
+        </span>
       </li>
-      <li [class.onboarding-progress__step--active]="currentStep() >= 2">
-        {{ 'ONBOARDING.STEPS.FACILITY' | translate }}
-      </li>
-      <li [class.onboarding-progress__step--active]="currentStep() >= 3">
-        {{ 'ONBOARDING.STEPS.INVITE' | translate }}
-      </li>
-      <li [class.onboarding-progress__step--active]="currentStep() >= 4">
-        {{ 'ONBOARDING.STEPS.CONFIRM' | translate }}
-      </li>
+      }
     </ol>
   </section>
 

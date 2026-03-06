@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { TranslateModule } from '@ngx-translate/core';
@@ -102,6 +102,13 @@ describe('OnboardingComponent', () => {
     component.nextStep();
   };
 
+  const getProgressSteps = (fixture: ComponentFixture<OnboardingComponent>) =>
+    Array.from(
+      fixture.nativeElement.querySelectorAll<HTMLElement>(
+        '.onboarding-progress__step'
+      )
+    );
+
   it('validates step 1 and step 2 before progressing', () => {
     const fixture = TestBed.createComponent(OnboardingComponent);
     const component = fixture.componentInstance;
@@ -121,6 +128,73 @@ describe('OnboardingComponent', () => {
 
     component.nextStep();
     expect(component.currentStep()).toBe(2);
+  });
+
+  it('renders distinct progress states and aria-current for the active step', () => {
+    const fixture = TestBed.createComponent(OnboardingComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const initialSteps = getProgressSteps(fixture);
+    expect(initialSteps).toHaveLength(4);
+    expect(
+      initialSteps[0].classList.contains('onboarding-progress__step--current')
+    ).toBe(true);
+    expect(initialSteps[0].getAttribute('aria-current')).toBe('step');
+    expect(
+      initialSteps[1].classList.contains('onboarding-progress__step--upcoming')
+    ).toBe(true);
+
+    component.currentStep.set(2);
+    fixture.detectChanges();
+    const secondStepState = getProgressSteps(fixture);
+    expect(
+      secondStepState[0].classList.contains(
+        'onboarding-progress__step--completed'
+      )
+    ).toBe(true);
+    expect(
+      secondStepState[1].classList.contains(
+        'onboarding-progress__step--current'
+      )
+    ).toBe(true);
+    expect(secondStepState[1].getAttribute('aria-current')).toBe('step');
+    expect(
+      secondStepState[3].classList.contains(
+        'onboarding-progress__step--upcoming'
+      )
+    ).toBe(true);
+
+    component.currentStep.set(4);
+    fixture.detectChanges();
+    const finalStepState = getProgressSteps(fixture);
+    expect(
+      finalStepState[0].classList.contains(
+        'onboarding-progress__step--completed'
+      )
+    ).toBe(true);
+    expect(
+      finalStepState[2].classList.contains(
+        'onboarding-progress__step--completed'
+      )
+    ).toBe(true);
+    expect(
+      finalStepState[3].classList.contains('onboarding-progress__step--current')
+    ).toBe(true);
+  });
+
+  it('renders step state labels for current and upcoming markers', () => {
+    const fixture = TestBed.createComponent(OnboardingComponent);
+    fixture.detectChanges();
+
+    const stateLabels = Array.from(
+      fixture.nativeElement.querySelectorAll<HTMLElement>(
+        '.onboarding-progress__step-state'
+      )
+    ).map((node) => node.textContent?.trim());
+
+    expect(stateLabels).toContain('ONBOARDING.STEP_STATE.CURRENT');
+    expect(stateLabels).toContain('ONBOARDING.STEP_STATE.UPCOMING');
   });
 
   it('keeps invite failures non-blocking and continues to confirmation', () => {
