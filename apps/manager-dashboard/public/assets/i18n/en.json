@@ -261,21 +261,45 @@
       },
       "SETTINGS": {
         "TITLE": "Settings",
-        "SUBTITLE": "Account preferences and tenant context",
+        "SUBTITLE": "Manage account, organization, business goals, and security settings.",
         "LOADING": "Loading settings...",
         "ERROR": "Unable to load settings.",
         "ACCOUNT_TITLE": "Account",
         "TENANT_TITLE": "Tenant Context",
         "PREFERENCES_TITLE": "Preferences",
         "SECURITY_TITLE": "Security",
+        "SCOPE_LABEL": "Scope",
         "TOGGLE_LANGUAGE": "Toggle Language",
         "CHANGE_PASSWORD": "Change Password",
         "LOGOUT_ALL": "Logout All Other Devices",
         "LOGOUT_ALL_SUCCESS": "Other sessions were logged out successfully.",
         "LOGOUT_ALL_ERROR": "Unable to log out other sessions.",
+        "SECTIONS": {
+          "ACCOUNT": {
+            "TITLE": "My Account",
+            "SUBTITLE": "View your personal profile and interface preference controls.",
+            "SCOPE": "Personal scope",
+            "ERROR": "Account information is unavailable."
+          },
+          "ORGANIZATION": {
+            "TITLE": "Organization",
+            "SUBTITLE": "Tenant-level context used for facilities, bookings, and operations.",
+            "SCOPE": "Tenant scope (owner and manager)"
+          },
+          "SECURITY": {
+            "TITLE": "Security",
+            "SUBTITLE": "Manage password updates and active session controls for your account.",
+            "SCOPE": "Personal scope"
+          }
+        },
+        "ORGANIZATION": {
+          "LOADING": "Loading organization context...",
+          "ERROR": "Unable to load organization context."
+        },
         "GOALS": {
-          "TITLE": "Monthly goals",
-          "SUBTITLE": "Set your monthly revenue and occupancy targets.",
+          "TITLE": "Business Goals",
+          "SUBTITLE": "Set monthly tenant targets for revenue and occupancy.",
+          "SCOPE": "Tenant scope (owner updates only)",
           "LOADING": "Loading goals...",
           "MONTHLY_REVENUE_LABEL": "Monthly revenue target (SAR)",
           "MONTHLY_OCCUPANCY_LABEL": "Monthly occupancy target (%)",
@@ -291,6 +315,18 @@
             "SET_GOAL": "Set goals",
             "LATER": "Later"
           }
+        },
+        "TIMEZONE": {
+          "LABEL": "Timezone",
+          "PLACEHOLDER": "Search and select timezone (e.g. Asia/Riyadh)",
+          "HELP": "Tenant timezone is used for analytics day boundaries and booking time displays.",
+          "LOADING": "Loading timezone setting...",
+          "SAVE": "Save timezone",
+          "SAVE_SUCCESS": "Timezone updated successfully.",
+          "SAVE_ERROR": "Unable to update timezone.",
+          "LOAD_ERROR": "Unable to load timezone setting.",
+          "INVALID": "Select a valid IANA timezone.",
+          "SEARCH_EMPTY": "No matching timezone found."
         },
         "FIELDS": {
           "NAME": "Name",
@@ -311,7 +347,24 @@
           "STATUS": "Status",
           "ALL_STATUSES": "All statuses",
           "APPLY": "Apply filters",
+          "UPCOMING": "Upcoming",
           "TODAY": "Today"
+        },
+        "REPORT": {
+          "TITLE": "Operations Report",
+          "SUBTITLE": "Review queue activity across the selected report window.",
+          "SUMMARY_SCOPE": "Summary cards reflect the current filters only.",
+          "FACILITY_LABEL": "Facility",
+          "RANGE_LABEL": "Range",
+          "STATUS_LABEL": "Status"
+        },
+        "CONTEXT": {
+          "TITLE": "Selected slot context",
+          "MESSAGE": "Showing queue context for the slot you opened from Booking Preview.",
+          "FACILITY_LABEL": "Facility",
+          "SLOT_LABEL": "Slot",
+          "EMPTY_TITLE": "No queue entries match this slot context",
+          "EMPTY": "The current report window does not contain any waitlist entries for this exact slot."
         },
         "SUMMARY": {
           "WAITING": "Waiting",
@@ -331,6 +384,7 @@
           "USER": "User",
           "SLOT": "Desired Slot",
           "POSITION": "Queue Position",
+          "NOT_AVAILABLE": "N/A",
           "CREATED_AT": "Created At",
           "NOTIFIED_AT": "Notified At",
           "EXPIRED_AT": "Expired At",
@@ -339,11 +393,14 @@
         "ACTIONS": {
           "NOTIFY_NEXT": "Notify Next",
           "EXPIRE": "Expire Entry",
+          "BOOK_NOW": "Book Now",
           "NO_WAITING_ENTRY": "No waiting entry available for this slot."
         },
         "STATE": {
           "LOADING": "Loading waitlist entries...",
-          "EMPTY": "No waitlist entries found for the selected filters."
+          "ERROR_TITLE": "Unable to load waitlist",
+          "EMPTY_TITLE": "No waitlist activity in this report",
+          "EMPTY": "No queue entries match the current report filters."
         },
         "ERRORS": {
           "INVALID_RANGE": "Please choose a valid date range where \"From\" is before \"To\"."
@@ -934,6 +991,9 @@
       "CONFIRM_TITLE": "Confirm booking",
       "CONFIRM_MESSAGE": "Review the details before creating this booking.",
       "CONFIRM_LABEL": "Confirm booking",
+      "HOLD_TITLE": "Place booking on hold",
+      "HOLD_MESSAGE": "Review the details before creating this booking as a hold.",
+      "HOLD_LABEL": "Place on hold",
       "CANCEL_LABEL": "Go back",
       "CANCELLATION_POLICY_NOTE": "Cancellations follow the facility policy. Please review before confirming."
     },
@@ -957,6 +1017,13 @@
       "END_MODE_DATE": "End date",
       "WEEKS_COUNT_LABEL": "Weeks count",
       "END_DATE_LABEL": "End date"
+    },
+    "RECURRING_PRESETS": {
+      "LABEL": "Recurring presets",
+      "FOUR_WEEKS": "4 weeks",
+      "EIGHT_WEEKS": "8 weeks",
+      "THREE_MONTHS": "3 months",
+      "SIX_MONTHS": "6 months"
     },
     "ALTERNATIVES": {
       "HIDE": "Hide alternatives",
@@ -1003,7 +1070,9 @@
     },
     "TOAST": {
       "BOOKING_CONFIRMED": "Booking confirmed",
-      "RECURRING_BOOKING_CONFIRMED": "Recurring booking series confirmed"
+      "RECURRING_BOOKING_CONFIRMED": "Recurring booking series confirmed",
+      "BOOKING_ON_HOLD": "Booking placed on hold",
+      "RECURRING_BOOKING_ON_HOLD": "Recurring booking series placed on hold"
     },
     "CONFLICT": {
       "EXACT_OVERLAP": "Exact overlap with an existing booking",
@@ -1027,6 +1096,15 @@
       "PROMO_CODE": "Promo ({{code}})",
       "TOTAL": "Total"
     },
+    "BOOKING_MODE": {
+      "TITLE": "How should this booking be created?",
+      "DESCRIPTION": "Choose whether to confirm immediately or place the slot on hold once the preview is available.",
+      "CONFIRMED_LABEL": "Confirm booking",
+      "CONFIRMED_HINT": "Create the booking immediately once you confirm the final details.",
+      "HOLD_LABEL": "Reserve as hold (pending)",
+      "HOLD_HINT": "Temporarily reserve this slot until confirmation.",
+      "HOLD_UNAVAILABLE_HINT": "Place on hold becomes available after a bookable preview is loaded."
+    },
     "CUSTOMER": {
       "TITLE": "Customer Details",
       "NAME_LABEL": "Your Name",
@@ -1038,18 +1116,22 @@
     },
     "ACTIONS": {
       "CONFIRMING": "Confirming...",
-      "CONFIRM_BOOKING": "Confirm Booking"
+      "CONFIRM_BOOKING": "Confirm Booking",
+      "PLACE_ON_HOLD": "Place on Hold",
+      "PLACING_ON_HOLD": "Placing on hold..."
     },
     "WAITLIST": {
       "TITLE": "Waitlist",
       "SUBTITLE": "This slot is unavailable right now. Join the queue and we will notify you if it becomes available.",
+      "FUTURE_ONLY": "Waitlist is only available for future slots.",
       "CHECKING_STATUS": "Checking your waitlist status...",
       "JOIN": "Join waitlist",
       "JOINING": "Joining waitlist...",
       "ALREADY_JOINED": "You're on the waitlist",
       "INDICATOR": "You're on the waitlist (position #{{position}}).",
       "NOTIFIED": "You were already notified for this slot.",
-      "JOIN_SUCCESS": "Added to waitlist at position #{{position}}."
+      "JOIN_SUCCESS": "Added to waitlist at position #{{position}}.",
+      "VIEW_OPERATIONS": "View queue for this slot"
     },
     "CONFIRM_SUMMARY": {
       "FACILITY_LABEL": "Facility",
@@ -1063,10 +1145,14 @@
     },
     "SUCCESS": {
       "TITLE": "Booking Confirmed!",
+      "HOLD_TITLE": "Booking Placed on Hold!",
+      "HOLD_RECURRING_TITLE": "Recurring Booking Series on Hold!",
       "REFERENCE_PREFIX": "Reference:",
       "RECURRING_COUNT": "Created {{count}} recurring bookings.",
       "RECURRENCE_GROUP": "Series ID:",
       "SUBTITLE": "You will receive a confirmation shortly.",
+      "HOLD_SUBTITLE": "This booking is reserved as pending until you confirm it.",
+      "HOLD_RECURRING_SUBTITLE": "This recurring series is reserved as pending until you confirm it.",
       "CTA_ANOTHER": "Make Another Booking"
     }
   },
@@ -1087,6 +1173,11 @@
       "FACILITY": "First facility",
       "INVITE": "Invite team",
       "CONFIRM": "Confirmation"
+    },
+    "STEP_STATE": {
+      "COMPLETED": "Completed",
+      "CURRENT": "Current step",
+      "UPCOMING": "Upcoming"
     },
     "ACTIONS": {
       "BACK": "Back",
