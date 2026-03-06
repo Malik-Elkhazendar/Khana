@@ -936,6 +936,7 @@ describe('AuthService', () => {
         id: MOCK_TENANT_ID,
         name: 'Elite Padel',
         slug: 'elite-padel',
+        timezone: 'Asia/Riyadh',
       });
 
       const result = await service.getTenantContext(MOCK_TENANT_ID);
@@ -944,10 +945,11 @@ describe('AuthService', () => {
         id: MOCK_TENANT_ID,
         name: 'Elite Padel',
         slug: 'elite-padel',
+        timezone: 'Asia/Riyadh',
       });
       expect(tenantRepository.findOne).toHaveBeenCalledWith({
         where: { id: MOCK_TENANT_ID },
-        select: ['id', 'name', 'slug'],
+        select: ['id', 'name', 'slug', 'timezone'],
       });
       expect(tenantRepository.find).not.toHaveBeenCalled();
     });
@@ -980,6 +982,7 @@ describe('AuthService', () => {
           id: MOCK_TENANT_ID,
           name: 'Elite Padel',
           slug: 'elite-padel',
+          timezone: 'Asia/Riyadh',
           createdAt: new Date(),
         },
       ]);
@@ -990,6 +993,7 @@ describe('AuthService', () => {
         id: MOCK_TENANT_ID,
         name: 'Elite Padel',
         slug: 'elite-padel',
+        timezone: 'Asia/Riyadh',
       });
     });
 
@@ -1025,6 +1029,7 @@ describe('AuthService', () => {
         id: MOCK_TENANT_ID,
         name: 'Elite Padel',
         slug: 'elite-padel',
+        timezone: 'Asia/Riyadh',
       });
 
       const result = await service.resolveTenantBySlug('elite-padel');
@@ -1033,6 +1038,7 @@ describe('AuthService', () => {
         id: MOCK_TENANT_ID,
         name: 'Elite Padel',
         slug: 'elite-padel',
+        timezone: 'Asia/Riyadh',
       });
     });
 
@@ -1085,6 +1091,7 @@ describe('AuthService', () => {
         id: MOCK_TENANT_ID,
         name: dto.workspaceName,
         slug: dto.workspaceSlug,
+        timezone: 'Asia/Riyadh',
       });
       expect(passwordService.hash).toHaveBeenCalledWith(dto.password);
       expect(refreshTokenRepository.save).toHaveBeenCalled();

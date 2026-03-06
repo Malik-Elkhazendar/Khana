@@ -123,6 +123,7 @@ export interface LoginResponseDto {
     name: string;
     slug?: string;
     subdomain?: string;
+    timezone?: string;
   };
 }
 

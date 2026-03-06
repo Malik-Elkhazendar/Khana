@@ -40,4 +40,8 @@ describe('LocaleFormatService', () => {
     const value = service.formatCurrency(3500, 'SAR');
     expect(value).toContain('SAR');
   });
+
+  it('falls back to tenant default timezone when auth context is unavailable', () => {
+    expect(service.getCurrentTimeZone()).toBe('Asia/Riyadh');
+  });
 });

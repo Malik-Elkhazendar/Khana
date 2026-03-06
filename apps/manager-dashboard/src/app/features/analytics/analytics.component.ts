@@ -222,12 +222,21 @@ export class AnalyticsComponent {
 
   constructor() {
     this.facilityContext.initialize();
+    this.store.syncTenantTimeZone(this.localeFormat.getCurrentTimeZone());
     this.store.setQuickRange('this_month', this.weekStartsOnSunday());
     const initialFilters = this.store.filters();
     this.fromDate.set(this.toInputDate(initialFilters.from));
     this.toDate.set(this.toInputDate(initialFilters.to));
     this.activePreset.set('this_month');
     void this.store.loadAnalytics();
+
+    effect(() => {
+      const tenantTimeZone = this.localeFormat.getCurrentTimeZone();
+      if (this.store.filters().timeZone === tenantTimeZone) {
+        return;
+      }
+      this.store.setTimeZone(tenantTimeZone);
+    });
 
     effect(() => {
       if (!this.canViewSnapshot()) {
@@ -297,16 +306,16 @@ export class AnalyticsComponent {
     const from = this.fromDate();
     const to = this.toDate();
 
-    const fromIso = this.toRangeIso(from, 'start');
-    const toIso = this.toRangeIso(to, 'end');
+    const fromDate = this.normalizeInputDate(from);
+    const toDate = this.normalizeInputDate(to);
 
-    if (!fromIso || !toIso || fromIso > toIso) {
+    if (!fromDate || !toDate || fromDate > toDate) {
       this.filterError.set('DASHBOARD.PAGES.ANALYTICS.ERRORS.INVALID_RANGE');
       return;
     }
 
     this.filterError.set(null);
-    this.store.setDateRange(fromIso, toIso);
+    this.store.setDateRange(fromDate, toDate);
     this.store.setGroupBy(this.groupBy());
     this.store.setFacilityFilter(this.facilityId() || null);
     this.showBookingsDetails.set(false);
@@ -965,6 +974,10 @@ export class AnalyticsComponent {
   }
 
   private toInputDate(isoDate: string): string {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+      return isoDate;
+    }
+
     const date = new Date(isoDate);
     if (Number.isNaN(date.getTime())) {
       return '';
@@ -985,26 +998,29 @@ export class AnalyticsComponent {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
-  private toRangeIso(value: string, edge: 'start' | 'end'): string | null {
+  private normalizeInputDate(value: string): string | null {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return null;
+    }
+
     const [yearRaw, monthRaw, dayRaw] = value
       .split('-')
       .map((part) => Number(part));
     if (!yearRaw || !monthRaw || !dayRaw) return null;
 
-    const date = new Date(
-      yearRaw,
-      monthRaw - 1,
-      dayRaw,
-      edge === 'start' ? 0 : 23,
-      edge === 'start' ? 0 : 59,
-      edge === 'start' ? 0 : 59,
-      edge === 'start' ? 0 : 999
-    );
-
-    if (Number.isNaN(date.getTime())) {
+    const date = new Date(Date.UTC(yearRaw, monthRaw - 1, dayRaw, 0, 0, 0, 0));
+    if (
+      Number.isNaN(date.getTime()) ||
+      date.getUTCFullYear() !== yearRaw ||
+      date.getUTCMonth() + 1 !== monthRaw ||
+      date.getUTCDate() !== dayRaw
+    ) {
       return null;
     }
-    return date.toISOString();
+
+    return `${yearRaw.toString().padStart(4, '0')}-${monthRaw
+      .toString()
+      .padStart(2, '0')}-${dayRaw.toString().padStart(2, '0')}`;
   }
 
   private weekStartsOnSunday(): boolean {

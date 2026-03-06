@@ -385,6 +385,54 @@ describe('API', () => {
     });
   });
 
+  describe('Analytics occupancy invariants', () => {
+    it('should never report occupied minutes without bookings', async () => {
+      if (
+        currentUserRole !== 'OWNER' &&
+        currentUserRole !== 'MANAGER' &&
+        currentUserRole !== 'VIEWER'
+      ) {
+        return;
+      }
+
+      const today = new Date();
+      const todayDate = today.toISOString().slice(0, 10);
+
+      const response = await axios.get(`/api/v1/analytics/occupancy`, {
+        params: {
+          from: todayDate,
+          to: todayDate,
+        },
+        headers: authHeaders(),
+      });
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.data?.facilities)).toBe(true);
+
+      for (const facility of response.data.facilities as Array<{
+        daily?: Array<{
+          occupiedMinutes?: number;
+          availableMinutes?: number;
+          bookingCount?: number;
+        }>;
+      }>) {
+        for (const day of facility.daily ?? []) {
+          const occupiedMinutes = Number(day.occupiedMinutes ?? 0);
+          const availableMinutes = Number(day.availableMinutes ?? 0);
+          const bookingCount = Number(day.bookingCount ?? 0);
+
+          expect(occupiedMinutes).toBeGreaterThanOrEqual(0);
+          expect(availableMinutes).toBeGreaterThanOrEqual(0);
+          expect(bookingCount).toBeGreaterThanOrEqual(0);
+
+          if (bookingCount === 0) {
+            expect(occupiedMinutes).toBe(0);
+          }
+        }
+      }
+    });
+  });
+
   describe('Bookings Authentication', () => {
     it('should return 401 for GET /api/v1/bookings without token', async () => {
       await expectHttpError(axios.get(`/api/v1/bookings`), 401);

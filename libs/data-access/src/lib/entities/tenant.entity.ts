@@ -37,6 +37,9 @@ export class Tenant {
   @Column({ type: 'varchar', length: 40, nullable: true })
   contactPhone?: string | null;
 
+  @Column({ type: 'varchar', length: 100, default: 'Asia/Riyadh' })
+  timezone!: string;
+
   @Column({ type: 'boolean', default: false })
   onboardingCompleted!: boolean;
 

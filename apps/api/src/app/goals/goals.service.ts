@@ -10,6 +10,7 @@ import {
 } from '@khana/data-access';
 import {
   BookingStatus,
+  DEFAULT_TENANT_TIMEZONE,
   GoalMilestoneDto,
   GoalProgressDto,
   GoalSettingsResponseDto,
@@ -18,7 +19,6 @@ import {
 import { DataSource, Repository } from 'typeorm';
 import { AppLoggerService, LOG_EVENTS } from '../logging';
 
-const DEFAULT_TIME_ZONE = 'Asia/Riyadh';
 const RESOURCE_NOT_FOUND_MESSAGE = 'Resource not found';
 
 const REVENUE_STATUSES: BookingStatus[] = [
@@ -124,7 +124,10 @@ export class GoalsService {
       );
     }
 
-    await this.syncMilestonesForCurrentMonth(tenant.id, DEFAULT_TIME_ZONE);
+    await this.syncMilestonesForCurrentMonth(
+      tenant.id,
+      DEFAULT_TENANT_TIMEZONE
+    );
 
     const updated = await this.getTenantOrThrow(tenant.id);
     return this.toSettingsResponse(updated);
@@ -299,12 +302,12 @@ export class GoalsService {
   }
 
   private resolveTimeZone(timeZone?: string): string {
-    if (!timeZone) return DEFAULT_TIME_ZONE;
+    if (!timeZone) return DEFAULT_TENANT_TIMEZONE;
     try {
       Intl.DateTimeFormat(undefined, { timeZone }).format(new Date());
       return timeZone;
     } catch {
-      return DEFAULT_TIME_ZONE;
+      return DEFAULT_TENANT_TIMEZONE;
     }
   }
 

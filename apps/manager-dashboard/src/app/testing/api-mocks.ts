@@ -26,6 +26,8 @@ export type ApiServiceMock = {
   getAnalyticsRevenue: jest.Mock;
   getAnalyticsPeakHours: jest.Mock;
   getTodaySnapshot: jest.Mock;
+  getTenantSettings: jest.Mock;
+  updateTenantSettings: jest.Mock;
   getGoalSettings: jest.Mock;
   updateGoalSettings: jest.Mock;
   completeOnboarding: jest.Mock;
@@ -229,6 +231,18 @@ export const createApiMock = (
         waitlistToday: 3,
         notifiedWaitlistCount: 1,
         noShowCount: 0,
+      })
+    ),
+    getTenantSettings: jest.fn(() =>
+      of({
+        timezone: 'Asia/Riyadh',
+        updatedAt: new Date().toISOString(),
+      })
+    ),
+    updateTenantSettings: jest.fn(() =>
+      of({
+        timezone: 'Asia/Riyadh',
+        updatedAt: new Date().toISOString(),
       })
     ),
     getGoalSettings: jest.fn(() =>

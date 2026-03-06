@@ -1,5 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
+import { DEFAULT_TENANT_TIMEZONE } from '@khana/shared-dtos';
+import { AuthService } from './auth.service';
 
 type AppLocale = 'en-SA' | 'ar-SA';
 
@@ -10,6 +12,7 @@ export class LocaleFormatService {
   private readonly translateService = inject(TranslateService, {
     optional: true,
   });
+  private readonly authService = inject(AuthService, { optional: true });
   private readonly dateTimeFormatterCache = new Map<
     string,
     Intl.DateTimeFormat
@@ -76,9 +79,14 @@ export class LocaleFormatService {
   ): string {
     const date = this.toDate(value);
     if (!date) return '';
-    return this.getDateTimeFormatter(this.getCurrentLocale(), options).format(
-      date
-    );
+    const resolvedOptions: Intl.DateTimeFormatOptions = {
+      ...options,
+      timeZone: options.timeZone ?? this.getCurrentTimeZone(),
+    };
+    return this.getDateTimeFormatter(
+      this.getCurrentLocale(),
+      resolvedOptions
+    ).format(date);
   }
 
   formatCurrency(
@@ -101,6 +109,13 @@ export class LocaleFormatService {
       hour12: true,
       timeZone: 'UTC',
     });
+  }
+
+  getCurrentTimeZone(): string {
+    if (!this.authService) {
+      return DEFAULT_TENANT_TIMEZONE;
+    }
+    return this.authService.getTenantTimeZone();
   }
 
   private toDate(value: Date | string | number): Date | null {

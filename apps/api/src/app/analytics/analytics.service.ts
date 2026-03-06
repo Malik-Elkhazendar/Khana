@@ -4,7 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Tenant } from '@khana/data-access';
+import { DataSource, Repository } from 'typeorm';
 import {
   AnalyticsGroupBy,
   AnalyticsOccupancyFacilityDto,
@@ -13,8 +15,10 @@ import {
   AnalyticsRevenueResponseDto,
   AnalyticsSummaryResponseDto,
   BookingStatus,
+  DEFAULT_TENANT_TIMEZONE,
   FacilityPerformanceRowDto,
   RevenueTrendPointDto,
+  isValidIanaTimeZone,
 } from '@khana/shared-dtos';
 import { AppLoggerService, LOG_EVENTS } from '../logging';
 import { AnalyticsQueryDto, RevenueQueryDto } from './dto';
@@ -89,6 +93,8 @@ type MostBookedFacilityRow = {
 @Injectable()
 export class AnalyticsService {
   constructor(
+    @InjectRepository(Tenant)
+    private readonly tenantRepository: Repository<Tenant>,
     private readonly dataSource: DataSource,
     private readonly appLogger: AppLoggerService,
     private readonly goalsService: GoalsService
@@ -99,8 +105,8 @@ export class AnalyticsService {
     tenantId: string
   ): Promise<AnalyticsSummaryResponseDto> {
     const resolvedTenantId = this.requireTenantId(tenantId);
-    const timeZone = this.resolveTimeZone(query.timeZone);
-    const range = this.parseRange(query.from, query.to);
+    const timeZone = await this.getTenantTimeZone(resolvedTenantId);
+    const range = await this.parseRange(query.from, query.to, timeZone);
 
     if (query.facilityId) {
       await this.ensureFacilityInTenant(query.facilityId, resolvedTenantId);
@@ -176,8 +182,8 @@ export class AnalyticsService {
     tenantId: string
   ): Promise<AnalyticsOccupancyResponseDto> {
     const resolvedTenantId = this.requireTenantId(tenantId);
-    const timeZone = this.resolveTimeZone(query.timeZone);
-    const range = this.parseRange(query.from, query.to);
+    const timeZone = await this.getTenantTimeZone(resolvedTenantId);
+    const range = await this.parseRange(query.from, query.to, timeZone);
 
     if (query.facilityId) {
       await this.ensureFacilityInTenant(query.facilityId, resolvedTenantId);
@@ -204,42 +210,56 @@ export class AnalyticsService {
             fs.id AS facility_id,
             fs.name AS facility_name,
             d.local_day,
-            ((split_part(fs.config->>'closeTime', ':', 1)::int * 60 + split_part(fs.config->>'closeTime', ':', 2)::int) -
-             (split_part(fs.config->>'openTime', ':', 1)::int * 60 + split_part(fs.config->>'openTime', ':', 2)::int)
-            )::int AS operating_minutes,
-            (d.local_day::timestamp AT TIME ZONE $2) AS day_start_utc,
-            ((d.local_day + interval '1 day')::timestamp AT TIME ZONE $2) AS day_end_utc
+            GREATEST(operating_window.close_minutes - operating_window.open_minutes, 0)::int AS operating_minutes,
+            CASE
+              WHEN operating_window.close_minutes > operating_window.open_minutes
+              THEN (d.local_day::timestamp + make_interval(mins => operating_window.open_minutes)) AT TIME ZONE $2
+              ELSE NULL
+            END AS operating_start_utc,
+            CASE
+              WHEN operating_window.close_minutes > operating_window.open_minutes
+              THEN (d.local_day::timestamp + make_interval(mins => operating_window.close_minutes)) AT TIME ZONE $2
+              ELSE NULL
+            END AS operating_end_utc
           FROM facilities_scope fs
           CROSS JOIN days d
+          CROSS JOIN LATERAL (
+            SELECT
+              (split_part(fs.config->>'openTime', ':', 1)::int * 60 + split_part(fs.config->>'openTime', ':', 2)::int) AS open_minutes,
+              (split_part(fs.config->>'closeTime', ':', 1)::int * 60 + split_part(fs.config->>'closeTime', ':', 2)::int) AS close_minutes
+          ) operating_window
         )
         SELECT
           fd.facility_id AS "facilityId",
           fd.facility_name AS "facilityName",
           fd.local_day::text AS "date",
           fd.operating_minutes AS "availableMinutes",
-          COALESCE(
-            SUM(
-              GREATEST(
-                EXTRACT(
-                  EPOCH FROM (
-                    LEAST(b."endTime", fd.day_end_utc, $4::timestamptz) -
-                    GREATEST(b."startTime", fd.day_start_utc, $3::timestamptz)
-                  )
-                ) / 60,
-                0
-              )
-            ),
-            0
-          )::numeric AS "occupiedMinutes",
-          COUNT(DISTINCT b.id)::int AS "bookingCount"
+          COALESCE(SUM(booking_overlap.overlap_minutes), 0)::numeric AS "occupiedMinutes",
+          (
+            COUNT(DISTINCT booking_overlap.booking_id)
+            FILTER (WHERE booking_overlap.overlap_minutes > 0)
+          )::int AS "bookingCount"
         FROM facility_days fd
-        LEFT JOIN bookings b
-          ON b."facilityId" = fd.facility_id
-         AND b.status::text = ANY($6::text[])
-         AND b."startTime" < fd.day_end_utc
-         AND b."endTime" > fd.day_start_utc
-         AND b."startTime" < $4::timestamptz
-         AND b."endTime" > $3::timestamptz
+        LEFT JOIN LATERAL (
+          SELECT
+            b.id AS booking_id,
+            GREATEST(
+              EXTRACT(
+                EPOCH FROM (
+                  LEAST(b."endTime", fd.operating_end_utc, $4::timestamptz) -
+                  GREATEST(b."startTime", fd.operating_start_utc, $3::timestamptz)
+                )
+              ) / 60,
+              0
+            )::numeric AS overlap_minutes
+          FROM bookings b
+          WHERE fd.operating_start_utc IS NOT NULL
+            AND fd.operating_end_utc IS NOT NULL
+            AND b."facilityId" = fd.facility_id
+            AND b.status::text = ANY($6::text[])
+            AND b."startTime" < LEAST(fd.operating_end_utc, $4::timestamptz)
+            AND b."endTime" > GREATEST(fd.operating_start_utc, $3::timestamptz)
+        ) booking_overlap ON true
         GROUP BY fd.facility_id, fd.facility_name, fd.local_day, fd.operating_minutes
         ORDER BY fd.facility_name ASC, fd.local_day ASC
       `,
@@ -262,6 +282,20 @@ export class AnalyticsService {
       const availableMinutes = Math.max(this.toNumber(row.availableMinutes), 0);
       const occupiedMinutes = Math.max(this.toNumber(row.occupiedMinutes), 0);
       const bookingCount = Math.max(this.toNumber(row.bookingCount), 0);
+      if (bookingCount === 0 && occupiedMinutes > 0) {
+        this.appLogger.warn(
+          LOG_EVENTS.ANALYTICS_DATA_INTEGRITY_WARNING,
+          'Analytics occupancy invariant violation detected',
+          {
+            tenantId: resolvedTenantId,
+            facilityId,
+            date: row.date,
+            occupiedMinutes,
+            bookingCount,
+            availableMinutes,
+          }
+        );
+      }
       const dayOccupancyRate =
         availableMinutes === 0
           ? 0
@@ -335,8 +369,8 @@ export class AnalyticsService {
     tenantId: string
   ): Promise<AnalyticsRevenueResponseDto> {
     const resolvedTenantId = this.requireTenantId(tenantId);
-    const timeZone = this.resolveTimeZone(query.timeZone);
-    const range = this.parseRange(query.from, query.to);
+    const timeZone = await this.getTenantTimeZone(resolvedTenantId);
+    const range = await this.parseRange(query.from, query.to, timeZone);
 
     if (query.facilityId) {
       await this.ensureFacilityInTenant(query.facilityId, resolvedTenantId);
@@ -514,8 +548,8 @@ export class AnalyticsService {
     tenantId: string
   ): Promise<AnalyticsPeakHoursResponseDto> {
     const resolvedTenantId = this.requireTenantId(tenantId);
-    const timeZone = this.resolveTimeZone(query.timeZone);
-    const range = this.parseRange(query.from, query.to);
+    const timeZone = await this.getTenantTimeZone(resolvedTenantId);
+    const range = await this.parseRange(query.from, query.to, timeZone);
 
     if (query.facilityId) {
       await this.ensureFacilityInTenant(query.facilityId, resolvedTenantId);
@@ -688,44 +722,108 @@ export class AnalyticsService {
     };
   }
 
-  private parseRange(fromRaw?: string, toRaw?: string): DateRange {
-    const from = fromRaw ? new Date(fromRaw) : null;
-    const to = toRaw ? new Date(toRaw) : null;
+  private async parseRange(
+    fromRaw: string | undefined,
+    toRaw: string | undefined,
+    timeZone: string
+  ): Promise<DateRange> {
+    const fromDate = this.resolveLocalDate(fromRaw, timeZone);
+    const toDate = this.resolveLocalDate(toRaw, timeZone);
 
-    if (
-      !from ||
-      !to ||
-      Number.isNaN(from.getTime()) ||
-      Number.isNaN(to.getTime())
-    ) {
+    if (!fromDate || !toDate || fromDate > toDate) {
       throw new BadRequestException(INVALID_RANGE_MESSAGE);
     }
 
-    if (from.getTime() > to.getTime()) {
-      throw new BadRequestException(INVALID_RANGE_MESSAGE);
-    }
-
-    const durationMs = to.getTime() - from.getTime() + 1;
+    const durationMs = this.computeDurationFromDateStrings(fromDate, toDate);
     const maxRangeMs = MAX_RANGE_DAYS * MINUTES_PER_DAY * 60 * 1000;
     if (durationMs > maxRangeMs) {
+      throw new BadRequestException(INVALID_RANGE_MESSAGE);
+    }
+
+    const [boundaries] = (await this.dataSource.query(
+      `
+        SELECT
+          ($2::date::timestamp AT TIME ZONE $1) AS "fromUtc",
+          (($3::date + interval '1 day')::timestamp AT TIME ZONE $1 - interval '1 millisecond') AS "toUtc"
+      `,
+      [timeZone, fromDate, toDate]
+    )) as Array<{ fromUtc: string; toUtc: string }>;
+
+    const from = new Date(boundaries?.fromUtc ?? '');
+    const to = new Date(boundaries?.toUtc ?? '');
+
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       throw new BadRequestException(INVALID_RANGE_MESSAGE);
     }
 
     return { from, to, durationMs };
   }
 
-  private resolveTimeZone(timeZone?: string): string {
-    const normalized = timeZone?.trim();
-    if (!normalized) {
-      return 'UTC';
+  private async getTenantTimeZone(tenantId: string): Promise<string> {
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+      select: ['id', 'timezone'],
+    });
+
+    if (!tenant) {
+      throw new NotFoundException(RESOURCE_NOT_FOUND_MESSAGE);
     }
 
-    try {
-      Intl.DateTimeFormat('en-US', { timeZone: normalized }).format(new Date());
-      return normalized;
-    } catch {
-      throw new BadRequestException('Invalid timeZone value.');
+    const normalized = tenant.timezone?.trim();
+    return isValidIanaTimeZone(normalized)
+      ? normalized
+      : DEFAULT_TENANT_TIMEZONE;
+  }
+
+  private resolveLocalDate(
+    value: string | undefined,
+    timeZone: string
+  ): string | null {
+    const normalized = value?.trim();
+    if (!normalized) {
+      return null;
     }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return normalized;
+    }
+
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    const parts = formatter.formatToParts(parsed);
+    const year = parts.find((part) => part.type === 'year')?.value;
+    const month = parts.find((part) => part.type === 'month')?.value;
+    const day = parts.find((part) => part.type === 'day')?.value;
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    return `${year}-${month}-${day}`;
+  }
+
+  private computeDurationFromDateStrings(
+    fromDate: string,
+    toDate: string
+  ): number {
+    const start = new Date(`${fromDate}T00:00:00.000Z`);
+    const end = new Date(`${toDate}T23:59:59.999Z`);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException(INVALID_RANGE_MESSAGE);
+    }
+
+    return end.getTime() - start.getTime() + 1;
   }
 
   private requireTenantId(tenantId?: string): string {

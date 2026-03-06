@@ -8,6 +8,7 @@ import {
   AnalyticsPeakHoursResponseDto,
   AnalyticsRevenueResponseDto,
   AnalyticsSummaryResponseDto,
+  DEFAULT_TENANT_TIMEZONE,
 } from '@khana/shared-dtos';
 import { ApiService } from '../../shared/services/api.service';
 import { LoggerService } from '../../shared/services/logger.service';
@@ -57,122 +58,160 @@ const ANALYTICS_ERROR_MESSAGES: Record<AnalyticsErrorCode, string> = {
   UNKNOWN: 'CLIENT_ERRORS.ANALYTICS.UNKNOWN',
 };
 
-const resolveBrowserTimeZone = (): string => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
+const padDatePart = (value: number): string =>
+  value.toString().padStart(2, '0');
+
+const formatUtcDate = (date: Date): string => {
+  return `${date.getUTCFullYear()}-${padDatePart(
+    date.getUTCMonth() + 1
+  )}-${padDatePart(date.getUTCDate())}`;
+};
+
+const toUtcDate = (date: string): Date | null => {
+  const [yearRaw, monthRaw, dayRaw] = date
+    .split('-')
+    .map((part) => Number(part));
+  if (!yearRaw || !monthRaw || !dayRaw) {
+    return null;
   }
+
+  const parsed = new Date(Date.UTC(yearRaw, monthRaw - 1, dayRaw, 0, 0, 0, 0));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const getDefaultDateRange = (): Pick<AnalyticsFilters, 'from' | 'to'> => {
-  const now = new Date();
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-  return {
-    from: start.toISOString(),
-    to: end.toISOString(),
-  };
+const addDaysToDate = (date: string, days: number): string => {
+  const base = toUtcDate(date);
+  if (!base) {
+    return date;
+  }
+
+  base.setUTCDate(base.getUTCDate() + days);
+  return formatUtcDate(base);
 };
 
-const toStartOfLocalDay = (source: Date): Date => {
-  const value = new Date(source);
-  value.setHours(0, 0, 0, 0);
-  return value;
+const resolveDateInTimeZone = (source: Date, timeZone: string): string => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(source);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  if (!year || !month || !day) {
+    return formatUtcDate(source);
+  }
+
+  return `${year}-${month}-${day}`;
 };
 
-const toEndOfLocalDay = (source: Date): Date => {
-  const value = new Date(source);
-  value.setHours(23, 59, 59, 999);
-  return value;
-};
+const getWeekStart = (
+  sourceDate: string,
+  weekStartsOnSunday: boolean
+): string => {
+  const date = toUtcDate(sourceDate);
+  if (!date) {
+    return sourceDate;
+  }
 
-const minusDays = (source: Date, days: number): Date => {
-  const value = new Date(source);
-  value.setDate(value.getDate() - days);
-  return value;
-};
-
-const getWeekStart = (source: Date, weekStartsOnSunday: boolean): Date => {
-  const value = toStartOfLocalDay(source);
-  const day = value.getDay();
+  const day = date.getUTCDay();
   const offset = weekStartsOnSunday ? day : day === 0 ? 6 : day - 1;
-  value.setDate(value.getDate() - offset);
-  return value;
+  return addDaysToDate(sourceDate, -offset);
+};
+
+const getMonthStart = (sourceDate: string): string => {
+  const date = toUtcDate(sourceDate);
+  if (!date) {
+    return sourceDate;
+  }
+  return `${date.getUTCFullYear()}-${padDatePart(date.getUTCMonth() + 1)}-01`;
+};
+
+const getDefaultDateRange = (
+  timeZone: string
+): Pick<AnalyticsFilters, 'from' | 'to'> => {
+  const today = resolveDateInTimeZone(new Date(), timeZone);
+  return {
+    from: today,
+    to: today,
+  };
 };
 
 const getQuickRange = (
   preset: RangePreset,
-  weekStartsOnSunday: boolean
+  weekStartsOnSunday: boolean,
+  timeZone: string
 ): Pick<AnalyticsFilters, 'from' | 'to'> => {
-  const now = new Date();
-  const todayStart = toStartOfLocalDay(now);
-  const todayEnd = toEndOfLocalDay(now);
+  const today = resolveDateInTimeZone(new Date(), timeZone);
 
   switch (preset) {
     case 'today':
       return {
-        from: todayStart.toISOString(),
-        to: todayEnd.toISOString(),
+        from: today,
+        to: today,
       };
     case 'this_week': {
-      const weekStart = getWeekStart(now, weekStartsOnSunday);
+      const weekStart = getWeekStart(today, weekStartsOnSunday);
       return {
-        from: weekStart.toISOString(),
-        to: todayEnd.toISOString(),
+        from: weekStart,
+        to: today,
       };
     }
     case 'this_month': {
-      const monthStart = toStartOfLocalDay(
-        new Date(now.getFullYear(), now.getMonth(), 1)
-      );
+      const monthStart = getMonthStart(today);
       return {
-        from: monthStart.toISOString(),
-        to: todayEnd.toISOString(),
+        from: monthStart,
+        to: today,
       };
     }
     case 'last_30_days': {
-      const from = toStartOfLocalDay(minusDays(now, 29));
+      const from = addDaysToDate(today, -29);
       return {
-        from: from.toISOString(),
-        to: todayEnd.toISOString(),
+        from,
+        to: today,
       };
     }
     case 'last_90_days': {
-      const from = toStartOfLocalDay(minusDays(now, 89));
+      const from = addDaysToDate(today, -89);
       return {
-        from: from.toISOString(),
-        to: todayEnd.toISOString(),
+        from,
+        to: today,
       };
     }
   }
 
   return {
-    from: todayStart.toISOString(),
-    to: todayEnd.toISOString(),
+    from: today,
+    to: today,
   };
 };
 
-const initialDateRange = getDefaultDateRange();
+const createInitialState = (
+  timeZone = DEFAULT_TENANT_TIMEZONE
+): AnalyticsState => {
+  const initialDateRange = getDefaultDateRange(timeZone);
 
-const initialState: AnalyticsState = {
-  filters: {
-    from: initialDateRange.from,
-    to: initialDateRange.to,
-    groupBy: 'day',
-    facilityId: null,
-    timeZone: resolveBrowserTimeZone(),
-  },
-  summary: null,
-  occupancy: null,
-  revenue: null,
-  peakHours: null,
-  loading: false,
-  error: null,
-  errorCode: null,
+  return {
+    filters: {
+      from: initialDateRange.from,
+      to: initialDateRange.to,
+      groupBy: 'day',
+      facilityId: null,
+      timeZone,
+    },
+    summary: null,
+    occupancy: null,
+    revenue: null,
+    peakHours: null,
+    loading: false,
+    error: null,
+    errorCode: null,
+  };
 };
+
+const initialState: AnalyticsState = createInitialState();
 
 const toError = (message: string): Error => new Error(message);
 
@@ -203,6 +242,10 @@ const resolveAnalyticsError = (
 const resolveRequestId = (err: unknown): string | undefined => {
   if (!(err instanceof HttpErrorResponse)) return undefined;
   return err.headers?.get('x-request-id') ?? undefined;
+};
+
+const isAuthSensitiveError = (err: unknown): boolean => {
+  return err instanceof HttpErrorResponse && [401, 403].includes(err.status);
 };
 
 export const AnalyticsStore = signalStore(
@@ -270,6 +313,10 @@ export const AnalyticsStore = signalStore(
 
             patchState(store, {
               loading: false,
+              summary: isAuthSensitiveError(err) ? null : store.summary(),
+              occupancy: isAuthSensitiveError(err) ? null : store.occupancy(),
+              revenue: isAuthSensitiveError(err) ? null : store.revenue(),
+              peakHours: isAuthSensitiveError(err) ? null : store.peakHours(),
               error: toError(resolved.message),
               errorCode: resolved.code,
             });
@@ -284,6 +331,22 @@ export const AnalyticsStore = signalStore(
       };
 
       return {
+        syncTenantTimeZone: (tenantTimeZone: string): void => {
+          patchState(store, (state) => ({
+            filters: {
+              ...state.filters,
+              timeZone: tenantTimeZone,
+            },
+          }));
+        },
+        setTimeZone: (timeZone: string): void => {
+          patchState(store, (state) => ({
+            filters: {
+              ...state.filters,
+              timeZone,
+            },
+          }));
+        },
         loadAnalytics: async (): Promise<void> => {
           await runLoad();
         },
@@ -315,11 +378,18 @@ export const AnalyticsStore = signalStore(
         clearError: (): void => {
           patchState(store, { error: null, errorCode: null });
         },
+        reset: (): void => {
+          patchState(store, createInitialState());
+        },
         setQuickRange: (
           preset: RangePreset,
           weekStartsOnSunday = false
         ): void => {
-          const range = getQuickRange(preset, weekStartsOnSunday);
+          const range = getQuickRange(
+            preset,
+            weekStartsOnSunday,
+            store.filters().timeZone
+          );
           patchState(store, (state) => ({
             filters: {
               ...state.filters,
@@ -329,7 +399,7 @@ export const AnalyticsStore = signalStore(
           }));
         },
         resetToToday: (): void => {
-          const today = getDefaultDateRange();
+          const today = getDefaultDateRange(store.filters().timeZone);
           patchState(store, (state) => ({
             filters: {
               ...state.filters,

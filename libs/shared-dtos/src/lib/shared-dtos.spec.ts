@@ -12,6 +12,9 @@ import {
   serializeCancellationReason,
   parseCancellationReason,
   isBookingCancellationReasonKey,
+  DEFAULT_TENANT_TIMEZONE,
+  isValidIanaTimeZone,
+  normalizeIanaTimeZone,
   // Interfaces
   TimeSlot,
   PriceBreakdown,
@@ -148,6 +151,22 @@ describe('shared-dtos', () => {
     it('detects valid cancellation reason keys', () => {
       expect(isBookingCancellationReasonKey('customer_request')).toBe(true);
       expect(isBookingCancellationReasonKey('unknown')).toBe(false);
+    });
+  });
+
+  describe('Timezone helpers', () => {
+    it('exports default tenant timezone', () => {
+      expect(DEFAULT_TENANT_TIMEZONE).toBe('Asia/Riyadh');
+    });
+
+    it('validates IANA timezone values', () => {
+      expect(isValidIanaTimeZone('Asia/Riyadh')).toBe(true);
+      expect(isValidIanaTimeZone('Invalid/Timezone')).toBe(false);
+    });
+
+    it('normalizes invalid timezone values to default', () => {
+      expect(normalizeIanaTimeZone('Europe/Istanbul')).toBe('Europe/Istanbul');
+      expect(normalizeIanaTimeZone('   ')).toBe(DEFAULT_TENANT_TIMEZONE);
     });
   });
 

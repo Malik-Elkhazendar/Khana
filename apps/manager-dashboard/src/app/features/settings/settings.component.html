@@ -11,20 +11,26 @@
   </header>
 
   <section class="dashboard-card settings-panel">
-    <p class="settings-state" *ngIf="loading()">
-      {{ 'DASHBOARD.PAGES.SETTINGS.LOADING' | translate }}
-    </p>
+    <div class="settings-section" id="account">
+      <header class="settings-section__header">
+        <h2>
+          {{ 'DASHBOARD.PAGES.SETTINGS.SECTIONS.ACCOUNT.TITLE' | translate }}
+        </h2>
+        <p class="settings-section__hint">
+          {{ 'DASHBOARD.PAGES.SETTINGS.SECTIONS.ACCOUNT.SUBTITLE' | translate }}
+        </p>
+        <app-settings-scope-badge
+          data-testid="settings-scope-account"
+          kind="personal"
+          labelKey="DASHBOARD.PAGES.SETTINGS.SECTIONS.ACCOUNT.SCOPE"
+        ></app-settings-scope-badge>
+      </header>
 
-    <p
-      class="settings-state settings-state--error"
-      *ngIf="error() && !loading()"
-    >
-      {{ error()! | translate }}
-    </p>
+      <div class="settings-state settings-state--error" *ngIf="!currentUser()">
+        {{ 'DASHBOARD.PAGES.SETTINGS.SECTIONS.ACCOUNT.ERROR' | translate }}
+      </div>
 
-    <div class="settings-section" *ngIf="!loading() && currentUser() as user">
-      <h2>{{ 'DASHBOARD.PAGES.SETTINGS.ACCOUNT_TITLE' | translate }}</h2>
-      <dl>
+      <dl *ngIf="currentUser() as user">
         <div>
           <dt>{{ 'DASHBOARD.PAGES.SETTINGS.FIELDS.NAME' | translate }}</dt>
           <dd>{{ user.name }}</dd>
@@ -35,17 +41,127 @@
         </div>
         <div>
           <dt>{{ 'DASHBOARD.PAGES.SETTINGS.FIELDS.ROLE' | translate }}</dt>
-          <dd>{{ user.role }}</dd>
+          <dd>
+            @if (roleLabelKey(); as roleKey) {
+            {{ roleKey | translate }}
+            }
+          </dd>
         </div>
       </dl>
+
+      <div class="settings-actions" *ngIf="currentUser()">
+        <button
+          type="button"
+          class="dashboard-btn dashboard-btn--secondary"
+          data-testid="settings-toggle-language"
+          (click)="toggleLanguage()"
+        >
+          {{ 'DASHBOARD.PAGES.SETTINGS.TOGGLE_LANGUAGE' | translate }}
+        </button>
+      </div>
+
+      <section class="settings-preferences" *ngIf="currentUser()">
+        <h3 class="settings-preferences__title">
+          {{ 'DASHBOARD.PAGES.SETTINGS.PREFERENCES_TITLE' | translate }}
+        </h3>
+
+        <label class="settings-preferences__field">
+          <span class="settings-preferences__label">
+            {{ 'DASHBOARD.PAGES.SETTINGS.TIMEZONE.LABEL' | translate }}
+          </span>
+          <input
+            type="search"
+            class="settings-preferences__input"
+            list="settings-timezone-options"
+            [value]="timezoneInput()"
+            [attr.placeholder]="
+              'DASHBOARD.PAGES.SETTINGS.TIMEZONE.PLACEHOLDER' | translate
+            "
+            [disabled]="timezoneLoading() || timezoneSaving()"
+            (input)="
+              onTimezoneInput(($any($event.target).value ?? '').toString())
+            "
+          />
+          <datalist id="settings-timezone-options">
+            @for (timezone of timezoneOptions; track timezone) {
+            <option [value]="timezone">{{ timezone }}</option>
+            }
+          </datalist>
+        </label>
+
+        <p class="settings-preferences__hint">
+          {{ 'DASHBOARD.PAGES.SETTINGS.TIMEZONE.HELP' | translate }}
+        </p>
+        <p class="settings-state" *ngIf="timezoneLoading()">
+          {{ 'DASHBOARD.PAGES.SETTINGS.TIMEZONE.LOADING' | translate }}
+        </p>
+
+        <p
+          class="settings-state settings-state--error"
+          *ngIf="
+            !timezoneLoading() &&
+            filteredTimezoneOptions().length === 0 &&
+            timezoneInput().trim()
+          "
+        >
+          {{ 'DASHBOARD.PAGES.SETTINGS.TIMEZONE.SEARCH_EMPTY' | translate }}
+        </p>
+
+        <div class="settings-actions" *ngIf="canManageTenantSettings()">
+          <button
+            type="button"
+            class="dashboard-btn dashboard-btn--primary"
+            data-testid="settings-save-timezone"
+            (click)="saveTimezone()"
+            [disabled]="timezoneSaving() || timezoneLoading()"
+          >
+            {{ 'DASHBOARD.PAGES.SETTINGS.TIMEZONE.SAVE' | translate }}
+          </button>
+        </div>
+
+        <p
+          class="settings-state settings-state--success"
+          *ngIf="timezoneMessage()"
+        >
+          {{ timezoneMessage()! | translate }}
+        </p>
+        <p class="settings-state settings-state--error" *ngIf="timezoneError()">
+          {{ timezoneError()! | translate }}
+        </p>
+      </section>
     </div>
 
-    <div
-      class="settings-section"
-      *ngIf="!loading() && tenantContext() as tenant"
-    >
-      <h2>{{ 'DASHBOARD.PAGES.SETTINGS.TENANT_TITLE' | translate }}</h2>
-      <dl>
+    <div class="settings-section" id="organization">
+      <header class="settings-section__header">
+        <h2>
+          {{
+            'DASHBOARD.PAGES.SETTINGS.SECTIONS.ORGANIZATION.TITLE' | translate
+          }}
+        </h2>
+        <p class="settings-section__hint">
+          {{
+            'DASHBOARD.PAGES.SETTINGS.SECTIONS.ORGANIZATION.SUBTITLE'
+              | translate
+          }}
+        </p>
+        <app-settings-scope-badge
+          data-testid="settings-scope-organization"
+          kind="tenant"
+          labelKey="DASHBOARD.PAGES.SETTINGS.SECTIONS.ORGANIZATION.SCOPE"
+        ></app-settings-scope-badge>
+      </header>
+
+      <p class="settings-state" *ngIf="tenantLoading()">
+        {{ 'DASHBOARD.PAGES.SETTINGS.ORGANIZATION.LOADING' | translate }}
+      </p>
+
+      <p class="settings-state settings-state--error" *ngIf="tenantError()">
+        {{ tenantError()! | translate }}
+      </p>
+
+      <dl
+        *ngIf="!tenantLoading() && !tenantError() && tenantContext() as tenant"
+      >
         <div>
           <dt>
             {{ 'DASHBOARD.PAGES.SETTINGS.FIELDS.TENANT_NAME' | translate }}
@@ -60,21 +176,17 @@
     </div>
 
     <div class="settings-section" id="goals">
-      <h2>{{ 'DASHBOARD.PAGES.SETTINGS.PREFERENCES_TITLE' | translate }}</h2>
-      <button
-        type="button"
-        class="dashboard-btn dashboard-btn--secondary"
-        (click)="toggleLanguage()"
-      >
-        {{ 'DASHBOARD.PAGES.SETTINGS.TOGGLE_LANGUAGE' | translate }}
-      </button>
-    </div>
-
-    <div class="settings-section">
-      <h2>{{ 'DASHBOARD.PAGES.SETTINGS.GOALS.TITLE' | translate }}</h2>
-      <p class="settings-section__hint">
-        {{ 'DASHBOARD.PAGES.SETTINGS.GOALS.SUBTITLE' | translate }}
-      </p>
+      <header class="settings-section__header">
+        <h2>{{ 'DASHBOARD.PAGES.SETTINGS.GOALS.TITLE' | translate }}</h2>
+        <p class="settings-section__hint">
+          {{ 'DASHBOARD.PAGES.SETTINGS.GOALS.SUBTITLE' | translate }}
+        </p>
+        <app-settings-scope-badge
+          data-testid="settings-scope-goals"
+          kind="tenant"
+          labelKey="DASHBOARD.PAGES.SETTINGS.GOALS.SCOPE"
+        ></app-settings-scope-badge>
+      </header>
 
       <p class="settings-state" *ngIf="goalsLoading()">
         {{ 'DASHBOARD.PAGES.SETTINGS.GOALS.LOADING' | translate }}
@@ -128,6 +240,7 @@
         <button
           type="button"
           class="dashboard-btn dashboard-btn--primary"
+          data-testid="settings-save-goals"
           (click)="saveGoals()"
           [disabled]="goalsSaving() || goalsLoading()"
         >
@@ -146,14 +259,30 @@
       </p>
     </div>
 
-    <div class="settings-section">
-      <h2>{{ 'DASHBOARD.PAGES.SETTINGS.SECURITY_TITLE' | translate }}</h2>
+    <div class="settings-section" id="security">
+      <header class="settings-section__header">
+        <h2>
+          {{ 'DASHBOARD.PAGES.SETTINGS.SECTIONS.SECURITY.TITLE' | translate }}
+        </h2>
+        <p class="settings-section__hint">
+          {{
+            'DASHBOARD.PAGES.SETTINGS.SECTIONS.SECURITY.SUBTITLE' | translate
+          }}
+        </p>
+        <app-settings-scope-badge
+          data-testid="settings-scope-security"
+          kind="personal"
+          labelKey="DASHBOARD.PAGES.SETTINGS.SECTIONS.SECURITY.SCOPE"
+        ></app-settings-scope-badge>
+      </header>
+
       <div
         class="settings-actions dashboard-action-group dashboard-action-group--stack-compact"
       >
         <button
           type="button"
           class="dashboard-btn dashboard-btn--secondary"
+          data-testid="settings-change-password"
           (click)="navigateToChangePassword()"
         >
           {{ 'DASHBOARD.PAGES.SETTINGS.CHANGE_PASSWORD' | translate }}
@@ -161,11 +290,13 @@
         <button
           type="button"
           class="dashboard-btn dashboard-btn--secondary"
+          data-testid="settings-logout-all"
           (click)="logoutAllDevices()"
         >
           {{ 'DASHBOARD.PAGES.SETTINGS.LOGOUT_ALL' | translate }}
         </button>
       </div>
+
       <p
         class="settings-state settings-state--success"
         *ngIf="securityMessage()"

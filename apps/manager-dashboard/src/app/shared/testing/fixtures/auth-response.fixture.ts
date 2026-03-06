@@ -24,6 +24,7 @@ export const createMockLoginResponse = (
     slug: 'test-tenant',
     subdomain: 'test-tenant',
     name: 'Test Tenant',
+    timezone: 'Asia/Riyadh',
   },
   ...overrides,
 });

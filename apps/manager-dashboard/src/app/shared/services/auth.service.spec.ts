@@ -22,6 +22,7 @@ describe('AuthService', () => {
   let authStore: InstanceType<typeof AuthStore>;
   let router: Router;
   let storageMock: ReturnType<typeof setupStorageMock>;
+  let consoleWarnSpy: jest.SpyInstance;
 
   const API_URL = `${environment.apiBaseUrl}/v1/auth`;
   const DEFAULT_TENANT_ID = 'd74e2910-8ea8-4df7-a4a2-435aca4d649e';
@@ -29,6 +30,9 @@ describe('AuthService', () => {
   beforeEach(() => {
     storageMock = setupStorageMock();
     environment.auth.tenantId = DEFAULT_TENANT_ID;
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+      return undefined;
+    });
 
     TestBed.configureTestingModule({
       providers: [
@@ -56,6 +60,7 @@ describe('AuthService', () => {
   afterEach(() => {
     httpMock.verify();
     storageMock.clear();
+    consoleWarnSpy.mockRestore();
   });
 
   describe('login', () => {
@@ -87,11 +92,11 @@ describe('AuthService', () => {
       req.flush(mockResponse);
     });
 
-    it('should attach tenant header automatically on login', () => {
+    it('should not attach a stored tenant header when login has no explicit workspace context', () => {
       service.login('test@example.com', 'password123').subscribe();
 
       const req = httpMock.expectOne(`${API_URL}/login`);
-      expect(req.request.headers.get('x-tenant-id')).toBe(DEFAULT_TENANT_ID);
+      expect(req.request.headers.get('x-tenant-id')).toBeNull();
 
       req.flush(createMockLoginResponse());
     });
@@ -127,6 +132,7 @@ describe('AuthService', () => {
         id: resolvedTenantId,
         name: 'Elite Padel',
         slug: 'elite-padel',
+        timezone: 'Asia/Riyadh',
       });
 
       const loginReq = httpMock.expectOne(`${API_URL}/login`);
@@ -616,6 +622,113 @@ describe('AuthService', () => {
 
       expect(storageMock.getItem('khana_access_token')).toBeNull();
       expect(storageMock.getItem('khana_tenant_id')).toBeNull();
+      expect(authStore.user()).toBeNull();
+      expect(authStore.isAuthenticated()).toBe(false);
+    });
+
+    it('ignores stale restore-session success after a newer login succeeds', () => {
+      const staleUser = createMockUser({
+        id: 'user-stale',
+        tenantId: DEFAULT_TENANT_ID,
+        email: 'admin@khana.com',
+        name: 'Admin User',
+      });
+      const freshUser = createMockUser({
+        id: 'user-fresh',
+        tenantId: '53a15c2c-8b6f-43f4-81e7-6f42a95bb123',
+        email: 'manager@khana.com',
+        name: 'Manager User',
+      });
+      const freshResponse = createMockLoginResponse({
+        accessToken: 'fresh-access-token',
+        refreshToken: 'fresh-refresh-token',
+        user: freshUser,
+        tenant: {
+          id: freshUser.tenantId,
+          slug: 'manager-workspace',
+          subdomain: 'manager-workspace',
+          name: 'Manager Workspace',
+          timezone: 'Asia/Riyadh',
+        },
+      });
+
+      storageMock.setItem('khana_access_token', 'stale-access-token');
+      storageMock.setItem('khana_tenant_id', DEFAULT_TENANT_ID);
+
+      service.restoreSession();
+      const restoreReq = httpMock.expectOne(`${API_URL}/me`);
+
+      service.login(freshUser.email, 'password123').subscribe();
+      const loginReq = httpMock.expectOne(`${API_URL}/login`);
+      loginReq.flush(freshResponse);
+
+      restoreReq.flush(staleUser);
+
+      expect(authStore.user()).toEqual(freshUser);
+      expect(storageMock.getItem('khana_access_token')).toBe(
+        'fresh-access-token'
+      );
+      expect(storageMock.getItem('khana_tenant_id')).toBe(freshUser.tenantId);
+    });
+
+    it('ignores stale restore-session errors after a newer login succeeds', () => {
+      const freshUser = createMockUser({
+        id: 'user-fresh',
+        tenantId: '53a15c2c-8b6f-43f4-81e7-6f42a95bb123',
+        email: 'manager@khana.com',
+        name: 'Manager User',
+      });
+      const freshResponse = createMockLoginResponse({
+        accessToken: 'fresh-access-token',
+        refreshToken: 'fresh-refresh-token',
+        user: freshUser,
+        tenant: {
+          id: freshUser.tenantId,
+          slug: 'manager-workspace',
+          subdomain: 'manager-workspace',
+          name: 'Manager Workspace',
+          timezone: 'Asia/Riyadh',
+        },
+      });
+
+      storageMock.setItem('khana_access_token', 'stale-access-token');
+      storageMock.setItem('khana_tenant_id', DEFAULT_TENANT_ID);
+
+      service.restoreSession();
+      const restoreReq = httpMock.expectOne(`${API_URL}/me`);
+
+      service.login(freshUser.email, 'password123').subscribe();
+      const loginReq = httpMock.expectOne(`${API_URL}/login`);
+      loginReq.flush(freshResponse);
+
+      restoreReq.flush(
+        { message: 'Unauthorized' },
+        { status: 401, statusText: 'Unauthorized' }
+      );
+
+      expect(authStore.user()).toEqual(freshUser);
+      expect(authStore.isAuthenticated()).toBe(true);
+      expect(storageMock.getItem('khana_access_token')).toBe(
+        'fresh-access-token'
+      );
+    });
+  });
+
+  describe('account switching', () => {
+    it('clears local auth state and returnUrl when beginning account switch', () => {
+      storageMock.setItem('khana_access_token', 'test-token');
+      storageMock.setItem('khana_refresh_token', 'test-refresh');
+      storageMock.setItem('khana_tenant_id', DEFAULT_TENANT_ID);
+      storageMock.setItem('returnUrl', '/dashboard/waitlist');
+      authStore.setUser(createMockUser());
+      authStore.setAuthenticated(true);
+
+      service.beginAccountSwitch();
+
+      expect(storageMock.getItem('khana_access_token')).toBeNull();
+      expect(storageMock.getItem('khana_refresh_token')).toBeNull();
+      expect(storageMock.getItem('khana_tenant_id')).toBeNull();
+      expect(storageMock.getItem('returnUrl')).toBeNull();
       expect(authStore.user()).toBeNull();
       expect(authStore.isAuthenticated()).toBe(false);
     });

@@ -11,4 +11,5 @@ export interface TenantResolveResponseDto {
   id: string;
   name: string;
   slug: string;
+  timezone: string;
 }

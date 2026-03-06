@@ -9,6 +9,7 @@ import {
   AnalyticsRevenueResponseDto,
   AnalyticsSummaryResponseDto,
   GoalSettingsResponseDto,
+  TenantSettingsResponseDto,
   TodaySnapshotDto,
   BookingCancellationScope,
   CustomerSummaryDto,
@@ -38,6 +39,7 @@ import {
   UpdateUserRoleRequestDto,
   UpdateUserStatusRequestDto,
   UpdatePromoCodeRequestDto,
+  UpdateTenantSettingsRequestDto,
   UpdateGoalsRequestDto,
   UpdateFacilityRequestDto,
   UserDto,
@@ -200,6 +202,20 @@ export class ApiService {
   // ============================================================
   // GOALS / SETTINGS
   // ============================================================
+
+  getTenantSettings(): Observable<TenantSettingsResponseDto> {
+    return this.http
+      .get<TenantSettingsResponseDto>(`${this.baseUrl}/v1/settings`)
+      .pipe(catchError(this.handleError('load tenant settings')));
+  }
+
+  updateTenantSettings(
+    request: UpdateTenantSettingsRequestDto
+  ): Observable<TenantSettingsResponseDto> {
+    return this.http
+      .patch<TenantSettingsResponseDto>(`${this.baseUrl}/v1/settings`, request)
+      .pipe(catchError(this.handleError('update tenant settings')));
+  }
 
   getGoalSettings(): Observable<GoalSettingsResponseDto> {
     return this.http

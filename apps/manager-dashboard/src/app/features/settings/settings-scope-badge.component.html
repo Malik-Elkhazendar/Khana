@@ -1,0 +1,49 @@
+<span
+  class="settings-scope-badge"
+  role="group"
+  [class.settings-scope-badge--personal]="kind === 'personal'"
+  [class.settings-scope-badge--tenant]="kind === 'tenant'"
+  [attr.aria-label]="
+    ('DASHBOARD.PAGES.SETTINGS.SCOPE_LABEL' | translate) +
+    ': ' +
+    (labelKey | translate)
+  "
+>
+  <span class="settings-scope-badge__icon" aria-hidden="true">
+    <svg
+      class="settings-scope-badge__icon-svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      focusable="false"
+      *ngIf="kind === 'personal'; else tenantIcon"
+    >
+      <circle cx="12" cy="8" r="3"></circle>
+      <path d="M6 19c0-3.3 2.7-6 6-6s6 2.7 6 6"></path>
+    </svg>
+    <ng-template #tenantIcon>
+      <svg
+        class="settings-scope-badge__icon-svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        focusable="false"
+      >
+        <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+        <line x1="8" y1="9" x2="16" y2="9"></line>
+        <line x1="8" y1="13" x2="16" y2="13"></line>
+        <line x1="8" y1="17" x2="12" y2="17"></line>
+      </svg>
+    </ng-template>
+  </span>
+
+  <span class="settings-scope-badge__text">
+    {{ labelKey | translate }}
+  </span>
+</span>

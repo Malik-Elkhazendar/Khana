@@ -105,6 +105,29 @@ describe('ApiService', () => {
     });
   });
 
+  it('should load tenant settings from settings endpoint', () => {
+    service.getTenantSettings().subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/settings`);
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      timezone: 'Asia/Riyadh',
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
+  it('should update tenant settings using patch request', () => {
+    service.updateTenantSettings({ timezone: 'Europe/Istanbul' }).subscribe();
+
+    const req = httpMock.expectOne(`${API_BASE_URL}/v1/settings`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ timezone: 'Europe/Istanbul' });
+    req.flush({
+      timezone: 'Europe/Istanbul',
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
   it('should request managed facilities with includeInactive=true', () => {
     service.getManagedFacilities(true).subscribe();
 

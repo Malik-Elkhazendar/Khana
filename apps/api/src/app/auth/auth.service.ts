@@ -19,6 +19,8 @@ import {
   Tenant,
 } from '@khana/data-access';
 import {
+  DEFAULT_TENANT_TIMEZONE,
+  normalizeIanaTimeZone,
   OwnerSignupDto,
   TenantResolveResponseDto,
   UserDto,
@@ -103,6 +105,7 @@ export class AuthService {
     id: string;
     name: string;
     slug: string;
+    timezone: string;
   }> {
     const normalizedTenantId = tenantId?.trim();
 
@@ -113,7 +116,7 @@ export class AuthService {
 
       const tenant = await this.tenantRepository.findOne({
         where: { id: normalizedTenantId },
-        select: ['id', 'name', 'slug'],
+        select: ['id', 'name', 'slug', 'timezone'],
       });
 
       if (!tenant) {
@@ -124,11 +127,12 @@ export class AuthService {
         id: tenant.id,
         name: tenant.name,
         slug: tenant.slug,
+        timezone: normalizeIanaTimeZone(tenant.timezone),
       };
     }
 
     const tenants = await this.tenantRepository.find({
-      select: ['id', 'name', 'slug', 'createdAt'],
+      select: ['id', 'name', 'slug', 'timezone', 'createdAt'],
       order: { createdAt: 'ASC' },
       take: 2,
     });
@@ -147,6 +151,7 @@ export class AuthService {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
+      timezone: normalizeIanaTimeZone(tenant.timezone),
     };
   }
 
@@ -174,7 +179,7 @@ export class AuthService {
 
     const tenant = await this.tenantRepository.findOne({
       where: { slug: normalizedSlug },
-      select: ['id', 'name', 'slug'],
+      select: ['id', 'name', 'slug', 'timezone'],
     });
 
     if (!tenant) {
@@ -195,6 +200,9 @@ export class AuthService {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
+      timezone: normalizeIanaTimeZone(
+        tenant.timezone ?? DEFAULT_TENANT_TIMEZONE
+      ),
     };
   }
 
@@ -469,7 +477,7 @@ export class AuthService {
       responseUser.tenant ??
       (await this.tenantRepository.findOne({
         where: { id: responseUser.tenantId },
-        select: ['id', 'name', 'slug'],
+        select: ['id', 'name', 'slug', 'timezone'],
       }));
 
     return {
@@ -1206,8 +1214,10 @@ export class AuthService {
   }
 
   private toTenantDto(
-    tenant?: Pick<Tenant, 'id' | 'name' | 'slug'> | null
-  ): { id: string; name: string; slug?: string } | undefined {
+    tenant?: Pick<Tenant, 'id' | 'name' | 'slug' | 'timezone'> | null
+  ):
+    | { id: string; name: string; slug?: string; timezone?: string }
+    | undefined {
     if (!tenant?.id) {
       return undefined;
     }
@@ -1216,6 +1226,9 @@ export class AuthService {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
+      timezone: normalizeIanaTimeZone(
+        tenant.timezone ?? DEFAULT_TENANT_TIMEZONE
+      ),
     };
   }
 

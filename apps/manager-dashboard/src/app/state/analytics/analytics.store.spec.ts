@@ -40,7 +40,7 @@ describe('AnalyticsStore', () => {
     expect(filters.groupBy).toBe('day');
     expect(filters.from).toBeTruthy();
     expect(filters.to).toBeTruthy();
-    expect(filters.timeZone).toBeTruthy();
+    expect(filters.timeZone).toBe('Asia/Riyadh');
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
   });
@@ -64,6 +64,12 @@ describe('AnalyticsStore', () => {
     expect(store.revenue()).not.toBeNull();
     expect(store.peakHours()).not.toBeNull();
     expect(store.error()).toBeNull();
+  });
+
+  it('syncs tenant timezone from caller-provided value', () => {
+    store.syncTenantTimeZone('Europe/Istanbul');
+
+    expect(store.filters().timeZone).toBe('Europe/Istanbul');
   });
 
   it('applies filters and sends them to API calls', async () => {
@@ -113,5 +119,53 @@ describe('AnalyticsStore', () => {
     expect(store.errorCode()).toBe('VALIDATION');
     expect(store.error()?.message).toBe('CLIENT_ERRORS.ANALYTICS.VALIDATION');
     expect(logger.error).toHaveBeenCalled();
+  });
+
+  it('clears analytics datasets on auth-sensitive failures', async () => {
+    await store.loadAnalytics();
+
+    apiMock.getAnalyticsSummary.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 401 }))
+    );
+    apiMock.getAnalyticsOccupancy.mockReturnValueOnce(
+      of({ facilities: [], overallOccupancyRate: 0 })
+    );
+    apiMock.getAnalyticsRevenue.mockReturnValueOnce(
+      of({ groupBy: 'day', trend: [], facilityPerformance: [] })
+    );
+    apiMock.getAnalyticsPeakHours.mockReturnValueOnce(
+      of({
+        peakTimeRange: null,
+        mostBookedFacility: null,
+        mostBookedCourt: null,
+      })
+    );
+
+    await store.loadAnalytics();
+
+    expect(store.summary()).toBeNull();
+    expect(store.occupancy()).toBeNull();
+    expect(store.revenue()).toBeNull();
+    expect(store.peakHours()).toBeNull();
+    expect(store.errorCode()).toBe('UNAUTHORIZED');
+  });
+
+  it('resets analytics state to defaults', async () => {
+    await store.loadAnalytics();
+    store.setFacilityFilter('facility-2');
+    store.setGroupBy('week');
+
+    store.reset();
+
+    expect(store.summary()).toBeNull();
+    expect(store.occupancy()).toBeNull();
+    expect(store.revenue()).toBeNull();
+    expect(store.peakHours()).toBeNull();
+    expect(store.error()).toBeNull();
+    expect(store.errorCode()).toBeNull();
+    expect(store.loading()).toBe(false);
+    expect(store.filters().facilityId).toBeNull();
+    expect(store.filters().groupBy).toBe('day');
+    expect(store.filters().timeZone).toBe('Asia/Riyadh');
   });
 });
