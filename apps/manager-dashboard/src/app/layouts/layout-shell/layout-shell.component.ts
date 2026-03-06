@@ -104,37 +104,34 @@ export class LayoutShellComponent {
         this.updateContentArchetypeFromRoute();
       });
 
-    effect(
-      () => {
-        const user = this.authStore.user();
-        if (this.goalNudgeInitialized()) {
-          return;
-        }
-        if (!user) {
-          return;
-        }
+    effect(() => {
+      const user = this.authStore.user();
+      if (this.goalNudgeInitialized()) {
+        return;
+      }
+      if (!user) {
+        return;
+      }
 
-        this.goalNudgeInitialized.set(true);
-        if (user.role !== UserRole.OWNER || !user.onboardingCompleted) {
-          return;
-        }
+      this.goalNudgeInitialized.set(true);
+      if (user.role !== UserRole.OWNER || !user.onboardingCompleted) {
+        return;
+      }
 
-        this.api.getGoalSettings().subscribe({
-          next: (settings) => {
-            if (!settings.shouldShowNudge) {
-              return;
-            }
+      this.api.getGoalSettings().subscribe({
+        next: (settings) => {
+          if (!settings.shouldShowNudge) {
+            return;
+          }
 
-            this.showGoalNudge.set(true);
-            this.api
-              .updateGoalSettings({ markNudgeShown: true })
-              .subscribe({ error: () => undefined });
-          },
-          error: () => undefined,
-        });
-      },
-      { allowSignalWrites: true }
-    );
+          this.showGoalNudge.set(true);
+          this.api
+            .updateGoalSettings({ markNudgeShown: true })
+            .subscribe({ error: () => undefined });
+        },
+        error: () => undefined,
+      });
+    });
   }
 
   @HostListener('window:resize')
