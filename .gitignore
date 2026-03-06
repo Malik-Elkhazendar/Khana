@@ -74,3 +74,14 @@ build2.log
 # Local capture/debug artifacts
 .playwright-mcp/
 .env-debug-backup/
+
+# Track the shared project memory layer while leaving other Codex state local.
+.codex/*
+!.codex/skills/
+.codex/skills/*
+!.codex/skills/project-index/
+.codex/skills/project-index/*
+!.codex/skills/project-index/SKILL.md
+!.codex/skills/update-project-docs/
+.codex/skills/update-project-docs/*
+!.codex/skills/update-project-docs/SKILL.md
