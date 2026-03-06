@@ -270,6 +270,38 @@ describe('WaitlistService', () => {
       });
     });
 
+    it('normalizes invalid active queue positions to one', async () => {
+      waitlistRepository.findOne.mockReset();
+      waitlistRepository.findOne.mockResolvedValue({
+        id: 'waitlist-1',
+        status: WaitlistStatus.WAITING,
+        facilityId,
+        desiredStartTime: startTime,
+        desiredEndTime: endTime,
+        createdAt: new Date('2026-03-01T09:00:00.000Z'),
+      } as WaitingListEntry);
+      waitlistRepository.createQueryBuilder.mockReturnValue(
+        createCountQueryBuilder(0)
+      );
+
+      const status = await service.getStatus(
+        {
+          facilityId,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+        },
+        tenantId,
+        { id: userId, role: UserRole.STAFF } as User
+      );
+
+      expect(status).toEqual({
+        isOnWaitlist: true,
+        entryId: 'waitlist-1',
+        status: WaitlistStatus.WAITING,
+        queuePosition: 1,
+      });
+    });
+
     it('returns false when user is not on waitlist', async () => {
       waitlistRepository.findOne.mockResolvedValue(null);
 
@@ -325,6 +357,42 @@ describe('WaitlistService', () => {
       expect(result.items[0]?.entryId).toBe('waitlist-list-1');
       expect(result.summary.waiting).toBe(2);
       expect(result.summary.notified).toBe(1);
+    });
+
+    it('normalizes invalid active queue positions to one in list items', async () => {
+      const entry = {
+        id: 'waitlist-list-1',
+        facilityId,
+        userId,
+        status: WaitlistStatus.WAITING,
+        desiredStartTime: startTime,
+        desiredEndTime: endTime,
+        createdAt: new Date('2026-03-01T06:00:00.000Z'),
+        notifiedAt: null,
+        expiredAt: null,
+        fulfilledByBookingId: null,
+        facility: { id: facilityId, name: 'Court A' },
+        user: { id: userId, name: 'Agent', email: 'agent@khana.dev' },
+      } as unknown as WaitingListEntry;
+      const listQueryBuilder = createListQueryBuilder([entry], 1);
+      const summaryQueryBuilder = createListQueryBuilder([], 0);
+      waitlistRepository.createQueryBuilder
+        .mockReturnValueOnce(listQueryBuilder)
+        .mockReturnValueOnce(createCountQueryBuilder(0))
+        .mockReturnValue(summaryQueryBuilder);
+
+      const result = await service.listEntries(
+        {
+          from: '2026-03-01T00:00:00.000Z',
+          to: '2026-03-15T00:00:00.000Z',
+          page: 1,
+          pageSize: 20,
+        },
+        tenantId,
+        { id: userId, role: UserRole.STAFF } as User
+      );
+
+      expect(result.items[0]?.queuePosition).toBe(1);
     });
   });
 

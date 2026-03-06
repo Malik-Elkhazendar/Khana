@@ -129,7 +129,9 @@ export class WaitlistService {
         const queuePosition =
           entry.status === WaitlistStatus.WAITING ||
           entry.status === WaitlistStatus.NOTIFIED
-            ? await this.resolveQueuePosition(this.waitlistRepository, entry)
+            ? this.normalizeQueuePosition(
+                await this.resolveQueuePosition(this.waitlistRepository, entry)
+              )
             : null;
 
         return {
@@ -326,9 +328,8 @@ export class WaitlistService {
     });
 
     if (activeEntry) {
-      const queuePosition = await this.resolveQueuePosition(
-        this.waitlistRepository,
-        activeEntry
+      const queuePosition = this.normalizeQueuePosition(
+        await this.resolveQueuePosition(this.waitlistRepository, activeEntry)
       );
       return {
         isOnWaitlist: activeEntry.status === WaitlistStatus.WAITING,
@@ -812,13 +813,23 @@ export class WaitlistService {
     return {
       entryId: entry.id,
       status: entry.status,
-      queuePosition,
+      queuePosition: this.normalizeQueuePosition(queuePosition),
       desiredTimeSlot: {
         startTime: entry.desiredStartTime.toISOString(),
         endTime: entry.desiredEndTime.toISOString(),
       },
       createdAt: entry.createdAt.toISOString(),
     };
+  }
+
+  private normalizeQueuePosition(
+    queuePosition: number | null | undefined
+  ): number {
+    if (!Number.isFinite(queuePosition) || (queuePosition ?? 0) < 1) {
+      return 1;
+    }
+
+    return Math.floor(queuePosition);
   }
 
   private async resolveQueuePosition(

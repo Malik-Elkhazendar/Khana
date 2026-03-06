@@ -8,6 +8,7 @@ import {
   Query,
   Patch,
   Param,
+  ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
@@ -100,7 +101,7 @@ export class BookingsController {
    */
   @Patch(':id/status')
   updateStatus(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: UpdateBookingStatusDto,
     @TenantId() tenantId: string,
     @CurrentUser() user: User
@@ -140,7 +141,7 @@ export class BookingsController {
    */
   @Get(':id')
   findOne(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @TenantId() tenantId: string,
     @CurrentUser() user: User
   ) {

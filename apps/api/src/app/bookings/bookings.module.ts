@@ -12,6 +12,7 @@ import {
 } from '@khana/data-access';
 import { AuthModule } from '../auth/auth.module';
 import { BookingsController } from './bookings.controller';
+import { BookingHoldCleanupService } from './booking-hold-cleanup.service';
 import { BookingsService } from './bookings.service';
 import { WaitlistCleanupService } from './waitlist/waitlist-cleanup.service';
 import { WaitlistController } from './waitlist/waitlist.controller';
@@ -35,8 +36,13 @@ import { CustomersModule } from '../customers/customers.module';
       WaitingListEntry,
     ]),
   ],
-  controllers: [BookingsController, WaitlistController],
-  providers: [BookingsService, WaitlistService, WaitlistCleanupService],
+  controllers: [WaitlistController, BookingsController],
+  providers: [
+    BookingsService,
+    BookingHoldCleanupService,
+    WaitlistService,
+    WaitlistCleanupService,
+  ],
   exports: [BookingsService],
 })
 export class BookingsModule {}

@@ -28,6 +28,10 @@ export const LOG_EVENTS = {
   BOOKING_CREATE_CONFLICT: 'booking.create.conflict',
   BOOKING_STATUS_UPDATED: 'booking.status.updated',
   BOOKING_STATUS_INVALID_TRANSITION: 'booking.status.invalid_transition',
+  BOOKING_HOLD_EXPIRED: 'booking.hold.expired',
+  BOOKING_HOLD_EXPIRE_COMPLETE: 'booking.hold.expire.complete',
+  BOOKING_HOLD_EXPIRE_FAILED: 'booking.hold.expire.failed',
+  BOOKING_HOLD_WAITLIST_NOTIFIED: 'booking.hold.waitlist.notified',
   WAITLIST_JOIN_SUCCESS: 'waitlist.join.success',
   WAITLIST_NOTIFY_SUCCESS: 'waitlist.notify.success',
   WAITLIST_NOTIFY_FAILED: 'waitlist.notify.failed',
@@ -42,6 +46,7 @@ export const LOG_EVENTS = {
 
   // Analytics
   ANALYTICS_QUERY_SUCCESS: 'analytics.query.success',
+  ANALYTICS_DATA_INTEGRITY_WARNING: 'analytics.data_integrity.warning',
 
   // Goals
   GOALS_SETTINGS_UPDATED: 'goals.settings.updated',
