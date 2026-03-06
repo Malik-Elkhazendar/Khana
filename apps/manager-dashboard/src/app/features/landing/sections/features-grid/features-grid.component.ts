@@ -76,7 +76,8 @@ export class FeaturesGridComponent implements AfterViewInit, OnDestroy {
       title: 'Real-Time Calendar',
       description:
         'No more "let me check and get back to you." Your calendar updates instantly across all devices, showing live availability.',
-      gradient: 'linear-gradient(135deg, #2d7d6f 0%, #1f6357 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-success) 0%, var(--marketing-success-deep) 100%)',
       image: 'assets/images/landing/feature_realtime_calendar.png?v=3',
     },
     {
@@ -85,7 +86,8 @@ export class FeaturesGridComponent implements AfterViewInit, OnDestroy {
       title: 'Zero Double-Bookings',
       description:
         'Our smart system automatically detects and prevents overlapping bookings before they happen. Never disappoint a customer again.',
-      gradient: 'linear-gradient(135deg, #c75d4a 0%, #a84a39 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-secondary) 0%, var(--marketing-secondary-deep) 100%)',
       image: 'assets/images/landing/feature_zero_double_bookings.png?v=3',
     },
     {
@@ -94,7 +96,8 @@ export class FeaturesGridComponent implements AfterViewInit, OnDestroy {
       title: 'Mobile-First Design',
       description:
         'Check-in customers, view bookings, update availability—all from your mobile device. Manage your business from anywhere.',
-      gradient: 'linear-gradient(135deg, #d4a855 0%, #b8923f 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dark) 100%)',
       image: 'assets/images/landing/feature_mobile_first.png?v=3',
     },
     {
@@ -103,7 +106,8 @@ export class FeaturesGridComponent implements AfterViewInit, OnDestroy {
       title: 'Know Your Customers',
       description:
         'Track booking history, preferences, and payment status. Build lasting relationships, not just one-time transactions.',
-      gradient: 'linear-gradient(135deg, #5b8def 0%, #4a7bdc 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary) 100%)',
       image: 'assets/images/landing/feature_know_your_customers.png?v=3',
     },
     {
@@ -112,7 +116,8 @@ export class FeaturesGridComponent implements AfterViewInit, OnDestroy {
       title: 'Dynamic Pricing',
       description:
         'Set peak and off-peak rates, create promo codes, and maximize revenue during high-demand periods automatically.',
-      gradient: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-secondary-light) 0%, var(--color-secondary-dark) 100%)',
       image: 'assets/images/landing/feature_dynamic_pricing.png?v=3',
     },
     {
@@ -121,7 +126,8 @@ export class FeaturesGridComponent implements AfterViewInit, OnDestroy {
       title: 'Bank-Level Security',
       description:
         'GDPR-compliant data handling, role-based permissions, and complete audit trails. Your data is safe with us.',
-      gradient: 'linear-gradient(135deg, #1e2a3a 0%, #2d3f54 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-primary) 0%, var(--marketing-primary-deep) 100%)',
       image: 'assets/images/landing/feature_bank_level_security.png?v=3',
     },
   ];

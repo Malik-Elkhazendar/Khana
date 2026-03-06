@@ -24,8 +24,9 @@
   position: absolute;
   width: 300px;
   height: 300px;
+  color: var(--marketing-primary-medium);
   opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M16 0L18.5 13.5L32 16L18.5 18.5L16 32L13.5 18.5L0 16L13.5 13.5L16 0Z' fill='%231e2a3a'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M16 0L18.5 13.5L32 16L18.5 18.5L16 32L13.5 18.5L0 16L13.5 13.5L16 0Z' fill='currentColor'/%3E%3C/svg%3E");
   background-size: 40px 40px;
 
   &.pattern-1 {
@@ -66,7 +67,7 @@
 .section-eyebrow {
   display: inline-block;
   padding: var(--space-2) var(--space-4);
-  background: rgba(212, 168, 85, 0.1);
+  background: var(--marketing-accent-soft);
   border-radius: var(--radius-full);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -130,20 +131,20 @@
   display: flex;
   flex-direction: column;
   padding: var(--space-6);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--marketing-surface-glass);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 24px rgba(30, 42, 58, 0.06),
-    0 1px 2px rgba(30, 42, 58, 0.04);
+  border: 1px solid var(--marketing-surface-glass-strong);
+  box-shadow: 0 4px 24px var(--marketing-primary-shadow-soft),
+    0 1px 2px var(--marketing-primary-soft);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 
   &:hover {
     transform: translateY(-8px);
-    box-shadow: 0 20px 60px rgba(30, 42, 58, 0.12),
-      0 8px 24px rgba(30, 42, 58, 0.08);
+    box-shadow: 0 20px 60px var(--marketing-primary-shadow-medium),
+      0 8px 24px var(--marketing-primary-shadow-soft);
 
     .card-glow {
       opacity: 0.1;
@@ -271,8 +272,8 @@
   aspect-ratio: 16 / 10;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: rgba(30, 42, 58, 0.03);
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.02);
+  background: var(--marketing-primary-subtle);
+  box-shadow: inset 0 2px 10px var(--marketing-primary-subtle);
 }
 
 .abstract-visual {
@@ -301,7 +302,7 @@
     height: 80%;
   }
   .v-cell {
-    background: rgba(30, 42, 58, 0.05);
+    background: var(--marketing-primary-soft);
     border-radius: var(--radius-sm);
     &.active {
       background: var(--color-primary);
@@ -326,18 +327,18 @@
     border-radius: var(--radius-full);
     background: radial-gradient(
       circle,
-      rgba(199, 93, 74, 0.1) 0%,
+      var(--marketing-secondary-soft) 0%,
       transparent 70%
     );
   }
   .v-shield-line {
     height: 8px;
-    background: rgba(30, 42, 58, 0.1);
+    background: var(--marketing-primary-medium);
     border-radius: var(--radius-full);
     z-index: 1;
     &.error {
       background: var(--color-error);
-      box-shadow: 0 0 10px rgba(196, 69, 54, 0.3);
+      box-shadow: 0 0 10px var(--marketing-error-shadow);
     }
   }
 }
@@ -349,7 +350,7 @@
     height: 160px;
     border: 4px solid var(--color-surface-elevated);
     border-radius: var(--radius-lg);
-    background: rgba(30, 42, 58, 0.02);
+    background: var(--marketing-primary-subtle);
     box-shadow: var(--shadow-md);
     display: flex;
     flex-direction: column;
@@ -358,7 +359,7 @@
   }
   .v-phone-header {
     height: 10px;
-    background: rgba(30, 42, 58, 0.1);
+    background: var(--marketing-primary-medium);
     border-radius: var(--radius-sm);
   }
   .v-phone-card {
@@ -375,7 +376,7 @@
     position: absolute;
     border-radius: var(--radius-full);
     background: var(--color-primary);
-    box-shadow: 0 4px 12px rgba(30, 42, 58, 0.2);
+    box-shadow: 0 4px 12px var(--marketing-primary-shadow-strong);
     &.main {
       width: 40px;
       height: 40px;
@@ -384,14 +385,14 @@
       width: 24px;
       height: 24px;
       top: 20%;
-      left: 20%;
+      inset-inline-start: 20%;
       opacity: 0.8;
     }
     &.child-2 {
       width: 24px;
       height: 24px;
       bottom: 20%;
-      right: 20%;
+      inset-inline-end: 20%;
       opacity: 0.8;
       background: var(--color-accent);
     }
@@ -399,18 +400,18 @@
   .v-user-line {
     position: absolute;
     height: 2px;
-    background: rgba(30, 42, 58, 0.1);
-    transform-origin: left center;
+    background: var(--marketing-primary-medium);
+    transform-origin: center center;
     &.line-1 {
       width: 60px;
       top: 30%;
-      left: 30%;
+      inset-inline-start: 30%;
       transform: rotate(45deg);
     }
     &.line-2 {
       width: 60px;
       bottom: 30%;
-      right: 30%;
+      inset-inline-end: 30%;
       transform: rotate(-135deg);
     }
   }

@@ -1,0 +1,267 @@
+@mixin theme-vars {
+  --marketing-accent-subtle: color-mix(
+    in srgb,
+    var(--color-accent) 3%,
+    transparent
+  );
+  --marketing-accent-soft: color-mix(
+    in srgb,
+    var(--color-accent) 10%,
+    transparent
+  );
+  --marketing-accent-medium: color-mix(
+    in srgb,
+    var(--color-accent) 15%,
+    transparent
+  );
+  --marketing-accent-strong: color-mix(
+    in srgb,
+    var(--color-accent) 18%,
+    transparent
+  );
+  --marketing-accent-border-soft: color-mix(
+    in srgb,
+    var(--color-accent) 30%,
+    transparent
+  );
+  --marketing-accent-glow: color-mix(
+    in srgb,
+    var(--color-accent) 34%,
+    transparent
+  );
+  --marketing-accent-ring: color-mix(
+    in srgb,
+    var(--color-accent) 10%,
+    transparent
+  );
+  --marketing-accent-shadow-soft: color-mix(
+    in srgb,
+    var(--color-accent) 30%,
+    transparent
+  );
+  --marketing-accent-shadow-strong: color-mix(
+    in srgb,
+    var(--color-accent) 35%,
+    transparent
+  );
+
+  --marketing-secondary-soft: color-mix(
+    in srgb,
+    var(--color-secondary) 10%,
+    transparent
+  );
+  --marketing-secondary-medium: color-mix(
+    in srgb,
+    var(--color-secondary) 12%,
+    transparent
+  );
+  --marketing-secondary-strong: color-mix(
+    in srgb,
+    var(--color-secondary) 14%,
+    transparent
+  );
+  --marketing-secondary-border-soft: color-mix(
+    in srgb,
+    var(--color-secondary) 15%,
+    transparent
+  );
+  --marketing-secondary-glow: color-mix(
+    in srgb,
+    var(--color-secondary) 35%,
+    transparent
+  );
+  --marketing-secondary-shadow: color-mix(
+    in srgb,
+    var(--color-secondary) 30%,
+    transparent
+  );
+  --marketing-secondary-shadow-strong: color-mix(
+    in srgb,
+    var(--color-secondary) 40%,
+    transparent
+  );
+  --marketing-secondary-deep: color-mix(
+    in srgb,
+    var(--color-secondary-dark) 85%,
+    var(--color-secondary)
+  );
+
+  --marketing-error-soft: color-mix(
+    in srgb,
+    var(--color-error) 10%,
+    transparent
+  );
+  --marketing-error-softer: color-mix(
+    in srgb,
+    var(--color-error) 5%,
+    transparent
+  );
+  --marketing-error-subtle: color-mix(
+    in srgb,
+    var(--color-error) 3%,
+    transparent
+  );
+  --marketing-error-border: color-mix(
+    in srgb,
+    var(--color-error) 15%,
+    transparent
+  );
+  --marketing-error-shadow: color-mix(
+    in srgb,
+    var(--color-error) 30%,
+    transparent
+  );
+
+  --marketing-success-soft: color-mix(
+    in srgb,
+    var(--color-success) 10%,
+    transparent
+  );
+  --marketing-success-softer: color-mix(
+    in srgb,
+    var(--color-success) 5%,
+    transparent
+  );
+  --marketing-success-subtle: color-mix(
+    in srgb,
+    var(--color-success) 3%,
+    transparent
+  );
+  --marketing-success-border: color-mix(
+    in srgb,
+    var(--color-success) 15%,
+    transparent
+  );
+  --marketing-success-shadow: color-mix(
+    in srgb,
+    var(--color-success) 30%,
+    transparent
+  );
+  --marketing-success-glow: color-mix(
+    in srgb,
+    var(--color-success) 15%,
+    transparent
+  );
+
+  --marketing-primary-subtle: color-mix(
+    in srgb,
+    var(--color-primary) 2%,
+    transparent
+  );
+  --marketing-primary-soft: color-mix(
+    in srgb,
+    var(--color-primary) 5%,
+    transparent
+  );
+  --marketing-primary-medium: color-mix(
+    in srgb,
+    var(--color-primary) 10%,
+    transparent
+  );
+  --marketing-primary-strong: color-mix(
+    in srgb,
+    var(--color-primary) 15%,
+    transparent
+  );
+  --marketing-primary-shadow-soft: color-mix(
+    in srgb,
+    var(--color-primary) 6%,
+    transparent
+  );
+  --marketing-primary-shadow-medium: color-mix(
+    in srgb,
+    var(--color-primary) 12%,
+    transparent
+  );
+  --marketing-primary-shadow-strong: color-mix(
+    in srgb,
+    var(--color-primary) 20%,
+    transparent
+  );
+
+  --marketing-surface-soft: color-mix(
+    in srgb,
+    var(--color-surface-elevated) 95%,
+    transparent
+  );
+  --marketing-surface-glass: color-mix(
+    in srgb,
+    var(--color-surface-elevated) 70%,
+    transparent
+  );
+  --marketing-surface-glass-strong: color-mix(
+    in srgb,
+    var(--color-surface-elevated) 80%,
+    transparent
+  );
+  --marketing-surface-tinted: color-mix(
+    in srgb,
+    var(--color-surface-elevated) 98%,
+    var(--color-surface)
+  );
+  --marketing-surface-border-soft: color-mix(
+    in srgb,
+    var(--color-text-inverse) 8%,
+    transparent
+  );
+  --marketing-surface-border-medium: color-mix(
+    in srgb,
+    var(--color-text-inverse) 12%,
+    transparent
+  );
+  --marketing-surface-border-strong: color-mix(
+    in srgb,
+    var(--color-text-inverse) 30%,
+    transparent
+  );
+  --marketing-surface-warm: color-mix(
+    in srgb,
+    var(--color-surface) 82%,
+    var(--color-surface-muted)
+  );
+  --marketing-primary-deep: color-mix(
+    in srgb,
+    var(--color-primary-dark) 85%,
+    var(--color-primary)
+  );
+  --marketing-primary-overlay: color-mix(
+    in srgb,
+    var(--color-primary) 85%,
+    transparent
+  );
+  --marketing-success-deep: color-mix(
+    in srgb,
+    var(--color-success) 82%,
+    var(--color-primary-dark)
+  );
+  --marketing-text-inverse-faint: color-mix(
+    in srgb,
+    var(--color-text-inverse) 30%,
+    transparent
+  );
+  --marketing-text-inverse-subtle: color-mix(
+    in srgb,
+    var(--color-text-inverse) 50%,
+    transparent
+  );
+  --marketing-text-inverse-medium: color-mix(
+    in srgb,
+    var(--color-text-inverse) 60%,
+    transparent
+  );
+  --marketing-text-inverse-strong: color-mix(
+    in srgb,
+    var(--color-text-inverse) 70%,
+    transparent
+  );
+  --marketing-text-inverse-soft: color-mix(
+    in srgb,
+    var(--color-text-inverse) 78%,
+    transparent
+  );
+  --marketing-text-inverse-muted: color-mix(
+    in srgb,
+    var(--color-text-inverse) 84%,
+    transparent
+  );
+}

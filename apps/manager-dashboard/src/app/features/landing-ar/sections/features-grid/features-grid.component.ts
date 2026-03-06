@@ -76,7 +76,8 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       title: 'التقويم في الوقت الفعلي',
       description:
         'وداعاً لعبارة "دعني أتحقق وأعود إليك". يتم تحديث التقويم فورياً عبر جميع الأجهزة مع توافر مباشر.',
-      gradient: 'linear-gradient(135deg, #2d7d6f 0%, #1f6357 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-success) 0%, var(--marketing-success-deep) 100%)',
       image: 'assets/images/landing/feature_realtime_calendar.png?v=3',
     },
     {
@@ -85,7 +86,8 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       title: 'عدم وجود حجوزات مزدوجة',
       description:
         'نظامنا الذكي يرصد التعارضات ويمنع الحجوزات المتداخلة قبل حدوثها. لا إحراج مع العملاء بعد اليوم.',
-      gradient: 'linear-gradient(135deg, #c75d4a 0%, #a84a39 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-secondary) 0%, var(--marketing-secondary-deep) 100%)',
       image: 'assets/images/landing/feature_zero_double_bookings.png?v=3',
     },
     {
@@ -94,7 +96,8 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       title: 'تصميم موجه للهاتف المحمول',
       description:
         'استقبل العملاء، اعرض الحجوزات، وحدّث التوافر من هاتفك. أدر أعمالك من أي مكان.',
-      gradient: 'linear-gradient(135deg, #d4a855 0%, #b8923f 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dark) 100%)',
       image: 'assets/images/landing/feature_mobile_first.png?v=3',
     },
     {
@@ -103,7 +106,8 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       title: 'اعرف عملاءك',
       description:
         'تتبّع سجل الحجوزات والتفضيلات وحالة الدفع. ابنِ علاقات طويلة الأمد مع العملاء.',
-      gradient: 'linear-gradient(135deg, #5b8def 0%, #4a7bdc 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary) 100%)',
       image: 'assets/images/landing/feature_know_your_customers.png?v=3',
     },
     {
@@ -112,7 +116,8 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       title: 'تسعير ديناميكي',
       description:
         'حدد أسعار الذروة وخارج الذروة، وأنشئ عروضاً ترويجية، وزد الإيرادات تلقائياً وقت الطلب العالي.',
-      gradient: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-secondary-light) 0%, var(--color-secondary-dark) 100%)',
       image: 'assets/images/landing/feature_dynamic_pricing.png?v=3',
     },
     {
@@ -121,7 +126,8 @@ export class FeaturesGridArComponent implements AfterViewInit, OnDestroy {
       title: 'أمان على مستوى البنوك',
       description:
         'إدارة بيانات متوافقة مع GDPR، وصلاحيات حسب الأدوار، وسجل تدقيق كامل. بياناتك آمنة معنا.',
-      gradient: 'linear-gradient(135deg, #1e2a3a 0%, #2d3f54 100%)',
+      gradient:
+        'linear-gradient(135deg, var(--color-primary) 0%, var(--marketing-primary-deep) 100%)',
       image: 'assets/images/landing/feature_bank_level_security.png?v=3',
     },
   ];

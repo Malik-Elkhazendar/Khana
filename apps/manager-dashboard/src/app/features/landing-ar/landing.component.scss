@@ -1,6 +1,13 @@
+@use '../../shared/styles/marketing-theme' as marketing;
+
 // ============================================
 // Landing Page - Desert Night Luxury Theme
 // ============================================
+
+:host {
+  display: block;
+  @include marketing.theme-vars;
+}
 
 // Skip link for accessibility
 .skip-link {
@@ -144,11 +151,13 @@ section {
 }
 
 .glow-accent {
-  box-shadow: 0 0 20px rgba(212, 168, 85, 0.3), 0 0 40px rgba(212, 168, 85, 0.1);
+  box-shadow: 0 0 20px var(--marketing-accent-glow),
+    0 0 40px var(--marketing-accent-soft);
 }
 
 .glow-secondary {
-  box-shadow: 0 0 20px rgba(199, 93, 74, 0.3), 0 0 40px rgba(199, 93, 74, 0.1);
+  box-shadow: 0 0 20px var(--marketing-secondary-glow),
+    0 0 40px var(--marketing-secondary-soft);
 }
 
 // Noise texture overlay mixin

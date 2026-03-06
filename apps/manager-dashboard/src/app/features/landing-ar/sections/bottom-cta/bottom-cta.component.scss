@@ -5,7 +5,7 @@
   max-inline-size: 80rem;
   margin-inline: auto;
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(250, 248, 245, 0.08);
+  border: 1px solid var(--marketing-surface-border-soft);
   padding-block: var(--space-12);
   padding-inline: var(--space-4);
   box-shadow: var(--shadow-lg);
@@ -29,7 +29,7 @@
     135deg,
     var(--color-primary) 0%,
     var(--color-primary-dark) 55%,
-    #0f141d 100%
+    var(--marketing-primary-deep) 100%
   );
 }
 
@@ -68,7 +68,7 @@
   block-size: 50%;
   background: radial-gradient(
     circle,
-    rgba(212, 168, 85, 0.18) 0%,
+    var(--marketing-accent-strong) 0%,
     transparent 70%
   );
 }
@@ -80,7 +80,7 @@
   block-size: 60%;
   background: radial-gradient(
     circle,
-    rgba(199, 93, 74, 0.14) 0%,
+    var(--marketing-secondary-strong) 0%,
     transparent 70%
   );
 }
@@ -121,7 +121,7 @@
   margin-inline: auto;
   font-size: var(--text-lg);
   line-height: 1.7;
-  color: rgba(250, 248, 245, 0.84);
+  color: var(--marketing-text-inverse-muted);
 }
 
 .cta-actions {
@@ -156,7 +156,7 @@
     var(--color-secondary-dark) 100%
   );
   color: var(--color-text-inverse);
-  box-shadow: 0 8px 30px rgba(199, 93, 74, 0.34);
+  box-shadow: 0 8px 30px var(--marketing-secondary-shadow);
 }
 
 .btn-content {
@@ -174,7 +174,7 @@
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 34px rgba(199, 93, 74, 0.35);
+  box-shadow: 0 14px 34px var(--marketing-secondary-shadow-strong);
 }
 
 .btn-primary:hover .btn-icon {
@@ -203,14 +203,14 @@
   inline-size: 100%;
   font-size: var(--text-base);
   color: var(--color-text-inverse);
-  border: 1px solid rgba(250, 248, 245, 0.3);
-  background: rgba(250, 248, 245, 0.03);
+  border: 1px solid var(--marketing-surface-border-strong);
+  background: var(--marketing-primary-subtle);
 }
 
 .btn-outline:hover {
   transform: translateY(-1px);
-  border-color: rgba(250, 248, 245, 0.6);
-  background: rgba(250, 248, 245, 0.12);
+  border-color: var(--marketing-surface-glass-strong);
+  background: var(--marketing-surface-border-medium);
 }
 
 .trust-line {
@@ -228,7 +228,7 @@
   align-items: center;
   gap: var(--space-1);
   font-size: var(--text-sm);
-  color: rgba(250, 248, 245, 0.78);
+  color: var(--marketing-text-inverse-soft);
 }
 
 .trust-item svg {

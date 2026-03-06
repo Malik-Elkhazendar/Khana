@@ -21,10 +21,10 @@
     padding: var(--space-3) var(--space-4);
 
     &::before {
-      background: rgba(30, 42, 58, 0.85);
+      background: var(--marketing-primary-overlay);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 30px var(--marketing-primary-shadow-medium);
     }
 
     .logo-text,
@@ -42,10 +42,10 @@
 
     .btn-ghost {
       color: var(--color-text-inverse);
-      border-color: rgba(250, 248, 245, 0.3);
+      border-color: var(--marketing-surface-border-strong);
 
       &:hover {
-        background: rgba(250, 248, 245, 0.1);
+        background: var(--marketing-surface-border-medium);
         border-color: var(--color-text-inverse);
       }
     }
@@ -145,7 +145,7 @@
 
   &:hover {
     color: var(--color-accent);
-    background: rgba(212, 168, 85, 0.08);
+    background: var(--marketing-accent-ring);
   }
 
   &:focus-visible {
@@ -206,7 +206,7 @@
   border: 1px solid var(--color-text-muted);
 
   &:hover {
-    background: rgba(30, 42, 58, 0.05);
+    background: var(--marketing-primary-soft);
     border-color: var(--color-text-primary);
   }
 }
@@ -219,7 +219,7 @@
   );
   color: white;
   border: none;
-  box-shadow: 0 4px 14px rgba(199, 93, 74, 0.35), 0 0 0 0 rgba(199, 93, 74, 0);
+  box-shadow: 0 4px 14px var(--marketing-secondary-shadow), 0 0 0 0 transparent;
   position: relative;
   overflow: hidden;
 
@@ -238,7 +238,8 @@
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(199, 93, 74, 0.4), 0 0 0 0 rgba(199, 93, 74, 0);
+    box-shadow: 0 6px 20px var(--marketing-secondary-shadow-strong),
+      0 0 0 0 transparent;
 
     &::before {
       opacity: 1;
