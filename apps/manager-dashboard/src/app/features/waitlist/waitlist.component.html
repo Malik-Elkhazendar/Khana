@@ -72,7 +72,17 @@
       </label>
     </div>
 
-    <div class="dashboard-action-group waitlist-filters__actions">
+    <div
+      class="dashboard-action-group dashboard-action-group--stack-compact waitlist-filters__actions"
+    >
+      <button
+        class="dashboard-btn dashboard-btn--secondary"
+        type="button"
+        data-testid="waitlist-upcoming"
+        (click)="setUpcoming()"
+      >
+        {{ 'DASHBOARD.PAGES.WAITLIST.FILTERS.UPCOMING' | translate }}
+      </button>
       <button
         class="dashboard-btn dashboard-btn--primary"
         type="button"
@@ -96,107 +106,281 @@
     }
   </section>
 
-  @if (loading()) {
-  <section class="dashboard-card waitlist-state" role="status">
-    {{ 'DASHBOARD.PAGES.WAITLIST.STATE.LOADING' | translate }}
-  </section>
-  } @else if (error()) {
-  <section
-    class="dashboard-card waitlist-state waitlist-state--error"
-    role="alert"
-  >
-    <p>{{ 'CLIENT_ERRORS.WAITLIST_OPERATIONS.UNKNOWN' | translate }}</p>
-    <button
-      class="dashboard-btn dashboard-btn--secondary"
-      type="button"
-      (click)="applyFilters()"
-    >
-      {{ 'DASHBOARD.ACTIONS.RETRY' | translate }}
-    </button>
-  </section>
-  } @else {
-  <section class="waitlist-summary" role="list">
-    <article class="dashboard-card waitlist-summary__item" role="listitem">
-      <h2>{{ 'DASHBOARD.PAGES.WAITLIST.SUMMARY.WAITING' | translate }}</h2>
-      <p>{{ summary().waiting }}</p>
-    </article>
-    <article class="dashboard-card waitlist-summary__item" role="listitem">
-      <h2>{{ 'DASHBOARD.PAGES.WAITLIST.SUMMARY.NOTIFIED' | translate }}</h2>
-      <p>{{ summary().notified }}</p>
-    </article>
-    <article class="dashboard-card waitlist-summary__item" role="listitem">
-      <h2>{{ 'DASHBOARD.PAGES.WAITLIST.SUMMARY.EXPIRED' | translate }}</h2>
-      <p>{{ summary().expired }}</p>
-    </article>
-    <article class="dashboard-card waitlist-summary__item" role="listitem">
-      <h2>{{ 'DASHBOARD.PAGES.WAITLIST.SUMMARY.FULFILLED' | translate }}</h2>
-      <p>{{ summary().fulfilled }}</p>
-    </article>
-  </section>
+  <section class="dashboard-card waitlist-panel">
+    <header class="waitlist-report">
+      <div class="waitlist-report__heading">
+        <h2 class="waitlist-report__title">
+          {{ 'DASHBOARD.PAGES.WAITLIST.REPORT.TITLE' | translate }}
+        </h2>
+        <p class="waitlist-report__subtitle">
+          {{ 'DASHBOARD.PAGES.WAITLIST.REPORT.SUBTITLE' | translate }}
+        </p>
+      </div>
+      <p class="waitlist-report__scope">
+        {{ 'DASHBOARD.PAGES.WAITLIST.REPORT.SUMMARY_SCOPE' | translate }}
+      </p>
+    </header>
 
-  <section class="dashboard-card waitlist-table">
-    @if (items().length === 0) {
-    <p class="waitlist-table__empty">
-      {{ 'DASHBOARD.PAGES.WAITLIST.STATE.EMPTY' | translate }}
-    </p>
-    } @else {
-    <div class="waitlist-table__scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>{{ 'DASHBOARD.PAGES.WAITLIST.TABLE.STATUS' | translate }}</th>
-            <th>{{ 'DASHBOARD.PAGES.WAITLIST.TABLE.FACILITY' | translate }}</th>
-            <th>{{ 'DASHBOARD.PAGES.WAITLIST.TABLE.USER' | translate }}</th>
-            <th>{{ 'DASHBOARD.PAGES.WAITLIST.TABLE.SLOT' | translate }}</th>
-            <th>{{ 'DASHBOARD.PAGES.WAITLIST.TABLE.POSITION' | translate }}</th>
-            <th>
-              {{ 'DASHBOARD.PAGES.WAITLIST.TABLE.CREATED_AT' | translate }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of items(); track trackByEntryId($index, item)) {
-          <tr>
-            <td>{{ statusLabelKey(item.status) | translate }}</td>
-            <td>{{ item.facilityName }}</td>
-            <td>{{ item.userName }}</td>
-            <td>
-              {{ formatDateTime(item.desiredStartTime) }} -
-              {{ formatDateTime(item.desiredEndTime) }}
-            </td>
-            <td>{{ item.queuePosition ?? '—' }}</td>
-            <td>{{ formatDateTime(item.createdAt) }}</td>
-          </tr>
+    <div class="waitlist-report__meta" role="list">
+      <p class="waitlist-report__meta-item" role="listitem">
+        <span class="waitlist-report__meta-label">{{
+          'DASHBOARD.PAGES.WAITLIST.REPORT.FACILITY_LABEL' | translate
+        }}</span>
+        <span class="waitlist-report__meta-value">
+          @if (facilityId()) {
+          {{ selectedFacilityName() }}
+          } @else {
+          {{ 'DASHBOARD.PAGES.WAITLIST.FILTERS.ALL_FACILITIES' | translate }}
           }
-        </tbody>
-      </table>
+        </span>
+      </p>
+      <p class="waitlist-report__meta-item" role="listitem">
+        <span class="waitlist-report__meta-label">{{
+          'DASHBOARD.PAGES.WAITLIST.REPORT.RANGE_LABEL' | translate
+        }}</span>
+        <span class="waitlist-report__meta-value">
+          {{ formatInputDate(fromDate()) }} - {{ formatInputDate(toDate()) }}
+        </span>
+      </p>
+      <p class="waitlist-report__meta-item" role="listitem">
+        <span class="waitlist-report__meta-label">{{
+          'DASHBOARD.PAGES.WAITLIST.REPORT.STATUS_LABEL' | translate
+        }}</span>
+        <span class="waitlist-report__meta-value">
+          @if (statusFilter() === 'ALL') {
+          {{ 'DASHBOARD.PAGES.WAITLIST.FILTERS.ALL_STATUSES' | translate }}
+          } @else {
+          {{ statusLabelKey(statusFilter()) | translate }}
+          }
+        </span>
+      </p>
     </div>
 
-    <div class="waitlist-pagination">
-      <button
-        class="dashboard-btn dashboard-btn--secondary"
-        type="button"
-        [disabled]="!hasPreviousPage()"
-        (click)="goToPage(page() - 1)"
-      >
-        {{ 'DASHBOARD.PAGES.WAITLIST.PAGINATION.PREVIOUS' | translate }}
-      </button>
-      <p>
+    @if (slotContext(); as context) {
+    <section
+      class="waitlist-context"
+      role="status"
+      data-testid="waitlist-slot-context"
+    >
+      <p class="waitlist-context__eyebrow">
+        {{ 'DASHBOARD.PAGES.WAITLIST.CONTEXT.TITLE' | translate }}
+      </p>
+      <p class="waitlist-context__message">
+        {{ 'DASHBOARD.PAGES.WAITLIST.CONTEXT.MESSAGE' | translate }}
+      </p>
+      <div class="waitlist-context__meta" role="list">
+        <p class="waitlist-context__meta-item" role="listitem">
+          <span class="waitlist-context__meta-label">{{
+            'DASHBOARD.PAGES.WAITLIST.CONTEXT.FACILITY_LABEL' | translate
+          }}</span>
+          <span class="waitlist-context__meta-value">
+            @if (context.facilityId) {
+            {{ selectedFacilityName() ?? context.facilityId }}
+            } @else {
+            {{ 'DASHBOARD.PAGES.WAITLIST.FILTERS.ALL_FACILITIES' | translate }}
+            }
+          </span>
+        </p>
+        <p class="waitlist-context__meta-item" role="listitem">
+          <span class="waitlist-context__meta-label">{{
+            'DASHBOARD.PAGES.WAITLIST.CONTEXT.SLOT_LABEL' | translate
+          }}</span>
+          <span class="waitlist-context__meta-value">
+            {{ formatDateTime(context.startTime) }} -
+            {{ formatDateTime(context.endTime) }}
+          </span>
+        </p>
+      </div>
+    </section>
+    } @if (loading()) {
+    <section class="waitlist-state waitlist-state--loading" role="status">
+      <p class="waitlist-state__title">
+        {{ 'DASHBOARD.PAGES.WAITLIST.STATE.LOADING' | translate }}
+      </p>
+      <div class="waitlist-skeleton" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </section>
+    } @else if (error()) {
+    <section class="waitlist-state waitlist-state--error" role="alert">
+      <p class="waitlist-state__title">
+        {{ 'DASHBOARD.PAGES.WAITLIST.STATE.ERROR_TITLE' | translate }}
+      </p>
+      <p class="waitlist-state__message">
+        {{ 'CLIENT_ERRORS.WAITLIST_OPERATIONS.UNKNOWN' | translate }}
+      </p>
+      <div class="dashboard-action-group dashboard-action-group--stack-compact">
+        <button
+          class="dashboard-btn dashboard-btn--primary"
+          type="button"
+          (click)="applyFilters()"
+        >
+          {{ 'DASHBOARD.ACTIONS.RETRY' | translate }}
+        </button>
+        <button
+          class="dashboard-btn dashboard-btn--secondary"
+          type="button"
+          (click)="setToday()"
+        >
+          {{ 'DASHBOARD.PAGES.WAITLIST.FILTERS.TODAY' | translate }}
+        </button>
+      </div>
+    </section>
+    } @else {
+    <section class="waitlist-summary" role="list">
+      <article class="waitlist-summary__item" role="listitem">
+        <h2>{{ 'DASHBOARD.PAGES.WAITLIST.SUMMARY.WAITING' | translate }}</h2>
+        <p>{{ summary().waiting }}</p>
+      </article>
+      <article class="waitlist-summary__item" role="listitem">
+        <h2>{{ 'DASHBOARD.PAGES.WAITLIST.SUMMARY.NOTIFIED' | translate }}</h2>
+        <p>{{ summary().notified }}</p>
+      </article>
+      <article class="waitlist-summary__item" role="listitem">
+        <h2>{{ 'DASHBOARD.PAGES.WAITLIST.SUMMARY.EXPIRED' | translate }}</h2>
+        <p>{{ summary().expired }}</p>
+      </article>
+      <article class="waitlist-summary__item" role="listitem">
+        <h2>{{ 'DASHBOARD.PAGES.WAITLIST.SUMMARY.FULFILLED' | translate }}</h2>
+        <p>{{ summary().fulfilled }}</p>
+      </article>
+    </section>
+
+    @if (hasSlotContext() && !hasMatchingSlotContextRows()) {
+    <section
+      class="waitlist-state waitlist-state--context"
+      role="status"
+      data-testid="waitlist-slot-context-empty"
+    >
+      <p class="waitlist-state__title">
+        {{ 'DASHBOARD.PAGES.WAITLIST.CONTEXT.EMPTY_TITLE' | translate }}
+      </p>
+      <p class="waitlist-state__message">
+        {{ 'DASHBOARD.PAGES.WAITLIST.CONTEXT.EMPTY' | translate }}
+      </p>
+    </section>
+    } @if (items().length === 0) {
+    <section class="waitlist-state waitlist-state--empty" role="status">
+      <p class="waitlist-state__title">
         {{
-          'DASHBOARD.PAGES.WAITLIST.PAGINATION.LABEL'
-            | translate : { page: page(), totalPages: totalPages() }
+          (hasSlotContext()
+            ? 'DASHBOARD.PAGES.WAITLIST.CONTEXT.EMPTY_TITLE'
+            : 'DASHBOARD.PAGES.WAITLIST.STATE.EMPTY_TITLE'
+          ) | translate
         }}
       </p>
-      <button
-        class="dashboard-btn dashboard-btn--secondary"
-        type="button"
-        [disabled]="!hasNextPage()"
-        (click)="goToPage(page() + 1)"
-      >
-        {{ 'DASHBOARD.PAGES.WAITLIST.PAGINATION.NEXT' | translate }}
-      </button>
-    </div>
-    }
+      <p class="waitlist-state__message">
+        {{
+          (hasSlotContext()
+            ? 'DASHBOARD.PAGES.WAITLIST.CONTEXT.EMPTY'
+            : 'DASHBOARD.PAGES.WAITLIST.STATE.EMPTY'
+          ) | translate
+        }}
+      </p>
+    </section>
+    } @else {
+    <section class="waitlist-table">
+      <div class="waitlist-table__scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">
+                {{ 'DASHBOARD.PAGES.WAITLIST.TABLE.STATUS' | translate }}
+              </th>
+              <th scope="col">
+                {{ 'DASHBOARD.PAGES.WAITLIST.TABLE.FACILITY' | translate }}
+              </th>
+              <th scope="col">
+                {{ 'DASHBOARD.PAGES.WAITLIST.TABLE.USER' | translate }}
+              </th>
+              <th scope="col">
+                {{ 'DASHBOARD.PAGES.WAITLIST.TABLE.SLOT' | translate }}
+              </th>
+              <th scope="col">
+                {{ 'DASHBOARD.PAGES.WAITLIST.TABLE.POSITION' | translate }}
+              </th>
+              <th scope="col">
+                {{ 'DASHBOARD.PAGES.WAITLIST.TABLE.CREATED_AT' | translate }}
+              </th>
+              @if (canUseBookNow()) {
+              <th scope="col">
+                {{ 'DASHBOARD.PAGES.WAITLIST.TABLE.ACTIONS' | translate }}
+              </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track trackByEntryId($index, item)) {
+            <tr
+              [class.waitlist-table__row--context]="isContextRow(item)"
+              [attr.data-testid]="
+                isContextRow(item) ? 'waitlist-context-row' : null
+              "
+            >
+              <td>
+                <app-ui-status-badge
+                  [label]="statusLabelKey(item.status) | translate"
+                  [tone]="statusTone(item.status)"
+                ></app-ui-status-badge>
+              </td>
+              <td>{{ item.facilityName }}</td>
+              <td>{{ item.userName }}</td>
+              <td>
+                {{ formatDateTime(item.desiredStartTime) }} -
+                {{ formatDateTime(item.desiredEndTime) }}
+              </td>
+              <td>
+                {{
+                  item.queuePosition ??
+                    ('DASHBOARD.PAGES.WAITLIST.TABLE.NOT_AVAILABLE' | translate)
+                }}
+              </td>
+              <td>{{ formatDateTime(item.createdAt) }}</td>
+              @if (canUseBookNow()) {
+              <td class="waitlist-table__actions">
+                <button
+                  class="dashboard-btn dashboard-btn--secondary waitlist-table__book-now"
+                  type="button"
+                  data-testid="waitlist-book-now"
+                  (click)="bookNow(item)"
+                >
+                  {{ 'DASHBOARD.PAGES.WAITLIST.ACTIONS.BOOK_NOW' | translate }}
+                </button>
+              </td>
+              }
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="waitlist-pagination">
+        <button
+          class="dashboard-btn dashboard-btn--secondary"
+          type="button"
+          [disabled]="!hasPreviousPage()"
+          (click)="goToPage(page() - 1)"
+        >
+          {{ 'DASHBOARD.PAGES.WAITLIST.PAGINATION.PREVIOUS' | translate }}
+        </button>
+        <p>
+          {{
+            'DASHBOARD.PAGES.WAITLIST.PAGINATION.LABEL'
+              | translate : { page: page(), totalPages: totalPages() }
+          }}
+        </p>
+        <button
+          class="dashboard-btn dashboard-btn--secondary"
+          type="button"
+          [disabled]="!hasNextPage()"
+          (click)="goToPage(page() + 1)"
+        >
+          {{ 'DASHBOARD.PAGES.WAITLIST.PAGINATION.NEXT' | translate }}
+        </button>
+      </div>
+    </section>
+    } }
   </section>
-  }
 </main>

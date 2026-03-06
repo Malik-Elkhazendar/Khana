@@ -1,8 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import {
+  UserRole,
   WaitlistEntryListItemDto,
   WaitlistStatus,
   WaitlistSummaryCountsDto,
@@ -11,23 +21,43 @@ import { TranslateModule } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../shared/services/api.service';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
+import { AuthStore } from '../../shared/state/auth.store';
+import {
+  UiStatusTone,
+  UiStatusBadgeComponent,
+} from '../../shared/components/ui';
 import { FacilityContextStore } from '../../shared/state';
+import { WAITLIST_UPCOMING_WINDOW_DAYS } from '../../shared/constants/waitlist.constants';
 
 const DEFAULT_PAGE_SIZE = 20;
 const WAITLIST_STATUSES = Object.values(WaitlistStatus);
 
+type WaitlistSlotContext = {
+  facilityId: string | null;
+  startTime: string;
+  endTime: string;
+  source: 'booking-preview' | 'unknown';
+};
+
 @Component({
   selector: 'app-waitlist',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule],
+  imports: [CommonModule, FormsModule, TranslateModule, UiStatusBadgeComponent],
   templateUrl: './waitlist.component.html',
   styleUrl: './waitlist.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WaitlistComponent {
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly localeFormat = inject(LocaleFormatService);
   private readonly facilityContext = inject(FacilityContextStore);
+  private readonly authStore = inject(AuthStore);
+  private loadRequestSequence = 0;
+  private readonly initialUpcomingRange = this.createUpcomingRange();
+  private hasHydratedQueryParams = false;
 
   readonly facilities = this.facilityContext.facilities;
 
@@ -35,10 +65,11 @@ export class WaitlistComponent {
   readonly error = signal<Error | null>(null);
   readonly filterError = signal<string | null>(null);
 
-  readonly fromDate = signal(this.toInputDate(new Date()));
-  readonly toDate = signal(this.toInputDate(new Date()));
+  readonly fromDate = signal(this.initialUpcomingRange.from);
+  readonly toDate = signal(this.initialUpcomingRange.to);
   readonly facilityId = signal('');
   readonly statusFilter = signal<WaitlistStatus | 'ALL'>('ALL');
+  readonly slotContext = signal<WaitlistSlotContext | null>(null);
 
   readonly items = signal<WaitlistEntryListItemDto[]>([]);
   readonly summary = signal<WaitlistSummaryCountsDto>({
@@ -58,6 +89,30 @@ export class WaitlistComponent {
 
   readonly hasPreviousPage = computed(() => this.page() > 1);
   readonly hasNextPage = computed(() => this.page() < this.totalPages());
+  readonly selectedFacilityName = computed(() => {
+    const facilityId = this.facilityId();
+    if (!facilityId) {
+      return null;
+    }
+
+    return (
+      this.facilities().find((facility) => facility.id === facilityId)?.name ??
+      facilityId
+    );
+  });
+  readonly hasSlotContext = computed(() => this.slotContext() !== null);
+  readonly hasMatchingSlotContextRows = computed(() => {
+    const context = this.slotContext();
+    if (!context) {
+      return false;
+    }
+
+    return this.items().some((item) => this.isSlotContextMatch(item, context));
+  });
+  readonly canUseBookNow = computed(() => {
+    const role = this.authStore.user()?.role;
+    return role === UserRole.OWNER || role === UserRole.MANAGER;
+  });
 
   readonly statusOptions: ReadonlyArray<WaitlistStatus | 'ALL'> = [
     'ALL',
@@ -69,8 +124,7 @@ export class WaitlistComponent {
 
   constructor() {
     this.facilityContext.initialize();
-    this.hydrateFromQueryParams();
-    void this.loadEntries();
+    this.bindQueryParams();
   }
 
   async applyFilters(): Promise<void> {
@@ -82,6 +136,14 @@ export class WaitlistComponent {
     const today = this.toInputDate(new Date());
     this.fromDate.set(today);
     this.toDate.set(today);
+    this.page.set(1);
+    await this.loadEntries();
+  }
+
+  async setUpcoming(): Promise<void> {
+    const range = this.createUpcomingRange();
+    this.fromDate.set(range.from);
+    this.toDate.set(range.to);
     this.page.set(1);
     await this.loadEntries();
   }
@@ -118,6 +180,21 @@ export class WaitlistComponent {
     return `DASHBOARD.PAGES.WAITLIST.STATUS.${status}`;
   }
 
+  statusTone(status: WaitlistStatus): UiStatusTone {
+    switch (status) {
+      case WaitlistStatus.WAITING:
+        return 'neutral';
+      case WaitlistStatus.NOTIFIED:
+        return 'warning';
+      case WaitlistStatus.EXPIRED:
+        return 'danger';
+      case WaitlistStatus.FULFILLED:
+        return 'success';
+      default:
+        return 'neutral';
+    }
+  }
+
   formatDateTime(value: string): string {
     return this.localeFormat.formatDate(value, {
       year: 'numeric',
@@ -133,7 +210,54 @@ export class WaitlistComponent {
     return item.entryId;
   }
 
+  bookNow(item: WaitlistEntryListItemDto): void {
+    if (!this.canUseBookNow()) {
+      return;
+    }
+
+    const desiredStart = new Date(item.desiredStartTime);
+    const desiredEnd = new Date(item.desiredEndTime);
+    if (
+      Number.isNaN(desiredStart.getTime()) ||
+      Number.isNaN(desiredEnd.getTime())
+    ) {
+      return;
+    }
+
+    void this.router.navigate(['/dashboard/new'], {
+      queryParams: {
+        facilityId: item.facilityId,
+        date: this.toLocalDateInput(desiredStart),
+        startTime: this.toLocalTimeInput(desiredStart),
+        endTime: this.toLocalTimeInput(desiredEnd),
+      },
+    });
+  }
+
+  formatInputDate(value: string): string {
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return this.localeFormat.formatDate(date.toISOString(), {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  isContextRow(item: WaitlistEntryListItemDto): boolean {
+    const context = this.slotContext();
+    if (!context) {
+      return false;
+    }
+
+    return this.isSlotContextMatch(item, context);
+  }
+
   private async loadEntries(): Promise<void> {
+    const requestSequence = ++this.loadRequestSequence;
     const fromIso = this.toRangeIso(this.fromDate(), 'start');
     const toIso = this.toRangeIso(this.toDate(), 'end');
 
@@ -161,35 +285,129 @@ export class WaitlistComponent {
         })
       );
 
+      if (requestSequence !== this.loadRequestSequence) {
+        return;
+      }
+
       this.items.set(response.items);
       this.summary.set(response.summary);
       this.total.set(response.total);
       this.page.set(response.page);
       this.pageSize.set(response.pageSize);
     } catch (error) {
+      if (requestSequence !== this.loadRequestSequence) {
+        return;
+      }
+
+      if (this.isAuthSensitiveError(error)) {
+        this.items.set([]);
+        this.summary.set({
+          waiting: 0,
+          notified: 0,
+          expired: 0,
+          fulfilled: 0,
+        });
+        this.total.set(0);
+      }
+
       this.error.set(error as Error);
     } finally {
-      this.loading.set(false);
+      if (requestSequence === this.loadRequestSequence) {
+        this.loading.set(false);
+      }
     }
   }
 
-  private hydrateFromQueryParams(): void {
-    const queryParamMap = this.route.snapshot.queryParamMap;
+  private bindQueryParams(): void {
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((queryParamMap) => {
+        const filtersChanged = this.hydrateFromQueryParams(queryParamMap);
+
+        if (!this.hasHydratedQueryParams) {
+          this.hasHydratedQueryParams = true;
+          this.page.set(1);
+          void this.loadEntries();
+          return;
+        }
+
+        if (filtersChanged) {
+          this.page.set(1);
+          void this.loadEntries();
+        }
+      });
+  }
+
+  private hydrateFromQueryParams(queryParamMap: ParamMap): boolean {
+    const defaultUpcomingRange = this.createUpcomingRange();
+    let nextFromDate = defaultUpcomingRange.from;
+    let nextToDate = defaultUpcomingRange.to;
+    let nextFacilityId = '';
+    let nextStatusFilter: WaitlistStatus | 'ALL' = 'ALL';
+
     const dateParam = queryParamMap.get('date');
     if (dateParam === 'today') {
       const today = this.toInputDate(new Date());
-      this.fromDate.set(today);
-      this.toDate.set(today);
+      nextFromDate = today;
+      nextToDate = today;
+    } else if (this.isInputDate(dateParam)) {
+      nextFromDate = dateParam;
+      nextToDate = dateParam;
+    }
+
+    const facilityIdParam = queryParamMap.get('facilityId');
+    if (facilityIdParam) {
+      nextFacilityId = facilityIdParam;
     }
 
     const statusParam = queryParamMap.get('status');
     if (statusParam && this.isWaitlistStatus(statusParam)) {
-      this.statusFilter.set(statusParam);
+      nextStatusFilter = statusParam;
     }
+
+    const nextSlotContext = this.normalizeSlotContext({
+      facilityId: queryParamMap.get('facilityId'),
+      slotStart: queryParamMap.get('slotStart'),
+      slotEnd: queryParamMap.get('slotEnd'),
+      source: queryParamMap.get('source'),
+    });
+
+    let hasChanges = false;
+
+    if (this.fromDate() !== nextFromDate) {
+      this.fromDate.set(nextFromDate);
+      hasChanges = true;
+    }
+
+    if (this.toDate() !== nextToDate) {
+      this.toDate.set(nextToDate);
+      hasChanges = true;
+    }
+
+    if (this.facilityId() !== nextFacilityId) {
+      this.facilityId.set(nextFacilityId);
+      hasChanges = true;
+    }
+
+    if (this.statusFilter() !== nextStatusFilter) {
+      this.statusFilter.set(nextStatusFilter);
+      hasChanges = true;
+    }
+
+    if (!this.areSlotContextsEqual(this.slotContext(), nextSlotContext)) {
+      this.slotContext.set(nextSlotContext);
+      hasChanges = true;
+    }
+
+    return hasChanges;
   }
 
   private isWaitlistStatus(value: string): value is WaitlistStatus {
     return WAITLIST_STATUSES.includes(value as WaitlistStatus);
+  }
+
+  private isInputDate(value: string | null): value is string {
+    return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
   }
 
   private toInputDate(value: Date): string {
@@ -213,5 +431,108 @@ export class WaitlistComponent {
     }
 
     return date.toISOString();
+  }
+
+  private toLocalDateInput(value: Date): string {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private toLocalTimeInput(value: Date): string {
+    const hours = String(value.getHours()).padStart(2, '0');
+    const minutes = String(value.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  private createUpcomingRange(baseDate: Date = new Date()): {
+    from: string;
+    to: string;
+  } {
+    const from = this.toInputDate(baseDate);
+    const toDate = new Date(baseDate);
+    toDate.setDate(toDate.getDate() + WAITLIST_UPCOMING_WINDOW_DAYS);
+
+    return {
+      from,
+      to: this.toInputDate(toDate),
+    };
+  }
+
+  private normalizeSlotContext(params: {
+    facilityId: string | null;
+    slotStart: string | null;
+    slotEnd: string | null;
+    source: string | null;
+  }): WaitlistSlotContext | null {
+    if (!params.slotStart || !params.slotEnd) {
+      return null;
+    }
+
+    const startTime = new Date(params.slotStart);
+    const endTime = new Date(params.slotEnd);
+
+    if (
+      Number.isNaN(startTime.getTime()) ||
+      Number.isNaN(endTime.getTime()) ||
+      startTime >= endTime
+    ) {
+      return null;
+    }
+
+    return {
+      facilityId: params.facilityId,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      source:
+        params.source === 'booking-preview' ? 'booking-preview' : 'unknown',
+    };
+  }
+
+  private isSlotContextMatch(
+    item: WaitlistEntryListItemDto,
+    context: WaitlistSlotContext
+  ): boolean {
+    const itemStart = new Date(item.desiredStartTime).getTime();
+    const itemEnd = new Date(item.desiredEndTime).getTime();
+    const contextStart = new Date(context.startTime).getTime();
+    const contextEnd = new Date(context.endTime).getTime();
+
+    if (itemStart !== contextStart || itemEnd !== contextEnd) {
+      return false;
+    }
+
+    if (!context.facilityId) {
+      return true;
+    }
+
+    return item.facilityId === context.facilityId;
+  }
+
+  private areSlotContextsEqual(
+    current: WaitlistSlotContext | null,
+    next: WaitlistSlotContext | null
+  ): boolean {
+    if (current === next) {
+      return true;
+    }
+
+    if (!current || !next) {
+      return false;
+    }
+
+    return (
+      current.facilityId === next.facilityId &&
+      current.startTime === next.startTime &&
+      current.endTime === next.endTime &&
+      current.source === next.source
+    );
+  }
+
+  private isAuthSensitiveError(error: unknown): boolean {
+    return (
+      error instanceof HttpErrorResponse && [401, 403].includes(error.status)
+    );
   }
 }

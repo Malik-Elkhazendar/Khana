@@ -8,7 +8,7 @@ Location: `apps/manager-dashboard/src/app`
 - `features/landing`, `features/landing-ar`: marketing/entry pages (LTR + RTL variants).
 - `features/onboarding`: tenant onboarding flow.
 - `features/booking-calendar`, `features/booking-list`, `features/booking-preview`.
-- `features/waitlist-operations`.
+- `features/waitlist`.
 - `features/facilities`.
 - `features/team`.
 - `features/settings`.
@@ -19,7 +19,6 @@ Location: `apps/manager-dashboard/src/app`
 ## State Management
 
 - `state/bookings`
-- `state/waitlist`
 - `state/analytics`
 - `state/promo-codes`
 - shared state in `shared/state` (auth/layout/facility context).

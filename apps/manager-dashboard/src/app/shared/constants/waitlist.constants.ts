@@ -1,0 +1,1 @@
+export const WAITLIST_UPCOMING_WINDOW_DAYS = 30;
