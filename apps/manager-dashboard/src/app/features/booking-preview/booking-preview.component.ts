@@ -39,114 +39,73 @@ import {
   WaitlistStatus,
   WaitlistStatusResponseDto,
 } from '@khana/shared-dtos';
-import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
 import {
+  ConfirmationDialogComponent,
   TagChipComponent,
   UiStatusBadgeComponent,
   UiToastComponent,
 } from '../../shared/components';
-
-type PreviewAction = 'facilities' | 'preview' | 'booking';
-type PreviewErrorCategory = 'network' | 'validation' | 'server' | 'unknown';
-
-type PreviewError = {
-  action: PreviewAction;
-  category: PreviewErrorCategory;
-  message: string;
-  status?: number;
-};
-
-type PreviewRequestPayload = {
-  facilityId: string;
-  startTime: string;
-  endTime: string;
-  promoCode?: string;
-};
-
-type OfflineAction = {
-  action: Extract<PreviewAction, 'facilities' | 'preview'>;
-  payload?: PreviewRequestPayload;
-  queuedAt: number;
-};
-
-type RecurrenceEndMode = 'COUNT' | 'DATE';
-type BookingSubmissionMode = 'CONFIRMED' | 'HOLD';
-type RecurringPresetKey =
-  | 'FOUR_WEEKS'
-  | 'EIGHT_WEEKS'
-  | 'THREE_MONTHS'
-  | 'SIX_MONTHS';
-type RecurringPresetDefinition = {
-  key: RecurringPresetKey;
-  weeks: number;
-  labelKey: `BOOKING_PREVIEW.RECURRING_PRESETS.${RecurringPresetKey}`;
-};
-
-type ErrorRecoveryAction = 'retry' | 'refresh' | 'dismiss';
-type ErrorRecoveryOption = {
-  action: ErrorRecoveryAction;
-  label: string;
-  description: string;
-};
-
-type PreviewStateSnapshot = {
-  loading: boolean;
-  facilitiesLoading: boolean;
-  bookingInProgress: boolean;
-  bookingSuccess: boolean;
-  hasError: boolean;
-  hasPreview: boolean;
-  confirmDialogOpen: boolean;
-};
-
-type BookingPrefillQueryParams = {
-  facilityId: string | null;
-  date: string | null;
-  startTime: string | null;
-  endTime: string | null;
-};
-
-type ConflictSlotDto = NonNullable<
-  BookingPreviewResponseDto['conflict']
->['conflictingSlots'][number];
-type TranslationParams = Record<string, string | number>;
-
-const PREVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 15_000;
-const AUTO_RETRY_MAX_ATTEMPTS = 3;
-const AUTO_RETRY_BASE_DELAY_MS = 800;
-const AUTO_RETRY_MAX_DELAY_MS = 8000;
-const AUTO_RETRY_JITTER_MS = 200;
-const SUBMIT_DEBOUNCE_MS = 300;
-const STALE_PREVIEW_MS = 5 * 60 * 1000;
-const ALTERNATIVES_EAGER_THRESHOLD = 6;
-const ALTERNATIVES_VIRTUAL_THRESHOLD = 100;
-const ALTERNATIVES_ROW_HEIGHT_PX = 72;
-const ALTERNATIVES_WINDOW_SIZE = 18;
-const CUSTOMER_TAG_MAX_LENGTH = 30;
-const CUSTOMER_TAG_MAX_COUNT = 10;
-const RECURRING_PRESETS: ReadonlyArray<RecurringPresetDefinition> = [
-  {
-    key: 'FOUR_WEEKS',
-    weeks: 4,
-    labelKey: 'BOOKING_PREVIEW.RECURRING_PRESETS.FOUR_WEEKS',
-  },
-  {
-    key: 'EIGHT_WEEKS',
-    weeks: 8,
-    labelKey: 'BOOKING_PREVIEW.RECURRING_PRESETS.EIGHT_WEEKS',
-  },
-  {
-    key: 'THREE_MONTHS',
-    weeks: 13,
-    labelKey: 'BOOKING_PREVIEW.RECURRING_PRESETS.THREE_MONTHS',
-  },
-  {
-    key: 'SIX_MONTHS',
-    weeks: 26,
-    labelKey: 'BOOKING_PREVIEW.RECURRING_PRESETS.SIX_MONTHS',
-  },
-];
+import {
+  ALTERNATIVES_EAGER_THRESHOLD,
+  ALTERNATIVES_VIRTUAL_THRESHOLD,
+  AUTO_RETRY_BASE_DELAY_MS,
+  AUTO_RETRY_JITTER_MS,
+  AUTO_RETRY_MAX_ATTEMPTS,
+  AUTO_RETRY_MAX_DELAY_MS,
+  BookingPrefillQueryParams,
+  BookingSubmissionMode,
+  ConflictSlotDto,
+  CUSTOMER_TAG_MAX_COUNT,
+  CUSTOMER_TAG_MAX_LENGTH,
+  ErrorRecoveryAction,
+  ErrorRecoveryOption,
+  OfflineAction,
+  PREVIEW_CACHE_TTL_MS,
+  PreviewAction,
+  PreviewError,
+  PreviewErrorCategory,
+  PreviewRequestPayload,
+  PreviewStateSnapshot,
+  RECURRING_PRESETS,
+  RecurrenceEndMode,
+  RecurringPresetKey,
+  REQUEST_TIMEOUT_MS,
+  STALE_PREVIEW_MS,
+  SUBMIT_DEBOUNCE_MS,
+  TranslationParams,
+} from './internal/booking-preview.models';
+import { buildAlternativesWindow } from './internal/booking-preview.alternatives';
+import {
+  buildBookingPrefill,
+  hasBookingPrefill,
+} from './internal/booking-preview.prefill';
+import {
+  clampRecurrenceWeeksCount,
+  getDateAfterWeeks,
+  getDefaultBookingDate,
+  getDefaultRecurrenceEndDate,
+  isValidTimeRange,
+  normalizeRecurrenceEndDate,
+  resolveRecurrenceEndMode,
+  resolveRecurrenceFrequency,
+  syncWeeksCountFromEndDate,
+} from './internal/booking-preview.recurrence';
+import {
+  buildPreviewCacheKey,
+  buildPreviewPayload,
+  isSamePreviewPayload,
+} from './internal/booking-preview.request';
+import {
+  hasNormalizedTag,
+  normalizeTagValue,
+} from './internal/booking-preview.tags';
+import {
+  buildWaitlistStatusQuery,
+  hasActiveWaitlistEntry,
+  isOnWaitlist,
+  isWaitlistSlotInFuture,
+  normalizeWaitlistQueuePosition,
+} from './internal/booking-preview.waitlist';
 
 @Component({
   selector: 'app-booking-preview',
@@ -238,7 +197,7 @@ export class BookingPreviewComponent implements OnInit {
   // Form state
   facilities = signal<FacilityListItemDto[]>([]);
   selectedFacilityId = signal<string>('');
-  selectedDate = signal<string>(this.getDefaultDate());
+  selectedDate = signal<string>(getDefaultBookingDate());
   startTime = signal<string>('10:00');
   endTime = signal<string>('11:00');
   promoCode = signal<string>('');
@@ -371,7 +330,7 @@ export class BookingPreviewComponent implements OnInit {
       return false;
     }
 
-    const candidate = this.normalizeTagValue(this.newTagInput());
+    const candidate = normalizeTagValue(this.newTagInput());
     if (!candidate) {
       return false;
     }
@@ -381,7 +340,7 @@ export class BookingPreviewComponent implements OnInit {
       return false;
     }
 
-    return !this.hasTag(existing, candidate);
+    return !hasNormalizedTag(existing, candidate);
   });
 
   readonly errorRecoveryOptions = computed(() => {
@@ -445,32 +404,18 @@ export class BookingPreviewComponent implements OnInit {
     return this.previewResult()?.suggestedAlternatives ?? [];
   });
 
-  readonly isOnWaitlist = computed(
-    () => this.waitlistStatus()?.status === WaitlistStatus.WAITING
+  readonly isOnWaitlist = computed(() =>
+    isOnWaitlist(this.waitlistStatus()?.status)
   );
   readonly selectedSlotIsInFuture = computed(() =>
     this.isSelectedSlotInFuture()
   );
   readonly hasActiveWaitlistEntry = computed(() => {
-    const status = this.waitlistStatus()?.status;
-    return (
-      status === WaitlistStatus.WAITING || status === WaitlistStatus.NOTIFIED
-    );
+    return hasActiveWaitlistEntry(this.waitlistStatus()?.status);
   });
 
   readonly waitlistQueuePosition = computed(() => {
-    const queuePosition = this.waitlistStatus()?.queuePosition;
-    const normalizedQueuePosition =
-      typeof queuePosition === 'number' ? queuePosition : Number.NaN;
-
-    if (
-      !Number.isFinite(normalizedQueuePosition) ||
-      normalizedQueuePosition < 1
-    ) {
-      return null;
-    }
-
-    return Math.floor(normalizedQueuePosition);
+    return normalizeWaitlistQueuePosition(this.waitlistStatus()?.queuePosition);
   });
 
   readonly canJoinWaitlist = computed(() => {
@@ -548,34 +493,11 @@ export class BookingPreviewComponent implements OnInit {
   });
 
   readonly alternativesWindow = computed(() => {
-    const alternatives = this.alternatives();
-    if (!this.shouldVirtualizeAlternatives()) {
-      return {
-        items: alternatives,
-        paddingTop: 0,
-        paddingBottom: 0,
-        totalHeight: 0,
-      };
-    }
-    const scrollTop = this.alternativesScrollTop();
-    const startIndex = Math.max(
-      0,
-      Math.floor(scrollTop / ALTERNATIVES_ROW_HEIGHT_PX) - 2
+    return buildAlternativesWindow(
+      this.alternatives(),
+      this.shouldVirtualizeAlternatives(),
+      this.alternativesScrollTop()
     );
-    const endIndex = Math.min(
-      alternatives.length,
-      startIndex + ALTERNATIVES_WINDOW_SIZE
-    );
-    const paddingTop = startIndex * ALTERNATIVES_ROW_HEIGHT_PX;
-    const paddingBottom =
-      (alternatives.length - endIndex) * ALTERNATIVES_ROW_HEIGHT_PX;
-
-    return {
-      items: alternatives.slice(startIndex, endIndex),
-      paddingTop,
-      paddingBottom,
-      totalHeight: alternatives.length * ALTERNATIVES_ROW_HEIGHT_PX,
-    };
   });
 
   readonly validationErrors = computed(() => {
@@ -673,7 +595,12 @@ export class BookingPreviewComponent implements OnInit {
     this.capturePrefillFromQueryParams();
     this.setupConnectivityListeners();
     this.startHeartbeat();
-    this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
+    this.recurrenceEndDate.set(
+      getDefaultRecurrenceEndDate(
+        this.selectedDate(),
+        this.recurrenceWeeksCount()
+      )
+    );
     this.loadFacilities();
     this.destroyRef.onDestroy(() => this.cleanup());
   }
@@ -765,20 +692,21 @@ export class BookingPreviewComponent implements OnInit {
       return;
     }
     if (!this.recurrenceEndDate().trim()) {
-      this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
+      this.recurrenceEndDate.set(
+        getDefaultRecurrenceEndDate(
+          this.selectedDate(),
+          this.recurrenceWeeksCount()
+        )
+      );
     }
   }
 
   onRecurrenceFrequencyChange(value: string): void {
-    if (value === RecurrenceFrequency.BIWEEKLY) {
-      this.recurrenceFrequency.set(RecurrenceFrequency.BIWEEKLY);
-      return;
-    }
-    this.recurrenceFrequency.set(RecurrenceFrequency.WEEKLY);
+    this.recurrenceFrequency.set(resolveRecurrenceFrequency(value));
   }
 
   onRecurrenceEndModeChange(value: string): void {
-    const mode: RecurrenceEndMode = value === 'DATE' ? 'DATE' : 'COUNT';
+    const mode = resolveRecurrenceEndMode(value);
     this.recurrenceEndMode.set(mode);
     const activePreset = this.activeRecurringPreset();
     if (activePreset) {
@@ -790,21 +718,18 @@ export class BookingPreviewComponent implements OnInit {
       return;
     }
     if (!this.recurrenceEndDate().trim()) {
-      this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
+      this.recurrenceEndDate.set(
+        getDefaultRecurrenceEndDate(
+          this.selectedDate(),
+          this.recurrenceWeeksCount()
+        )
+      );
     }
   }
 
   onRecurrenceWeeksCountChange(value: string | number): void {
     this.activeRecurringPreset.set(null);
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) {
-      this.recurrenceWeeksCount.set(1);
-      if (this.repeatWeekly() && this.recurrenceEndMode() === 'COUNT') {
-        this.syncEndDateFromWeeksCount();
-      }
-      return;
-    }
-    const normalized = Math.min(104, Math.max(1, Math.trunc(parsed)));
+    const normalized = clampRecurrenceWeeksCount(value);
     this.recurrenceWeeksCount.set(normalized);
     if (this.repeatWeekly() && this.recurrenceEndMode() === 'COUNT') {
       this.syncEndDateFromWeeksCount();
@@ -813,13 +738,11 @@ export class BookingPreviewComponent implements OnInit {
 
   onRecurrenceEndDateChange(value: string): void {
     this.activeRecurringPreset.set(null);
-    if (!value) {
-      this.recurrenceEndDate.set('');
+    const normalized = normalizeRecurrenceEndDate(this.selectedDate(), value);
+    this.recurrenceEndDate.set(normalized);
+    if (!normalized) {
       return;
     }
-    const normalized =
-      value < this.selectedDate() ? this.selectedDate() : value.trim();
-    this.recurrenceEndDate.set(normalized);
     this.syncWeeksCountFromEndDate(normalized);
   }
 
@@ -848,7 +771,7 @@ export class BookingPreviewComponent implements OnInit {
       return;
     }
 
-    const endDate = this.getDateAfterWeeks(
+    const endDate = getDateAfterWeeks(
       this.selectedDate(),
       Math.max(0, preset.weeks - 1)
     );
@@ -868,18 +791,14 @@ export class BookingPreviewComponent implements OnInit {
   }
 
   private capturePrefillFromQueryParams(): void {
-    const queryParamMap = this.route.snapshot.queryParamMap;
-    const prefill: BookingPrefillQueryParams = {
-      facilityId: this.normalizeFacilityIdParam(
-        queryParamMap.get('facilityId')
-      ),
-      date: this.normalizeDateParam(queryParamMap.get('date')),
-      startTime: this.normalizeTimeParam(queryParamMap.get('startTime')),
-      endTime: this.normalizeTimeParam(queryParamMap.get('endTime')),
-    };
+    const prefill = buildBookingPrefill({
+      facilityId: this.route.snapshot.queryParamMap.get('facilityId'),
+      date: this.route.snapshot.queryParamMap.get('date'),
+      startTime: this.route.snapshot.queryParamMap.get('startTime'),
+      endTime: this.route.snapshot.queryParamMap.get('endTime'),
+    });
 
-    const hasPrefill = Object.values(prefill).some((value) => value !== null);
-    if (!hasPrefill) {
+    if (!hasBookingPrefill(prefill)) {
       return;
     }
 
@@ -949,129 +868,28 @@ export class BookingPreviewComponent implements OnInit {
     this.handleSlotSelectionChanged();
   }
 
-  private normalizeFacilityIdParam(value: string | null): string | null {
-    if (!value) {
-      return null;
-    }
-
-    const normalized = value.trim();
-    return normalized.length > 0 ? normalized : null;
-  }
-
-  private normalizeDateParam(value: string | null): string | null {
-    if (!value) {
-      return null;
-    }
-
-    const normalized = value.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-      return null;
-    }
-
-    const parsed = new Date(`${normalized}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? null : normalized;
-  }
-
-  private normalizeTimeParam(value: string | null): string | null {
-    if (!value) {
-      return null;
-    }
-
-    const normalized = value.trim();
-    const match = /^(\d{2}):(\d{2})$/.exec(normalized);
-    if (!match) {
-      return null;
-    }
-
-    const hours = Number(match[1]);
-    const minutes = Number(match[2]);
-    if (
-      !Number.isInteger(hours) ||
-      !Number.isInteger(minutes) ||
-      hours < 0 ||
-      hours > 23 ||
-      minutes < 0 ||
-      minutes > 59
-    ) {
-      return null;
-    }
-
-    return normalized;
-  }
-
   /**
    * Validates that the start time is before the end time.
    * Called from template for aria-invalid and input validation.
    * @returns True if start time < end time, false otherwise
    */
   isValidTimeRange(): boolean {
-    const start = this.startTime().trim();
-    const end = this.endTime().trim();
-    if (!start || !end) return true;
-    return start < end;
-  }
-
-  private getDefaultDate(): string {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  }
-
-  private getDateAfterWeeks(baseDateIso: string, weeks: number): string {
-    const [year, month, day] = baseDateIso
-      .split('-')
-      .map((value) => Number(value));
-
-    if (
-      !Number.isInteger(year) ||
-      !Number.isInteger(month) ||
-      !Number.isInteger(day)
-    ) {
-      return baseDateIso;
-    }
-
-    const normalizedWeeks = Number.isFinite(weeks) ? Math.trunc(weeks) : 0;
-    const baseDate = new Date(Date.UTC(year, month - 1, day));
-    baseDate.setUTCDate(baseDate.getUTCDate() + normalizedWeeks * 7);
-    return baseDate.toISOString().split('T')[0];
-  }
-
-  private getDefaultRecurrenceEndDate(): string {
-    const horizonWeeks = Math.max(0, Number(this.recurrenceWeeksCount()) - 1);
-    return this.getDateAfterWeeks(this.selectedDate(), horizonWeeks);
+    return isValidTimeRange(this.startTime(), this.endTime());
   }
 
   private syncEndDateFromWeeksCount(): void {
-    this.recurrenceEndDate.set(this.getDefaultRecurrenceEndDate());
+    this.recurrenceEndDate.set(
+      getDefaultRecurrenceEndDate(
+        this.selectedDate(),
+        this.recurrenceWeeksCount()
+      )
+    );
   }
 
   private syncWeeksCountFromEndDate(endDateIso: string): void {
-    const days = this.getDayDifference(this.selectedDate(), endDateIso);
-    const weeksCount = Math.floor(Math.max(0, days) / 7) + 1;
-    this.recurrenceWeeksCount.set(Math.min(104, Math.max(1, weeksCount)));
-  }
-
-  private getDayDifference(startIso: string, endIso: string): number {
-    const parseIsoDate = (value: string): Date | null => {
-      const [year, month, day] = value.split('-').map((part) => Number(part));
-      if (
-        !Number.isInteger(year) ||
-        !Number.isInteger(month) ||
-        !Number.isInteger(day)
-      ) {
-        return null;
-      }
-      return new Date(Date.UTC(year, month - 1, day));
-    };
-
-    const startDate = parseIsoDate(startIso);
-    const endDate = parseIsoDate(endIso);
-    if (!startDate || !endDate) {
-      return 0;
-    }
-
-    const msPerDay = 24 * 60 * 60 * 1000;
-    return Math.floor((endDate.getTime() - startDate.getTime()) / msPerDay);
+    this.recurrenceWeeksCount.set(
+      syncWeeksCountFromEndDate(this.selectedDate(), endDateIso)
+    );
   }
 
   /**
@@ -1085,16 +903,18 @@ export class BookingPreviewComponent implements OnInit {
     if (now - this.lastSubmitAt < SUBMIT_DEBOUNCE_MS) return;
     this.lastSubmitAt = now;
 
-    const startDateTime = new Date(
-      `${this.selectedDate()}T${this.startTime()}`
-    );
-    const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
-    const payload = this.buildPreviewPayload(startDateTime, endDateTime);
+    const payload = buildPreviewPayload({
+      facilityId: this.selectedFacilityId(),
+      selectedDate: this.selectedDate(),
+      startTime: this.startTime(),
+      endTime: this.endTime(),
+      promoCode: this.promoCode(),
+    });
     const lastPayload = this.lastPreviewRequest();
     if (
       this.loading() &&
       lastPayload &&
-      this.isSamePayload(lastPayload, payload)
+      isSamePreviewPayload(lastPayload, payload)
     ) {
       return;
     }
@@ -1150,12 +970,7 @@ export class BookingPreviewComponent implements OnInit {
   ): void {
     this.lastAction.set('preview');
     this.lastPreviewRequest.set(payload);
-    const cacheKey = this.buildCacheKey(
-      new Date(payload.startTime),
-      new Date(payload.endTime),
-      payload.facilityId,
-      payload.promoCode
-    );
+    const cacheKey = buildPreviewCacheKey(payload);
 
     if (options.ignoreCache) {
       this.previewCache.delete(cacheKey);
@@ -1351,7 +1166,7 @@ export class BookingPreviewComponent implements OnInit {
       return;
     }
 
-    const candidate = this.normalizeTagValue(this.newTagInput());
+    const candidate = normalizeTagValue(this.newTagInput());
     if (!candidate) {
       return;
     }
@@ -1359,7 +1174,7 @@ export class BookingPreviewComponent implements OnInit {
     const currentTags = customer.tags ?? [];
     if (
       currentTags.length >= CUSTOMER_TAG_MAX_COUNT ||
-      this.hasTag(currentTags, candidate)
+      hasNormalizedTag(currentTags, candidate)
     ) {
       return;
     }
@@ -1403,15 +1218,6 @@ export class BookingPreviewComponent implements OnInit {
           // No-op: keep previous UI state when save fails.
         },
       });
-  }
-
-  private hasTag(tags: string[], candidate: string): boolean {
-    const normalizedCandidate = candidate.trim().toLowerCase();
-    return tags.some((tag) => tag.trim().toLowerCase() === normalizedCandidate);
-  }
-
-  private normalizeTagValue(value: string): string {
-    return value.trim().replace(/\s+/g, ' ').slice(0, CUSTOMER_TAG_MAX_LENGTH);
   }
 
   facilityOptionLabel(facility: FacilityListItemDto): string {
@@ -1801,7 +1607,7 @@ export class BookingPreviewComponent implements OnInit {
             endsAtDate:
               this.recurrenceEndMode() === 'DATE'
                 ? this.recurrenceEndDate().trim()
-                : this.getDateAfterWeeks(
+                : getDateAfterWeeks(
                     this.selectedDate(),
                     Math.max(0, Number(this.recurrenceWeeksCount()) - 1)
                   ),
@@ -1877,46 +1683,6 @@ export class BookingPreviewComponent implements OnInit {
     });
   }
 
-  private buildPreviewPayload(
-    startDateTime: Date,
-    endDateTime: Date
-  ): PreviewRequestPayload {
-    return {
-      facilityId: this.selectedFacilityId(),
-      startTime: startDateTime.toISOString(),
-      endTime: endDateTime.toISOString(),
-      promoCode: this.promoCode().trim() || undefined,
-    };
-  }
-
-  private isSamePayload(
-    first: PreviewRequestPayload,
-    second: PreviewRequestPayload
-  ): boolean {
-    return (
-      first.facilityId === second.facilityId &&
-      first.startTime === second.startTime &&
-      first.endTime === second.endTime &&
-      (first.promoCode ?? '').trim().toUpperCase() ===
-        (second.promoCode ?? '').trim().toUpperCase()
-    );
-  }
-
-  private buildCacheKey(
-    startDateTime: Date,
-    endDateTime: Date,
-    facilityId: string = this.selectedFacilityId(),
-    promoCode: string | undefined = this.promoCode()
-  ): string {
-    const promo = (promoCode ?? '').trim().toUpperCase();
-    return [
-      facilityId,
-      startDateTime.toISOString(),
-      endDateTime.toISOString(),
-      promo,
-    ].join('|');
-  }
-
   private showToast(message: string, tone: 'success' | 'info'): void {
     this.toast.set({ message, tone });
     if (this.toastTimer) {
@@ -1926,6 +1692,20 @@ export class BookingPreviewComponent implements OnInit {
       this.toast.set(null);
       this.toastTimer = null;
     }, 2500);
+  }
+
+  private buildCacheKey(
+    startDateTime: Date,
+    endDateTime: Date,
+    facilityId: string = this.selectedFacilityId(),
+    promoCode: string | undefined = this.promoCode()
+  ): string {
+    return buildPreviewCacheKey({
+      facilityId,
+      startTime: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
+      promoCode: promoCode?.trim() || undefined,
+    });
   }
 
   private getErrorRecoveryOptions(
@@ -2361,12 +2141,7 @@ export class BookingPreviewComponent implements OnInit {
   }
 
   private isSelectedSlotInFuture(): boolean {
-    const slotQuery = this.buildWaitlistStatusQuery();
-    if (!slotQuery) {
-      return false;
-    }
-
-    return new Date(slotQuery.startTime) > new Date();
+    return isWaitlistSlotInFuture(this.buildWaitlistStatusQuery());
   }
 
   private buildWaitlistStatusQuery(): {
@@ -2374,28 +2149,13 @@ export class BookingPreviewComponent implements OnInit {
     startTime: string;
     endTime: string;
   } | null {
-    if (!this.inputsValid()) {
-      return null;
-    }
-
-    const startDateTime = new Date(
-      `${this.selectedDate()}T${this.startTime()}`
-    );
-    const endDateTime = new Date(`${this.selectedDate()}T${this.endTime()}`);
-
-    if (
-      Number.isNaN(startDateTime.getTime()) ||
-      Number.isNaN(endDateTime.getTime()) ||
-      startDateTime >= endDateTime
-    ) {
-      return null;
-    }
-
-    return {
+    return buildWaitlistStatusQuery({
       facilityId: this.selectedFacilityId(),
-      startTime: startDateTime.toISOString(),
-      endTime: endDateTime.toISOString(),
-    };
+      selectedDate: this.selectedDate(),
+      startTime: this.startTime(),
+      endTime: this.endTime(),
+      inputsValid: this.inputsValid(),
+    });
   }
 
   private refreshWaitlistStatus(): void {
