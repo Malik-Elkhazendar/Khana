@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHmac, randomBytes, randomUUID } from 'crypto';
-import { DataSource, IsNull, MoreThan, Not, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import {
   User,
   AuditLog,
@@ -38,32 +38,28 @@ import {
 } from './utils/hmac.util';
 import { isUUID } from 'class-validator';
 import { LoginDto, RegisterDto, SignupOwnerDto } from './dto';
-
-const MAX_TENANT_SLUG_LENGTH = 50;
-const TENANT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const RESERVED_TENANT_SLUGS = new Set([
-  'admin',
-  'api',
-  'app',
-  'auth',
-  'billing',
-  'dashboard',
-  'help',
-  'internal',
-  'login',
-  'logout',
-  'manager',
-  'onboarding',
-  'owner',
-  'register',
-  'root',
-  'settings',
-  'signup',
-  'staff',
-  'support',
-  'system',
-  'www',
-]);
+import {
+  AuthAuditParams,
+  saveAuthAuditLog,
+} from './internal/auth-audit.helpers';
+import { toTenantDto, toUserDto } from './internal/auth-mappers';
+import { validatePasswordStrength } from './internal/auth-password-policy';
+import {
+  getHmacSecret,
+  getRefreshTokenExpiry,
+  handleTokenReuse,
+  issueTokenPair,
+} from './internal/auth-session.helpers';
+import {
+  generateAvailableTenantSlug,
+  isUniqueViolation,
+  normalizeEmail,
+  normalizeTenantSlug,
+  normalizeWorkspaceName,
+  resolveBaseTenantSlug,
+  resolveTenantId,
+  resolveTenantIdForLogin,
+} from './internal/auth-tenant.helpers';
 
 const SELF_REGISTRATION_BLOCKED_MESSAGE =
   'Direct registration is disabled for this workspace. Ask the owner for an invite.';
@@ -1180,37 +1176,11 @@ export class AuthService {
   // Private helpers
 
   private validatePasswordStrength(password: string): void {
-    if (!password || password.length < 8) {
-      throw new BadRequestException(
-        'Password must be at least 8 characters long'
-      );
-    }
-
-    const hasNumber = /\d/.test(password);
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-
-    if (!hasNumber || !hasUpperCase || !hasLowerCase) {
-      throw new BadRequestException(
-        'Password must contain uppercase, lowercase, and numbers'
-      );
-    }
+    return validatePasswordStrength(password);
   }
 
   private toUserDto(user: User): UserDto {
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      phone: user.phone,
-      role: user.role as UserRole,
-      isActive: user.isActive,
-      onboardingCompleted: user.tenant?.onboardingCompleted ?? false,
-      lastLoginAt: user.lastLoginAt,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      tenantId: user.tenantId || user.tenant?.id || 'unknown',
-    };
+    return toUserDto(user);
   }
 
   private toTenantDto(
@@ -1218,198 +1188,64 @@ export class AuthService {
   ):
     | { id: string; name: string; slug?: string; timezone?: string }
     | undefined {
-    if (!tenant?.id) {
-      return undefined;
-    }
-
-    return {
-      id: tenant.id,
-      name: tenant.name,
-      slug: tenant.slug,
-      timezone: normalizeIanaTimeZone(
-        tenant.timezone ?? DEFAULT_TENANT_TIMEZONE
-      ),
-    };
+    return toTenantDto(tenant);
   }
 
   private normalizeWorkspaceName(name: string): string {
-    const normalizedName = name?.trim();
-    if (!normalizedName) {
-      throw new BadRequestException('Workspace name is required');
-    }
-    return normalizedName;
+    return normalizeWorkspaceName(name);
   }
 
   private normalizeEmail(email: string): string {
-    const normalizedEmail = email?.trim().toLowerCase();
-    if (!normalizedEmail) {
-      throw new BadRequestException('Email is required');
-    }
-    return normalizedEmail;
+    return normalizeEmail(email);
   }
 
   private resolveBaseTenantSlug(
     requestedSlug: string | undefined,
     workspaceName: string
   ): string {
-    const normalizedRequestedSlug = requestedSlug?.trim();
-    if (normalizedRequestedSlug) {
-      return this.normalizeTenantSlug(normalizedRequestedSlug);
-    }
-
-    const derivedSlug = this.slugify(workspaceName);
-    if (derivedSlug && !RESERVED_TENANT_SLUGS.has(derivedSlug)) {
-      return derivedSlug;
-    }
-    if (derivedSlug) {
-      const derivedFallback = this.slugify(`${derivedSlug}-workspace`);
-      if (derivedFallback && !RESERVED_TENANT_SLUGS.has(derivedFallback)) {
-        return derivedFallback;
-      }
-    }
-
-    return this.assertAllowedSlug(
-      `workspace-${randomBytes(4).toString('hex').toLowerCase()}`
-    );
+    return resolveBaseTenantSlug(requestedSlug, workspaceName);
   }
 
   private normalizeTenantSlug(slug: string): string {
-    const normalizedSlug = slug?.trim().toLowerCase();
-    if (!normalizedSlug) {
-      throw new BadRequestException('Workspace slug is required');
-    }
-    if (normalizedSlug.length > MAX_TENANT_SLUG_LENGTH) {
-      throw new BadRequestException('Workspace slug is too long');
-    }
-    if (!TENANT_SLUG_PATTERN.test(normalizedSlug)) {
-      throw new BadRequestException('Workspace slug format is invalid');
-    }
-    return this.assertAllowedSlug(normalizedSlug);
-  }
-
-  private slugify(value: string): string {
-    return (value || '')
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/-{2,}/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, MAX_TENANT_SLUG_LENGTH)
-      .replace(/-+$/g, '');
-  }
-
-  private assertAllowedSlug(slug: string): string {
-    if (RESERVED_TENANT_SLUGS.has(slug)) {
-      throw new BadRequestException('Workspace slug is reserved');
-    }
-    return slug;
-  }
-
-  private withSlugSuffix(baseSlug: string, suffix: number): string {
-    const suffixToken = `-${suffix}`;
-    const trimmedBase = baseSlug.slice(
-      0,
-      Math.max(1, MAX_TENANT_SLUG_LENGTH - suffixToken.length)
-    );
-    return `${trimmedBase}${suffixToken}`;
+    return normalizeTenantSlug(slug);
   }
 
   private async generateAvailableTenantSlug(
     tenantRepository: Repository<Tenant>,
     baseSlug: string
   ): Promise<string> {
-    let candidateSlug = baseSlug;
-    let suffix = 2;
-
-    while (await tenantRepository.exists({ where: { slug: candidateSlug } })) {
-      candidateSlug = this.assertAllowedSlug(
-        this.withSlugSuffix(baseSlug, suffix)
-      );
-      suffix += 1;
-    }
-
-    return candidateSlug;
+    return generateAvailableTenantSlug(tenantRepository, baseSlug);
   }
 
   private isUniqueViolation(
     error: unknown,
     constraintName?: string
   ): error is { code?: string; constraint?: string } {
-    if (typeof error !== 'object' || !error) {
-      return false;
-    }
-
-    const maybePgError = error as { code?: string; constraint?: string };
-    if (maybePgError.code !== '23505') {
-      return false;
-    }
-
-    if (!constraintName) {
-      return true;
-    }
-
-    return maybePgError.constraint === constraintName;
+    return isUniqueViolation(error, constraintName);
   }
 
   private async resolveTenantId(tenantId?: string): Promise<string> {
-    if (!tenantId || !isUUID(tenantId)) {
-      throw new BadRequestException('Tenant ID is required');
-    }
-
-    const tenantExists = await this.tenantRepository.exists({
-      where: { id: tenantId },
-    });
-
-    if (!tenantExists) {
-      throw new BadRequestException('Invalid tenant ID');
-    }
-
-    return tenantId;
+    return resolveTenantId(this.tenantRepository, tenantId);
   }
 
   private async resolveTenantIdForLogin(
     email: string,
     tenantId?: string
   ): Promise<string> {
-    if (tenantId) {
-      return this.resolveTenantId(tenantId);
-    }
-
-    const candidates = await this.userRepository.find({
-      where: { email },
-      select: ['id', 'tenantId'],
-      take: 2,
-    });
-
-    if (candidates.length === 1 && candidates[0]?.tenantId) {
-      return candidates[0].tenantId;
-    }
-
-    if (candidates.length > 1) {
-      throw new BadRequestException(
-        'Workspace is required. Please use your workspace login link.'
-      );
-    }
-
-    throw new UnauthorizedException('Invalid email or password');
+    return resolveTenantIdForLogin(
+      this.userRepository,
+      this.tenantRepository,
+      email,
+      tenantId
+    );
   }
 
   private getRefreshTokenExpiry(issuedAt: Date): Date {
-    const ttlDays = parseInt(
-      this.configService.get<string>('REFRESH_TOKEN_TTL_DAYS') || '7',
-      10
-    );
-    return new Date(issuedAt.getTime() + ttlDays * 24 * 60 * 60 * 1000);
+    return getRefreshTokenExpiry(this.configService, issuedAt);
   }
 
   private getHmacSecret(): string {
-    const secret = this.configService.get<string>('REFRESH_TOKEN_HMAC_SECRET');
-    if (!secret) {
-      throw new Error('REFRESH_TOKEN_HMAC_SECRET is not set');
-    }
-
-    return secret;
+    return getHmacSecret(this.configService);
   }
 
   private async handleTokenReuse(
@@ -1417,133 +1253,28 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<void> {
-    const now = new Date();
-    await this.refreshTokenRepository.update(
-      { sessionId: token.sessionId, revokedAt: IsNull() },
-      { revokedAt: now }
-    );
-
-    const user =
-      token.user ||
-      (await this.userRepository.findOne({
-        where: { id: token.userId },
-        select: ['id', 'email', 'tenantId'],
-      }));
-
-    if (user) {
-      await this.logAudit({
-        tenantId: user.tenantId,
-        userId: user.id,
-        action: AuditAction.SECURITY_INCIDENT,
-        entityType: 'RefreshToken',
-        entityId: token.id,
-        description: `Refresh token reuse detected - session ${token.sessionId} revoked`,
-        ipAddress,
-        userAgent,
-      });
-
-      await this.emailService.sendSecurityAlert({
-        recipientEmail: user.email,
-        recipientName: user.email,
-        subject: 'Suspicious Activity Detected',
-        message:
-          'A previously used refresh token was presented. All sessions for that device have been logged out.',
-        ipAddress,
-      });
-    }
-
-    this.metricsService.trackReuseDetection(token.userId, token.sessionId);
-
-    this.appLogger.warn(
-      LOG_EVENTS.AUTH_REFRESH_REUSE_DETECTED,
-      'Refresh token reuse detected',
-      {
-        userId: token.userId,
-        sessionId: token.sessionId,
-      }
-    );
-
-    const incidentCount = await this.getRecentSecurityIncidents(token.userId);
-    if (incidentCount >= 3) {
-      this.metricsService.trackSecurityEscalation(token.userId, incidentCount);
-      this.appLogger.error(
-        LOG_EVENTS.AUTH_SECURITY_ESCALATION,
-        'Security escalation threshold exceeded',
-        {
-          userId: token.userId,
-          incidentCount,
-        }
-      );
-    }
-  }
-
-  private async getRecentSecurityIncidents(
-    userId: string,
-    windowMinutes = 60
-  ): Promise<number> {
-    const cutoff = new Date(Date.now() - windowMinutes * 60 * 1000);
-    return this.auditLogRepository.count({
-      where: {
-        userId,
-        action: AuditAction.SECURITY_INCIDENT,
-        createdAt: MoreThan(cutoff),
-      },
+    return handleTokenReuse({
+      token,
+      ipAddress,
+      userAgent,
+      refreshTokenRepository: this.refreshTokenRepository,
+      userRepository: this.userRepository,
+      auditLogRepository: this.auditLogRepository,
+      emailService: this.emailService,
+      metricsService: this.metricsService,
+      appLogger: this.appLogger,
     });
   }
 
-  private async logAudit(params: {
-    tenantId: string;
-    userId?: string;
-    action: AuditAction;
-    entityType: string;
-    entityId: string;
-    description?: string;
-    changes?: Record<string, unknown>;
-    ipAddress?: string;
-    userAgent?: string;
-  }): Promise<void> {
-    const auditLog = this.auditLogRepository.create({
-      tenantId: params.tenantId,
-      userId: params.userId,
-      action: params.action,
-      entityType: params.entityType,
-      entityId: params.entityId,
-      description: params.description,
-      changes: params.changes,
-      ipAddress: params.ipAddress,
-      userAgent: params.userAgent,
-    });
-
-    await this.auditLogRepository.save(auditLog);
+  private async logAudit(params: AuthAuditParams): Promise<void> {
+    return saveAuthAuditLog(this.auditLogRepository, params);
   }
 
   private async logAuditWithRepository(
     auditRepository: Repository<AuditLog>,
-    params: {
-      tenantId: string;
-      userId?: string;
-      action: AuditAction;
-      entityType: string;
-      entityId: string;
-      description?: string;
-      changes?: Record<string, unknown>;
-      ipAddress?: string;
-      userAgent?: string;
-    }
+    params: AuthAuditParams
   ): Promise<void> {
-    const auditLog = auditRepository.create({
-      tenantId: params.tenantId,
-      userId: params.userId,
-      action: params.action,
-      entityType: params.entityType,
-      entityId: params.entityId,
-      description: params.description,
-      changes: params.changes,
-      ipAddress: params.ipAddress,
-      userAgent: params.userAgent,
-    });
-
-    await auditRepository.save(auditLog);
+    return saveAuthAuditLog(auditRepository, params);
   }
 
   private async issueTokenPair(
@@ -1551,37 +1282,13 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
-    const sessionId = randomUUID();
-    const tokenId = randomUUID();
-    const issuedAt = new Date();
-
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId,
-      sid: sessionId,
-      jti: tokenId,
-    };
-
-    const tokens = this.jwtTokenService.generateTokenPair(payload);
-
-    await this.refreshTokenRepository.save({
-      id: tokenId,
-      userId: user.id,
-      sessionId,
-      tokenHash: hashRefreshToken(tokens.refreshToken, this.getHmacSecret()),
-      issuedAt,
-      expiresAt: this.getRefreshTokenExpiry(issuedAt),
+    return issueTokenPair({
+      user,
       ipAddress,
       userAgent,
-      deviceFingerprint: hashDeviceFingerprint(
-        ipAddress,
-        userAgent,
-        this.getHmacSecret()
-      ),
+      jwtTokenService: this.jwtTokenService,
+      refreshTokenRepository: this.refreshTokenRepository,
+      configService: this.configService,
     });
-
-    return tokens;
   }
 }

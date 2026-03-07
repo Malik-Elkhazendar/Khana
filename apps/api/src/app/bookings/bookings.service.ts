@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import { In, MoreThan, Repository } from 'typeorm';
 import {
   previewBooking,
@@ -35,20 +35,13 @@ import {
   PaymentStatus,
   PriceBreakdown,
   PromoDiscountType,
-  PromoFacilityScope,
   PromoValidationDto,
-  PromoValidationReason,
-  RecurrenceFrequency,
   SlotStatus,
   UserRole,
   parseCancellationReason,
   serializeCancellationReason,
 } from '@khana/shared-dtos';
-import {
-  addMinutes,
-  isValidSaudiPhone,
-  normalizeSaudiPhone,
-} from '@khana/shared-utils';
+import { addMinutes } from '@khana/shared-utils';
 import { EmailService } from '@khana/notifications';
 import { AppLoggerService, LOG_EVENTS } from '../logging';
 import { GoalsService } from '../goals/goals.service';
@@ -61,6 +54,43 @@ import {
   UpdateBookingStatusDto,
 } from './dto';
 import { WaitlistService } from './waitlist/waitlist.service';
+import {
+  buildFacilityConfig,
+  toBookingListItemDto,
+  transformToResponseDto,
+} from './internal/bookings-mapper.helpers';
+import {
+  isStaff,
+  isViewer,
+  requireTenantId,
+  requireUserId,
+  requireUserRole,
+  resolveCreateStatus,
+  validateBookingOwnership,
+  validateFacilityOwnership,
+  validateStatusTransition,
+} from './internal/bookings-policy.helpers';
+import {
+  applyPromoToPriceBreakdown,
+  normalizeCustomerPhone,
+  normalizePromoCode,
+  PromoValidationResult,
+  resolvePromoForCreate,
+  resolvePromoForPreview,
+} from './internal/bookings-promo.helpers';
+import {
+  generateRecurringOccurrences,
+  normalizeRecurrenceRule,
+} from './internal/bookings-recurrence.helpers';
+import {
+  buildSlotKey,
+  generateUniqueBookingReference,
+} from './internal/bookings-reference.helpers';
+import {
+  saveBookingAuditLog,
+  sendBookingCreatedEmails,
+  sendCancellationEmail,
+} from './internal/bookings-side-effects.helpers';
 
 const PENDING_HOLD_MINUTES = 15;
 const HOLD_EXPIRED_CANCELLATION_NOTE = 'Hold expired automatically';
@@ -73,29 +103,6 @@ const ACCESS_DENIED_MESSAGE =
 const RESOURCE_NOT_FOUND_MESSAGE = 'Resource not found';
 const INACTIVE_FACILITY_MESSAGE =
   'This facility is currently inactive and cannot be booked.';
-const BOOKING_REFERENCE_PREFIX = 'KHN';
-const BOOKING_REFERENCE_RANDOM_LENGTH = 6;
-const BOOKING_REFERENCE_ATTEMPTS = 5;
-const MAX_RECURRING_OCCURRENCES = 104;
-const PROMO_CODE_FORMAT_REGEX = /^[A-Z0-9][A-Z0-9_-]{2,39}$/;
-
-const ALLOWED_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
-  [BookingStatus.PENDING]: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
-  [BookingStatus.CONFIRMED]: [
-    BookingStatus.CANCELLED,
-    BookingStatus.COMPLETED,
-    BookingStatus.NO_SHOW,
-  ],
-  [BookingStatus.CANCELLED]: [],
-  [BookingStatus.COMPLETED]: [],
-  [BookingStatus.NO_SHOW]: [],
-};
-
-type PromoValidationResult = {
-  validation: PromoValidationDto;
-  promoCode?: PromoCode;
-};
-
 /**
  * Bookings Service
  *
@@ -1407,34 +1414,7 @@ export class BookingsService {
   private normalizeRecurrenceRule(
     rawRule: CreateRecurringBookingDto['recurrenceRule']
   ): BookingRecurrenceRuleDto {
-    const hasEndsAtDate = Boolean(rawRule.endsAtDate?.trim());
-    const hasOccurrences = typeof rawRule.occurrences === 'number';
-    if (
-      (hasEndsAtDate && hasOccurrences) ||
-      (!hasEndsAtDate && !hasOccurrences)
-    ) {
-      throw new BadRequestException(
-        'Provide exactly one recurrence end condition: endsAtDate or occurrences.'
-      );
-    }
-
-    if (
-      (rawRule.frequency === RecurrenceFrequency.WEEKLY &&
-        rawRule.intervalWeeks !== 1) ||
-      (rawRule.frequency === RecurrenceFrequency.BIWEEKLY &&
-        rawRule.intervalWeeks !== 2)
-    ) {
-      throw new BadRequestException(
-        'Recurrence interval does not match selected frequency.'
-      );
-    }
-
-    return {
-      frequency: rawRule.frequency,
-      intervalWeeks: rawRule.intervalWeeks,
-      endsAtDate: rawRule.endsAtDate?.trim() || undefined,
-      occurrences: rawRule.occurrences,
-    };
+    return normalizeRecurrenceRule(rawRule);
   }
 
   private generateRecurringOccurrences(
@@ -1442,80 +1422,7 @@ export class BookingsService {
     endTime: Date,
     rule: BookingRecurrenceRuleDto
   ): Array<{ instanceNumber: number; startTime: Date; endTime: Date }> {
-    if (startTime >= endTime) {
-      throw new BadRequestException('Start time must be before end time.');
-    }
-
-    const intervalDays = rule.intervalWeeks * 7;
-    const occurrences: Array<{
-      instanceNumber: number;
-      startTime: Date;
-      endTime: Date;
-    }> = [];
-
-    if (typeof rule.occurrences === 'number') {
-      if (rule.occurrences > MAX_RECURRING_OCCURRENCES) {
-        throw new BadRequestException(
-          `Recurring bookings are capped at ${MAX_RECURRING_OCCURRENCES} instances.`
-        );
-      }
-      for (let i = 0; i < rule.occurrences; i += 1) {
-        const candidateStart = new Date(startTime);
-        const candidateEnd = new Date(endTime);
-        candidateStart.setDate(candidateStart.getDate() + i * intervalDays);
-        candidateEnd.setDate(candidateEnd.getDate() + i * intervalDays);
-
-        occurrences.push({
-          instanceNumber: i + 1,
-          startTime: candidateStart,
-          endTime: candidateEnd,
-        });
-      }
-      return occurrences;
-    }
-
-    const endsAtDateRaw = rule.endsAtDate?.trim();
-    if (!endsAtDateRaw) {
-      throw new BadRequestException(
-        'Recurrence end date is required when occurrences are not provided.'
-      );
-    }
-
-    const endsAtDate = new Date(endsAtDateRaw);
-    if (Number.isNaN(endsAtDate.getTime())) {
-      throw new BadRequestException('Recurrence end date is invalid.');
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(endsAtDateRaw)) {
-      endsAtDate.setHours(23, 59, 59, 999);
-    }
-    if (endsAtDate < startTime) {
-      throw new BadRequestException(
-        'Recurrence end date must be on or after the first booking date.'
-      );
-    }
-
-    let instanceNumber = 1;
-    const candidateStart = new Date(startTime);
-    const candidateEnd = new Date(endTime);
-    while (candidateStart <= endsAtDate) {
-      if (instanceNumber > MAX_RECURRING_OCCURRENCES) {
-        throw new BadRequestException(
-          `Recurring bookings are capped at ${MAX_RECURRING_OCCURRENCES} instances.`
-        );
-      }
-
-      occurrences.push({
-        instanceNumber,
-        startTime: new Date(candidateStart),
-        endTime: new Date(candidateEnd),
-      });
-      candidateStart.setDate(candidateStart.getDate() + intervalDays);
-      candidateEnd.setDate(candidateEnd.getDate() + intervalDays);
-      instanceNumber += 1;
-    }
-
-    return occurrences;
+    return generateRecurringOccurrences(startTime, endTime, rule);
   }
 
   private buildFacilityConfig(facility: Facility): {
@@ -1529,17 +1436,7 @@ export class BookingsService {
       currency: string;
     };
   } {
-    return {
-      id: facility.id,
-      name: facility.name,
-      openTime: facility.config.openTime,
-      closeTime: facility.config.closeTime,
-      slotDurationMinutes: 60,
-      pricing: {
-        basePrice: facility.config.pricePerHour,
-        currency: 'SAR',
-      },
-    };
+    return buildFacilityConfig(facility);
   }
 
   private toBookingListItemDto(
@@ -1547,71 +1444,27 @@ export class BookingsService {
     facility: Facility,
     customerTags: string[] = []
   ): BookingListItemDto {
-    return {
-      id: booking.id,
-      bookingReference: booking.bookingReference,
-      facility: {
-        id: facility.id,
-        name: facility.name,
-        config: {
-          pricePerHour: Number(facility.config.pricePerHour),
-        },
-      },
-      startTime: booking.startTime.toISOString(),
-      endTime: booking.endTime.toISOString(),
-      customerName: booking.customerName,
-      customerPhone: booking.customerPhone,
-      customerTags,
-      totalAmount: booking.totalAmount,
-      currency: booking.currency,
-      priceBreakdown: booking.priceBreakdown,
-      holdUntil: booking.holdUntil ? booking.holdUntil.toISOString() : null,
-      cancellationReason: booking.cancellationReason ?? null,
-      recurrenceGroupId: booking.recurrenceGroupId ?? null,
-      recurrenceInstanceNumber: booking.recurrenceInstanceNumber ?? null,
-      recurrenceRule: booking.recurrenceRule ?? null,
-      status: booking.status,
-      paymentStatus: booking.paymentStatus,
-      createdAt: booking.createdAt.toISOString(),
-      updatedAt: booking.updatedAt.toISOString(),
-    };
+    return toBookingListItemDto(booking, facility, customerTags);
   }
 
   private requireTenantId(tenantId?: string): string {
-    if (!tenantId?.trim()) {
-      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
-    }
-
-    return tenantId;
+    return requireTenantId(tenantId, ACCESS_DENIED_MESSAGE);
   }
 
   private requireUserId(userId?: string): string {
-    if (!userId?.trim()) {
-      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
-    }
-
-    return userId;
+    return requireUserId(userId, ACCESS_DENIED_MESSAGE);
   }
 
   private requireUserRole(role?: string): UserRole {
-    if (
-      role === UserRole.OWNER ||
-      role === UserRole.MANAGER ||
-      role === UserRole.STAFF ||
-      role === UserRole.VIEWER
-    ) {
-      return role;
-    }
-
-    throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
+    return requireUserRole(role, ACCESS_DENIED_MESSAGE);
   }
 
   private isStaff(role: UserRole): boolean {
-    return role === UserRole.STAFF;
+    return isStaff(role);
   }
 
   private isViewer(role: UserRole): boolean {
-    return role === UserRole.VIEWER;
+    return isViewer(role);
   }
 
   private async validateFacilityOwnership(
@@ -1619,105 +1472,45 @@ export class BookingsService {
     tenantId: string,
     activeOnly = false
   ): Promise<Facility> {
-    const facility = await this.facilityRepository.findOne({
-      where: { id: facilityId },
-      relations: { tenant: true },
+    return validateFacilityOwnership({
+      facilityRepository: this.facilityRepository,
+      facilityId,
+      tenantId,
+      resourceNotFoundMessage: RESOURCE_NOT_FOUND_MESSAGE,
+      accessDeniedMessage: ACCESS_DENIED_MESSAGE,
+      inactiveFacilityMessage: INACTIVE_FACILITY_MESSAGE,
+      activeOnly,
     });
-
-    if (!facility) {
-      throw new NotFoundException(RESOURCE_NOT_FOUND_MESSAGE);
-    }
-
-    if (facility.tenant.id !== tenantId) {
-      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
-    }
-
-    if (activeOnly && !facility.isActive) {
-      throw new ConflictException(INACTIVE_FACILITY_MESSAGE);
-    }
-
-    return facility;
   }
 
   private resolveCreateStatus(status?: BookingStatus): BookingStatus {
-    if (typeof status === 'undefined') {
-      return BookingStatus.CONFIRMED;
-    }
-
-    if (status !== BookingStatus.PENDING) {
-      throw new BadRequestException(
-        'Only PENDING status may be provided during booking creation.'
-      );
-    }
-
-    return status;
+    return resolveCreateStatus(status);
   }
 
   private async validateBookingOwnership(
     bookingId: string,
     tenantId: string
   ): Promise<Booking> {
-    const booking = await this.bookingRepository.findOne({
-      where: { id: bookingId },
-      relations: { facility: { tenant: true } },
+    return validateBookingOwnership({
+      bookingRepository: this.bookingRepository,
+      bookingId,
+      tenantId,
+      resourceNotFoundMessage: RESOURCE_NOT_FOUND_MESSAGE,
+      accessDeniedMessage: ACCESS_DENIED_MESSAGE,
     });
-
-    if (!booking) {
-      throw new NotFoundException(RESOURCE_NOT_FOUND_MESSAGE);
-    }
-
-    if (booking.facility.tenant.id !== tenantId) {
-      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
-    }
-
-    return booking;
   }
 
   private validateStatusTransition(
     currentStatus: BookingStatus,
     nextStatus: BookingStatus
   ): void {
-    if (currentStatus === nextStatus) {
-      return;
-    }
-
-    const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[currentStatus] ?? [];
-    if (!allowedTransitions.includes(nextStatus)) {
-      this.appLogger.warn(
-        LOG_EVENTS.BOOKING_STATUS_INVALID_TRANSITION,
-        'Invalid booking status transition',
-        { currentStatus, nextStatus }
-      );
-      throw new BadRequestException('Invalid booking status transition.');
-    }
+    return validateStatusTransition(currentStatus, nextStatus, this.appLogger);
   }
 
   private async generateUniqueBookingReference(
     bookingRepository: Repository<Booking> = this.bookingRepository
   ): Promise<string> {
-    for (let attempt = 0; attempt < BOOKING_REFERENCE_ATTEMPTS; attempt += 1) {
-      const candidate = this.buildBookingReference();
-      const alreadyExists = await bookingRepository.exists({
-        where: { bookingReference: candidate },
-      });
-
-      if (!alreadyExists) {
-        return candidate;
-      }
-    }
-
-    throw new ConflictException(
-      'Unable to create booking reference. Please retry.'
-    );
-  }
-
-  private buildBookingReference(): string {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const randomSuffix = randomBytes(3)
-      .toString('hex')
-      .toUpperCase()
-      .slice(0, BOOKING_REFERENCE_RANDOM_LENGTH);
-    return `${BOOKING_REFERENCE_PREFIX}-${timestamp}-${randomSuffix}`;
+    return generateUniqueBookingReference(bookingRepository);
   }
 
   private buildSlotKey(
@@ -1725,25 +1518,15 @@ export class BookingsService {
     startTime: Date,
     endTime: Date
   ): string {
-    return `${facilityId}|${startTime.toISOString()}|${endTime.toISOString()}`;
+    return buildSlotKey(facilityId, startTime, endTime);
   }
 
   private normalizePromoCode(promoCode?: string | null): string | undefined {
-    const normalized = (promoCode ?? '').trim().toUpperCase();
-    return normalized.length > 0 ? normalized : undefined;
+    return normalizePromoCode(promoCode);
   }
 
   private normalizeCustomerPhone(phone?: string | null): string | null {
-    const compact = phone?.replace(/\s+/g, '').trim() ?? '';
-    if (!compact) {
-      return null;
-    }
-
-    if (!isValidSaudiPhone(compact)) {
-      return null;
-    }
-
-    return normalizeSaudiPhone(compact);
+    return normalizeCustomerPhone(phone);
   }
 
   private async resolvePromoForPreview(params: {
@@ -1752,38 +1535,10 @@ export class BookingsService {
     promoCode?: string;
     now: Date;
   }): Promise<PromoValidationResult | undefined> {
-    if (!params.promoCode) {
-      return undefined;
-    }
-
-    if (!PROMO_CODE_FORMAT_REGEX.test(params.promoCode)) {
-      return {
-        validation: {
-          code: params.promoCode,
-          isValid: false,
-          reason: PromoValidationReason.INVALID_FORMAT,
-        },
-      };
-    }
-
-    const promoCode = await this.promoCodeRepository.findOne({
-      where: {
-        tenantId: params.tenantId,
-        code: params.promoCode,
-      },
+    return resolvePromoForPreview({
+      promoCodeRepository: this.promoCodeRepository,
+      ...params,
     });
-
-    const validation = this.validatePromoAvailability({
-      code: params.promoCode,
-      promoCode,
-      facilityId: params.facilityId,
-      now: params.now,
-    });
-
-    return {
-      validation,
-      promoCode: validation.isValid ? promoCode ?? undefined : undefined,
-    };
   }
 
   private async resolvePromoForCreate(params: {
@@ -1793,104 +1548,7 @@ export class BookingsService {
     promoCode?: string;
     now: Date;
   }): Promise<PromoValidationResult | undefined> {
-    if (!params.promoCode) {
-      return undefined;
-    }
-
-    if (!PROMO_CODE_FORMAT_REGEX.test(params.promoCode)) {
-      throw new ConflictException(
-        this.promoCreateConflictMessage(PromoValidationReason.INVALID_FORMAT)
-      );
-    }
-
-    const promoCode = await params.promoCodeRepository
-      .createQueryBuilder('promo')
-      .where('promo.tenantId = :tenantId', { tenantId: params.tenantId })
-      .andWhere('promo.code = :code', { code: params.promoCode })
-      .setLock('pessimistic_write')
-      .getOne();
-
-    const validation = this.validatePromoAvailability({
-      code: params.promoCode,
-      promoCode,
-      facilityId: params.facilityId,
-      now: params.now,
-    });
-
-    if (!validation.isValid || !promoCode) {
-      throw new ConflictException(
-        this.promoCreateConflictMessage(validation.reason)
-      );
-    }
-
-    return { validation, promoCode };
-  }
-
-  private validatePromoAvailability(params: {
-    code: string;
-    promoCode: PromoCode | null;
-    facilityId: string;
-    now: Date;
-  }): PromoValidationDto {
-    const invalid = (reason: PromoValidationReason): PromoValidationDto => ({
-      code: params.code,
-      isValid: false,
-      reason,
-    });
-
-    const promoCode = params.promoCode;
-    if (!promoCode) {
-      return invalid(PromoValidationReason.NOT_FOUND);
-    }
-
-    if (!promoCode.isActive) {
-      return invalid(PromoValidationReason.INACTIVE);
-    }
-
-    if (promoCode.expiresAt && promoCode.expiresAt < params.now) {
-      return invalid(PromoValidationReason.EXPIRED);
-    }
-
-    if (
-      promoCode.facilityScope === PromoFacilityScope.SINGLE_FACILITY &&
-      promoCode.facilityId !== params.facilityId
-    ) {
-      return invalid(PromoValidationReason.FACILITY_MISMATCH);
-    }
-
-    if (
-      typeof promoCode.maxUses === 'number' &&
-      Number(promoCode.currentUses) >= promoCode.maxUses
-    ) {
-      return invalid(PromoValidationReason.USAGE_EXCEEDED);
-    }
-
-    return {
-      code: promoCode.code,
-      isValid: true,
-      promoCodeId: promoCode.id,
-      discountType: promoCode.discountType,
-      discountValue: Number(promoCode.discountValue),
-    };
-  }
-
-  private promoCreateConflictMessage(reason?: PromoValidationReason): string {
-    switch (reason) {
-      case PromoValidationReason.INVALID_FORMAT:
-      case PromoValidationReason.NOT_FOUND:
-      case PromoValidationReason.EMPTY_CODE:
-        return 'Promo code is invalid.';
-      case PromoValidationReason.INACTIVE:
-        return 'Promo code is inactive.';
-      case PromoValidationReason.EXPIRED:
-        return 'Promo code has expired.';
-      case PromoValidationReason.FACILITY_MISMATCH:
-        return 'Promo code is not valid for this facility.';
-      case PromoValidationReason.USAGE_EXCEEDED:
-        return 'Promo code usage limit has been reached.';
-      default:
-        return 'Promo code cannot be applied.';
-    }
+    return resolvePromoForCreate(params);
   }
 
   private applyPromoToPriceBreakdown(
@@ -1899,30 +1557,12 @@ export class BookingsService {
     discountType: PromoDiscountType,
     discountValue: number
   ): PriceBreakdown {
-    const subtotal = Number(baseBreakdown.subtotal);
-    const existingDiscount = Number(baseBreakdown.discountAmount);
-    const rawPromoDiscount =
-      discountType === PromoDiscountType.PERCENTAGE
-        ? (subtotal * discountValue) / 100
-        : discountValue;
-    const maxApplicableDiscount = Math.max(subtotal - existingDiscount, 0);
-    const promoDiscount = this.roundMoney(
-      Math.min(Math.max(rawPromoDiscount, 0), maxApplicableDiscount)
-    );
-    const discountAmount = this.roundMoney(existingDiscount + promoDiscount);
-    const total = this.roundMoney(Math.max(subtotal - discountAmount, 0));
-
-    return {
-      ...baseBreakdown,
-      discountAmount,
-      promoDiscount,
+    return applyPromoToPriceBreakdown(
+      baseBreakdown,
       promoCode,
-      total,
-    };
-  }
-
-  private roundMoney(amount: number): number {
-    return Math.round((amount + Number.EPSILON) * 100) / 100;
+      discountType,
+      discountValue
+    );
   }
 
   /**
@@ -1933,103 +1573,26 @@ export class BookingsService {
     facility: Facility,
     userId: string
   ): Promise<void> {
-    // Send booking confirmation to the creating user
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ['id', 'email', 'name'],
+    return sendBookingCreatedEmails({
+      booking,
+      facility,
+      userId,
+      userRepository: this.userRepository,
+      emailService: this.emailService,
+      appLogger: this.appLogger,
     });
-
-    if (user) {
-      try {
-        await this.emailService.sendBookingConfirmation({
-          recipientEmail: user.email,
-          customerName: booking.customerName,
-          customerPhone: booking.customerPhone,
-          bookingReference: booking.bookingReference ?? booking.id,
-          facilityName: facility.name,
-          startTime: booking.startTime,
-          endTime: booking.endTime,
-          totalAmount: booking.totalAmount,
-          currency: booking.currency,
-        });
-      } catch (err) {
-        this.appLogger.error(
-          LOG_EVENTS.EMAIL_FAILED,
-          'Failed to send booking confirmation',
-          { bookingId: booking.id },
-          err
-        );
-      }
-    }
-
-    // Send new booking alert to managers/owners of the tenant
-    const managers = await this.userRepository.find({
-      where: [
-        { tenantId: facility.tenant.id, role: 'OWNER', isActive: true },
-        { tenantId: facility.tenant.id, role: 'MANAGER', isActive: true },
-      ],
-      select: ['id', 'email', 'name'],
-    });
-
-    for (const manager of managers) {
-      if (manager.id === userId) continue;
-      try {
-        await this.emailService.sendNewBookingAlert({
-          managerEmail: manager.email,
-          managerName: manager.name,
-          customerName: booking.customerName,
-          customerPhone: booking.customerPhone,
-          bookingReference: booking.bookingReference ?? booking.id,
-          facilityName: facility.name,
-          startTime: booking.startTime,
-          endTime: booking.endTime,
-          totalAmount: booking.totalAmount,
-          currency: booking.currency,
-        });
-      } catch (err) {
-        this.appLogger.error(
-          LOG_EVENTS.EMAIL_FAILED,
-          'Failed to send new booking alert',
-          { bookingId: booking.id },
-          err
-        );
-      }
-    }
   }
 
   /**
    * Send cancellation notification email.
    */
   private async sendCancellationEmail(booking: Booking): Promise<void> {
-    if (!booking.createdByUserId) return;
-
-    const user = await this.userRepository.findOne({
-      where: { id: booking.createdByUserId },
-      select: ['id', 'email'],
+    return sendCancellationEmail({
+      booking,
+      userRepository: this.userRepository,
+      emailService: this.emailService,
+      appLogger: this.appLogger,
     });
-
-    if (!user) return;
-
-    const facilityName = booking.facility?.name ?? 'Unknown Facility';
-
-    try {
-      await this.emailService.sendCancellationNotification({
-        recipientEmail: user.email,
-        customerName: booking.customerName,
-        bookingReference: booking.bookingReference ?? booking.id,
-        facilityName,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        reason: booking.cancellationReason ?? 'No reason provided',
-      });
-    } catch (err) {
-      this.appLogger.error(
-        LOG_EVENTS.EMAIL_FAILED,
-        'Failed to send cancellation email',
-        { bookingId: booking.id },
-        err
-      );
-    }
   }
 
   private async logAudit(params: {
@@ -2041,17 +1604,10 @@ export class BookingsService {
     description?: string;
     changes?: Record<string, unknown>;
   }): Promise<void> {
-    const auditLog = this.auditLogRepository.create({
-      tenantId: params.tenantId,
-      userId: params.userId,
-      action: params.action,
-      entityType: params.entityType,
-      entityId: params.entityId,
-      description: params.description,
-      changes: params.changes,
+    return saveBookingAuditLog({
+      auditLogRepository: this.auditLogRepository,
+      ...params,
     });
-
-    await this.auditLogRepository.save(auditLog);
   }
 
   /**
@@ -2061,47 +1617,6 @@ export class BookingsService {
     result: BookingPreviewResult,
     promoValidation?: PromoValidationDto
   ): BookingPreviewResponseDto {
-    const response: BookingPreviewResponseDto = {
-      canBook: result.canBook,
-      priceBreakdown: result.priceBreakdown,
-    };
-
-    if (promoValidation) {
-      response.promoValidation = promoValidation;
-    }
-
-    if (result.validationErrors && result.validationErrors.length > 0) {
-      response.validationErrors = result.validationErrors;
-    }
-
-    if (result.conflict) {
-      response.conflict = {
-        hasConflict: result.conflict.hasConflict,
-        conflictType: result.conflict.conflictType,
-        message: result.conflict.message,
-        conflictingSlots: result.conflict.conflictingSlots.map((slot) => ({
-          startTime: slot.startTime.toISOString(),
-          endTime: slot.endTime.toISOString(),
-          status: slot.status,
-          bookingReference: slot.bookingReference,
-        })),
-      };
-    }
-
-    if (
-      result.suggestedAlternatives &&
-      result.suggestedAlternatives.length > 0
-    ) {
-      response.suggestedAlternatives = result.suggestedAlternatives.map(
-        (alt) => ({
-          startTime: alt.startTime.toISOString(),
-          endTime: alt.endTime.toISOString(),
-          price: alt.price,
-          currency: alt.currency,
-        })
-      );
-    }
-
-    return response;
+    return transformToResponseDto(result, promoValidation);
   }
 }
