@@ -15,8 +15,10 @@ import {
   PromoFacilityScope,
   UserRole,
 } from '@khana/shared-dtos';
-import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
-import { UiStatusBadgeComponent } from '../../shared/components';
+import {
+  ConfirmationDialogComponent,
+  UiStatusBadgeComponent,
+} from '../../shared/components';
 import { LocaleFormatService } from '../../shared/services/locale-format.service';
 import { AuthStore } from '../../shared/state/auth.store';
 import { FacilityContextStore } from '../../shared/state';

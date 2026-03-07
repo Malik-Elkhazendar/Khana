@@ -22,9 +22,9 @@ import { ApiService } from '../../shared/services/api.service';
 import { FacilityContextStore } from '../../shared/state';
 import { BookingStore } from '../../state/bookings/booking.store';
 import { AuthStore } from '../../shared/state/auth.store';
-import { ConfirmationDialogComponent } from '../../shared/components/confirmation-dialog.component';
-import { CancellationFormComponent } from '../../shared/components/cancellation-form.component';
 import {
+  CancellationFormComponent,
+  ConfirmationDialogComponent,
   TagChipComponent,
   UiStatusBadgeComponent,
   UiToastComponent,
