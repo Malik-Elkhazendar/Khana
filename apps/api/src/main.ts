@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app/app.module';
-import { normalizeNodeEnv, resolveEnvFilePaths } from '@khana/shared-utils';
+import { normalizeNodeEnv, resolveEnvFilePaths } from './app/config/env-files';
 import { validateJwtSecretsOrThrow } from './app/config/secret-validation';
 import {
   AppLoggerService,
