@@ -82,6 +82,9 @@ build2.log
 !.codex/skills/project-index/
 .codex/skills/project-index/*
 !.codex/skills/project-index/SKILL.md
+!.codex/skills/repo-architecture/
+.codex/skills/repo-architecture/*
+!.codex/skills/repo-architecture/SKILL.md
 !.codex/skills/update-project-docs/
 .codex/skills/update-project-docs/*
 !.codex/skills/update-project-docs/SKILL.md

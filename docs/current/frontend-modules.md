@@ -26,7 +26,11 @@ Location: `apps/manager-dashboard/src/app`
 
 ## Shared Infrastructure
 
-- `shared/components`: app shell and reusable UI components.
+- `shared/components/ui`: UI primitives such as icons, badges, and toasts.
+- `shared/components/navigation`: shell and navigation composition.
+- `shared/components/dialogs`: reusable generic dialogs.
+- `shared/components/booking`: reusable booking-specific shared components.
+- `shared/components/tag-chip`: shared semantic chip component.
 - `shared/interceptors`: auth and error HTTP interceptors.
 - `shared/guards`: auth/role/onboarding/public route guards.
 - `shared/services`: API client, auth, i18n, locale formatting, logging, error reporting.

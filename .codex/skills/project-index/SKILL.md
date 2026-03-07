@@ -8,23 +8,25 @@ description: >
 
 # Khana Project Index
 
-Quick navigation for the Khana monorepo. For architecture rules see `CLAUDE.md`.
-For current module lists see `docs/current/`.
+Quick navigation for the Khana monorepo. For architecture rules see
+`docs/current/repo-architecture.md` and `CLAUDE.md`. For current module lists see
+`docs/current/`.
 
 ---
 
 ## Documentation
 
-| Topic                                         | File                               |
-| --------------------------------------------- | ---------------------------------- |
-| Architecture overview, commands, conventions  | `CLAUDE.md`                        |
-| API modules (current)                         | `docs/current/api-modules.md`      |
-| Frontend modules (current)                    | `docs/current/frontend-modules.md` |
-| Monorepo layout                               | `docs/current/repository-map.md`   |
-| Dev/DB/i18n/CI commands                       | `docs/current/scripts.md`          |
-| Design system (Desert Night)                  | `docs/DESIGN_SYSTEM.md`            |
-| Security & secrets                            | `docs/security-secrets.md`         |
-| Logging setup, event catalog, incident triage | `docs/observability.md`            |
+| Topic                                         | File                                |
+| --------------------------------------------- | ----------------------------------- |
+| Architecture overview, commands, conventions  | `CLAUDE.md`                         |
+| API modules (current)                         | `docs/current/api-modules.md`       |
+| Frontend modules (current)                    | `docs/current/frontend-modules.md`  |
+| Repo architecture and file placement          | `docs/current/repo-architecture.md` |
+| Monorepo layout                               | `docs/current/repository-map.md`    |
+| Dev/DB/i18n/CI commands                       | `docs/current/scripts.md`           |
+| Design system (Desert Night)                  | `docs/DESIGN_SYSTEM.md`             |
+| Security & secrets                            | `docs/security-secrets.md`          |
+| Logging setup, event catalog, incident triage | `docs/observability.md`             |
 
 ---
 
@@ -88,18 +90,20 @@ For current module lists see `docs/current/`.
 
 ## Frontend — Shared Infrastructure
 
-| Concern                  | Path                                          |
-| ------------------------ | --------------------------------------------- |
-| API client service       | `shared/services/api.service.ts`              |
-| Auth/error interceptors  | `shared/interceptors/`                        |
-| Route guards             | `shared/guards/`                              |
-| i18n / locale formatting | `shared/services/`                            |
-| Navigation config        | `shared/navigation/dashboard-nav.ts`          |
-| Shared style partials    | `shared/styles/`                              |
-| UI icon component        | `shared/components/ui/ui-icon.component.html` |
-| Sidebar, header, shell   | `shared/components/`                          |
-| Translation files        | `public/assets/i18n/en.json`, `ar.json`       |
-| App routes               | `src/app/app.routes.ts`                       |
+| Concern                  | Path                                    |
+| ------------------------ | --------------------------------------- |
+| API client service       | `shared/services/api.service.ts`        |
+| Auth/error interceptors  | `shared/interceptors/`                  |
+| Route guards             | `shared/guards/`                        |
+| i18n / locale formatting | `shared/services/`                      |
+| Navigation config        | `shared/navigation/dashboard-nav.ts`    |
+| Shared style partials    | `shared/styles/`                        |
+| UI primitives            | `shared/components/ui/`                 |
+| Navigation components    | `shared/components/navigation/`         |
+| Shared dialogs           | `shared/components/dialogs/`            |
+| Shared booking widgets   | `shared/components/booking/`            |
+| Translation files        | `public/assets/i18n/en.json`, `ar.json` |
+| App routes               | `src/app/app.routes.ts`                 |
 
 ---
 
@@ -160,6 +164,7 @@ For current module lists see `docs/current/`.
 | --------------------- | ----------- | ------------------------------------------- |
 | `project-guardrails`  | Reference   | Deep implementation rules                   |
 | `project-index`       | Reference   | This file — repo navigation                 |
+| `repo-architecture`   | Reference   | File placement, layering, structure review  |
 | `api-engineer`        | Task        | NestJS endpoint workflows                   |
 | `auth-engineer`       | Task        | Auth system implementation                  |
 | `database-architect`  | Task        | Entity & migration design                   |

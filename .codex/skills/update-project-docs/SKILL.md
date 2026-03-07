@@ -50,6 +50,19 @@ Check:
 
 Update only what has changed.
 
+### 3.5 Sync repo-architecture.md
+
+**Target file:** `docs/current/repo-architecture.md`
+
+Check whether any structural rules changed:
+
+- feature/shared/state placement rules
+- backend module ownership rules
+- shared library purity expectations
+- Nx tag or dependency-boundary policy
+
+Update only when the accepted structure or governance rules changed.
+
 ### 4. Sync project-index skill
 
 **Target file:** `.codex/skills/project-index/SKILL.md`
@@ -61,6 +74,14 @@ yet listed in `project-index/SKILL.md`.
 Add entries for new items. Remove entries for deleted ones.
 Because this file is repo-tracked project memory, keep it committed alongside the
 `docs/current/*` changes whenever the module map changes.
+
+### 4.5 Sync repo-architecture skill
+
+**Target file:** `.codex/skills/repo-architecture/SKILL.md`
+
+If structure rules changed, keep the skill aligned with `docs/current/repo-architecture.md`.
+The skill should remain concise and procedural; the doc should remain the fuller
+human-readable reference.
 
 ### 5. Verify Skill Descriptions Are Current
 

@@ -17,8 +17,58 @@ export default [
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           depConstraints: [
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
+              sourceTag: 'type:app',
+              onlyDependOnLibsWithTags: [
+                'type:dto',
+                'type:util',
+                'type:engine',
+                'type:data-access',
+                'type:notifications',
+              ],
+            },
+            {
+              sourceTag: 'type:e2e',
+              onlyDependOnLibsWithTags: [
+                'type:app',
+                'type:e2e',
+                'type:dto',
+                'type:util',
+                'type:engine',
+                'type:data-access',
+                'type:notifications',
+              ],
+            },
+            {
+              sourceTag: 'type:dto',
+              onlyDependOnLibsWithTags: ['type:dto'],
+            },
+            {
+              sourceTag: 'type:util',
+              onlyDependOnLibsWithTags: ['type:dto', 'type:util'],
+            },
+            {
+              sourceTag: 'type:engine',
+              onlyDependOnLibsWithTags: ['type:dto', 'type:util', 'type:engine'],
+            },
+            {
+              sourceTag: 'type:data-access',
+              onlyDependOnLibsWithTags: ['type:dto', 'type:util', 'type:data-access'],
+            },
+            {
+              sourceTag: 'type:notifications',
+              onlyDependOnLibsWithTags: ['type:dto', 'type:util', 'type:notifications'],
+            },
+            {
+              sourceTag: 'platform:web',
+              onlyDependOnLibsWithTags: ['platform:web', 'platform:shared'],
+            },
+            {
+              sourceTag: 'platform:api',
+              onlyDependOnLibsWithTags: ['platform:api', 'platform:shared'],
+            },
+            {
+              sourceTag: 'platform:shared',
+              onlyDependOnLibsWithTags: ['platform:shared'],
             },
           ],
         },

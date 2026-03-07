@@ -11,7 +11,7 @@
 - `libs/notifications`: Email/WhatsApp notification module/services/templates.
 - `libs/shared-dtos`: Shared DTOs, enums, interfaces.
 - `libs/shared-utils`: Shared utility helpers.
-- `tools/i18n`: i18n audit tooling.
+- `tools/architecture`: structural audit tooling.
 
 ## Root Config
 
@@ -25,4 +25,5 @@
 ## Documentation
 
 - Active docs: `docs/current/`, `docs/testing/`, runbooks and security docs in `docs/`.
+- Architecture guidance: `docs/current/repo-architecture.md`.
 - Archived docs (retired planning/agent-era): `docs/archive/2026-03-cleanup/`.

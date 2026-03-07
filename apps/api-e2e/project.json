@@ -12,5 +12,6 @@
       },
       "dependsOn": ["api:build", "api:serve"]
     }
-  }
+  },
+  "tags": ["type:e2e", "platform:api"]
 }

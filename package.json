@@ -19,6 +19,7 @@
     "lint:fix": "nx run-many -t lint --fix",
     "check": "nx run-many -t lint test build",
     "check:all": "nx run-many -t lint test build --all",
+    "audit:structure": "node tools/architecture/audit-structure.mjs",
     "format": "nx format:write",
     "format:check": "nx format:check",
     "graph": "nx graph",
