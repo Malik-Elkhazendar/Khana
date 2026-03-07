@@ -122,6 +122,7 @@ describe('AnalyticsStore', () => {
   });
 
   it('clears analytics datasets on auth-sensitive failures', async () => {
+    store.syncTenantTimeZone('Europe/Istanbul');
     await store.loadAnalytics();
 
     apiMock.getAnalyticsSummary.mockReturnValueOnce(
@@ -148,10 +149,12 @@ describe('AnalyticsStore', () => {
     expect(store.revenue()).toBeNull();
     expect(store.peakHours()).toBeNull();
     expect(store.errorCode()).toBe('UNAUTHORIZED');
+    expect(store.filters().timeZone).toBe('Europe/Istanbul');
   });
 
-  it('resets analytics state to defaults', async () => {
+  it('resets analytics state while preserving the active tenant timezone', async () => {
     await store.loadAnalytics();
+    store.syncTenantTimeZone('Europe/Istanbul');
     store.setFacilityFilter('facility-2');
     store.setGroupBy('week');
 
@@ -166,6 +169,6 @@ describe('AnalyticsStore', () => {
     expect(store.loading()).toBe(false);
     expect(store.filters().facilityId).toBeNull();
     expect(store.filters().groupBy).toBe('day');
-    expect(store.filters().timeZone).toBe('Asia/Riyadh');
+    expect(store.filters().timeZone).toBe('Europe/Istanbul');
   });
 });

@@ -379,7 +379,7 @@ export const AnalyticsStore = signalStore(
           patchState(store, { error: null, errorCode: null });
         },
         reset: (): void => {
-          patchState(store, createInitialState());
+          patchState(store, createInitialState(store.filters().timeZone));
         },
         setQuickRange: (
           preset: RangePreset,

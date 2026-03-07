@@ -244,6 +244,51 @@ describe('SettingsComponent', () => {
     expect(apiServiceMock.updateTenantSettings).toHaveBeenCalledTimes(1);
   });
 
+  it('filters timezone datalist options from the current search input', () => {
+    const fixture = TestBed.createComponent(SettingsComponent);
+    fixture.detectChanges();
+
+    const timezoneInput = fixture.nativeElement.querySelector(
+      '.settings-preferences__input'
+    ) as HTMLInputElement | null;
+    expect(timezoneInput).not.toBeNull();
+
+    timezoneInput!.value = 'istanbul';
+    timezoneInput!.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const options = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        '#settings-timezone-options option'
+      )
+    ) as HTMLOptionElement[];
+
+    expect(options.length).toBe(1);
+    expect(options[0]?.value).toBe('Europe/Istanbul');
+  });
+
+  it('shows timezone empty-search state only when no rendered options match', () => {
+    const fixture = TestBed.createComponent(SettingsComponent);
+    fixture.detectChanges();
+
+    const timezoneInput = fixture.nativeElement.querySelector(
+      '.settings-preferences__input'
+    ) as HTMLInputElement | null;
+    expect(timezoneInput).not.toBeNull();
+
+    timezoneInput!.value = 'not-a-real-time-zone';
+    timezoneInput!.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const options = fixture.nativeElement.querySelectorAll(
+      '#settings-timezone-options option'
+    );
+    expect(options.length).toBe(0);
+    expect(fixture.nativeElement.textContent).toContain(
+      'DASHBOARD.PAGES.SETTINGS.TIMEZONE.SEARCH_EMPTY'
+    );
+  });
+
   it('hides timezone save action for non-owner/manager roles', () => {
     authStoreMock.user.set({
       ...mockUser,

@@ -10,8 +10,12 @@ Location: `apps/api/src/app`
 - `bookings/waitlist`: waitlist join/list/status/notification flows.
 - `facilities`: facility management endpoints.
 - `analytics`: occupancy, revenue, peak-hours analytics endpoints.
+- `customers`: customer profiles, booking-linked customer history, and tagging support.
+- `dashboard`: today snapshot and dashboard summary endpoints.
+- `goals`: tenant goal settings and nudges for dashboard/settings flows.
 - `onboarding`: tenant onboarding completion flow.
 - `promo-codes`: promo code CRUD/list and validation related operations.
+- `settings`: tenant settings such as timezone management.
 
 ## Cross-Cutting
 

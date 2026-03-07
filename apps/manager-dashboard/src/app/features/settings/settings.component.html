@@ -83,7 +83,7 @@
             "
           />
           <datalist id="settings-timezone-options">
-            @for (timezone of timezoneOptions; track timezone) {
+            @for (timezone of filteredTimezoneOptions(); track $index) {
             <option [value]="timezone">{{ timezone }}</option>
             }
           </datalist>

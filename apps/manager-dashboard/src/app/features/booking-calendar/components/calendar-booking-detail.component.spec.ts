@@ -174,4 +174,18 @@ describe('CalendarBookingDetailComponent', () => {
     expect(panel?.getAttribute('role')).toBe('dialog');
     expect(panel?.getAttribute('aria-modal')).toBe('true');
   });
+
+  it('renders the full-details direction cue as a decorative element without hardcoded text glyphs', () => {
+    createComponent();
+    component.booking = createBooking({ id: 'booking-full-link' });
+    fixture.detectChanges();
+
+    const arrow = fixture.nativeElement.querySelector(
+      '.calendar-detail-panel__full-link-arrow'
+    ) as HTMLElement | null;
+
+    expect(arrow).not.toBeNull();
+    expect(arrow?.getAttribute('aria-hidden')).toBe('true');
+    expect(arrow?.textContent?.trim()).toBe('');
+  });
 });
