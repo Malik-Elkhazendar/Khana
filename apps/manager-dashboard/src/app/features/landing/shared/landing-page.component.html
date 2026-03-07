@@ -1,0 +1,65 @@
+<div
+  class="landing-page"
+  [class.landing-page--rtl]="content().direction === 'rtl'"
+  [attr.dir]="content().direction"
+  [attr.lang]="content().locale"
+>
+  <a
+    href="#main-content"
+    class="skip-link"
+    [attr.aria-label]="content().skipLinkAriaLabel"
+  >
+    {{ content().skipLinkLabel }}
+  </a>
+
+  <app-landing-header-section
+    [content]="content().header"
+    [locale]="content().locale"
+    [isScrolled]="isScrolled()"
+    (navigateToSection)="scrollToSection($event)"
+  />
+
+  <main id="main-content" class="landing-main" role="main">
+    <app-hero-section
+      id="hero"
+      [content]="content().hero"
+      [locale]="content().locale"
+      [scrollY]="scrollY()"
+      (navigateToSection)="scrollToSection($event)"
+    />
+
+    <section id="problem-solution" class="animate-on-scroll">
+      <app-problem-solution-section [content]="content().problemSolution" />
+    </section>
+
+    <section id="features" class="animate-on-scroll">
+      <app-features-grid-section
+        [content]="content().featuresGrid"
+        [locale]="content().locale"
+      />
+    </section>
+
+    <section id="how-it-works" class="animate-on-scroll">
+      <app-how-it-works-section
+        [content]="content().howItWorks"
+        [locale]="content().locale"
+      />
+    </section>
+
+    <section id="testimonials" class="animate-on-scroll">
+      <app-social-proof-section
+        [content]="content().socialProof"
+        [direction]="content().direction"
+      />
+    </section>
+
+    <section id="cta" class="animate-on-scroll">
+      <app-bottom-cta-section [content]="content().bottomCta" />
+    </section>
+  </main>
+
+  <app-landing-footer-section
+    [content]="content().footer"
+    [locale]="content().locale"
+  />
+</div>
