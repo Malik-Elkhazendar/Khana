@@ -1,0 +1,4 @@
+interface:
+  display_name: "Database Architect"
+  short_description: "Help with Database Architect workflows"
+  default_prompt: "Use $database-architect to handle this task in the Khana repository."

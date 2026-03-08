@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design System"
+  short_description: "Help with Design System workflows"
+  default_prompt: "Use $design-system to handle this task in the Khana repository."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Auth Engineer"
+  short_description: "Help with Auth Engineer workflows"
+  default_prompt: "Use $auth-engineer to handle this task in the Khana repository."

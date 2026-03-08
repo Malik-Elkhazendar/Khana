@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Index"
+  short_description: "Help with Project Index workflows"
+  default_prompt: "Use $project-index to handle this task in the Khana repository."

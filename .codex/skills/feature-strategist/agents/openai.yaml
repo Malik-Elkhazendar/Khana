@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature Strategist"
+  short_description: "Help with Feature Strategist workflows"
+  default_prompt: "Use $feature-strategist to handle this task in the Khana repository."

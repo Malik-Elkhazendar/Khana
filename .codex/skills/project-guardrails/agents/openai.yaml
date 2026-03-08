@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Guardrails"
+  short_description: "Help with Project Guardrails workflows"
+  default_prompt: "Use $project-guardrails to handle this task in the Khana repository."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "QA Engineer"
+  short_description: "Help with QA Engineer workflows"
+  default_prompt: "Use $qa-engineer to handle this task in the Khana repository."

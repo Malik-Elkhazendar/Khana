@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Project Docs"
+  short_description: "Help with Update Project Docs workflows"
+  default_prompt: "Use $update-project-docs to handle this task in the Khana repository."

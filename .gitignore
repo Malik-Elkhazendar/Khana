@@ -78,13 +78,4 @@ build2.log
 # Track the shared project memory layer while leaving other Codex state local.
 .codex/*
 !.codex/skills/
-.codex/skills/*
-!.codex/skills/project-index/
-.codex/skills/project-index/*
-!.codex/skills/project-index/SKILL.md
-!.codex/skills/repo-architecture/
-.codex/skills/repo-architecture/*
-!.codex/skills/repo-architecture/SKILL.md
-!.codex/skills/update-project-docs/
-.codex/skills/update-project-docs/*
-!.codex/skills/update-project-docs/SKILL.md
+!.codex/skills/**
