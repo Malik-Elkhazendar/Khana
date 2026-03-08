@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, catchError, throwError } from 'rxjs';
+import { Observable } from 'rxjs';
 import {
   AnalyticsBaseQueryDto,
   AnalyticsGroupBy,
@@ -49,512 +48,233 @@ import {
   WaitlistStatusResponseDto,
   ExpireWaitlistEntryResponseDto,
 } from '@khana/shared-dtos';
-import { environment } from '../../../environments/environment';
-import { LoggerService } from './logger.service';
+import { AnalyticsApiService } from './api/analytics-api.service';
+import { BookingsApiService } from './api/bookings-api.service';
+import { CustomersApiService } from './api/customers-api.service';
+import { DashboardApiService } from './api/dashboard-api.service';
+import { FacilitiesApiService } from './api/facilities-api.service';
+import { OnboardingApiService } from './api/onboarding-api.service';
+import { PromoCodesApiService } from './api/promo-codes-api.service';
+import { SettingsApiService } from './api/settings-api.service';
+import { UsersApiService } from './api/users-api.service';
+import { WaitlistApiService } from './api/waitlist-api.service';
 
 /**
- * Centralized API Service
- *
- * Single point of contact for all API calls.
- * All features should use this service instead of making HTTP calls directly.
+ * Backwards-compatible façade for existing callers.
+ * Domain-specific clients live under shared/services/api/.
  */
 @Injectable({
   providedIn: 'root',
 })
 export class ApiService {
-  private readonly http = inject(HttpClient);
-  private readonly logger = inject(LoggerService);
-  private readonly baseUrl = environment.apiBaseUrl.replace(/\/+$/, '');
+  private readonly analyticsApi = inject(AnalyticsApiService);
+  private readonly dashboardApi = inject(DashboardApiService);
+  private readonly customersApi = inject(CustomersApiService);
+  private readonly settingsApi = inject(SettingsApiService);
+  private readonly onboardingApi = inject(OnboardingApiService);
+  private readonly facilitiesApi = inject(FacilitiesApiService);
+  private readonly usersApi = inject(UsersApiService);
+  private readonly promoCodesApi = inject(PromoCodesApiService);
+  private readonly bookingsApi = inject(BookingsApiService);
+  private readonly waitlistApi = inject(WaitlistApiService);
 
-  private handleError(operation: string) {
-    return (err: unknown) => {
-      const requestId =
-        err instanceof HttpErrorResponse
-          ? err.headers?.get('x-request-id') ?? undefined
-          : undefined;
-      const context: Record<string, unknown> = { operation };
-      if (requestId) {
-        context['requestId'] = requestId;
-      }
-
-      this.logger.error(
-        'client.api.request_failed',
-        `Failed to ${operation}`,
-        context,
-        err
-      );
-      return throwError(() => err);
-    };
-  }
-
-  // ============================================================
-  // ANALYTICS
-  // ============================================================
-
-  /**
-   * Load analytics KPI summary and previous-period comparison.
-   */
   getAnalyticsSummary(
     query: AnalyticsBaseQueryDto
   ): Observable<AnalyticsSummaryResponseDto> {
-    return this.http
-      .get<AnalyticsSummaryResponseDto>(
-        `${this.baseUrl}/v1/analytics/summary`,
-        {
-          params: this.buildAnalyticsParams(query),
-        }
-      )
-      .pipe(catchError(this.handleError('load analytics summary')));
+    return this.analyticsApi.getAnalyticsSummary(query);
   }
 
-  /**
-   * Load occupancy trends and per-facility occupancy rates.
-   */
   getAnalyticsOccupancy(
     query: AnalyticsBaseQueryDto
   ): Observable<AnalyticsOccupancyResponseDto> {
-    return this.http
-      .get<AnalyticsOccupancyResponseDto>(
-        `${this.baseUrl}/v1/analytics/occupancy`,
-        {
-          params: this.buildAnalyticsParams(query),
-        }
-      )
-      .pipe(catchError(this.handleError('load analytics occupancy')));
+    return this.analyticsApi.getAnalyticsOccupancy(query);
   }
 
-  /**
-   * Load revenue/bookings trend and per-facility performance table.
-   */
   getAnalyticsRevenue(
     query: AnalyticsBaseQueryDto & { groupBy: AnalyticsGroupBy }
   ): Observable<AnalyticsRevenueResponseDto> {
-    return this.http
-      .get<AnalyticsRevenueResponseDto>(
-        `${this.baseUrl}/v1/analytics/revenue`,
-        {
-          params: this.buildAnalyticsParams(query),
-        }
-      )
-      .pipe(catchError(this.handleError('load analytics revenue')));
+    return this.analyticsApi.getAnalyticsRevenue(query);
   }
 
-  /**
-   * Load peak-hour and most-booked insights.
-   */
   getAnalyticsPeakHours(
     query: AnalyticsBaseQueryDto
   ): Observable<AnalyticsPeakHoursResponseDto> {
-    return this.http
-      .get<AnalyticsPeakHoursResponseDto>(
-        `${this.baseUrl}/v1/analytics/peak-hours`,
-        {
-          params: this.buildAnalyticsParams(query),
-        }
-      )
-      .pipe(catchError(this.handleError('load analytics peak hours')));
+    return this.analyticsApi.getAnalyticsPeakHours(query);
   }
 
-  /**
-   * Load today's operational snapshot for owner/manager dashboard briefing.
-   */
   getTodaySnapshot(facilityId?: string): Observable<TodaySnapshotDto> {
-    const params: Record<string, string> = {};
-    if (facilityId) {
-      params['facilityId'] = facilityId;
-    }
-
-    return this.http
-      .get<TodaySnapshotDto>(`${this.baseUrl}/v1/dashboard/today-snapshot`, {
-        params,
-      })
-      .pipe(catchError(this.handleError('load dashboard today snapshot')));
+    return this.dashboardApi.getTodaySnapshot(facilityId);
   }
 
   lookupCustomerByPhone(phone: string): Observable<CustomerSummaryDto | null> {
-    return this.http
-      .get<CustomerSummaryDto | null>(`${this.baseUrl}/v1/customers/lookup`, {
-        params: { phone },
-      })
-      .pipe(catchError(this.handleError('lookup customer by phone')));
+    return this.customersApi.lookupCustomerByPhone(phone);
   }
 
   updateCustomerTags(
     customerId: string,
     tags: string[]
   ): Observable<CustomerSummaryDto> {
-    return this.http
-      .patch<CustomerSummaryDto>(
-        `${this.baseUrl}/v1/customers/${customerId}/tags`,
-        {
-          tags,
-        }
-      )
-      .pipe(catchError(this.handleError('update customer tags')));
+    return this.customersApi.updateCustomerTags(customerId, tags);
   }
 
   getTenantTags(): Observable<string[]> {
-    return this.http
-      .get<string[]>(`${this.baseUrl}/v1/customers/tags`)
-      .pipe(catchError(this.handleError('load customer tags')));
+    return this.customersApi.getTenantTags();
   }
 
-  // ============================================================
-  // GOALS / SETTINGS
-  // ============================================================
-
   getTenantSettings(): Observable<TenantSettingsResponseDto> {
-    return this.http
-      .get<TenantSettingsResponseDto>(`${this.baseUrl}/v1/settings`)
-      .pipe(catchError(this.handleError('load tenant settings')));
+    return this.settingsApi.getTenantSettings();
   }
 
   updateTenantSettings(
     request: UpdateTenantSettingsRequestDto
   ): Observable<TenantSettingsResponseDto> {
-    return this.http
-      .patch<TenantSettingsResponseDto>(`${this.baseUrl}/v1/settings`, request)
-      .pipe(catchError(this.handleError('update tenant settings')));
+    return this.settingsApi.updateTenantSettings(request);
   }
 
   getGoalSettings(): Observable<GoalSettingsResponseDto> {
-    return this.http
-      .get<GoalSettingsResponseDto>(`${this.baseUrl}/v1/settings/goals`)
-      .pipe(catchError(this.handleError('load goal settings')));
+    return this.settingsApi.getGoalSettings();
   }
 
   updateGoalSettings(
     request: UpdateGoalsRequestDto
   ): Observable<GoalSettingsResponseDto> {
-    return this.http
-      .patch<GoalSettingsResponseDto>(
-        `${this.baseUrl}/v1/settings/goals`,
-        request
-      )
-      .pipe(catchError(this.handleError('update goal settings')));
+    return this.settingsApi.updateGoalSettings(request);
   }
 
-  // ============================================================
-  // ONBOARDING
-  // ============================================================
-
-  /**
-   * Complete tenant onboarding with business details + first facility
-   */
   completeOnboarding(
     request: CompleteOnboardingRequestDto
   ): Observable<CompleteOnboardingResponseDto> {
-    return this.http
-      .post<CompleteOnboardingResponseDto>(
-        `${this.baseUrl}/v1/onboarding/complete`,
-        request
-      )
-      .pipe(catchError(this.handleError('complete onboarding')));
+    return this.onboardingApi.completeOnboarding(request);
   }
 
-  // ============================================================
-  // FACILITIES
-  // ============================================================
-
-  /**
-   * Get all facilities available for booking
-   */
   getFacilities(): Observable<FacilityListItemDto[]> {
-    return this.http
-      .get<FacilityListItemDto[]>(`${this.baseUrl}/v1/bookings/facilities`)
-      .pipe(catchError(this.handleError('load facilities')));
+    return this.bookingsApi.getFacilities();
   }
 
-  /**
-   * Get facilities from management endpoint
-   */
   getManagedFacilities(
     includeInactive = true
   ): Observable<FacilityManagementItemDto[]> {
-    return this.http
-      .get<FacilityManagementItemDto[]>(`${this.baseUrl}/v1/facilities`, {
-        params: includeInactive ? { includeInactive: 'true' } : {},
-      })
-      .pipe(catchError(this.handleError('load managed facilities')));
+    return this.facilitiesApi.getManagedFacilities(includeInactive);
   }
 
-  /**
-   * Get a single managed facility by id
-   */
   getManagedFacilityById(id: string): Observable<FacilityManagementItemDto> {
-    return this.http
-      .get<FacilityManagementItemDto>(`${this.baseUrl}/v1/facilities/${id}`)
-      .pipe(catchError(this.handleError('load managed facility')));
+    return this.facilitiesApi.getManagedFacilityById(id);
   }
 
-  /**
-   * Create a facility
-   */
   createFacility(
     request: CreateFacilityRequestDto
   ): Observable<FacilityManagementItemDto> {
-    return this.http
-      .post<FacilityManagementItemDto>(`${this.baseUrl}/v1/facilities`, request)
-      .pipe(catchError(this.handleError('create facility')));
+    return this.facilitiesApi.createFacility(request);
   }
 
-  /**
-   * Update a managed facility
-   */
   updateFacility(
     id: string,
     request: UpdateFacilityRequestDto
   ): Observable<FacilityManagementItemDto> {
-    return this.http
-      .patch<FacilityManagementItemDto>(
-        `${this.baseUrl}/v1/facilities/${id}`,
-        request
-      )
-      .pipe(catchError(this.handleError('update facility')));
+    return this.facilitiesApi.updateFacility(id, request);
   }
 
-  /**
-   * Soft-delete (deactivate) a managed facility
-   */
   deactivateFacility(id: string): Observable<FacilityManagementItemDto> {
-    return this.http
-      .delete<FacilityManagementItemDto>(`${this.baseUrl}/v1/facilities/${id}`)
-      .pipe(catchError(this.handleError('deactivate facility')));
+    return this.facilitiesApi.deactivateFacility(id);
   }
 
-  // ============================================================
-  // USERS
-  // ============================================================
-
-  /**
-   * List all team members in current tenant
-   */
   listUsers(): Observable<UserDto[]> {
-    return this.http
-      .get<UserDto[]>(`${this.baseUrl}/v1/users`)
-      .pipe(catchError(this.handleError('load users')));
+    return this.usersApi.listUsers();
   }
 
-  /**
-   * Update role of a team member
-   */
   updateUserRole(
     id: string,
     request: UpdateUserRoleRequestDto
   ): Observable<UserDto> {
-    return this.http
-      .patch<UserDto>(`${this.baseUrl}/v1/users/${id}/role`, request)
-      .pipe(catchError(this.handleError('update user role')));
+    return this.usersApi.updateUserRole(id, request);
   }
 
-  /**
-   * Activate or deactivate team member
-   */
   updateUserStatus(
     id: string,
     request: UpdateUserStatusRequestDto
   ): Observable<UserDto> {
-    return this.http
-      .patch<UserDto>(`${this.baseUrl}/v1/users/${id}/status`, request)
-      .pipe(catchError(this.handleError('update user status')));
+    return this.usersApi.updateUserStatus(id, request);
   }
 
-  /**
-   * Invite new team member by email
-   */
   inviteUser(request: InviteUserRequestDto): Observable<InviteUserResponseDto> {
-    return this.http
-      .post<InviteUserResponseDto>(`${this.baseUrl}/v1/users/invite`, request)
-      .pipe(catchError(this.handleError('invite user')));
+    return this.usersApi.inviteUser(request);
   }
 
-  // ============================================================
-  // PROMO CODES
-  // ============================================================
-
-  /**
-   * Create a promo code for the current tenant.
-   */
   createPromoCode(
     request: CreatePromoCodeRequestDto
   ): Observable<PromoCodeItemDto> {
-    return this.http
-      .post<PromoCodeItemDto>(`${this.baseUrl}/v1/promo-codes`, request)
-      .pipe(catchError(this.handleError('create promo code')));
+    return this.promoCodesApi.createPromoCode(request);
   }
 
-  /**
-   * List promo codes for the current tenant with optional filters.
-   */
   listPromoCodes(
     query: PromoCodeListQueryDto
   ): Observable<PromoCodeListResponseDto> {
-    return this.http
-      .get<PromoCodeListResponseDto>(`${this.baseUrl}/v1/promo-codes`, {
-        params: this.buildPromoCodeListParams(query),
-      })
-      .pipe(catchError(this.handleError('list promo codes')));
+    return this.promoCodesApi.listPromoCodes(query);
   }
 
-  /**
-   * Update an existing promo code.
-   */
   updatePromoCode(
     id: string,
     request: UpdatePromoCodeRequestDto
   ): Observable<PromoCodeItemDto> {
-    return this.http
-      .patch<PromoCodeItemDto>(`${this.baseUrl}/v1/promo-codes/${id}`, request)
-      .pipe(catchError(this.handleError('update promo code')));
+    return this.promoCodesApi.updatePromoCode(id, request);
   }
 
-  // ============================================================
-  // BOOKINGS
-  // ============================================================
-
-  /**
-   * Get all bookings, optionally filtered by facility
-   */
   getBookings(facilityId?: string): Observable<BookingListItemDto[]> {
-    const params: Record<string, string> = {};
-    if (facilityId) {
-      params['facilityId'] = facilityId;
-    }
-    return this.http
-      .get<BookingListItemDto[]>(`${this.baseUrl}/v1/bookings`, {
-        params,
-      })
-      .pipe(catchError(this.handleError('load bookings')));
+    return this.bookingsApi.getBookings(facilityId);
   }
 
-  /**
-   * Get a single booking by id.
-   */
   getBooking(id: string): Observable<BookingListItemDto> {
-    return this.http
-      .get<BookingListItemDto>(`${this.baseUrl}/v1/bookings/${id}`)
-      .pipe(catchError(this.handleError('load booking details')));
+    return this.bookingsApi.getBooking(id);
   }
 
-  /**
-   * Preview a booking without persisting it
-   * Returns price calculation, conflict status, promoValidation, and suggested alternatives
-   */
   previewBooking(
     request: BookingPreviewRequestDto
   ): Observable<BookingPreviewResponseDto> {
-    return this.http
-      .post<BookingPreviewResponseDto>(
-        `${this.baseUrl}/v1/bookings/preview`,
-        request
-      )
-      .pipe(catchError(this.handleError('preview booking')));
+    return this.bookingsApi.previewBooking(request);
   }
 
-  /**
-   * Create a new booking
-   * Supports optional promoCode when preview promoValidation is valid
-   */
   createBooking(
     request: CreateBookingRequestDto
   ): Observable<BookingListItemDto> {
-    return this.http
-      .post<BookingListItemDto>(`${this.baseUrl}/v1/bookings`, request)
-      .pipe(catchError(this.handleError('create booking')));
+    return this.bookingsApi.createBooking(request);
   }
 
-  /**
-   * Create a recurring booking series
-   */
   createRecurringBooking(
     request: CreateRecurringBookingRequestDto
   ): Observable<CreateRecurringBookingResponseDto> {
-    return this.http
-      .post<CreateRecurringBookingResponseDto>(
-        `${this.baseUrl}/v1/bookings/recurring`,
-        request
-      )
-      .pipe(catchError(this.handleError('create recurring booking')));
+    return this.bookingsApi.createRecurringBooking(request);
   }
 
-  /**
-   * Join the waitlist for an unavailable facility slot.
-   */
   joinBookingWaitlist(
     request: JoinWaitlistRequestDto
   ): Observable<JoinWaitlistResponseDto> {
-    return this.http
-      .post<JoinWaitlistResponseDto>(
-        `${this.baseUrl}/v1/bookings/waitlist`,
-        request
-      )
-      .pipe(catchError(this.handleError('join booking waitlist')));
+    return this.waitlistApi.joinBookingWaitlist(request);
   }
 
-  /**
-   * Get waitlist status for the currently selected slot.
-   */
   getBookingWaitlistStatus(
     query: WaitlistStatusQueryDto
   ): Observable<WaitlistStatusResponseDto> {
-    return this.http
-      .get<WaitlistStatusResponseDto>(
-        `${this.baseUrl}/v1/bookings/waitlist/status`,
-        {
-          params: {
-            facilityId: query.facilityId,
-            startTime: query.startTime,
-            endTime: query.endTime,
-          },
-        }
-      )
-      .pipe(catchError(this.handleError('load booking waitlist status')));
+    return this.waitlistApi.getBookingWaitlistStatus(query);
   }
 
-  /**
-   * List waitlist entries for dashboard operations view.
-   */
   getWaitlistEntries(
     query: WaitlistListQueryDto
   ): Observable<WaitlistListResponseDto> {
-    return this.http
-      .get<WaitlistListResponseDto>(`${this.baseUrl}/v1/bookings/waitlist`, {
-        params: this.buildWaitlistListParams(query),
-      })
-      .pipe(catchError(this.handleError('load waitlist entries')));
+    return this.waitlistApi.getWaitlistEntries(query);
   }
 
-  /**
-   * Trigger manual notify-next for a specific slot queue.
-   */
   notifyNextWaitlistSlot(
     request: NotifyNextWaitlistRequestDto
   ): Observable<NotifyNextWaitlistResponseDto> {
-    return this.http
-      .post<NotifyNextWaitlistResponseDto>(
-        `${this.baseUrl}/v1/bookings/waitlist/notify-next`,
-        request
-      )
-      .pipe(catchError(this.handleError('manual waitlist notify next')));
+    return this.waitlistApi.notifyNextWaitlistSlot(request);
   }
 
-  /**
-   * Manually expire an active waitlist entry.
-   */
   expireWaitlistEntry(
     entryId: string
   ): Observable<ExpireWaitlistEntryResponseDto> {
-    return this.http
-      .patch<ExpireWaitlistEntryResponseDto>(
-        `${this.baseUrl}/v1/bookings/waitlist/${entryId}/expire`,
-        {}
-      )
-      .pipe(catchError(this.handleError('manual waitlist expire entry')));
+    return this.waitlistApi.expireWaitlistEntry(entryId);
   }
 
-  /**
-   * Update booking status (cancel, mark as paid, etc.)
-   */
   updateBookingStatus(
     id: string,
     status?: BookingStatus,
@@ -562,79 +282,12 @@ export class ApiService {
     cancellationReason?: string,
     cancellationScope?: BookingCancellationScope
   ): Observable<BookingListItemDto> {
-    return this.http
-      .patch<BookingListItemDto>(`${this.baseUrl}/v1/bookings/${id}/status`, {
-        status,
-        paymentStatus,
-        cancellationReason,
-        cancellationScope,
-      })
-      .pipe(catchError(this.handleError('update booking status')));
-  }
-
-  private buildAnalyticsParams(
-    query: AnalyticsBaseQueryDto & Partial<{ groupBy: AnalyticsGroupBy }>
-  ): Record<string, string> {
-    const params: Record<string, string> = {
-      from: query.from,
-      to: query.to,
-    };
-
-    if (query.facilityId) {
-      params['facilityId'] = query.facilityId;
-    }
-    if (query.timeZone) {
-      params['timeZone'] = query.timeZone;
-    }
-    if (query.groupBy) {
-      params['groupBy'] = query.groupBy;
-    }
-
-    return params;
-  }
-
-  private buildWaitlistListParams(
-    query: WaitlistListQueryDto
-  ): Record<string, string> {
-    const params: Record<string, string> = {
-      from: query.from,
-      to: query.to,
-    };
-    if (query.facilityId) {
-      params['facilityId'] = query.facilityId;
-    }
-    if (query.status) {
-      params['status'] = query.status;
-    }
-    if (query.page) {
-      params['page'] = String(query.page);
-    }
-    if (query.pageSize) {
-      params['pageSize'] = String(query.pageSize);
-    }
-    return params;
-  }
-
-  private buildPromoCodeListParams(
-    query: PromoCodeListQueryDto
-  ): Record<string, string> {
-    const params: Record<string, string> = {};
-
-    if (query.facilityId) {
-      params['facilityId'] = query.facilityId;
-    }
-    if (typeof query.isActive === 'boolean') {
-      params['isActive'] = String(query.isActive);
-    }
-    if (typeof query.includeExpired === 'boolean') {
-      params['includeExpired'] = String(query.includeExpired);
-    }
-    if (query.page) {
-      params['page'] = String(query.page);
-    }
-    if (query.pageSize) {
-      params['pageSize'] = String(query.pageSize);
-    }
-    return params;
+    return this.bookingsApi.updateBookingStatus(
+      id,
+      status,
+      paymentStatus,
+      cancellationReason,
+      cancellationScope
+    );
   }
 }
