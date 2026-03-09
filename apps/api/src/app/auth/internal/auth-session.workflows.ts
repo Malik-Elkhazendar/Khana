@@ -23,6 +23,11 @@ import {
 } from './auth.internal';
 import { randomUUID } from 'crypto';
 
+/**
+ * Auth session workflows for login, refresh-token rotation, and logout
+ * variants. Session safety rules live here so token reuse handling stays
+ * consistent across every auth entrypoint.
+ */
 export const loginAuthUser = async (
   deps: AuthDependencies,
   dto: LoginDto,
@@ -202,6 +207,8 @@ export const refreshAuthToken = async (
 
   try {
     const result = await deps.dataSource.transaction(
+      // Serializable rotation ensures only one refresh request can replace the
+      // same token before reuse detection steps in.
       'SERIALIZABLE',
       async (manager) => {
         const now = new Date();
@@ -303,6 +310,8 @@ export const logoutAuthUser = async (
 
   if (!targetSessionId && refreshToken) {
     try {
+      // Best-effort parsing lets logout revoke the current device even when the
+      // caller only has the raw refresh token and no session id handy.
       const payload = deps.jwtTokenService.verifyRefreshToken(refreshToken);
       if (payload.sub === userId) {
         targetSessionId = payload.sid;
@@ -315,6 +324,8 @@ export const logoutAuthUser = async (
 
   const now = new Date();
   if (targetSessionId) {
+    // Prefer session-wide revocation so rotated tokens for the same device are
+    // invalidated together.
     await deps.refreshTokenRepository.update(
       { userId, sessionId: targetSessionId, revokedAt: IsNull() },
       { revokedAt: now }
@@ -406,6 +417,8 @@ export const logoutAuthAllDevices = async (
   };
 
   if (exceptSessionId) {
+    // Keep the current device alive when "log out all other devices" is used
+    // from account settings.
     where.sessionId = Not(exceptSessionId);
   }
 

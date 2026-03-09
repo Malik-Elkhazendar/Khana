@@ -1,13 +1,11 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Booking, Facility, User, WaitingListEntry } from '@khana/data-access';
 import {
   ExpireWaitlistEntryResponseDto,
   JoinWaitlistResponseDto,
   NotifyNextWaitlistResponseDto,
-  UserRole,
   WaitlistListResponseDto,
-  WaitlistStatus,
   WaitlistStatusResponseDto,
 } from '@khana/shared-dtos';
 import { EmailService, WhatsAppService } from '@khana/notifications';
@@ -19,17 +17,7 @@ import {
   WaitlistListQueryDto,
   WaitlistStatusQueryDto,
 } from './dto';
-import {
-  ACCESS_DENIED_MESSAGE,
-  LOG_EVENTS,
-  WaitlistDependencies,
-  logWaitlistInfo,
-  normalizeSlotWindow,
-  requireTenantId,
-  requireUserId,
-  requireUserRole,
-  validateFacilityOwnership,
-} from './internal/waitlist.internal';
+import { WaitlistDependencies } from './internal/waitlist.internal';
 import {
   expirePastWaitlistEntries,
   expireWaitlistEntryById,
@@ -38,6 +26,7 @@ import {
   listWaitlistEntries,
   markWaitlistFulfilledForUserSlot,
   notifyFirstWaitlistEntryForSlot,
+  notifyNextWaitlistEntryForSlot,
 } from './internal/waitlist.workflows';
 
 @Injectable()
@@ -124,53 +113,7 @@ export class WaitlistService {
     tenantId: string,
     actor: User
   ): Promise<NotifyNextWaitlistResponseDto> {
-    const resolvedTenantId = requireTenantId(tenantId);
-    const actorUserId = requireUserId(actor?.id);
-    const actorRole = requireUserRole(actor?.role);
-    if (actorRole !== UserRole.OWNER && actorRole !== UserRole.MANAGER) {
-      throw new ForbiddenException(ACCESS_DENIED_MESSAGE);
-    }
-
-    const slot = normalizeSlotWindow(dto.desiredStartTime, dto.desiredEndTime, {
-      allowPastStart: true,
-    });
-    await validateFacilityOwnership(
-      this.deps,
-      dto.facilityId,
-      resolvedTenantId
-    );
-
-    const result = await this.notifyFirstForSlot({
-      tenantId: resolvedTenantId,
-      facilityId: dto.facilityId,
-      desiredStartTime: slot.startTime,
-      desiredEndTime: slot.endTime,
-      actorUserId,
-    });
-
-    if (result.notified) {
-      logWaitlistInfo(
-        this.deps,
-        LOG_EVENTS.WAITLIST_NOTIFY_MANUAL,
-        'Manual waitlist notify-next executed',
-        {
-          tenantId: resolvedTenantId,
-          facilityId: dto.facilityId,
-          actorUserId,
-          entryId: result.entryId,
-          desiredStartTime: slot.startTime.toISOString(),
-          desiredEndTime: slot.endTime.toISOString(),
-        }
-      );
-
-      return {
-        notified: true,
-        entryId: result.entryId,
-        status: WaitlistStatus.NOTIFIED,
-      };
-    }
-
-    return { notified: false };
+    return notifyNextWaitlistEntryForSlot(this.deps, dto, tenantId, actor);
   }
 
   async expireEntry(

@@ -18,6 +18,17 @@ import {
   validateAuthPasswordStrength,
 } from './auth.internal';
 
+const dispatchAuthNotification = (
+  deps: AuthDependencies,
+  message: string,
+  context: Record<string, unknown>,
+  task: Promise<unknown>
+): void => {
+  void task.catch((error) => {
+    deps.appLogger.error(LOG_EVENTS.EMAIL_FAILED, message, context, error);
+  });
+};
+
 export const getAuthCurrentUser = async (
   deps: AuthDependencies,
   userId: string
@@ -94,14 +105,19 @@ export const changeAuthPassword = async (
     tenantId: user.tenantId,
   });
 
-  try {
-    await deps.emailService.sendPasswordChangedNotification({
+  dispatchAuthNotification(
+    deps,
+    'Failed to dispatch password changed notification',
+    {
+      userId: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
+    },
+    deps.emailService.sendPasswordChangedNotification({
       recipientEmail: user.email,
       recipientName: user.email,
-    });
-  } catch {
-    // Email failure should not block password change.
-  }
+    })
+  );
 };
 
 export const forgotAuthPassword = async (
@@ -154,16 +170,21 @@ export const forgotAuthPassword = async (
     ? `${frontendBase}/reset-password?token=${encodeURIComponent(rawToken)}`
     : undefined;
 
-  try {
-    await deps.emailService.sendPasswordResetNotification({
+  dispatchAuthNotification(
+    deps,
+    'Failed to dispatch password reset notification',
+    {
+      userId: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
+    },
+    deps.emailService.sendPasswordResetNotification({
       recipientEmail: user.email,
       resetToken: rawToken,
       resetUrl,
       expiresAt,
-    });
-  } catch {
-    // Email failure should not block the response.
-  }
+    })
+  );
 
   await logAuthAudit(deps, {
     tenantId: user.tenantId,
@@ -250,14 +271,19 @@ export const resetAuthPassword = async (
     }
   );
 
-  try {
-    await deps.emailService.sendPasswordChangedNotification({
+  dispatchAuthNotification(
+    deps,
+    'Failed to dispatch password changed notification after reset',
+    {
+      userId: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
+    },
+    deps.emailService.sendPasswordChangedNotification({
       recipientEmail: user.email,
       recipientName: user.email,
-    });
-  } catch {
-    // Email failure should not block the response.
-  }
+    })
+  );
 
   return { message: 'Password has been reset successfully' };
 };

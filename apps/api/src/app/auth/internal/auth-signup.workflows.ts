@@ -24,6 +24,11 @@ import {
   validateAuthPasswordStrength,
 } from './auth.internal';
 
+/**
+ * Auth signup workflows for workspace creation and first-user bootstrap.
+ * Keep tenant bootstrap and self-registration rules here so the API facade
+ * stays thin while the invariants remain transactionally enforced.
+ */
 export const signupAuthOwner = async (
   deps: AuthDependencies,
   dto: SignupOwnerDto | OwnerSignupDto,
@@ -49,6 +54,8 @@ export const signupAuthOwner = async (
           requestedSlug,
           workspaceName
         );
+        // Resolve the final slug inside the transaction so concurrent signups
+        // cannot both claim the same derived workspace name.
         const slug = await generateAvailableAuthTenantSlug(
           transactionalTenantRepository,
           baseSlug
@@ -188,6 +195,8 @@ export const registerAuthUser = async (
         const transactionalUserRepository = manager.getRepository(User);
         const transactionalTenantRepository = manager.getRepository(Tenant);
 
+        // Lock the tenant before counting users so "first user becomes owner"
+        // cannot race under concurrent registration attempts.
         const lockedTenant = await transactionalTenantRepository
           .createQueryBuilder('tenant')
           .where('tenant.id = :tenantId', { tenantId: resolvedTenantId })
@@ -211,6 +220,8 @@ export const registerAuthUser = async (
           where: { tenantId: resolvedTenantId },
         });
         if (userCount > 0) {
+          // Self-registration is only allowed for an empty workspace; later team
+          // members must come through the invitation flow.
           throw new ForbiddenException(SELF_REGISTRATION_BLOCKED_MESSAGE);
         }
 

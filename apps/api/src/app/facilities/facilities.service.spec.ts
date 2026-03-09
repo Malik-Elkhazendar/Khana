@@ -7,12 +7,16 @@ import { AuditAction, Facility, User } from '@khana/data-access';
 import { UserRole } from '@khana/shared-dtos';
 import { FacilitiesService } from './facilities.service';
 import { CreateFacilityDto, UpdateFacilityDto } from './dto';
+import { FacilitiesMutationService } from './internal/facilities.mutation.service';
+import { FacilitiesQueryService } from './internal/facilities.query.service';
 
 describe('FacilitiesService', () => {
   const tenantId = 'tenant-1';
   const now = new Date('2026-02-01T10:00:00.000Z');
 
   let service: FacilitiesService;
+  let queryService: FacilitiesQueryService;
+  let mutationService: FacilitiesMutationService;
   let facilityRepository: {
     find: jest.Mock;
     findOne: jest.Mock;
@@ -82,11 +86,13 @@ describe('FacilitiesService', () => {
       save: jest.fn(async (payload: Record<string, unknown>) => payload),
     };
 
-    service = new FacilitiesService(
+    queryService = new FacilitiesQueryService(facilityRepository as never);
+    mutationService = new FacilitiesMutationService(
       facilityRepository as never,
       auditLogRepository as never,
       appLogger as never
     );
+    service = new FacilitiesService(queryService, mutationService);
   });
 
   afterEach(() => {

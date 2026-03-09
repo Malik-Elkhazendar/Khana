@@ -1,160 +1,46 @@
-export const NOTIFICATION_CHANNELS = ['WHATSAPP', 'EMAIL'] as const;
-export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
-
-export const DIGEST_TYPES = ['MORNING', 'WEEKLY'] as const;
-export type DigestType = (typeof DIGEST_TYPES)[number];
-
-export const REALTIME_ALERT_TYPES = [
-  'BOOKING_CREATED',
-  'BOOKING_CANCELLED',
-  'HOLD_EXPIRING',
-] as const;
-export type RealtimeAlertType = (typeof REALTIME_ALERT_TYPES)[number];
-
 /**
- * Time-of-day is stored as "HH:mm" in tenant local time.
- * Example: "07:00"
+ * Shared DTO contract for tenant notification preferences.
  */
+
 export type LocalTimeString = `${number}${number}:${number}${number}`;
 
+export type NotificationWeekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface NotificationChannelPreferenceDto {
-  /**
-   * Whether this channel is enabled for the notification intent.
-   */
   enabled: boolean;
 }
 
-export interface DigestChannelPreferencesDto {
+export interface NotificationDeliveryPreferencesDto {
   whatsapp: NotificationChannelPreferenceDto;
   email: NotificationChannelPreferenceDto;
 }
 
-export interface RealtimeChannelPreferencesDto {
-  whatsapp: NotificationChannelPreferenceDto;
-  email: NotificationChannelPreferenceDto;
-}
-
-export interface MorningDigestPreferenceDto {
+export interface ScheduledNotificationPreferenceDto {
   enabled: boolean;
-
-  /**
-   * Tenant-local send time.
-   * Example: "07:00"
-   */
   sendTime: LocalTimeString;
-
-  channels: DigestChannelPreferencesDto;
+  channels: NotificationDeliveryPreferencesDto;
 }
 
-export interface WeeklySummaryPreferenceDto {
-  enabled: boolean;
-
-  /**
-   * 0 = Sunday, aligned with product requirement.
-   */
-  dayOfWeek: 0;
-
-  /**
-   * Tenant-local send time.
-   * Example: "19:00"
-   */
-  sendTime: LocalTimeString;
-
-  channels: DigestChannelPreferencesDto;
+export interface WeeklySummaryPreferenceDto
+  extends ScheduledNotificationPreferenceDto {
+  dayOfWeek: NotificationWeekday;
 }
 
-export interface BookingCreatedAlertPreferenceDto {
+export interface RealtimeNotificationPreferenceDto {
   enabled: boolean;
-  channels: RealtimeChannelPreferencesDto;
-}
-
-export interface BookingCancelledAlertPreferenceDto {
-  enabled: boolean;
-  channels: RealtimeChannelPreferencesDto;
+  channels: NotificationDeliveryPreferencesDto;
 }
 
 export interface HoldExpiringAlertPreferenceDto {
   enabled: boolean;
-
-  /**
-   * Number of minutes before hold expiry to notify.
-   * Current product requirement is 30.
-   */
   leadMinutes: number;
-
-  channels: RealtimeChannelPreferencesDto;
+  channels: NotificationDeliveryPreferencesDto;
 }
 
-/**
- * Tenant-level notification preferences.
- * This is intentionally grouped by use case, not by transport only.
- */
 export interface NotificationPreferencesDto {
-  morningDigest: MorningDigestPreferenceDto;
+  morningDigest: ScheduledNotificationPreferenceDto;
   weeklySummary: WeeklySummaryPreferenceDto;
-  bookingCreated: BookingCreatedAlertPreferenceDto;
-  bookingCancelled: BookingCancelledAlertPreferenceDto;
+  bookingCreated: RealtimeNotificationPreferenceDto;
+  bookingCancelled: RealtimeNotificationPreferenceDto;
   holdExpiring: HoldExpiringAlertPreferenceDto;
 }
-
-/**
- * Returned by GET /settings and accepted by PATCH /settings
- * as part of the broader tenant settings payload.
- */
-export interface NotificationPreferencesSettingsDto {
-  notificationPreferences: NotificationPreferencesDto;
-}
-
-/**
- * Patch payload for updating only notification preferences.
- * Partial because settings updates are incremental.
- */
-export interface UpdateNotificationPreferencesDto {
-  notificationPreferences?: Partial<NotificationPreferencesDto>;
-}
-
-/**
- * Safe defaults for new tenants.
- * These defaults are product decisions, not runtime scheduling logic.
- */
-export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferencesDto = {
-  morningDigest: {
-    enabled: true,
-    sendTime: '07:00',
-    channels: {
-      whatsapp: { enabled: true },
-      email: { enabled: true },
-    },
-  },
-  weeklySummary: {
-    enabled: true,
-    dayOfWeek: 0,
-    sendTime: '19:00',
-    channels: {
-      whatsapp: { enabled: false },
-      email: { enabled: true },
-    },
-  },
-  bookingCreated: {
-    enabled: true,
-    channels: {
-      whatsapp: { enabled: true },
-      email: { enabled: false },
-    },
-  },
-  bookingCancelled: {
-    enabled: true,
-    channels: {
-      whatsapp: { enabled: true },
-      email: { enabled: false },
-    },
-  },
-  holdExpiring: {
-    enabled: true,
-    leadMinutes: 30,
-    channels: {
-      whatsapp: { enabled: true },
-      email: { enabled: false },
-    },
-  },
-};

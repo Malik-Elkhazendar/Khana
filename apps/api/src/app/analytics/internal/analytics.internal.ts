@@ -16,6 +16,11 @@ import { DataSource, Repository } from 'typeorm';
 import { AppLoggerService, LOG_EVENTS } from '../../logging';
 import { GoalsService } from '../../goals/goals.service';
 
+/**
+ * Private analytics helpers for tenant validation, timezone-aware date
+ * windows, and raw-query normalization. Keep range math here so every query
+ * module shares the same definition of current and previous periods.
+ */
 export const ACCESS_DENIED_MESSAGE =
   'Access denied: You do not have permission to access this resource.';
 export const RESOURCE_NOT_FOUND_MESSAGE = 'Resource not found';
@@ -184,6 +189,8 @@ export const parseRange = async (
     throw new BadRequestException(INVALID_RANGE_MESSAGE);
   }
 
+  // Convert local date boundaries to UTC once so every aggregate query compares
+  // the same tenant-local window.
   const [boundaries] = (await deps.dataSource.query(
     `
       SELECT
@@ -249,6 +256,8 @@ export const fetchSummaryAggregate = async (
 };
 
 export const getPreviousRange = (range: DateRange): DateRange => {
+  // Previous period uses the same duration and ends immediately before the
+  // current range.
   const previousTo = new Date(range.from.getTime() - 1);
   const previousFrom = new Date(previousTo.getTime() - range.durationMs + 1);
   return {
@@ -292,6 +301,7 @@ export const calculatePercentageChange = (
 export const round = (value: number): number => Number(value.toFixed(2));
 
 export const toNumber = (value: string | number | null | undefined): number => {
+  // Raw SQL aggregates come back as strings; normalize once at the edge.
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0;
   }

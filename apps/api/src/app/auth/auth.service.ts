@@ -43,8 +43,16 @@ import {
   signupAuthOwner,
 } from './internal/auth-signup.workflows';
 
+/**
+ * Thin auth facade that assembles repositories and infrastructure services,
+ * then delegates business rules to the internal workflow modules.
+ * Keep tenant resolution, session rotation, and password logic in the workflow
+ * files so callers still depend on one stable service.
+ */
 @Injectable()
 export class AuthService {
+  // Internal workflows receive a plain dependency object so they stay easy to
+  // unit test without depending on Nest injection.
   private readonly deps: AuthDependencies;
 
   constructor(

@@ -100,6 +100,32 @@ describe('WaitlistService', () => {
     return builder;
   };
 
+  const createWaitlistCandidateQueryBuilder = (
+    candidate: WaitingListEntry | null
+  ) => ({
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue(candidate),
+  });
+
+  const createNotifyCandidate = (overrides?: Partial<WaitingListEntry>) =>
+    ({
+      id: 'waitlist-notify-1',
+      userId,
+      facilityId,
+      desiredStartTime: startTime,
+      desiredEndTime: endTime,
+      status: WaitlistStatus.WAITING,
+      createdAt: new Date('2026-03-01T08:00:00.000Z'),
+      notifiedAt: null,
+      expiredAt: null,
+      fulfilledByBookingId: null,
+      ...overrides,
+    } as WaitingListEntry);
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -138,6 +164,8 @@ describe('WaitlistService', () => {
         ...payload,
       })
     );
+    emailService.sendWaitlistSlotAvailableEmail.mockResolvedValue(undefined);
+    whatsAppService.sendWaitlistSlotAvailable.mockResolvedValue(undefined);
 
     service = new WaitlistService(
       waitlistRepository as never,
@@ -398,9 +426,29 @@ describe('WaitlistService', () => {
 
   describe('notifyNextForSlot', () => {
     it('returns notified false when queue has no candidate', async () => {
-      const notifySpy = jest
-        .spyOn(service, 'notifyFirstForSlot')
-        .mockResolvedValue({ notified: false });
+      const notifyQueryBuilder = createWaitlistCandidateQueryBuilder(null);
+
+      waitlistRepository.manager.transaction.mockImplementationOnce(
+        async (
+          cb: (manager: {
+            getRepository: (entity: unknown) => unknown;
+          }) => unknown
+        ) =>
+          cb({
+            getRepository: (entity: unknown) => {
+              if (entity === WaitingListEntry) {
+                return {
+                  createQueryBuilder: jest
+                    .fn()
+                    .mockReturnValue(notifyQueryBuilder),
+                  save: jest.fn(),
+                };
+              }
+              if (entity === AuditLog) return auditRepository;
+              return null;
+            },
+          })
+      );
 
       const result = await service.notifyNextForSlot(
         {
@@ -413,7 +461,6 @@ describe('WaitlistService', () => {
       );
 
       expect(result).toEqual({ notified: false });
-      expect(notifySpy).toHaveBeenCalled();
     });
 
     it('blocks staff role from manual notify action', async () => {
@@ -428,6 +475,139 @@ describe('WaitlistService', () => {
           { id: userId, role: UserRole.STAFF } as User
         )
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('notifyFirstForSlot', () => {
+    it('returns success even when notification providers reject', async () => {
+      const notifyCandidate = createNotifyCandidate();
+      const notifyQueryBuilder =
+        createWaitlistCandidateQueryBuilder(notifyCandidate);
+
+      waitlistRepository.manager.transaction.mockImplementationOnce(
+        async (
+          cb: (manager: {
+            getRepository: (entity: unknown) => unknown;
+          }) => unknown
+        ) =>
+          cb({
+            getRepository: (entity: unknown) => {
+              if (entity === WaitingListEntry) {
+                return {
+                  createQueryBuilder: jest
+                    .fn()
+                    .mockReturnValue(notifyQueryBuilder),
+                  save: jest.fn().mockResolvedValue({
+                    ...notifyCandidate,
+                    status: WaitlistStatus.NOTIFIED,
+                    notifiedAt: new Date('2026-03-01T12:00:00.000Z'),
+                  }),
+                };
+              }
+              if (entity === AuditLog) return auditRepository;
+              return null;
+            },
+          })
+      );
+
+      userRepository.findOne.mockResolvedValue({
+        id: userId,
+        email: 'agent@khana.dev',
+        name: 'Agent',
+        phone: '+966500000000',
+      } as User);
+
+      emailService.sendWaitlistSlotAvailableEmail.mockRejectedValue(
+        new Error('email failed')
+      );
+      whatsAppService.sendWaitlistSlotAvailable.mockRejectedValue(
+        new Error('whatsapp failed')
+      );
+
+      const result = await service.notifyFirstForSlot({
+        tenantId,
+        facilityId,
+        desiredStartTime: startTime,
+        desiredEndTime: endTime,
+        actorUserId: userId,
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(result).toEqual({
+        notified: true,
+        entryId: notifyCandidate.id,
+      });
+      expect(appLogger.error).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not await a pending email provider promise', async () => {
+      const notifyCandidate = createNotifyCandidate({
+        id: 'waitlist-pending-1',
+      });
+      const notifyQueryBuilder =
+        createWaitlistCandidateQueryBuilder(notifyCandidate);
+
+      waitlistRepository.manager.transaction.mockImplementationOnce(
+        async (
+          cb: (manager: {
+            getRepository: (entity: unknown) => unknown;
+          }) => unknown
+        ) =>
+          cb({
+            getRepository: (entity: unknown) => {
+              if (entity === WaitingListEntry) {
+                return {
+                  createQueryBuilder: jest
+                    .fn()
+                    .mockReturnValue(notifyQueryBuilder),
+                  save: jest.fn().mockResolvedValue({
+                    ...notifyCandidate,
+                    status: WaitlistStatus.NOTIFIED,
+                    notifiedAt: new Date('2026-03-01T12:00:00.000Z'),
+                  }),
+                };
+              }
+              if (entity === AuditLog) return auditRepository;
+              return null;
+            },
+          })
+      );
+
+      userRepository.findOne.mockResolvedValue({
+        id: userId,
+        email: 'agent@khana.dev',
+        name: 'Agent',
+        phone: null,
+      } as unknown as User);
+
+      emailService.sendWaitlistSlotAvailableEmail.mockReturnValue(
+        new Promise(() => undefined)
+      );
+
+      const race = await Promise.race([
+        service
+          .notifyFirstForSlot({
+            tenantId,
+            facilityId,
+            desiredStartTime: startTime,
+            desiredEndTime: endTime,
+            actorUserId: userId,
+          })
+          .then((result) => ({ kind: 'result' as const, result })),
+        new Promise<{ kind: 'timeout' }>((resolve) =>
+          setTimeout(() => resolve({ kind: 'timeout' }), 25)
+        ),
+      ]);
+
+      expect(race.kind).toBe('result');
+      if (race.kind === 'result') {
+        expect(race.result).toEqual({
+          notified: true,
+          entryId: notifyCandidate.id,
+        });
+      }
     });
   });
 

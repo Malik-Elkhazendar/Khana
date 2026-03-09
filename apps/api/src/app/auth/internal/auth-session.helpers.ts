@@ -111,14 +111,26 @@ export async function handleTokenReuse(params: {
       userAgent: params.userAgent,
     });
 
-    await params.emailService.sendSecurityAlert({
-      recipientEmail: user.email,
-      recipientName: user.email,
-      subject: 'Suspicious Activity Detected',
-      message:
-        'A previously used refresh token was presented. All sessions for that device have been logged out.',
-      ipAddress: params.ipAddress,
-    });
+    void params.emailService
+      .sendSecurityAlert({
+        recipientEmail: user.email,
+        recipientName: user.email,
+        subject: 'Suspicious Activity Detected',
+        message:
+          'A previously used refresh token was presented. All sessions for that device have been logged out.',
+        ipAddress: params.ipAddress,
+      })
+      .catch((error) => {
+        params.appLogger.error(
+          LOG_EVENTS.EMAIL_FAILED,
+          'Failed to dispatch security alert',
+          {
+            userId: user.id,
+            sessionId: params.token.sessionId,
+          },
+          error
+        );
+      });
   }
 
   params.metricsService.trackReuseDetection(
