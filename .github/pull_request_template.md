@@ -6,6 +6,7 @@
 
 - [ ] Relevant tests pass
 - [ ] Lint/build checks pass
+- [ ] Non-obvious workflow, concurrency, fallback, or business-rule changes include updated explanatory comments in the same diff.
 
 ## Design System Drift Check (Required for UI/Layout changes)
 

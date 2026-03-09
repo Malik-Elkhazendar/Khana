@@ -8,51 +8,59 @@ description: >
 
 # Khana Project Index
 
-Quick navigation for the Khana monorepo. For architecture rules see
-`docs/current/repo-architecture.md` and `CLAUDE.md`. For current module lists see
-`docs/current/`.
+Quick navigation for the Khana monorepo. For architecture rules, see
+`docs/current/repo-architecture.md` and `CLAUDE.md`.
 
 ---
 
 ## Documentation
 
-| Topic                                         | File                                |
-| --------------------------------------------- | ----------------------------------- |
-| Architecture overview, commands, conventions  | `CLAUDE.md`                         |
-| API modules (current)                         | `docs/current/api-modules.md`       |
-| Frontend modules (current)                    | `docs/current/frontend-modules.md`  |
-| Repo architecture and file placement          | `docs/current/repo-architecture.md` |
-| Monorepo layout                               | `docs/current/repository-map.md`    |
-| Dev/DB/i18n/CI commands                       | `docs/current/scripts.md`           |
-| Design system (Desert Night)                  | `docs/DESIGN_SYSTEM.md`             |
-| Security & secrets                            | `docs/security-secrets.md`          |
-| Logging setup, event catalog, incident triage | `docs/observability.md`             |
+| Topic                                        | File                                |
+| -------------------------------------------- | ----------------------------------- |
+| Architecture overview, commands, conventions | `CLAUDE.md`                         |
+| API modules (current)                        | `docs/current/api-modules.md`       |
+| Code commenting standard                     | `docs/current/code-commenting.md`   |
+| Frontend modules (current)                   | `docs/current/frontend-modules.md`  |
+| Repo architecture and file placement         | `docs/current/repo-architecture.md` |
+| Monorepo layout                              | `docs/current/repository-map.md`    |
+| Dev/DB/i18n/CI commands                      | `docs/current/scripts.md`           |
+| Design system (Desert Night)                 | `docs/DESIGN_SYSTEM.md`             |
+| Security and secrets                         | `docs/security-secrets.md`          |
+| Logging setup and event catalog              | `docs/observability.md`             |
 
 ---
 
 ## Backend (`apps/api/src/app/`)
 
-| Domain                          | Path                                  |
-| ------------------------------- | ------------------------------------- |
-| Auth (JWT, guards, decorators)  | `apps/api/src/app/auth/`              |
-| Users                           | `apps/api/src/app/users/`             |
-| Bookings + recurrence           | `apps/api/src/app/bookings/`          |
-| Waitlist                        | `apps/api/src/app/bookings/waitlist/` |
-| Facilities                      | `apps/api/src/app/facilities/`        |
-| Analytics                       | `apps/api/src/app/analytics/`         |
-| Promo codes                     | `apps/api/src/app/promo-codes/`       |
-| Onboarding                      | `apps/api/src/app/onboarding/`        |
-| Goals tracking                  | `apps/api/src/app/goals/`             |
-| Customers                       | `apps/api/src/app/customers/`         |
-| Settings                        | `apps/api/src/app/settings/`          |
-| Logging (filters, interceptors) | `apps/api/src/app/logging/`           |
-| Env config                      | `apps/api/src/app/config/`            |
-| TypeORM data source             | `apps/api/src/typeorm/data-source.ts` |
-| App module                      | `apps/api/src/app/app.module.ts`      |
+| Domain                         | Path                                  |
+| ------------------------------ | ------------------------------------- |
+| Auth (JWT, guards, decorators) | `apps/api/src/app/auth/`              |
+| Users                          | `apps/api/src/app/users/`             |
+| Bookings + recurrence          | `apps/api/src/app/bookings/`          |
+| Waitlist                       | `apps/api/src/app/bookings/waitlist/` |
+| Facilities                     | `apps/api/src/app/facilities/`        |
+| Analytics                      | `apps/api/src/app/analytics/`         |
+| Promo codes                    | `apps/api/src/app/promo-codes/`       |
+| Onboarding                     | `apps/api/src/app/onboarding/`        |
+| Goals tracking                 | `apps/api/src/app/goals/`             |
+| Customers                      | `apps/api/src/app/customers/`         |
+| Settings                       | `apps/api/src/app/settings/`          |
+| Logging                        | `apps/api/src/app/logging/`           |
+| Env config                     | `apps/api/src/app/config/`            |
+| TypeORM data source            | `apps/api/src/typeorm/data-source.ts` |
+| App module                     | `apps/api/src/app/app.module.ts`      |
+
+### Backend internal workflow folders
+
+| Concern                        | Path                                           |
+| ------------------------------ | ---------------------------------------------- |
+| Auth workflows and helpers     | `apps/api/src/app/auth/internal/`              |
+| Analytics query workflows      | `apps/api/src/app/analytics/internal/`         |
+| Waitlist workflows and helpers | `apps/api/src/app/bookings/waitlist/internal/` |
 
 ---
 
-## Frontend — Features (`apps/manager-dashboard/src/app/features/`)
+## Frontend - Features (`apps/manager-dashboard/src/app/features/`)
 
 | Feature                     | Path                         |
 | --------------------------- | ---------------------------- |
@@ -74,25 +82,27 @@ Quick navigation for the Khana monorepo. For architecture rules see
 
 ---
 
-## Frontend — State (`apps/manager-dashboard/src/app/state/`)
+## Frontend - State (`apps/manager-dashboard/src/app/state/`)
 
-| Store             | Path                                                 |
-| ----------------- | ---------------------------------------------------- |
-| Bookings          | `state/bookings/booking.store.ts`                    |
-| Analytics         | `state/analytics/analytics.store.ts`                 |
-| Promo codes       | `state/promo-codes/promo-codes.store.ts`             |
-| Dashboard summary | `state/dashboard/dashboard.store.ts`                 |
-| Auth (shared)     | `shared/state/auth.store.ts` (or `shared/services/`) |
-| Facility context  | `shared/state/facility-context.store.ts`             |
-| Layout            | `shared/state/layout.store.ts`                       |
+| Store                   | Path                                     |
+| ----------------------- | ---------------------------------------- |
+| Bookings                | `state/bookings/booking.store.ts`        |
+| Booking store internals | `state/bookings/internal/`               |
+| Analytics               | `state/analytics/analytics.store.ts`     |
+| Promo codes             | `state/promo-codes/promo-codes.store.ts` |
+| Dashboard summary       | `state/dashboard/dashboard.store.ts`     |
+| Auth (shared)           | `shared/state/auth.store.ts`             |
+| Facility context        | `shared/state/facility-context.store.ts` |
+| Layout                  | `shared/state/layout.store.ts`           |
 
 ---
 
-## Frontend — Shared Infrastructure
+## Frontend - Shared Infrastructure
 
 | Concern                  | Path                                    |
 | ------------------------ | --------------------------------------- |
-| API client service       | `shared/services/api.service.ts`        |
+| API client facade        | `shared/services/api.service.ts`        |
+| Domain API clients       | `shared/services/api/`                  |
 | Auth/error interceptors  | `shared/interceptors/`                  |
 | Route guards             | `shared/guards/`                        |
 | i18n / locale formatting | `shared/services/`                      |
@@ -158,19 +168,29 @@ Quick navigation for the Khana monorepo. For architecture rules see
 
 ---
 
+## Architecture Tooling
+
+| Tool            | Path / Command                                                      |
+| --------------- | ------------------------------------------------------------------- |
+| Structure audit | `tools/architecture/audit-structure.mjs`, `npm run audit:structure` |
+| Comment audit   | `tools/architecture/audit-comments.mjs`, `npm run audit:comments`   |
+| Hotspot audit   | `tools/architecture/audit-hotspots.mjs`, `npm run audit:hotspots`   |
+
+---
+
 ## Skill System (`.codex/skills/`)
 
 | Skill                 | Type        | Purpose                                     |
 | --------------------- | ----------- | ------------------------------------------- |
 | `project-guardrails`  | Reference   | Deep implementation rules                   |
-| `project-index`       | Reference   | This file — repo navigation                 |
+| `project-index`       | Reference   | This file - repo navigation                 |
 | `repo-architecture`   | Reference   | File placement, layering, structure review  |
 | `api-engineer`        | Task        | NestJS endpoint workflows                   |
 | `auth-engineer`       | Task        | Auth system implementation                  |
-| `database-architect`  | Task        | Entity & migration design                   |
+| `database-architect`  | Task        | Entity and migration design                 |
 | `feature-strategist`  | Task        | Feature recommendation                      |
 | `frontend-engineer`   | Task        | Angular component workflows                 |
 | `qa-engineer`         | Task        | Testing workflows                           |
 | `design-system`       | Reference   | Desert Night tokens, RTL, a11y, breakpoints |
-| `skills-audit`        | Maintenance | Detect dead/stale skills                    |
+| `skills-audit`        | Maintenance | Detect dead and stale skills                |
 | `update-project-docs` | Maintenance | Sync docs/current/ with code                |

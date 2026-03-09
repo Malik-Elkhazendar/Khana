@@ -138,6 +138,13 @@ Add TypeORM entity files to `libs/data-access/src/lib/entities/`, export from `l
 npm run migration:generate -- libs/data-access/src/lib/migrations/<DescriptiveName>
 ```
 
+## Code Comments
+
+Use comments to explain non-obvious intent, not to narrate obvious code. Prefer
+JSDoc for public workflow entrypoints and short `//` comments for concurrency,
+tenant-safety, retry, rollback, or browser-specific behavior. See
+`docs/current/code-commenting.md` for the repo standard.
+
 ## Key Conventions
 
 - **UserRole enum**: `@khana/shared-dtos` → `libs/shared-dtos/src/lib/enums/user-role.enum.ts`

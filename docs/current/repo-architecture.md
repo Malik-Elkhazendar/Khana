@@ -87,6 +87,32 @@ code to `shared/` for convenience.
 - Do not use `providers/` for plain TypeScript helper modules. Reserve that name
   for actual injectable provider semantics.
 
+## Oversized File Thresholds
+
+Use these thresholds as review heuristics, not as automatic blockers:
+
+- `<= 399` lines: normal
+- `400-599` lines: warning
+- `600-999` lines: hotspot
+- `1000+` lines: critical
+
+Large roots should materially shrink when logic moves into `internal/`.
+Helper extraction is only successful when the public root gets smaller and
+easier to reason about.
+
+Treat a root file as **ineffective internal extraction** when:
+
+- the root remains `>= 600` lines, and
+- it imports `3+` modules from a sibling `internal/` folder
+
+That usually means helpers were extracted, but orchestration still lives in the
+root. The preferred fix is to split by workflow or use case, not to add more
+helper dumping.
+
+For class-based components, services, and controllers, `>= 600` lines plus
+`20+` apparent class methods is an ownership warning. Too many methods in the
+root usually means it owns multiple workflows or UI concerns.
+
 ## Nx Boundary Enforcement
 
 Every project must have non-empty tags. Dependency constraints should encode:
@@ -105,3 +131,5 @@ Wildcard-only constraints are not considered governance.
 - Does the structure avoid mirrored locale implementations?
 - Are Nx tags and constraints enforcing the intended boundary?
 - Is there a dead folder or stale doc entry that should be removed?
+- Does a large root still own too much orchestration even after `internal/`
+  extraction?

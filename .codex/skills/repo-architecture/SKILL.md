@@ -67,6 +67,23 @@ and `project-index/SKILL.md` only as navigation aids.
 - Avoid mirrored locale trees for behavior. Share implementation and inject localized content or wrappers.
 - Keep architecture enforceable: tags and Nx dependency constraints must reflect the intended layering.
 
+### Oversized File Thresholds
+
+Use these thresholds as repo review heuristics:
+
+- `<= 399` lines: normal
+- `400-599` lines: warning
+- `600-999` lines: hotspot
+- `1000+` lines: critical
+
+Helper extraction into `internal/` is only successful when the root materially
+shrinks. If a root file is still `>= 600` lines and imports `3+` sibling
+`internal/` modules, treat that as ineffective internal extraction.
+
+For class-based components, services, and controllers, `>= 600` lines with
+`20+` apparent class methods is an ownership warning. Prefer splitting by
+workflow or use case instead of adding more helper dumping.
+
 ## Audit Workflow
 
 1. Confirm repo truth with `project-index`, `repository-map`, and actual folders.
@@ -77,7 +94,9 @@ and `project-index/SKILL.md` only as navigation aids.
    - boundary enforcement
    - structural normalization
    - decomposition of oversized hotspots
-5. Keep behavior unchanged unless the user explicitly requests a product change.
+5. Run `npm run audit:hotspots` before proposing hotspot refactors so size and
+   ownership findings are grounded in repo output.
+6. Keep behavior unchanged unless the user explicitly requests a product change.
 
 ## Expected Outputs
 

@@ -8,6 +8,12 @@
 - `npm run lint`: Run lint targets.
 - `npm run check`: Run lint + test + build.
 
+## Architecture / Maintenance
+
+- `npm run audit:structure`
+- `npm run audit:comments`
+- `npm run audit:hotspots`
+
 ## Affected
 
 - `npm run affected`

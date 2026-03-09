@@ -5,7 +5,7 @@ Location: `apps/manager-dashboard/src/app`
 ## Feature Areas
 
 - `features/auth`: login/register/forgot/reset/change-password.
-- `features/landing`, `features/landing-ar`: marketing/entry pages (LTR + RTL variants).
+- `features/landing`, `features/landing-ar`: marketing and entry pages.
 - `features/onboarding`: tenant onboarding flow.
 - `features/booking-calendar`, `features/booking-detail`, `features/booking-list`, `features/booking-preview`.
 - `features/waitlist`.
@@ -19,10 +19,10 @@ Location: `apps/manager-dashboard/src/app`
 ## State Management
 
 - `state/dashboard`
-- `state/bookings`
+- `state/bookings`: root SignalStore plus `state/bookings/internal/` method and model modules.
 - `state/analytics`
 - `state/promo-codes`
-- shared state in `shared/state` (auth/layout/facility context).
+- shared state in `shared/state` (auth, layout, facility context).
 
 ## Shared Infrastructure
 
@@ -32,10 +32,12 @@ Location: `apps/manager-dashboard/src/app`
 - `shared/components/booking`: reusable booking-specific shared components.
 - `shared/components/tag-chip`: shared semantic chip component.
 - `shared/interceptors`: auth and error HTTP interceptors.
-- `shared/guards`: auth/role/onboarding/public route guards.
-- `shared/services`: API client, auth, i18n, locale formatting, logging, error reporting.
+- `shared/guards`: auth, role, onboarding, and public route guards.
+- `shared/services`: auth, i18n, locale formatting, logging, and error reporting.
+- `shared/services/api.service.ts`: backwards-compatible API facade for existing callers.
+- `shared/services/api/`: domain API clients and request helpers.
 - `shared/styles`: shared styling partials and cross-feature visual primitives.
-- `shared/navigation`: dashboard/landing navigation models.
+- `shared/navigation`: dashboard and landing navigation models.
 
 ## App Wiring
 
