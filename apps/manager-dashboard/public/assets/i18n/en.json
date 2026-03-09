@@ -328,6 +328,61 @@
           "INVALID": "Select a valid IANA timezone.",
           "SEARCH_EMPTY": "No matching timezone found."
         },
+        "NOTIFICATIONS": {
+          "TITLE": "Notifications",
+          "SUBTITLE": "Control tenant-wide digests and real-time booking alerts.",
+          "SCOPE": "Tenant scope (owners and managers)",
+          "LOADING": "Loading notification preferences...",
+          "LOAD_ERROR": "Unable to load notification preferences.",
+          "READ_ONLY": "Only owners and managers can update notification preferences.",
+          "SAVE": "Save notification preferences",
+          "SAVE_SUCCESS": "Notification preferences saved successfully.",
+          "SAVE_ERROR": "Unable to save notification preferences.",
+          "GROUPS": {
+            "DIGESTS": "Scheduled digests",
+            "REALTIME": "Real-time alerts"
+          },
+          "FIELDS": {
+            "ENABLED": "Enabled",
+            "SEND_TIME": "Send time",
+            "DAY_OF_WEEK": "Day of week",
+            "LEAD_MINUTES": "Lead time (minutes)",
+            "CHANNELS": "Channels"
+          },
+          "CHANNELS": {
+            "WHATSAPP": "WhatsApp",
+            "EMAIL": "Email"
+          },
+          "DAY_OPTIONS": {
+            "0": "Sunday",
+            "1": "Monday",
+            "2": "Tuesday",
+            "3": "Wednesday",
+            "4": "Thursday",
+            "5": "Friday",
+            "6": "Saturday"
+          },
+          "MORNING_DIGEST": {
+            "TITLE": "Morning digest",
+            "DESCRIPTION": "Send a daily summary of bookings, expected revenue, and pending actions."
+          },
+          "WEEKLY_SUMMARY": {
+            "TITLE": "Weekly summary",
+            "DESCRIPTION": "Send a weekly performance summary with trend and goal progress context."
+          },
+          "BOOKING_CREATED": {
+            "TITLE": "New booking alert",
+            "DESCRIPTION": "Notify managers when a new booking is created."
+          },
+          "BOOKING_CANCELLED": {
+            "TITLE": "Booking cancelled alert",
+            "DESCRIPTION": "Notify managers when a booking is cancelled."
+          },
+          "HOLD_EXPIRING": {
+            "TITLE": "Hold expiring alert",
+            "DESCRIPTION": "Notify managers before a booking hold expires."
+          }
+        },
         "FIELDS": {
           "NAME": "Name",
           "EMAIL": "Email",

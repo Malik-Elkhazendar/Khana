@@ -77,6 +77,11 @@ function sortFacilitiesByName(
   );
 }
 
+/**
+ * Facility admin page for create, edit, and activation state changes. One form
+ * serves both create and edit flows so managers can reuse validation and keep
+ * the visible list in sync with the selected facility.
+ */
 @Component({
   selector: 'app-facilities',
   standalone: true,
@@ -239,6 +244,8 @@ export class FacilitiesComponent {
     request$.pipe(finalize(() => this.saving.set(false))).subscribe({
       next: (facility) => {
         this.upsertFacility(facility);
+        // Refresh the shared facility context so booking flows immediately see
+        // renamed, activated, or newly created facilities.
         this.facilityContext.refreshFacilities();
 
         if (selectedId) {
@@ -332,6 +339,8 @@ export class FacilitiesComponent {
     const existingIndex = current.findIndex((item) => item.id === facility.id);
 
     if (existingIndex === -1) {
+      // Re-sort after inserts so the management list stays deterministic even
+      // when the backend returns items in mutation order.
       this.facilities.set(sortFacilitiesByName([...current, facility]));
       return;
     }

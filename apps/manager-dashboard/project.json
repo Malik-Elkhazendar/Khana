@@ -73,11 +73,11 @@
       "executor": "@nx/eslint:lint"
     },
     "test": {
-      "executor": "@nx/jest:jest",
+      "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "jestConfig": "apps/manager-dashboard/jest.config.cjs",
-        "tsConfig": "apps/manager-dashboard/tsconfig.spec.json"
+        "command": "node tools/testing/jest/run-jest.cjs --config apps/manager-dashboard/jest.config.cjs",
+        "forwardAllArgs": true
       }
     },
     "serve-static": {
