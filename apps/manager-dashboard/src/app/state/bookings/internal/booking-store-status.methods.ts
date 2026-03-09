@@ -22,6 +22,8 @@ export const createBookingStatusMethods = (
   api: ApiService,
   logger: LoggerService
 ) => {
+  // Prevent duplicate clicks from issuing two status mutations for the same
+  // booking at once.
   const inFlightActions = new Map<string, Promise<boolean>>();
 
   const runStatusAction = async (
@@ -71,6 +73,8 @@ export const createBookingStatusMethods = (
         return false;
       }
 
+      // Patch list and detail state together so every visible surface reflects
+      // the pending action.
       const optimistic = {
         ...booking,
         status: updates.status ?? booking.status,
@@ -169,6 +173,8 @@ export const createBookingStatusMethods = (
           context,
           err
         );
+        // Roll back to the pre-request snapshot if the backend rejects the
+        // optimistic update.
         patchState(store, (state) => ({
           bookings: state.bookings.map((b) =>
             b.id === id ? previousBooking : b
