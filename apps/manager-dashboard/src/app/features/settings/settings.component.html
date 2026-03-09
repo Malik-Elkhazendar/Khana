@@ -175,6 +175,218 @@
       </dl>
     </div>
 
+    <div class="settings-section" id="notifications">
+      <header class="settings-section__header">
+        <h2>
+          {{ 'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.TITLE' | translate }}
+        </h2>
+        <p class="settings-section__hint">
+          {{ 'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.SUBTITLE' | translate }}
+        </p>
+        <app-settings-scope-badge
+          data-testid="settings-scope-notifications"
+          kind="tenant"
+          labelKey="DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.SCOPE"
+        ></app-settings-scope-badge>
+      </header>
+
+      <p class="settings-state" *ngIf="notificationLoading()">
+        {{ 'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.LOADING' | translate }}
+      </p>
+
+      <p
+        class="settings-state settings-state--error"
+        *ngIf="notificationError() && !notificationLoading()"
+      >
+        {{ notificationError()! | translate }}
+      </p>
+
+      <div
+        class="settings-notifications"
+        *ngIf="!notificationLoading() && notificationPreferences()"
+      >
+        @for (group of notificationGroups; track group.key) {
+        <section class="settings-notifications__group">
+          <header class="settings-notifications__group-header">
+            <h3>{{ notificationGroupTitleKey(group.key) | translate }}</h3>
+          </header>
+
+          @for (card of group.cards; track card.key) { @if
+          (notificationPreference(card.key); as preference) {
+          <article class="settings-notifications__card">
+            <header class="settings-notifications__card-header">
+              <div>
+                <h4>{{ card.titleKey | translate }}</h4>
+                <p>{{ card.descriptionKey | translate }}</p>
+              </div>
+
+              <label class="settings-toggle">
+                <input
+                  type="checkbox"
+                  [checked]="preference.enabled"
+                  [disabled]="
+                    !canManageTenantSettings() || notificationSaving()
+                  "
+                  (change)="
+                    onNotificationEnabledChange(
+                      card.key,
+                      $any($event.target).checked === true
+                    )
+                  "
+                />
+                <span>
+                  {{
+                    'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.FIELDS.ENABLED'
+                      | translate
+                  }}
+                </span>
+              </label>
+            </header>
+
+            <div
+              class="settings-notifications__controls"
+              [class.settings-notifications__controls--split]="
+                card.showDayOfWeek
+              "
+            >
+              @if (card.showDayOfWeek) {
+              <label class="settings-notifications__field">
+                <span>
+                  {{
+                    'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.FIELDS.DAY_OF_WEEK'
+                      | translate
+                  }}
+                </span>
+                <select
+                  [value]="$any(preference).dayOfWeek"
+                  [disabled]="
+                    !canManageTenantSettings() || notificationSaving()
+                  "
+                  (change)="
+                    onWeeklySummaryDayOfWeekChange(
+                      ($any($event.target).value ?? '').toString()
+                    )
+                  "
+                >
+                  @for (weekday of weekdayOptions; track weekday.value) {
+                  <option [value]="weekday.value">
+                    {{ weekday.labelKey | translate }}
+                  </option>
+                  }
+                </select>
+              </label>
+              } @if (card.showSendTime) {
+              <label class="settings-notifications__field">
+                <span>
+                  {{
+                    'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.FIELDS.SEND_TIME'
+                      | translate
+                  }}
+                </span>
+                <input
+                  type="time"
+                  [value]="$any(preference).sendTime"
+                  [disabled]="
+                    !canManageTenantSettings() || notificationSaving()
+                  "
+                  (input)="
+                    onScheduledSendTimeChange(
+                      $any(card.key),
+                      ($any($event.target).value ?? '').toString()
+                    )
+                  "
+                />
+              </label>
+              } @if (card.showLeadMinutes) {
+              <label class="settings-notifications__field">
+                <span>
+                  {{
+                    'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.FIELDS.LEAD_MINUTES'
+                      | translate
+                  }}
+                </span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  [value]="$any(preference).leadMinutes"
+                  [disabled]="
+                    !canManageTenantSettings() || notificationSaving()
+                  "
+                  (input)="
+                    onHoldExpiringLeadMinutesChange(
+                      ($any($event.target).value ?? '').toString()
+                    )
+                  "
+                />
+              </label>
+              }
+            </div>
+
+            <fieldset class="settings-notifications__channels">
+              <legend>
+                {{
+                  'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.FIELDS.CHANNELS'
+                    | translate
+                }}
+              </legend>
+
+              @for (channel of ['whatsapp', 'email']; track channel) {
+              <label class="settings-toggle">
+                <input
+                  type="checkbox"
+                  [checked]="
+                    notificationChannelEnabled(card.key, $any(channel))
+                  "
+                  [disabled]="
+                    !canManageTenantSettings() || notificationSaving()
+                  "
+                  (change)="
+                    onNotificationChannelChange(
+                      card.key,
+                      $any(channel),
+                      $any($event.target).checked === true
+                    )
+                  "
+                />
+                <span>
+                  {{
+                    'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.CHANNELS.' +
+                      channel.toUpperCase() | translate
+                  }}
+                </span>
+              </label>
+              }
+            </fieldset>
+          </article>
+          } }
+        </section>
+        }
+
+        <div class="settings-actions" *ngIf="canManageTenantSettings()">
+          <button
+            type="button"
+            class="dashboard-btn dashboard-btn--primary"
+            data-testid="settings-save-notifications"
+            (click)="saveNotificationPreferences()"
+            [disabled]="notificationSaving() || !notificationPreferences()"
+          >
+            {{ 'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.SAVE' | translate }}
+          </button>
+        </div>
+
+        <p class="settings-state" *ngIf="!canManageTenantSettings()">
+          {{ 'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.READ_ONLY' | translate }}
+        </p>
+        <p
+          class="settings-state settings-state--success"
+          *ngIf="notificationMessage()"
+        >
+          {{ notificationMessage()! | translate }}
+        </p>
+      </div>
+    </div>
+
     <div class="settings-section" id="goals">
       <header class="settings-section__header">
         <h2>{{ 'DASHBOARD.PAGES.SETTINGS.GOALS.TITLE' | translate }}</h2>

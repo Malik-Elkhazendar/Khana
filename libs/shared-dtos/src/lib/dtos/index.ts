@@ -17,3 +17,4 @@ export * from './promo-code.dto';
 export * from './goals.dto';
 export * from './settings.dto';
 export * from './today-snapshot.dto';
+export * from './notification-preferences.dto';

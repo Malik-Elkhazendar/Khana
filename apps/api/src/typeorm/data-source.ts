@@ -20,6 +20,9 @@ import {
 import { normalizeNodeEnv, resolveEnvFilePaths } from '../app/config/env-files';
 
 const nodeEnv = normalizeNodeEnv(process.env['NODE_ENV']);
+const migrationsGlob = __filename.endsWith('.ts')
+  ? resolve(process.cwd(), 'libs/data-access/src/lib/migrations/*.ts')
+  : resolve(process.cwd(), 'dist/libs/data-access/src/lib/migrations/*.js');
 
 for (const envPath of resolveEnvFilePaths(nodeEnv)) {
   if (existsSync(envPath)) {
@@ -53,11 +56,5 @@ export default new DataSource({
   // Migration CLI should never use synchronize.
   synchronize: false,
   migrationsTableName: 'typeorm_migrations',
-  migrations: [
-    resolve(process.cwd(), 'libs/data-access/src/lib/migrations/*{.ts,.js}'),
-    resolve(
-      process.cwd(),
-      'dist/libs/data-access/src/lib/migrations/*{.ts,.js}'
-    ),
-  ],
+  migrations: [migrationsGlob],
 });

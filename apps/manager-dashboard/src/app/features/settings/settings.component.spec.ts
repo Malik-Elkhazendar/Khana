@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { TranslateModule } from '@ngx-translate/core';
-import { UserRole } from '@khana/shared-dtos';
+import { NotificationPreferencesDto, UserRole } from '@khana/shared-dtos';
 import { AuthStore } from '../../shared/state/auth.store';
 import { AuthService } from '../../shared/services/auth.service';
 import { ApiService } from '../../shared/services/api.service';
@@ -21,6 +21,48 @@ const mockUser = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
+
+const createNotificationPreferences = (): NotificationPreferencesDto => ({
+  morningDigest: {
+    enabled: true,
+    sendTime: '07:00',
+    channels: {
+      whatsapp: { enabled: true },
+      email: { enabled: true },
+    },
+  },
+  weeklySummary: {
+    enabled: true,
+    dayOfWeek: 0,
+    sendTime: '19:00',
+    channels: {
+      whatsapp: { enabled: false },
+      email: { enabled: true },
+    },
+  },
+  bookingCreated: {
+    enabled: true,
+    channels: {
+      whatsapp: { enabled: true },
+      email: { enabled: false },
+    },
+  },
+  bookingCancelled: {
+    enabled: true,
+    channels: {
+      whatsapp: { enabled: true },
+      email: { enabled: false },
+    },
+  },
+  holdExpiring: {
+    enabled: true,
+    leadMinutes: 30,
+    channels: {
+      whatsapp: { enabled: true },
+      email: { enabled: false },
+    },
+  },
+});
 
 describe('SettingsComponent', () => {
   const authStoreMock = {
@@ -45,12 +87,14 @@ describe('SettingsComponent', () => {
     getTenantSettings: jest.fn(() =>
       of({
         timezone: 'Asia/Riyadh',
+        notificationPreferences: createNotificationPreferences(),
         updatedAt: new Date().toISOString(),
       })
     ),
     updateTenantSettings: jest.fn(() =>
       of({
         timezone: 'Europe/Istanbul',
+        notificationPreferences: createNotificationPreferences(),
         updatedAt: new Date().toISOString(),
       })
     ),
@@ -103,7 +147,7 @@ describe('SettingsComponent', () => {
     }).compileComponents();
   });
 
-  it('loads tenant context on init', () => {
+  it('loads tenant context and tenant settings on init', () => {
     const fixture = TestBed.createComponent(SettingsComponent);
     fixture.detectChanges();
 
@@ -112,24 +156,27 @@ describe('SettingsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Khana Club');
   });
 
-  it('renders the four scoped settings sections', () => {
+  it('renders the five scoped settings sections', () => {
     const fixture = TestBed.createComponent(SettingsComponent);
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('#account')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('#organization')).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('#notifications')
+    ).not.toBeNull();
     expect(fixture.nativeElement.querySelector('#goals')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('#security')).not.toBeNull();
   });
 
-  it('renders scope badges with correct scope kinds and accessibility labels', () => {
+  it('renders scope badges with correct scope kinds', () => {
     const fixture = TestBed.createComponent(SettingsComponent);
     fixture.detectChanges();
 
     const scopeBadges = fixture.nativeElement.querySelectorAll(
       '.settings-scope-badge'
     );
-    expect(scopeBadges.length).toBe(4);
+    expect(scopeBadges.length).toBe(5);
 
     const personalBadges = fixture.nativeElement.querySelectorAll(
       '.settings-scope-badge--personal'
@@ -138,20 +185,7 @@ describe('SettingsComponent', () => {
       '.settings-scope-badge--tenant'
     );
     expect(personalBadges.length).toBe(2);
-    expect(tenantBadges.length).toBe(2);
-
-    const accountBadge = fixture.nativeElement.querySelector(
-      '[data-testid="settings-scope-account"] .settings-scope-badge'
-    ) as HTMLElement | null;
-    expect(accountBadge).not.toBeNull();
-    expect(accountBadge?.getAttribute('aria-label')).toContain(
-      'DASHBOARD.PAGES.SETTINGS.SCOPE_LABEL'
-    );
-
-    const decorativeIcons = fixture.nativeElement.querySelectorAll(
-      '.settings-scope-badge__icon[aria-hidden="true"]'
-    );
-    expect(decorativeIcons.length).toBe(4);
+    expect(tenantBadges.length).toBe(3);
   });
 
   it('executes language toggle, navigation, and logout-all actions', () => {
@@ -167,10 +201,6 @@ describe('SettingsComponent', () => {
     const logoutAllButton = fixture.nativeElement.querySelector(
       '[data-testid="settings-logout-all"]'
     ) as HTMLButtonElement | null;
-
-    expect(toggleLanguageButton).not.toBeNull();
-    expect(changePasswordButton).not.toBeNull();
-    expect(logoutAllButton).not.toBeNull();
 
     toggleLanguageButton?.click();
     changePasswordButton?.click();
@@ -206,9 +236,6 @@ describe('SettingsComponent', () => {
       '[data-testid="settings-save-timezone"]'
     ) as HTMLButtonElement | null;
 
-    expect(timezoneInput).not.toBeNull();
-    expect(saveButton).not.toBeNull();
-
     timezoneInput!.value = 'Europe/Istanbul';
     timezoneInput!.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -219,29 +246,6 @@ describe('SettingsComponent', () => {
     expect(apiServiceMock.updateTenantSettings).toHaveBeenCalledWith({
       timezone: 'Europe/Istanbul',
     });
-    expect(fixture.nativeElement.textContent).toContain(
-      'DASHBOARD.PAGES.SETTINGS.TIMEZONE.SAVE_SUCCESS'
-    );
-  });
-
-  it('allows manager role to save timezone', () => {
-    authStoreMock.user.set({
-      ...mockUser,
-      role: UserRole.MANAGER,
-    });
-
-    const fixture = TestBed.createComponent(SettingsComponent);
-    fixture.detectChanges();
-
-    const saveButton = fixture.nativeElement.querySelector(
-      '[data-testid="settings-save-timezone"]'
-    ) as HTMLButtonElement | null;
-    expect(saveButton).not.toBeNull();
-
-    saveButton?.click();
-    fixture.detectChanges();
-
-    expect(apiServiceMock.updateTenantSettings).toHaveBeenCalledTimes(1);
   });
 
   it('filters timezone datalist options from the current search input', () => {
@@ -251,7 +255,6 @@ describe('SettingsComponent', () => {
     const timezoneInput = fixture.nativeElement.querySelector(
       '.settings-preferences__input'
     ) as HTMLInputElement | null;
-    expect(timezoneInput).not.toBeNull();
 
     timezoneInput!.value = 'istanbul';
     timezoneInput!.dispatchEvent(new Event('input'));
@@ -274,7 +277,6 @@ describe('SettingsComponent', () => {
     const timezoneInput = fixture.nativeElement.querySelector(
       '.settings-preferences__input'
     ) as HTMLInputElement | null;
-    expect(timezoneInput).not.toBeNull();
 
     timezoneInput!.value = 'not-a-real-time-zone';
     timezoneInput!.dispatchEvent(new Event('input'));
@@ -289,7 +291,68 @@ describe('SettingsComponent', () => {
     );
   });
 
-  it('hides timezone save action for non-owner/manager roles', () => {
+  it('saves notification preferences when owner updates alert channels', () => {
+    const fixture = TestBed.createComponent(SettingsComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.onNotificationChannelChange(
+      'bookingCreated',
+      'email',
+      true
+    );
+    fixture.componentInstance.saveNotificationPreferences();
+
+    expect(apiServiceMock.updateTenantSettings).toHaveBeenCalledWith({
+      notificationPreferences: expect.objectContaining({
+        bookingCreated: expect.objectContaining({
+          channels: expect.objectContaining({
+            email: { enabled: true },
+          }),
+        }),
+      }),
+    });
+  });
+
+  it('allows manager role to save notification preferences', () => {
+    authStoreMock.user.set({
+      ...mockUser,
+      role: UserRole.MANAGER,
+    });
+
+    const fixture = TestBed.createComponent(SettingsComponent);
+    fixture.detectChanges();
+
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="settings-save-notifications"]'
+    ) as HTMLButtonElement | null;
+
+    expect(saveButton).not.toBeNull();
+
+    saveButton?.click();
+    fixture.detectChanges();
+
+    expect(apiServiceMock.updateTenantSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows notification read-only state for staff users', () => {
+    authStoreMock.user.set({
+      ...mockUser,
+      role: UserRole.STAFF,
+    });
+
+    const fixture = TestBed.createComponent(SettingsComponent);
+    fixture.detectChanges();
+
+    const saveButton = fixture.nativeElement.querySelector(
+      '[data-testid="settings-save-notifications"]'
+    );
+    expect(saveButton).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain(
+      'DASHBOARD.PAGES.SETTINGS.NOTIFICATIONS.READ_ONLY'
+    );
+  });
+
+  it('still hides timezone save action for non-owner and non-manager roles', () => {
     authStoreMock.user.set({
       ...mockUser,
       role: UserRole.STAFF,

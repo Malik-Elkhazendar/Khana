@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Facility } from './facility.entity';
+import { NotificationPreferencesDto } from '@khana/shared-dtos';
 
 @Entity({ name: 'tenants' })
 @Index('tenants_slug_unique', ['slug'], { unique: true })
@@ -39,6 +40,9 @@ export class Tenant {
 
   @Column({ type: 'varchar', length: 100, default: 'Asia/Riyadh' })
   timezone!: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  notificationPreferences?: NotificationPreferencesDto | null;
 
   @Column({ type: 'boolean', default: false })
   onboardingCompleted!: boolean;
