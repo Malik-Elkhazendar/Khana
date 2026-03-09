@@ -120,7 +120,7 @@ export async function handleTokenReuse(params: {
           'A previously used refresh token was presented. All sessions for that device have been logged out.',
         ipAddress: params.ipAddress,
       })
-      .catch((error) => {
+      ?.catch?.((error) => {
         params.appLogger.error(
           LOG_EVENTS.EMAIL_FAILED,
           'Failed to dispatch security alert',

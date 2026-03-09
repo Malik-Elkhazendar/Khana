@@ -23,6 +23,7 @@ import {
 } from './booking-preview.recurrence';
 import {
   PreviewError,
+  PREVIEW_CACHE_TTL_MS,
   PreviewRequestPayload,
   REQUEST_TIMEOUT_MS,
   SUBMIT_DEBOUNCE_MS,
@@ -31,6 +32,18 @@ import { BookingPreviewRouteResilienceBase } from './booking-preview.route-resil
 
 @Directive()
 export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRouteResilienceBase {
+  protected buildCacheKey(start: Date, end: Date): string {
+    return buildPreviewCacheKey(
+      buildPreviewPayload({
+        facilityId: this.selectedFacilityId(),
+        selectedDate: this.selectedDate(),
+        startTime: start.toTimeString().slice(0, 5),
+        endTime: end.toTimeString().slice(0, 5),
+        promoCode: this.promoCode(),
+      })
+    );
+  }
+
   ngOnInit(): void {
     this.isOnline.set(this.resolveOnlineStatus());
     this.selectedDate.set(getDefaultBookingDate());
@@ -367,7 +380,7 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
           this.loading.set(false);
           this.previewCache.set(cacheKey, {
             result,
-            expiresAt: Date.now() + 30_000,
+            expiresAt: Date.now() + PREVIEW_CACHE_TTL_MS,
           });
           this.lastAction.set(null);
           this.inFlightPreviewKey = null;

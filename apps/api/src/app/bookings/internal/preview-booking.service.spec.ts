@@ -21,6 +21,17 @@ describe('PreviewBookingService', () => {
 
   const tenantId = 'tenant-1';
   const facilityId = 'facility-1';
+  const futureWindow = () => {
+    const start = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    start.setUTCHours(9, 0, 0, 0);
+    const end = new Date(start);
+    end.setUTCHours(10, 0, 0, 0);
+
+    return {
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+    };
+  };
   const activeFacility = {
     id: facilityId,
     name: 'Center Court',
@@ -56,6 +67,7 @@ describe('PreviewBookingService', () => {
   });
 
   it('rejects inactive facility for preview', async () => {
+    const slot = futureWindow();
     facilityRepository.findOne.mockResolvedValue({
       ...activeFacility,
       isActive: false,
@@ -65,8 +77,8 @@ describe('PreviewBookingService', () => {
       service.execute(
         {
           facilityId,
-          startTime: '2025-03-10T09:00:00.000Z',
-          endTime: '2025-03-10T10:00:00.000Z',
+          startTime: slot.startTime,
+          endTime: slot.endTime,
         },
         tenantId
       )
@@ -74,11 +86,12 @@ describe('PreviewBookingService', () => {
   });
 
   it('returns invalid promo validation state when promo code is not found', async () => {
+    const slot = futureWindow();
     const result = await service.execute(
       {
         facilityId,
-        startTime: '2025-03-10T09:00:00.000Z',
-        endTime: '2025-03-10T10:00:00.000Z',
+        startTime: slot.startTime,
+        endTime: slot.endTime,
         promoCode: 'MISSING10',
       },
       tenantId
@@ -95,6 +108,7 @@ describe('PreviewBookingService', () => {
   });
 
   it('applies valid promo discounts to preview price breakdown', async () => {
+    const slot = futureWindow();
     promoCodeRepository.findOne.mockResolvedValue({
       id: 'promo-1',
       tenantId,
@@ -112,8 +126,8 @@ describe('PreviewBookingService', () => {
     const result = await service.execute(
       {
         facilityId,
-        startTime: '2025-03-10T09:00:00.000Z',
-        endTime: '2025-03-10T10:00:00.000Z',
+        startTime: slot.startTime,
+        endTime: slot.endTime,
         promoCode: 'save10',
       },
       tenantId

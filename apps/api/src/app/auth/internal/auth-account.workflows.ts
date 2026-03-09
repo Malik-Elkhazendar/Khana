@@ -22,9 +22,9 @@ const dispatchAuthNotification = (
   deps: AuthDependencies,
   message: string,
   context: Record<string, unknown>,
-  task: Promise<unknown>
+  task: Promise<unknown> | unknown
 ): void => {
-  void task.catch((error) => {
+  void Promise.resolve(task).catch((error) => {
     deps.appLogger.error(LOG_EVENTS.EMAIL_FAILED, message, context, error);
   });
 };

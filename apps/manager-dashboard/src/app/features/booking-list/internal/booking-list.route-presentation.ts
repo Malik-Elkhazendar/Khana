@@ -243,6 +243,7 @@ export abstract class BookingListRoutePresentationBase extends BookingListRouteS
   isCancellable(booking: BookingListItemDto): boolean {
     return (
       this.canCancel() &&
+      booking.paymentStatus !== PaymentStatus.PAID &&
       booking.status !== BookingStatus.CANCELLED &&
       booking.status !== BookingStatus.COMPLETED &&
       booking.status !== BookingStatus.NO_SHOW
