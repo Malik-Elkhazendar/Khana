@@ -54,6 +54,33 @@
 
 - `npm run i18n:extract`
 
+## Swagger / OpenAPI
+
+Swagger is mounted by the API app only.
+
+- Development default: enabled unless `SWAGGER_ENABLED=false`
+- Non-development environments: disabled unless `SWAGGER_ENABLED=true`
+- UI route: `/api/docs`
+- Raw document: `/api/docs-json`
+
+Start the API and open Swagger:
+
+```bash
+node ./node_modules/nx/bin/nx.js serve api
+```
+
+Validate the API app plus Swagger smoke coverage:
+
+```bash
+node ./node_modules/typescript/bin/tsc -p apps/api/tsconfig.app.json --noEmit
+node ./node_modules/jest/bin/jest.js --config apps/api/jest.config.js --runInBand --runTestsByPath apps/api/src/app/swagger/swagger.bootstrap.spec.ts
+node ./node_modules/nx/bin/nx.js test api --runInBand
+```
+
+The direct Jest smoke command above is also the CI-safe Swagger check. It
+avoids local Nx project-graph noise while still validating docs exposure,
+security scheme wiring, and generated operation IDs.
+
 ## WSL-First Validation
 
 Run test and validation commands from a WSL/Linux shell opened inside the repo

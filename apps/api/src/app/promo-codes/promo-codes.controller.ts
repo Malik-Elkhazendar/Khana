@@ -11,6 +11,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { User } from '@khana/data-access';
 import {
   PromoCodeItemDto,
@@ -28,18 +34,37 @@ import {
   UpdatePromoCodeDto,
 } from './dto';
 import { PromoCodesService } from './promo-codes.service';
+import {
+  ApiJwtAuth,
+  ApiStandardErrorResponses,
+  ApiUuidParam,
+} from '../swagger/swagger.decorators';
+import {
+  PromoCodeItemDoc,
+  PromoCodeListResponseDoc,
+} from './swagger/promo-codes-doc.models';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({
   path: 'promo-codes',
   version: '1',
 })
+@ApiTags('Promo Codes')
+@ApiJwtAuth()
 export class PromoCodesController {
   constructor(private readonly promoCodesService: PromoCodesService) {}
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.MANAGER)
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create a promo code',
+  })
+  @ApiCreatedResponse({
+    description: 'Promo code created successfully.',
+    type: PromoCodeItemDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 409)
   createPromoCode(
     @Body() dto: CreatePromoCodeDto,
     @TenantId() tenantId: string,
@@ -50,6 +75,14 @@ export class PromoCodesController {
 
   @Get()
   @Roles(UserRole.OWNER, UserRole.MANAGER)
+  @ApiOperation({
+    summary: 'List promo codes',
+  })
+  @ApiOkResponse({
+    description: 'Paginated promo code list for the current tenant.',
+    type: PromoCodeListResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403)
   listPromoCodes(
     @Query() query: ListPromoCodesQueryDto,
     @TenantId() tenantId: string,
@@ -61,6 +94,15 @@ export class PromoCodesController {
   @Patch(':id')
   @Roles(UserRole.OWNER, UserRole.MANAGER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update a promo code',
+  })
+  @ApiUuidParam('id', 'Promo code identifier to update.')
+  @ApiOkResponse({
+    description: 'Promo code updated successfully.',
+    type: PromoCodeItemDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 404, 409)
   updatePromoCode(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdatePromoCodeDto,

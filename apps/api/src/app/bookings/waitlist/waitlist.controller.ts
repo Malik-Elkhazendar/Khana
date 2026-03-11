@@ -11,6 +11,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { User } from '@khana/data-access';
 import {
   ExpireWaitlistEntryResponseDto,
@@ -32,18 +38,40 @@ import {
   WaitlistStatusQueryDto,
 } from './dto';
 import { WaitlistService } from './waitlist.service';
+import {
+  ApiJwtAuth,
+  ApiStandardErrorResponses,
+  ApiUuidParam,
+} from '../../swagger/swagger.decorators';
+import {
+  ExpireWaitlistEntryResponseDoc,
+  JoinWaitlistResponseDoc,
+  NotifyNextWaitlistResponseDoc,
+  WaitlistListResponseDoc,
+  WaitlistStatusResponseDoc,
+} from './swagger/waitlist-doc.models';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({
   path: 'bookings/waitlist',
   version: '1',
 })
+@ApiTags('Waitlist')
+@ApiJwtAuth()
 export class WaitlistController {
   constructor(private readonly waitlistService: WaitlistService) {}
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF)
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Join the waitlist for a booking slot',
+  })
+  @ApiCreatedResponse({
+    description: 'Waitlist entry created successfully.',
+    type: JoinWaitlistResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 409)
   joinWaitlist(
     @Body() dto: JoinWaitlistDto,
     @TenantId() tenantId: string,
@@ -54,6 +82,15 @@ export class WaitlistController {
 
   @Get('status')
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF)
+  @ApiOperation({
+    summary: 'Get waitlist status for a slot',
+  })
+  @ApiOkResponse({
+    description:
+      'Waitlist status and current eligibility for the requested slot.',
+    type: WaitlistStatusResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 404)
   getWaitlistStatus(
     @Query() query: WaitlistStatusQueryDto,
     @TenantId() tenantId: string,
@@ -64,6 +101,14 @@ export class WaitlistController {
 
   @Get()
   @Roles(UserRole.OWNER, UserRole.MANAGER, UserRole.STAFF)
+  @ApiOperation({
+    summary: 'List waitlist entries',
+  })
+  @ApiOkResponse({
+    description: 'Waitlist entries visible to the current staff member.',
+    type: WaitlistListResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403)
   listWaitlistEntries(
     @Query() query: WaitlistListQueryDto,
     @TenantId() tenantId: string,
@@ -75,6 +120,14 @@ export class WaitlistController {
   @Post('notify-next')
   @Roles(UserRole.OWNER, UserRole.MANAGER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Notify the next waitlist entry for a slot',
+  })
+  @ApiOkResponse({
+    description: 'Next eligible waitlist entry was notified.',
+    type: NotifyNextWaitlistResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 404, 409)
   notifyNext(
     @Body() dto: NotifyNextWaitlistDto,
     @TenantId() tenantId: string,
@@ -86,6 +139,15 @@ export class WaitlistController {
   @Patch(':entryId/expire')
   @Roles(UserRole.OWNER, UserRole.MANAGER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Expire a waitlist entry',
+  })
+  @ApiUuidParam('entryId', 'Waitlist entry identifier to expire.')
+  @ApiOkResponse({
+    description: 'Waitlist entry expired successfully.',
+    type: ExpireWaitlistEntryResponseDoc,
+  })
+  @ApiStandardErrorResponses(401, 403, 404)
   expireEntry(
     @Param('entryId', new ParseUUIDPipe()) entryId: string,
     @TenantId() tenantId: string,

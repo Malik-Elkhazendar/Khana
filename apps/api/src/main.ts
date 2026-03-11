@@ -19,6 +19,7 @@ import {
   ContextHttpExceptionFilter,
   LOG_EVENTS,
 } from './app/logging';
+import { configureSwagger } from './app/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -103,6 +104,11 @@ async function bootstrap() {
       transform: true, // Auto-transform payloads to DTO instances
     })
   );
+
+  configureSwagger(app, {
+    configService,
+    nodeEnv,
+  });
 
   const port = Number(
     configService.get<string>('API_PORT') ||

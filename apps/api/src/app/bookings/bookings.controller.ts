@@ -11,6 +11,13 @@ import {
   ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import {
   BookingPreviewRequestDto,
@@ -24,6 +31,17 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { TenantId } from '../auth/decorators/tenant-id.decorator';
 import { User } from '@khana/data-access';
+import {
+  ApiJwtAuth,
+  ApiStandardErrorResponses,
+  ApiUuidParam,
+} from '../swagger/swagger.decorators';
+import {
+  BookingFacilityListItemDoc,
+  BookingListItemDoc,
+  BookingPreviewResponseDoc,
+  CreateRecurringBookingResponseDoc,
+} from './swagger/booking-doc.models';
 
 /**
  * Bookings Controller
@@ -36,6 +54,8 @@ import { User } from '@khana/data-access';
   path: 'bookings',
   version: '1',
 })
+@ApiTags('Bookings')
+@ApiJwtAuth()
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
@@ -45,6 +65,20 @@ export class BookingsController {
    * List bookings, optionally filtered by facility.
    */
   @Get()
+  @ApiOperation({
+    summary: 'List bookings for the current tenant',
+  })
+  @ApiQuery({
+    name: 'facilityId',
+    required: false,
+    description: 'Optional facility filter for the booking list.',
+  })
+  @ApiOkResponse({
+    description: 'Bookings visible to the current user in the current tenant.',
+    type: BookingListItemDoc,
+    isArray: true,
+  })
+  @ApiStandardErrorResponses(401, 403)
   findAll(
     @TenantId() tenantId: string,
     @CurrentUser() user: User,
@@ -61,6 +95,14 @@ export class BookingsController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create a single booking',
+  })
+  @ApiCreatedResponse({
+    description: 'Booking created successfully.',
+    type: BookingListItemDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 409)
   createBooking(
     @Body() dto: CreateBookingDto,
     @CurrentUser() user: User,
@@ -81,6 +123,14 @@ export class BookingsController {
    */
   @Post('recurring')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create a recurring booking series',
+  })
+  @ApiCreatedResponse({
+    description: 'Recurring booking batch created successfully.',
+    type: CreateRecurringBookingResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 409)
   createRecurringBooking(
     @Body() dto: CreateRecurringBookingDto,
     @CurrentUser() user: User,
@@ -100,6 +150,15 @@ export class BookingsController {
    * Update booking status (e.g., Cancel, Mark as Paid).
    */
   @Patch(':id/status')
+  @ApiOperation({
+    summary: 'Update booking status',
+  })
+  @ApiUuidParam('id', 'Booking identifier to update.')
+  @ApiOkResponse({
+    description: 'Booking status updated successfully.',
+    type: BookingListItemDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 404, 409)
   updateStatus(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: UpdateBookingStatusDto,
@@ -117,6 +176,15 @@ export class BookingsController {
    */
   @Post('preview')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Preview booking availability and pricing',
+  })
+  @ApiOkResponse({
+    description:
+      'Preview payload with availability, pricing, and any booking conflicts.',
+    type: BookingPreviewResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 409)
   previewBooking(
     @Body() dto: BookingPreviewRequestDto,
     @TenantId() tenantId: string
@@ -130,6 +198,15 @@ export class BookingsController {
    * Get all available facilities for booking.
    */
   @Get('facilities')
+  @ApiOperation({
+    summary: 'List facilities available for booking',
+  })
+  @ApiOkResponse({
+    description: 'Active facilities available to the current tenant.',
+    type: BookingFacilityListItemDoc,
+    isArray: true,
+  })
+  @ApiStandardErrorResponses(401, 403)
   getFacilities(@TenantId() tenantId: string) {
     return this.bookingsService.getFacilities(tenantId);
   }
@@ -140,6 +217,15 @@ export class BookingsController {
    * Get a single booking by id.
    */
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get a booking by id',
+  })
+  @ApiUuidParam('id', 'Booking identifier to fetch.')
+  @ApiOkResponse({
+    description: 'Single booking visible to the current user.',
+    type: BookingListItemDoc,
+  })
+  @ApiStandardErrorResponses(401, 403, 404)
   findOne(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @TenantId() tenantId: string,

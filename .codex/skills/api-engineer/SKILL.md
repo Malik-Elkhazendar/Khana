@@ -6,7 +6,7 @@ description: >
   Use when creating or modifying API modules, controllers, or services.
 ---
 
-# API Engineer — NestJS Endpoint Development
+# API Engineer - NestJS Endpoint Development
 
 Design and implement RESTful APIs for the Khana platform.
 
@@ -21,9 +21,9 @@ Design and implement RESTful APIs for the Khana platform.
 
 ## API Structure
 
-```
-/api/v1/{resource}          → Collection
-/api/v1/{resource}/{id}     → Single resource
+```txt
+/api/v1/{resource}          -> Collection
+/api/v1/{resource}/{id}     -> Single resource
 ```
 
 API versioning is handled via the `version: '1'` option in `@Controller()`.
@@ -35,7 +35,7 @@ API versioning is handled via the `version: '1'` option in `@Controller()`.
 ```ts
 @Module({
   imports: [
-    AuthModule, // always — for guards
+    AuthModule, // always for guards
     TypeOrmModule.forFeature([Entity]), // register entities
   ],
   controllers: [ResourceController],
@@ -52,12 +52,15 @@ Register the module in `apps/api/src/app/app.module.ts`.
 ## Controller Pattern
 
 ```ts
+@ApiTags('Resource')
+@ApiJwtAuth()
 @UseGuards(JwtAuthGuard)
 @Controller({ path: 'resource', version: '1' })
 export class ResourceController {
   constructor(private readonly resourceService: ResourceService) {}
 
   @Get()
+  @ApiOperation({ summary: 'List resources' })
   findAll(@TenantId() tenantId: string, @CurrentUser() user: User) {
     return this.resourceService.findAll(tenantId, user);
   }
@@ -83,6 +86,9 @@ export class ResourceController {
 
 Add `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles(UserRole.OWNER)` for role-restricted endpoints.
 
+For mixed public/protected controllers such as `auth`, keep `@ApiTags(...)` on the
+controller and apply `@ApiJwtAuth()` only to the protected methods.
+
 ---
 
 ## Service Pattern
@@ -107,7 +113,9 @@ export class ResourceService {
   }
 
   private requireTenantId(tenantId?: string): string {
-    if (!tenantId?.trim()) throw new ForbiddenException('Tenant context required');
+    if (!tenantId?.trim()) {
+      throw new ForbiddenException('Tenant context required');
+    }
     return tenantId;
   }
 }
@@ -117,12 +125,26 @@ export class ResourceService {
 
 ## DTO Rules
 
-- All DTOs live in `libs/shared-dtos/src/lib/dtos/`
-- Export from `libs/shared-dtos/src/lib/dtos/index.ts`
-- Re-export from `libs/shared-dtos/src/index.ts`
-- Use `interface` (not `class`) — shared between frontend and backend
+- Shared contracts live in `libs/shared-dtos/src/lib/dtos/`
+- Export shared contracts from `libs/shared-dtos/src/lib/dtos/index.ts`
+- Re-export shared contracts from `libs/shared-dtos/src/index.ts`
+- Use `interface` for frontend/backend shared contracts
+- Keep API-only request validation DTO classes in `apps/api/src/app/**/dto`
 - Dates as ISO strings; amounts as `number`
 - After adding: run `npm run migration:generate -- libs/data-access/src/lib/migrations/<Name>` if schema changed
+
+---
+
+## Swagger / OpenAPI
+
+- Swagger bootstrap lives in `apps/api/src/app/swagger/`
+- Keep `@nestjs/swagger` decorators in the API app only
+- Shared DTO interfaces in `libs/shared-dtos` must stay framework-agnostic
+- Swagger request-body decorators belong on API-local DTO classes when a Swagger phase needs them
+- Swagger-only response models also stay API-local; do not move Nest-specific doc classes into shared libs
+- Reuse the shared helpers in `apps/api/src/app/swagger/swagger.decorators.ts` for bearer auth, UUID params, tenant headers, and standard error responses
+- Keep operation IDs deterministic through the bootstrap `operationIdFactory`; do not hand-roll per-controller IDs
+- The Nest Swagger CLI plugin remains deferred in this repo because the current Nx + webpack path and interface-heavy responses make explicit API-local docs safer
 
 ---
 
@@ -150,7 +172,7 @@ For every new endpoint:
 - [ ] `@UseGuards(JwtAuthGuard)` on controller class
 - [ ] `@TenantId()` and `@CurrentUser()` parameters used
 - [ ] `requireTenantId()` called as first line in service method
-- [ ] Request DTO validated; response DTO in `libs/shared-dtos/`
+- [ ] Request DTO validated; shared response contract in `libs/shared-dtos/` or API-local Swagger doc model when needed
 - [ ] Raw SQL numbers cast with `Number()`
 - [ ] Side effects are fire-and-forget (never `await` emails/notifications)
 - [ ] Module registered in `app.module.ts`

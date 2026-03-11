@@ -10,6 +10,14 @@ import {
   Ip,
   Query,
 } from '@nestjs/common';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { UserDto } from '@khana/shared-dtos';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -29,6 +37,18 @@ import {
   SignupOwnerDto,
 } from './dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import {
+  ApiJwtAuth,
+  ApiOptionalTenantHeader,
+  ApiStandardErrorResponses,
+} from '../swagger/swagger.decorators';
+import {
+  AuthLoginResponseDoc,
+  AuthMessageResponseDoc,
+  AuthRefreshResponseDoc,
+  AuthTenantContextDoc,
+  AuthUserDoc,
+} from './swagger/auth-doc.models';
 
 /**
  * Auth Controller
@@ -45,12 +65,23 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
   path: 'auth',
   version: '1',
 })
+@ApiTags('Auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
   @Get('tenant')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Resolve tenant context from the current request',
+    description:
+      'Returns public tenant context used by auth and onboarding flows before a JWT exists.',
+  })
+  @ApiOptionalTenantHeader()
+  @ApiOkResponse({
+    description: 'Tenant context resolved from request hints.',
+    type: AuthTenantContextDoc,
+  })
   async getTenantContext(@TenantId() tenantId?: string) {
     return this.authService.getTenantContext(tenantId);
   }
@@ -60,6 +91,19 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Resolve a tenant by public slug',
+  })
+  @ApiQuery({
+    name: 'slug',
+    required: true,
+    description: 'Public tenant slug used to resolve auth context.',
+  })
+  @ApiOkResponse({
+    description: 'Tenant context for the supplied public slug.',
+    type: AuthTenantContextDoc,
+  })
+  @ApiStandardErrorResponses(400, 429)
   async resolveTenantBySlug(
     @Query('slug') slug?: string,
     @Ip() ipAddress?: string,
@@ -77,6 +121,14 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Create a new owner account and tenant',
+  })
+  @ApiCreatedResponse({
+    description: 'Owner account created and initial auth tokens returned.',
+    type: AuthLoginResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 409, 429)
   async signupOwner(
     @Body() dto: SignupOwnerDto,
     @Ip() ipAddress?: string,
@@ -101,6 +153,15 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Register a user for an existing tenant',
+  })
+  @ApiOptionalTenantHeader()
+  @ApiCreatedResponse({
+    description: 'User registered and auth tokens returned.',
+    type: AuthLoginResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 409, 429)
   async register(
     @Body() dto: RegisterDto,
     @TenantId() tenantId?: string,
@@ -133,6 +194,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Authenticate with email and password',
+  })
+  @ApiOptionalTenantHeader()
+  @ApiOkResponse({
+    description: 'Access token, refresh token, and current user context.',
+    type: AuthLoginResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 429)
   async login(
     @Body() dto: LoginDto,
     @TenantId() tenantId?: string,
@@ -164,6 +234,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Rotate a refresh token and issue a new access token',
+  })
+  @ApiOkResponse({
+    description:
+      'New access token, rotated refresh token, and expiry metadata.',
+    type: AuthRefreshResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 429)
   async refresh(
     @Body() dto: RefreshTokenDto,
     @Ip() ipAddress?: string,
@@ -188,6 +267,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiJwtAuth()
+  @ApiOperation({
+    summary: 'Log out the current session',
+  })
+  @ApiNoContentResponse({
+    description: 'The current refresh-token session was revoked.',
+  })
+  @ApiStandardErrorResponses(400, 401)
   async logout(
     @CurrentUser() user: User & { sid?: string },
     @Body() dto: LogoutDto,
@@ -212,6 +299,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout-device')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiJwtAuth()
+  @ApiOperation({
+    summary: 'Log out a specific device session',
+  })
+  @ApiNoContentResponse({
+    description: 'The requested device session was revoked.',
+  })
+  @ApiStandardErrorResponses(400, 401, 404)
   async logoutDevice(
     @CurrentUser() user: User,
     @Body() dto: LogoutDeviceDto
@@ -227,6 +322,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout-all-devices')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiJwtAuth()
+  @ApiOperation({
+    summary: 'Log out all devices except the current session',
+  })
+  @ApiNoContentResponse({
+    description: 'All other device sessions were revoked.',
+  })
+  @ApiStandardErrorResponses(401)
   async logoutAllDevices(
     @CurrentUser() user: User & { sid?: string }
   ): Promise<void> {
@@ -245,6 +348,15 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @HttpCode(HttpStatus.OK)
+  @ApiJwtAuth()
+  @ApiOperation({
+    summary: 'Get the current authenticated user',
+  })
+  @ApiOkResponse({
+    description: 'Current authenticated user profile.',
+    type: AuthUserDoc,
+  })
+  @ApiStandardErrorResponses(401)
   async getCurrentUser(@CurrentUser() user: User): Promise<UserDto> {
     return this.authService.getCurrentUser(user.id);
   }
@@ -267,6 +379,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiJwtAuth()
+  @ApiOperation({
+    summary: 'Change the current user password',
+  })
+  @ApiNoContentResponse({
+    description: 'Password changed and prior sessions revoked.',
+  })
+  @ApiStandardErrorResponses(400, 401)
   async changePassword(
     @CurrentUser() user: User & { sid?: string },
     @Body() dto: ChangePasswordDto
@@ -293,6 +413,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Request a password reset email',
+  })
+  @ApiOptionalTenantHeader()
+  @ApiOkResponse({
+    description:
+      'Always returns success semantics to avoid exposing whether the email exists.',
+    type: AuthMessageResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 429)
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
     @TenantId() tenantId?: string,
@@ -322,6 +452,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Reset password with a valid reset token',
+  })
+  @ApiOkResponse({
+    description: 'Password reset completed successfully.',
+    type: AuthMessageResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 429)
   async resetPassword(
     @Body() dto: ResetPasswordDto,
     @Ip() ipAddress?: string,

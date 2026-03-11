@@ -21,6 +21,7 @@ Location: `apps/api/src/app`
 
 - `logging`: request context, filters, interceptors, logger services.
 - `config`: env and secret validation helpers.
+- `swagger`: API-local OpenAPI bootstrap and docs exposure under `/api/docs` and `/api/docs-json`.
 - `typeorm`: data source bootstrap for migrations/runtime.
 
 ## Data Layer Dependencies
@@ -29,3 +30,27 @@ Location: `apps/api/src/app`
 - Uses `@khana/shared-dtos` for contract shapes.
 - Uses `@khana/booking-engine` and `@khana/shared-utils` for business logic helpers.
 - Uses `@khana/notifications` for outbound notifications.
+
+## Swagger Availability
+
+- Runtime setup lives in `apps/api/src/app/swagger/`.
+- Phase 1 exposes internal API docs only.
+- Phase 2 adds controller tags and protected-route bearer metadata without moving Swagger into shared libraries.
+- Phase 3 adds `@ApiProperty`/`@ApiPropertyOptional` on API-local request DTO classes for the frontend-critical modules.
+- Interface-backed response contracts are documented with API-local Swagger model classes inside the owning API modules.
+- Phase 4 adds deterministic OpenAPI operation IDs and reusable standard error examples, and keeps the Swagger smoke test in CI.
+- Shared DTO interfaces in `libs/shared-dtos` stay framework-agnostic and must not import `@nestjs/swagger`.
+
+## Swagger Tag Mapping
+
+- `Auth` -> `apps/api/src/app/auth`
+- `Users` -> `apps/api/src/app/users`
+- `Bookings` -> `apps/api/src/app/bookings`
+- `Waitlist` -> `apps/api/src/app/bookings/waitlist`
+- `Facilities` -> `apps/api/src/app/facilities`
+- `Analytics` -> `apps/api/src/app/analytics`
+- `Dashboard` -> `apps/api/src/app/dashboard`
+- `Customers` -> `apps/api/src/app/customers`
+- `Promo Codes` -> `apps/api/src/app/promo-codes`
+- `Settings` -> `apps/api/src/app/settings`
+- `Onboarding` -> `apps/api/src/app/onboarding`

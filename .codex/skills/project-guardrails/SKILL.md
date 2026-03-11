@@ -234,6 +234,18 @@ split orchestration by workflow or use case instead of adding more utility files
 
 ---
 
+## 13. Swagger Stays API-Local
+
+Swagger and OpenAPI support belong in the Nest API app only.
+
+- Put runtime Swagger bootstrap, helper decorators, and doc-only models in `apps/api/src/app/swagger/` or the owning API module.
+- API-local request DTO classes may carry `@nestjs/swagger` decorators when a later Swagger phase needs them.
+- Keep `libs/shared-dtos` framework-agnostic. Shared interfaces and contracts must not import `@nestjs/swagger`.
+
+This keeps frontend-shared types portable and prevents Nest-specific documentation concerns from leaking into shared libraries.
+
+---
+
 ## Supporting Files
 
 - [patterns.md](patterns.md) - concrete examples for the rules above

@@ -8,6 +8,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User } from '@khana/data-access';
 import { CompleteOnboardingResponseDto, UserRole } from '@khana/shared-dtos';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -17,18 +18,33 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CompleteOnboardingDto } from './dto';
 import { OnboardingService } from './onboarding.service';
+import {
+  ApiJwtAuth,
+  ApiStandardErrorResponses,
+} from '../swagger/swagger.decorators';
+import { CompleteOnboardingResponseDoc } from './swagger/onboarding-doc.models';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({
   path: 'onboarding',
   version: '1',
 })
+@ApiTags('Onboarding')
+@ApiJwtAuth()
 export class OnboardingController {
   constructor(private readonly onboardingService: OnboardingService) {}
 
   @Post('complete')
   @Roles(UserRole.OWNER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Complete tenant onboarding',
+  })
+  @ApiOkResponse({
+    description: 'Onboarding completed successfully for the tenant.',
+    type: CompleteOnboardingResponseDoc,
+  })
+  @ApiStandardErrorResponses(400, 401, 403, 409)
   complete(
     @Body() dto: CompleteOnboardingDto,
     @TenantId() tenantId: string,
