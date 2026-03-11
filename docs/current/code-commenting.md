@@ -10,6 +10,18 @@ Khana uses comments to explain non-obvious intent, not to narrate obvious code.
 - Keep comments short. If the explanation needs more than 5-8 lines, move it to nearby markdown and leave a short comment in code.
 - Delete or avoid comments that only restate the symbol name, type, or the next obvious line of code.
 
+## Tiered Expectations
+
+Khana does not expect identical comment density everywhere.
+
+- Tier 1: routed Angular pages, public Nest services, public SignalStores, controllers, and public workflow entrypoints
+- Tier 2: DTOs, entities, and shared services with non-obvious business meaning
+- Tier 3: private `internal/` collaborators and helper files
+
+Tier 1 files should gain a short top-level JSDoc once they become large enough
+to create onboarding cost. Tier 3 files can remain comment-light unless they
+contain risky transaction, retry, fallback, or side-effect sequencing logic.
+
 ## Placement Matrix
 
 | File type                   | Use comments for                                                                                | Avoid comments for                   |
@@ -77,3 +89,21 @@ High-risk workflow files should have enough comments that a new engineer can ans
 - Why is this side effect queued instead of awaited?
 - Why does this fallback order exist?
 - Why does this optimistic update need rollback or deduplication?
+
+## Audit Support
+
+Use these non-blocking repo checks to find likely under-documented files:
+
+- `npm run audit:comments`: broad repo scan for large files with no comments or no top-level JSDoc
+- `npm run audit:entrypoints`: focused local scan for routed Angular pages and public entrypoints that violate the Tier 1 expectations
+- `npm run audit:entrypoints:check`: CI gate for Tier 1 routed pages and public entrypoints
+
+The entrypoint audit is route-aware for the dashboard app. It reads
+`apps/manager-dashboard/src/app/app.routes.ts` to identify routed pages and
+applies stricter expectations there than it does for private `internal/` files.
+
+Treat the audits differently:
+
+- Tier 1 entrypoints are required and CI-gated through `audit:entrypoints:check`.
+- The broad `audit:comments` report is advisory backlog only.
+- Private `internal/` files stay on-touch debt unless they contain risky workflow logic.

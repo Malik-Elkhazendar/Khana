@@ -16,6 +16,10 @@ const ACTIVE_BOOKING_STATUSES: readonly BookingStatus[] = [
   BookingStatus.NO_SHOW,
 ];
 
+/**
+ * Aggregates tenant-scoped booking and waitlist counters for the manager
+ * dashboard's "today" snapshot card set.
+ */
 @Injectable()
 export class DashboardService {
   constructor(

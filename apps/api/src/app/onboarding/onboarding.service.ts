@@ -38,6 +38,11 @@ const SUPPORTED_FACILITY_TYPES = new Set([
 
 type Actor = Pick<User, 'id' | 'role' | 'tenantId'>;
 
+/**
+ * Completes the first-owner onboarding flow by finalizing tenant profile data,
+ * creating the first facility when needed, and auditing the transition into
+ * the authenticated dashboard experience.
+ */
 @Injectable()
 export class OnboardingService {
   constructor(
@@ -60,6 +65,8 @@ export class OnboardingService {
     }
 
     return this.dataSource.transaction(async (manager) => {
+      // Keep tenant completion and first-facility creation atomic so the
+      // dashboard never sees a half-finished onboarding state.
       const tenantRepo = manager.getRepository(Tenant);
       const facilityRepo = manager.getRepository(Facility);
       const auditRepo = manager.getRepository(AuditLog);
@@ -130,6 +137,8 @@ export class OnboardingService {
 
       let facility = existingFacility;
       if (!facility) {
+        // Only create the seed facility once; later onboarding re-entry should
+        // behave as an idempotent completion check instead.
         const facilityName = dto.facility.name.trim();
         if (!facilityName) {
           throw new BadRequestException('Facility name is required.');

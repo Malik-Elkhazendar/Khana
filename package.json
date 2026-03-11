@@ -21,6 +21,8 @@
     "check:all": "nx run-many -t lint test build --all",
     "audit:structure": "node tools/architecture/audit-structure.mjs",
     "audit:comments": "node tools/architecture/audit-comments.mjs",
+    "audit:entrypoints": "node tools/architecture/audit-entrypoints.mjs",
+    "audit:entrypoints:check": "node tools/architecture/audit-entrypoints.mjs --fail-on-findings",
     "audit:hotspots": "node tools/architecture/audit-hotspots.mjs",
     "format": "nx format:write",
     "format:check": "nx format:check",

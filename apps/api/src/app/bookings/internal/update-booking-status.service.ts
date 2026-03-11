@@ -41,6 +41,10 @@ import {
   validateStatusTransition,
 } from './bookings-policy.helpers';
 
+/**
+ * Handles single-booking and recurring-series status transitions, including
+ * cancellation validation, follow-up waitlist notifications, and audit writes.
+ */
 @Injectable()
 export class UpdateBookingStatusService {
   constructor(
@@ -84,6 +88,8 @@ export class UpdateBookingStatusService {
       accessDeniedMessage: BOOKINGS_ACCESS_DENIED_MESSAGE,
     });
 
+    // Staff can only cancel bookings they created; broader status changes stay
+    // reserved for manager/owner roles.
     if (isStaff(actorRole)) {
       const ownsBooking = booking.createdByUserId === actorUserId;
       const isCancelAction =
@@ -187,6 +193,8 @@ export class UpdateBookingStatusService {
     }
 
     await this.bookingRepository.save(booking);
+    // Persist the state change before dispatching emails or waitlist work so
+    // downstream flows observe the final booking status.
     await saveBookingAuditLog({
       auditLogRepository: this.auditLogRepository,
       tenantId: resolvedTenantId,
@@ -377,6 +385,8 @@ export class UpdateBookingStatusService {
         booking.startTime,
         booking.endTime
       );
+      // Multiple future instances can share the same slot; notify waitlist
+      // once per unique slot to avoid duplicate customer alerts.
       if (processedSlots.has(slotKey)) {
         continue;
       }

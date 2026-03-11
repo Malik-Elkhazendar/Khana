@@ -196,6 +196,16 @@ Prefer `//` line comments over multi-line non-JSDoc block comments.
 If an explanation needs more than 5-8 lines, move the deep explanation to a
 nearby markdown file and keep the code comment short.
 
+Use tiered expectations instead of blanket comment coverage:
+
+- Tier 1: routed Angular pages, public Nest services, public SignalStores, controllers, and public workflow entrypoints
+- Tier 2: DTOs, entities, and shared services with non-obvious business meaning
+- Tier 3: private `internal/` collaborators and helper files
+
+Tier 1 files are expected to have a short top-level JSDoc once they become
+large enough to impose onboarding cost. Tier 3 files may stay comment-light
+unless they contain risky workflow logic.
+
 Use this placement matrix:
 
 - Nest controllers: comment only unusual business semantics, side effects, or response behavior
@@ -206,6 +216,11 @@ Use this placement matrix:
 - HTML: comment only rare structural landmarks or a11y and portal constraints
 - SCSS: comment only hacks, RTL constraints, browser workarounds, or non-obvious layout math
 - Tests: comment only non-obvious fixture setup or business invariants
+
+Use `npm run audit:entrypoints` for the local Tier 1 report and
+`npm run audit:entrypoints:check` for the failing Tier 1 gate. The gate only
+applies to routed pages and public entrypoints; `audit:comments` remains an
+advisory backlog report for broader repo maintenance.
 
 ## 12. Oversized Roots Need Workflow Splits
 

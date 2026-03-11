@@ -12,6 +12,8 @@
 
 - `npm run audit:structure`
 - `npm run audit:comments`
+- `npm run audit:entrypoints`
+- `npm run audit:entrypoints:check`
 - `npm run audit:hotspots`
 
 ## Affected

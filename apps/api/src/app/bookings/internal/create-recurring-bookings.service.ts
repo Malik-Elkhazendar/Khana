@@ -43,6 +43,11 @@ import {
 } from './bookings-policy.helpers';
 import { normalizeCustomerPhone } from './bookings-promo.helpers';
 
+/**
+ * Creates validated recurring booking series inside one transaction so slot
+ * conflicts are checked against both persisted bookings and the in-memory
+ * candidate instances from the same request.
+ */
 @Injectable()
 export class CreateRecurringBookingsService {
   constructor(
@@ -103,6 +108,8 @@ export class CreateRecurringBookingsService {
     const lastOccurrence = occurrences[occurrences.length - 1];
     const created = await this.bookingRepository.manager.transaction(
       async (manager) => {
+        // Lock and preload the whole recurrence window once so conflict checks
+        // stay consistent across every generated occurrence in the series.
         const bookingRepo = manager.getRepository(Booking);
         const { lockedFacility, facilityConfig, occupiedSlots } =
           await this.bookingWriteSupport.loadLockedFacilityContext({
@@ -170,6 +177,8 @@ export class CreateRecurringBookingsService {
             continue;
           }
 
+          // Reserve accepted candidates in-memory so later instances in the
+          // same request cannot overlap an earlier one before anything is saved.
           dynamicOccupiedSlots.push({
             id: `candidate-${occurrence.instanceNumber}`,
             facilityId: dto.facilityId,
@@ -282,6 +291,8 @@ export class CreateRecurringBookingsService {
       }
     );
 
+    // Customer enrichment is intentionally outside the booking transaction so a
+    // secondary CRM-style failure never rolls back the created recurrence set.
     try {
       await this.customersService.upsert(
         resolvedTenantId,

@@ -44,6 +44,10 @@ import {
 import { generateUniqueBookingReference } from './bookings-reference.helpers';
 import { sendBookingCreatedEmails } from './bookings-side-effects.helpers';
 
+/**
+ * Creates one tenant-scoped booking, keeping locking, promo persistence, and
+ * downstream side effects aligned with the booking domain rules.
+ */
 @Injectable()
 export class CreateBookingService {
   constructor(
@@ -103,6 +107,8 @@ export class CreateBookingService {
         const now = new Date();
         const startTime = new Date(dto.startTime);
         const endTime = new Date(dto.endTime);
+        // Lock the facility context before validation and conflict detection so
+        // overlapping create requests cannot both claim the same slot.
         const { facilityConfig, occupiedSlots } =
           await this.bookingWriteSupport.loadLockedFacilityContext({
             manager,
@@ -208,6 +214,8 @@ export class CreateBookingService {
       }
     );
 
+    // These follow-up updates are best-effort side effects after the booking
+    // commit succeeds; they must not roll back the main write path.
     this.waitlistService
       .markFulfilledForUserSlot({
         tenantId: resolvedTenantId,

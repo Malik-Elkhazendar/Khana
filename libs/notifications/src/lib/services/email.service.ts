@@ -23,6 +23,10 @@ import { newBookingAlertTemplate } from '../templates/new-booking-alert.template
 import { passwordResetTemplate } from '../templates/password-reset.template';
 import { teamInviteTemplate } from '../templates/team-invite.template';
 
+/**
+ * Central email delivery service for auth and booking notifications. Business
+ * workflows call these typed helpers instead of building mail payloads inline.
+ */
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);

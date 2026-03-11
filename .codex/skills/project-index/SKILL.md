@@ -170,11 +170,12 @@ Quick navigation for the Khana monorepo. For architecture rules, see
 
 ## Architecture Tooling
 
-| Tool            | Path / Command                                                      |
-| --------------- | ------------------------------------------------------------------- |
-| Structure audit | `tools/architecture/audit-structure.mjs`, `npm run audit:structure` |
-| Comment audit   | `tools/architecture/audit-comments.mjs`, `npm run audit:comments`   |
-| Hotspot audit   | `tools/architecture/audit-hotspots.mjs`, `npm run audit:hotspots`   |
+| Tool             | Path / Command                                                          |
+| ---------------- | ----------------------------------------------------------------------- |
+| Structure audit  | `tools/architecture/audit-structure.mjs`, `npm run audit:structure`     |
+| Comment audit    | `tools/architecture/audit-comments.mjs`, `npm run audit:comments`       |
+| Entrypoint audit | `tools/architecture/audit-entrypoints.mjs`, `npm run audit:entrypoints` |
+| Hotspot audit    | `tools/architecture/audit-hotspots.mjs`, `npm run audit:hotspots`       |
 
 ---
 

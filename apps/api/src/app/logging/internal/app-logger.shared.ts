@@ -45,6 +45,10 @@ export const ANSI = {
   brightRed: '\u001b[91m',
 };
 
+/**
+ * Shared logger parsing and serialization layer used by both the Nest-facing
+ * logger adapter and the structured event logger.
+ */
 export abstract class AppLoggerSharedLayer {
   protected abstract readonly service: string;
   protected abstract readonly env: string;
@@ -75,6 +79,8 @@ export abstract class AppLoggerSharedLayer {
         isFatal
       );
     } catch (error) {
+      // Logging must never become a runtime dependency for the request path, so
+      // fall back to a minimal write when parsing itself fails.
       this.writeFallback(level, first, optionalParams, error, isFatal);
     }
   }
@@ -107,6 +113,8 @@ export abstract class AppLoggerSharedLayer {
       };
     }
 
+    // Nest's logger API is variadic and inconsistent across info/error paths,
+    // so normalize framework calls separately from domain event invocations.
     return this.parseNestInvocation(level, first, optionalParams, isFatal);
   }
 

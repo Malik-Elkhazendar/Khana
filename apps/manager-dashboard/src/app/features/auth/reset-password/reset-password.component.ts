@@ -19,6 +19,10 @@ import {
 } from '../register/services/password-strength.service';
 import { PasswordStrengthIndicatorComponent } from '../shared';
 
+/**
+ * Password reset page for completing token-based recovery and enforcing the
+ * same client-side password policy used during account signup.
+ */
 @Component({
   selector: 'khana-reset-password',
   standalone: true,

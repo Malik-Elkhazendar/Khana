@@ -40,6 +40,11 @@ const REDACTED_FIELDS = new Set([
   'apikey',
 ]);
 
+/**
+ * Browser-side structured logger for dashboard telemetry. It redacts common
+ * secrets before writing JSON payloads to the console and must never throw
+ * into the user-facing flow.
+ */
 @Injectable({ providedIn: 'root' })
 export class LoggerService {
   private readonly clientSessionId = this.generateSessionId();
@@ -122,7 +127,8 @@ export class LoggerService {
       const payload = JSON.stringify(entry);
       this.write(level, payload);
     } catch {
-      // Logging must never throw.
+      // Client logging is observability-only; swallowing failures keeps UI
+      // actions safe even when console serialization breaks.
     }
   }
 

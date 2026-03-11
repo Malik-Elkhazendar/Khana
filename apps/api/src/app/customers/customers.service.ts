@@ -20,6 +20,10 @@ const CUSTOMER_METRIC_BOOKING_STATUSES: readonly BookingStatus[] = [
   BookingStatus.NO_SHOW,
 ];
 
+/**
+ * Owns tenant-scoped customer normalization, tag updates, and lightweight
+ * customer metrics used by booking and waitlist flows.
+ */
 @Injectable()
 export class CustomersService {
   constructor(
@@ -59,6 +63,8 @@ export class CustomersService {
 
     const normalizedName = this.normalizeName(name);
 
+    // Upsert by normalized phone so booking flows can write through without a
+    // read-before-write race on first contact.
     await this.customerRepository
       .createQueryBuilder()
       .insert()
@@ -128,6 +134,8 @@ export class CustomersService {
   }
 
   async getTenantTags(tenantId: string): Promise<string[]> {
+    // Tags live in JSON arrays, so use raw SQL to flatten and dedupe them
+    // inside the tenant boundary before returning them to the dashboard.
     const rows = await this.customerRepository.query(
       `
       SELECT DISTINCT tag_values.tag AS tag

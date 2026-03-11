@@ -27,6 +27,10 @@ import {
 } from '../register/services/password-strength.service';
 import { PasswordStrengthIndicatorComponent } from '../shared';
 
+/**
+ * Handles the authenticated password-change flow, including local policy
+ * feedback and server-driven current-password validation errors.
+ */
 @Component({
   selector: 'khana-change-password',
   standalone: true,
@@ -100,6 +104,8 @@ export class ChangePasswordComponent implements OnInit {
     this.currentPasswordControl?.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
+        // Clear the server-side incorrect-password error as soon as the user
+        // edits the field so they are not stuck with stale validation state.
         if (this.currentPasswordControl?.hasError('incorrect')) {
           const errors = { ...(this.currentPasswordControl.errors ?? {}) };
           delete errors['incorrect'];

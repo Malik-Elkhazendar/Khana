@@ -18,6 +18,10 @@ import {
   validateAuthPasswordStrength,
 } from './auth.internal';
 
+/**
+ * Account-oriented auth workflows for current-user lookup, password changes,
+ * and password reset initiation/completion.
+ */
 const dispatchAuthNotification = (
   deps: AuthDependencies,
   message: string,
@@ -81,6 +85,8 @@ export const changeAuthPassword = async (
     passwordHash: newPasswordHash,
   });
 
+  // Revoke sibling sessions after a password change so existing refresh tokens
+  // cannot continue to authenticate with stale credentials.
   const where: Record<string, unknown> = {
     userId,
     revokedAt: IsNull(),
@@ -149,6 +155,8 @@ export const forgotAuthPassword = async (
     { usedAt: new Date() }
   );
 
+  // Invalidate older reset links before issuing a new one to keep the reset
+  // flow single-use and reduce token confusion for the customer.
   const rawToken = randomBytes(32).toString('hex');
   const tokenHash = createHmac('sha256', getAuthHmacSecret(deps))
     .update(rawToken)
@@ -246,6 +254,8 @@ export const resetAuthPassword = async (
     usedAt: new Date(),
   });
 
+  // Resetting a password is security-sensitive, so revoke every active session
+  // before sending the completion notification.
   await deps.refreshTokenRepository.update(
     { userId: user.id, revokedAt: IsNull() },
     { revokedAt: new Date() }

@@ -28,6 +28,10 @@ import {
 } from './services/password-strength.service';
 import { PasswordStrengthIndicatorComponent } from '../shared';
 
+/**
+ * Owner signup page for creating a new workspace, validating local password
+ * policy, and routing the first owner into onboarding or the dashboard.
+ */
 @Component({
   selector: 'khana-register',
   standalone: true,
@@ -184,6 +188,8 @@ export class RegisterComponent implements OnInit {
   private resolvePostAuthRedirect(
     response: LoginResponseDto | null | undefined
   ): string {
+    // Preserve deep links for auth interruptions before falling back to the
+    // owner onboarding path or the default dashboard landing page.
     const returnUrl = sessionStorage.getItem('returnUrl');
     if (returnUrl) {
       sessionStorage.removeItem('returnUrl');

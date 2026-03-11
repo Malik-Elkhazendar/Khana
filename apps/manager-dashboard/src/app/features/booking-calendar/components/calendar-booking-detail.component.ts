@@ -20,6 +20,10 @@ import { LocaleFormatService } from '../../../shared/services/locale-format.serv
 import { LanguageService } from '../../../shared/services/language.service';
 import { UiStatusBadgeComponent } from '../../../shared/components';
 
+/**
+ * Focus-trapped booking detail side panel used by the calendar view for quick
+ * inspection and action dispatch without leaving the scheduling surface.
+ */
 @Component({
   selector: 'app-calendar-booking-detail',
   standalone: true,

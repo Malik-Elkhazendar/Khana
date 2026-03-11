@@ -36,6 +36,10 @@ type ContentArchetype = 'form' | 'data' | 'immersive';
 
 const DEFAULT_CONTENT_ARCHETYPE: ContentArchetype = 'form';
 
+/**
+ * Shell for authenticated dashboard routes. It keeps navigation chrome,
+ * facility context, and route-driven layout sizing in one place.
+ */
 @Component({
   selector: 'app-layout-shell',
   standalone: true,

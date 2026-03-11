@@ -26,6 +26,10 @@ function sortUsersByName(users: UserDto[]): UserDto[] {
   return [...users].sort((left, right) => left.name.localeCompare(right.name));
 }
 
+/**
+ * Workspace team management page for listing users, inviting new staff, and
+ * applying owner-only role and activation changes.
+ */
 @Component({
   selector: 'app-team',
   standalone: true,
@@ -211,6 +215,8 @@ export class TeamComponent {
             email: '',
             role: UserRole.STAFF,
           });
+          // Refresh after invite so pending or newly accepted members are
+          // reflected without requiring a manual reload.
           this.loadUsers();
         },
         error: (err) => {

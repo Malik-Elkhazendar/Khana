@@ -20,6 +20,10 @@ import { LocaleFormatService } from '../../shared/services/locale-format.service
 import { LanguageService } from '../../shared/services/language.service';
 import { UiStatusBadgeComponent } from '../../shared/components';
 
+/**
+ * Booking detail page that loads one booking record from the shared booking
+ * store and formats the view for customer-facing operational follow-up.
+ */
 @Component({
   selector: 'app-booking-detail',
   standalone: true,
