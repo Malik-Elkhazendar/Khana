@@ -1,5 +1,5 @@
-import { LOG_EVENTS, LogEvent } from '../logging.constants';
-import { LogLevel, StructuredLog } from '../logging.types';
+import { LOG_EVENTS } from '../logging.constants';
+import { LogLevel } from '../logging.types';
 
 export type LogFormat = 'json' | 'pretty';
 export type LogColorMode = 'auto' | 'on' | 'off';
@@ -61,14 +61,14 @@ export abstract class AppLoggerSharedLayer {
     level: LogLevel,
     first: unknown,
     optionalParams: unknown[],
-    isFatal = false
+    isFatal = false,
   ): void {
     try {
       const parsed = this.parseInvocation(
         level,
         first,
         optionalParams,
-        isFatal
+        isFatal,
       );
       this.emit(
         level,
@@ -76,7 +76,7 @@ export abstract class AppLoggerSharedLayer {
         parsed.message,
         parsed.context,
         parsed.error,
-        isFatal
+        isFatal,
       );
     } catch (error) {
       // Logging must never become a runtime dependency for the request path, so
@@ -89,7 +89,7 @@ export abstract class AppLoggerSharedLayer {
     level: LogLevel,
     first: unknown,
     optionalParams: unknown[],
-    isFatal: boolean
+    isFatal: boolean,
   ): ParsedInvocation {
     if (this.isDomainInvocation(first, optionalParams)) {
       const event = String(first);
@@ -122,7 +122,7 @@ export abstract class AppLoggerSharedLayer {
     level: LogLevel,
     message: unknown,
     optionalParams: unknown[],
-    isFatal: boolean
+    isFatal: boolean,
   ): ParsedInvocation {
     const context: Record<string, unknown> = {};
     const event = isFatal ? 'nest.fatal' : `nest.${level}`;
@@ -252,7 +252,7 @@ export abstract class AppLoggerSharedLayer {
 
   protected isDomainInvocation(
     first: unknown,
-    optionalParams: unknown[]
+    optionalParams: unknown[],
   ): boolean {
     if (typeof first !== 'string') return false;
     if (typeof optionalParams[0] !== 'string') return false;
@@ -333,7 +333,7 @@ export abstract class AppLoggerSharedLayer {
     message: string,
     context?: Record<string, unknown>,
     error?: unknown,
-    isFatal?: boolean
+    isFatal?: boolean,
   ): void;
 
   protected abstract writeFallback(
@@ -341,6 +341,6 @@ export abstract class AppLoggerSharedLayer {
     first: unknown,
     optionalParams: unknown[],
     error: unknown,
-    isFatal?: boolean
+    isFatal?: boolean,
   ): void;
 }

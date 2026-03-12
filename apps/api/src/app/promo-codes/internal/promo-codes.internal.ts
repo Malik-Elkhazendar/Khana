@@ -4,13 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  AuditAction,
-  AuditLog,
-  Facility,
-  PromoCode,
-  User,
-} from '@khana/data-access';
+import { AuditAction, AuditLog, Facility, PromoCode } from '@khana/data-access';
 import {
   PromoCodeItemDto,
   PromoDiscountType,
@@ -81,7 +75,7 @@ export const normalizeCode = (code: string): string => {
 
 export const validateDiscountValue = (
   discountType: PromoDiscountType,
-  discountValue: number
+  discountValue: number,
 ): void => {
   if (!Number.isFinite(discountValue) || discountValue <= 0) {
     throw new BadRequestException(INVALID_DISCOUNT_VALUE_MESSAGE);
@@ -111,7 +105,7 @@ export const parseOptionalDate = (value?: string | null): Date | null => {
 export const validateFacilityOwnership = async (
   deps: PromoCodeDependencies,
   facilityId: string,
-  tenantId: string
+  tenantId: string,
 ): Promise<Facility> => {
   const facility = await deps.facilityRepository.findOne({
     where: { id: facilityId },
@@ -133,7 +127,7 @@ export const resolveScopedFacilityId = async (
   deps: PromoCodeDependencies,
   scope: PromoFacilityScope,
   requestedFacilityId: string | null,
-  tenantId: string
+  tenantId: string,
 ): Promise<string | null> => {
   if (scope === PromoFacilityScope.ALL_FACILITIES) {
     return null;
@@ -141,14 +135,14 @@ export const resolveScopedFacilityId = async (
 
   if (!requestedFacilityId?.trim()) {
     throw new BadRequestException(
-      'facilityId is required when facilityScope is SINGLE_FACILITY.'
+      'facilityId is required when facilityScope is SINGLE_FACILITY.',
     );
   }
 
   const facility = await validateFacilityOwnership(
     deps,
     requestedFacilityId,
-    tenantId
+    tenantId,
   );
   return facility.id;
 };
@@ -156,7 +150,7 @@ export const resolveScopedFacilityId = async (
 export const findPromoCodeForActor = async (
   deps: PromoCodeDependencies,
   id: string,
-  tenantId: string
+  tenantId: string,
 ): Promise<PromoCode> => {
   const promo = await deps.promoCodeRepository.findOne({
     where: { id },
@@ -175,14 +169,14 @@ export const findPromoCodeForActor = async (
 
 export const toPromoCodeItemDto = (
   promoCode: PromoCode,
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
 ): PromoCodeItemDto => {
   const maxUses = promoCode.maxUses;
   const currentUses = Number(promoCode.currentUses ?? 0);
   const remainingUses =
     typeof maxUses === 'number' ? Math.max(maxUses - currentUses, 0) : null;
   const isExpired = Boolean(
-    promoCode.expiresAt && promoCode.expiresAt < referenceDate
+    promoCode.expiresAt && promoCode.expiresAt < referenceDate,
   );
   const isExhausted =
     typeof maxUses === 'number' ? currentUses >= maxUses : false;
@@ -211,7 +205,7 @@ export const ensurePromoCodeDoesNotExist = async (
   deps: PromoCodeDependencies,
   tenantId: string,
   code: string,
-  existingId?: string
+  existingId?: string,
 ): Promise<void> => {
   const existing = await deps.promoCodeRepository.findOne({
     where: { tenantId, code },
@@ -231,7 +225,7 @@ export const logPromoAudit = async (
     entityId: string;
     description?: string;
     changes?: Record<string, unknown>;
-  }
+  },
 ): Promise<void> => {
   const audit = deps.auditLogRepository.create({
     tenantId: params.tenantId,

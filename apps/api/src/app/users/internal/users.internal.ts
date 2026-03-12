@@ -13,7 +13,7 @@ import {
   RefreshToken,
   User,
 } from '@khana/data-access';
-import { InviteUserResponseDto, UserDto, UserRole } from '@khana/shared-dtos';
+import { UserDto, UserRole } from '@khana/shared-dtos';
 import { EmailService } from '@khana/notifications';
 import { IsNull, Repository } from 'typeorm';
 import { AppLoggerService } from '../../logging';
@@ -78,7 +78,7 @@ export const assertOwnerRole = (role: UserRole): void => {
 export const requireTenantUser = async (
   deps: UsersDependencies,
   id: string,
-  tenantId: string
+  tenantId: string,
 ): Promise<User> => {
   const user = await deps.userRepository.findOne({
     where: { id, tenantId },
@@ -123,11 +123,11 @@ export const createInvitationToken = async (
   deps: UsersDependencies,
   userId: string,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
 ): Promise<{ rawToken: string; expiresAt: Date }> => {
   await deps.passwordResetTokenRepository.update(
     { userId, usedAt: IsNull() },
-    { usedAt: new Date() }
+    { usedAt: new Date() },
   );
 
   const rawToken = randomBytes(32).toString('hex');
@@ -150,7 +150,7 @@ export const createInvitationToken = async (
 export const buildInviteUrl = (
   deps: UsersDependencies,
   rawToken: string,
-  workspaceSlug?: string
+  workspaceSlug?: string,
 ): string | undefined => {
   const frontendUrl = deps.configService.get<string>('FRONTEND_URL');
   const frontendBase = frontendUrl?.replace(/\/+$/, '');
@@ -211,7 +211,7 @@ export const logUsersAudit = async (
     changes?: Record<string, unknown>;
     ipAddress?: string;
     userAgent?: string;
-  }
+  },
 ): Promise<void> => {
   const auditLog = deps.auditLogRepository.create({
     tenantId: params.tenantId,
@@ -231,7 +231,7 @@ export const logUsersAudit = async (
 export const ensureUserDoesNotExist = async (
   deps: UsersDependencies,
   email: string,
-  tenantId: string
+  tenantId: string,
 ): Promise<void> => {
   const existingUser = await deps.userRepository.findOne({
     where: { email, tenantId },

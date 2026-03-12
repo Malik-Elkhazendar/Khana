@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Booking, Customer, Facility, User } from '@khana/data-access';
 import { BookingListItemDto } from '@khana/shared-dtos';
@@ -26,21 +26,21 @@ export class ListBookingsService {
     @InjectRepository(Customer)
     private readonly customerRepository: Repository<Customer>,
     @InjectRepository(Facility)
-    private readonly facilityRepository: Repository<Facility>
+    private readonly facilityRepository: Repository<Facility>,
   ) {}
 
   async execute(
     tenantId: string,
     user: User,
-    facilityId?: string
+    facilityId?: string,
   ): Promise<BookingListItemDto[]> {
     const resolvedTenantId = requireTenantId(
       tenantId,
-      BOOKINGS_ACCESS_DENIED_MESSAGE
+      BOOKINGS_ACCESS_DENIED_MESSAGE,
     );
     const actorRole = requireUserRole(
       user?.role,
-      BOOKINGS_ACCESS_DENIED_MESSAGE
+      BOOKINGS_ACCESS_DENIED_MESSAGE,
     );
     const actorUserId = requireUserId(user?.id, BOOKINGS_ACCESS_DENIED_MESSAGE);
 
@@ -74,8 +74,8 @@ export class ListBookingsService {
       new Set(
         bookings
           .map((booking) => normalizeCustomerPhone(booking.customerPhone))
-          .filter((phone): phone is string => Boolean(phone))
-      )
+          .filter((phone): phone is string => Boolean(phone)),
+      ),
     );
 
     const customerTagMap = new Map<string, string[]>();
@@ -97,7 +97,7 @@ export class ListBookingsService {
       const normalizedPhone = normalizeCustomerPhone(booking.customerPhone);
       const customerTags =
         normalizedPhone && customerTagMap.has(normalizedPhone)
-          ? customerTagMap.get(normalizedPhone) ?? []
+          ? (customerTagMap.get(normalizedPhone) ?? [])
           : [];
 
       return toBookingListItemDto(booking, booking.facility, customerTags);

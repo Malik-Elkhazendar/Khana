@@ -1,5 +1,5 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { AuditAction, User } from '@khana/data-access';
+import { BadRequestException } from '@nestjs/common';
+import { AuditAction } from '@khana/data-access';
 import { InviteUserResponseDto, UserDto, UserRole } from '@khana/shared-dtos';
 import { IsNull } from 'typeorm';
 import {
@@ -8,7 +8,6 @@ import {
   buildInviteUrl,
   createInvitationToken,
   deriveNameFromEmail,
-  EMAIL_EXISTS_MESSAGE,
   ensureUserDoesNotExist,
   generateTemporaryPassword,
   logUsersAudit,
@@ -29,7 +28,7 @@ export const updateUserRoleWorkflow = async (
   tenantId: string,
   actor: Actor,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
 ): Promise<UserDto> => {
   const resolvedTenantId = requireTenantId(tenantId);
   assertOwnerRole(requireUserRole(actor.role));
@@ -83,7 +82,7 @@ export const updateUserStatusWorkflow = async (
   tenantId: string,
   actor: Actor,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
 ): Promise<UserDto> => {
   const resolvedTenantId = requireTenantId(tenantId);
   assertOwnerRole(requireUserRole(actor.role));
@@ -107,7 +106,7 @@ export const updateUserStatusWorkflow = async (
   if (!saved.isActive) {
     await deps.refreshTokenRepository.update(
       { userId: saved.id, revokedAt: IsNull() },
-      { revokedAt: new Date() }
+      { revokedAt: new Date() },
     );
   }
 
@@ -142,7 +141,7 @@ export const inviteUserWorkflow = async (
   tenantId: string,
   actor: Actor,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
 ): Promise<InviteUserResponseDto> => {
   const resolvedTenantId = requireTenantId(tenantId);
   assertOwnerRole(requireUserRole(actor.role));
@@ -154,7 +153,7 @@ export const inviteUserWorkflow = async (
 
   const name = deriveNameFromEmail(email);
   const passwordHash = await deps.passwordService.hash(
-    generateTemporaryPassword()
+    generateTemporaryPassword(),
   );
 
   const user = deps.userRepository.create({
@@ -176,7 +175,7 @@ export const inviteUserWorkflow = async (
     deps,
     savedUser.id,
     ipAddress,
-    userAgent
+    userAgent,
   );
 
   await deps.emailService.sendTeamInviteNotification({
@@ -187,7 +186,7 @@ export const inviteUserWorkflow = async (
     inviteUrl: buildInviteUrl(
       deps,
       invitation.rawToken,
-      savedUserWithTenant.tenant?.slug
+      savedUserWithTenant.tenant?.slug,
     ),
     inviteToken: invitation.rawToken,
     expiresAt: invitation.expiresAt,

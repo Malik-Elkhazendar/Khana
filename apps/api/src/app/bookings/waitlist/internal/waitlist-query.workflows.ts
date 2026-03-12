@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { In } from 'typeorm';
-import { User, WaitingListEntry } from '@khana/data-access';
+import { User } from '@khana/data-access';
 import {
   UserRole,
   WaitlistEntryListItemDto,
@@ -34,7 +34,7 @@ export const listWaitlistEntries = async (
   deps: WaitlistDependencies,
   query: WaitlistListQueryDto,
   tenantId: string,
-  actor: User
+  actor: User,
 ): Promise<WaitlistListResponseDto> => {
   const resolvedTenantId = requireTenantId(tenantId);
   const actorRole = requireUserRole(actor?.role);
@@ -86,7 +86,7 @@ export const listWaitlistEntries = async (
         entry.status === WaitlistStatus.WAITING ||
         entry.status === WaitlistStatus.NOTIFIED
           ? normalizeQueuePosition(
-              await resolveQueuePosition(deps.waitlistRepository, entry)
+              await resolveQueuePosition(deps.waitlistRepository, entry),
             )
           : null;
 
@@ -106,7 +106,7 @@ export const listWaitlistEntries = async (
         expiredAt: entry.expiredAt?.toISOString() ?? null,
         fulfilledByBookingId: entry.fulfilledByBookingId,
       };
-    })
+    }),
   );
 
   const summaryQuery = deps.waitlistRepository
@@ -155,7 +155,7 @@ export const getWaitlistStatusForSlot = async (
   deps: WaitlistDependencies,
   query: WaitlistStatusQueryDto,
   tenantId: string,
-  actor: User
+  actor: User,
 ): Promise<WaitlistStatusResponseDto> => {
   const resolvedTenantId = requireTenantId(tenantId);
   const actorUserId = requireUserId(actor?.id);
@@ -183,7 +183,7 @@ export const getWaitlistStatusForSlot = async (
 
   if (activeEntry) {
     const queuePosition = normalizeQueuePosition(
-      await resolveQueuePosition(deps.waitlistRepository, activeEntry)
+      await resolveQueuePosition(deps.waitlistRepository, activeEntry),
     );
     return {
       isOnWaitlist: activeEntry.status === WaitlistStatus.WAITING,

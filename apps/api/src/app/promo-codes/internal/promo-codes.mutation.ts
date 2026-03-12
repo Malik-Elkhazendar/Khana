@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { AuditAction, User } from '@khana/data-access';
-import { PromoCodeItemDto, UserRole } from '@khana/shared-dtos';
+import { PromoCodeItemDto } from '@khana/shared-dtos';
 import { LOG_EVENTS } from '../../logging';
 import { CreatePromoCodeDto, UpdatePromoCodeDto } from '../dto';
 import {
@@ -28,7 +28,7 @@ export const createPromoCodeWorkflow = async (
   deps: PromoCodeDependencies,
   dto: CreatePromoCodeDto,
   tenantId: string,
-  actor: User
+  actor: User,
 ): Promise<PromoCodeItemDto> => {
   const resolvedTenantId = requireTenantId(tenantId);
   const actorRole = requirePromoActorRole(actor?.role);
@@ -51,7 +51,7 @@ export const createPromoCodeWorkflow = async (
     deps,
     scope,
     dto.facilityId ?? null,
-    resolvedTenantId
+    resolvedTenantId,
   );
   const expiresAt = parseOptionalDate(dto.expiresAt);
 
@@ -101,7 +101,7 @@ export const createPromoCodeWorkflow = async (
       promoCodeId: saved.id,
       tenantId: resolvedTenantId,
       code: saved.code,
-    }
+    },
   );
 
   return toPromoCodeItemDto(saved);
@@ -112,7 +112,7 @@ export const updatePromoCodeWorkflow = async (
   id: string,
   dto: UpdatePromoCodeDto,
   tenantId: string,
-  actor: User
+  actor: User,
 ): Promise<PromoCodeItemDto> => {
   const resolvedTenantId = requireTenantId(tenantId);
   const actorRole = requirePromoActorRole(actor?.role);
@@ -135,7 +135,7 @@ export const updatePromoCodeWorkflow = async (
         deps,
         resolvedTenantId,
         normalizedCode,
-        existing.id
+        existing.id,
       );
     }
     existing.code = normalizedCode;
@@ -170,9 +170,9 @@ export const updatePromoCodeWorkflow = async (
   const nextScope = dto.facilityScope ?? existing.facilityScope;
   const providedFacilityId = Object.prototype.hasOwnProperty.call(
     dto,
-    'facilityId'
+    'facilityId',
   )
-    ? dto.facilityId ?? null
+    ? (dto.facilityId ?? null)
     : existing.facilityId;
 
   existing.facilityScope = nextScope;
@@ -180,7 +180,7 @@ export const updatePromoCodeWorkflow = async (
     deps,
     nextScope,
     providedFacilityId,
-    resolvedTenantId
+    resolvedTenantId,
   );
 
   existing.updatedByUserId = actorUserId;
@@ -202,7 +202,7 @@ export const updatePromoCodeWorkflow = async (
     {
       promoCodeId: saved.id,
       tenantId: resolvedTenantId,
-    }
+    },
   );
 
   return after;

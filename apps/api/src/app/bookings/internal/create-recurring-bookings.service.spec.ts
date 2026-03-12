@@ -1,9 +1,5 @@
-import { AuditLog, Booking, Customer, Facility } from '@khana/data-access';
-import {
-  BookingStatus,
-  PaymentStatus,
-  RecurrenceFrequency,
-} from '@khana/shared-dtos';
+import { Booking, Customer, Facility } from '@khana/data-access';
+import { RecurrenceFrequency } from '@khana/shared-dtos';
 import { CreateRecurringBookingDto } from '../dto';
 import { CreateRecurringBookingsService } from './create-recurring-bookings.service';
 import { BookingWriteSupportService } from './booking-write-support.service';
@@ -52,7 +48,7 @@ describe('CreateRecurringBookingsService', () => {
   } as unknown as Facility;
 
   const createRecurringDto = (
-    overrides: Partial<CreateRecurringBookingDto> = {}
+    overrides: Partial<CreateRecurringBookingDto> = {},
   ): CreateRecurringBookingDto => {
     const start = new Date();
     start.setDate(start.getDate() + 1);
@@ -94,7 +90,7 @@ describe('CreateRecurringBookingsService', () => {
           ...(item as unknown as Record<string, unknown>),
           createdAt: new Date('2025-03-01T08:00:00.000Z'),
           updatedAt: new Date('2025-03-01T08:00:00.000Z'),
-        }))
+        })),
       ),
       exists: jest.fn().mockResolvedValue(false),
     };
@@ -104,8 +100,8 @@ describe('CreateRecurringBookingsService', () => {
         transaction: jest.fn(
           async (
             cb: (
-              manager: unknown
-            ) => Promise<ReturnType<CreateRecurringBookingsService['execute']>>
+              manager: unknown,
+            ) => Promise<ReturnType<CreateRecurringBookingsService['execute']>>,
           ) =>
             cb({
               getRepository: (entity: unknown) => {
@@ -119,7 +115,7 @@ describe('CreateRecurringBookingsService', () => {
                 }
                 return null;
               },
-            })
+            }),
         ),
       },
     };
@@ -139,7 +135,7 @@ describe('CreateRecurringBookingsService', () => {
       auditLogRepository as never,
       appLogger as never,
       customersService as never,
-      new BookingWriteSupportService()
+      new BookingWriteSupportService(),
     );
   });
 
@@ -152,14 +148,14 @@ describe('CreateRecurringBookingsService', () => {
       createRecurringDto(),
       tenantId,
       userId,
-      'OWNER'
+      'OWNER',
     );
 
     expect(result.createdCount).toBeGreaterThan(0);
     expect(customersService.upsert).toHaveBeenCalledWith(
       tenantId,
       'Recurring Customer',
-      '+966551234567'
+      '+966551234567',
     );
     expect(auditLogRepository.save).toHaveBeenCalled();
   });

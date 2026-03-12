@@ -1,12 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import {
-  AuditAction,
-  AuditLog,
-  GoalMetric,
-  GoalMilestone,
-  Tenant,
-  User,
-} from '@khana/data-access';
+import { AuditLog, GoalMilestone, Tenant } from '@khana/data-access';
 import {
   BookingStatus,
   DEFAULT_TENANT_TIMEZONE,
@@ -47,7 +40,7 @@ export type GoalsDependencies = {
 
 export const getTenantOrThrow = async (
   deps: GoalsDependencies,
-  tenantId: string
+  tenantId: string,
 ): Promise<Tenant> => {
   const tenant = await deps.tenantRepository.findOne({
     where: { id: tenantId },
@@ -72,7 +65,7 @@ export const toSettingsSnapshot = (tenant: Tenant) => {
 export const toSettingsResponse = (tenant: Tenant): GoalSettingsResponseDto => {
   const monthlyRevenueTarget = toNullableNumber(tenant.monthlyRevenueTarget);
   const monthlyOccupancyTarget = toNullableNumber(
-    tenant.monthlyOccupancyTarget
+    tenant.monthlyOccupancyTarget,
   );
   const goalsNudgeShownAt = tenant.goalsNudgeShownAt?.toISOString() ?? null;
   const goalsNudgeDismissedAt =
@@ -104,7 +97,7 @@ export const resolveTimeZone = (timeZone?: string): string => {
 
 export const resolveCurrentMonthWindow = async (
   deps: GoalsDependencies,
-  timeZone: string
+  timeZone: string,
 ): Promise<MonthWindow> => {
   const [row] = await deps.dataSource.query(
     `
@@ -113,7 +106,7 @@ export const resolveCurrentMonthWindow = async (
         ((date_trunc('month', timezone($1, now())) + interval '1 month') AT TIME ZONE $1) AS "nextMonthStartUtc",
         to_char(date_trunc('month', timezone($1, now())), 'YYYY-MM-DD') AS "periodMonth"
     `,
-    [timeZone]
+    [timeZone],
   );
 
   const monthStartUtc = new Date(row.monthStartUtc);
@@ -132,7 +125,7 @@ export const resolveCurrentMonthWindow = async (
 export const calculateRevenueActual = async (
   deps: GoalsDependencies,
   tenantId: string,
-  window: MonthWindow
+  window: MonthWindow,
 ): Promise<number> => {
   const [row] = await deps.dataSource.query(
     `
@@ -156,7 +149,7 @@ export const calculateRevenueActual = async (
       window.monthStartUtc.toISOString(),
       window.nextMonthStartUtc.toISOString(),
       REVENUE_STATUSES,
-    ]
+    ],
   );
 
   return round(toNumber(row?.revenue), 2);
@@ -165,7 +158,7 @@ export const calculateRevenueActual = async (
 export const calculateOccupancyActual = async (
   deps: GoalsDependencies,
   tenantId: string,
-  window: MonthWindow
+  window: MonthWindow,
 ): Promise<number> => {
   const [row] = await deps.dataSource.query(
     `
@@ -224,7 +217,7 @@ export const calculateOccupancyActual = async (
       window.monthStartUtc.toISOString(),
       window.nextMonthStartUtc.toISOString(),
       OCCUPIED_STATUSES,
-    ]
+    ],
   );
 
   const available = toNumber(row?.availableMinutes);
@@ -235,7 +228,7 @@ export const calculateOccupancyActual = async (
 
 export const computePct = (
   actual: number,
-  target: number | null
+  target: number | null,
 ): number | null => {
   if (target === null) return null;
   if (target <= 0) return null;

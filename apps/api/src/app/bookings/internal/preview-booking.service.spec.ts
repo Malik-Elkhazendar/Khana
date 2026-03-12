@@ -1,10 +1,6 @@
 import { ConflictException } from '@nestjs/common';
-import { Booking, Facility, PromoCode } from '@khana/data-access';
-import {
-  BookingStatus,
-  PromoDiscountType,
-  PromoValidationReason,
-} from '@khana/shared-dtos';
+import { Facility, PromoCode } from '@khana/data-access';
+import { PromoDiscountType, PromoValidationReason } from '@khana/shared-dtos';
 import { PreviewBookingService } from './preview-booking.service';
 
 describe('PreviewBookingService', () => {
@@ -58,7 +54,7 @@ describe('PreviewBookingService', () => {
     service = new PreviewBookingService(
       bookingRepository as never,
       facilityRepository as never,
-      promoCodeRepository as never
+      promoCodeRepository as never,
     );
   });
 
@@ -80,8 +76,8 @@ describe('PreviewBookingService', () => {
           startTime: slot.startTime,
           endTime: slot.endTime,
         },
-        tenantId
-      )
+        tenantId,
+      ),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -94,7 +90,7 @@ describe('PreviewBookingService', () => {
         endTime: slot.endTime,
         promoCode: 'MISSING10',
       },
-      tenantId
+      tenantId,
     );
 
     expect(result.promoValidation).toEqual(
@@ -102,7 +98,7 @@ describe('PreviewBookingService', () => {
         code: 'MISSING10',
         isValid: false,
         reason: PromoValidationReason.NOT_FOUND,
-      })
+      }),
     );
     expect(result.priceBreakdown.promoCode).toBeUndefined();
   });
@@ -130,14 +126,14 @@ describe('PreviewBookingService', () => {
         endTime: slot.endTime,
         promoCode: 'save10',
       },
-      tenantId
+      tenantId,
     );
 
     expect(result.promoValidation).toEqual(
       expect.objectContaining({
         code: 'SAVE10',
         isValid: true,
-      })
+      }),
     );
     expect(result.priceBreakdown.promoCode).toBe('SAVE10');
     expect(result.priceBreakdown.promoDiscount).toBeGreaterThan(0);

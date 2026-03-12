@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { AuditLog, Booking, Facility, User } from '@khana/data-access';
+import { Booking, Facility, User } from '@khana/data-access';
 import {
   BookingCancellationReasonKey,
   BookingStatus,
@@ -73,7 +73,7 @@ describe('UpdateBookingStatusService', () => {
       recurrenceRule: null,
       createdAt: new Date('2025-03-01T08:00:00.000Z'),
       updatedAt: new Date('2025-03-01T08:00:00.000Z'),
-    } as Booking);
+    }) as Booking;
 
   beforeEach(() => {
     bookingRepository = {
@@ -99,7 +99,7 @@ describe('UpdateBookingStatusService', () => {
       emailService as never,
       appLogger as never,
       waitlistService as never,
-      goalsService as never
+      goalsService as never,
     );
   });
 
@@ -118,12 +118,12 @@ describe('UpdateBookingStatusService', () => {
       {
         id: userId,
         role: 'MANAGER',
-      } as User
+      } as User,
     );
 
     expect(updated.status).toBe(BookingStatus.CANCELLED);
     expect(updated.cancellationReason).toBe(
-      BookingCancellationReasonKey.CUSTOMER_REQUEST
+      BookingCancellationReasonKey.CUSTOMER_REQUEST,
     );
     expect(waitlistService.notifyFirstForSlot).toHaveBeenCalledWith({
       tenantId,
@@ -134,7 +134,7 @@ describe('UpdateBookingStatusService', () => {
       actorUserId: userId,
     });
     expect(goalsService.syncMilestonesForCurrentMonth).toHaveBeenCalledWith(
-      tenantId
+      tenantId,
     );
   });
 
@@ -149,14 +149,14 @@ describe('UpdateBookingStatusService', () => {
       {
         id: userId,
         role: 'MANAGER',
-      } as User
+      } as User,
     );
 
     expect(updated.cancellationReason).toBe(
       serializeCancellationReason(
         BookingCancellationReasonKey.OTHER,
-        'Customer asked to reschedule'
-      )
+        'Customer asked to reschedule',
+      ),
     );
   });
 
@@ -172,8 +172,8 @@ describe('UpdateBookingStatusService', () => {
         {
           id: userId,
           role: 'MANAGER',
-        } as User
-      )
+        } as User,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -189,8 +189,8 @@ describe('UpdateBookingStatusService', () => {
         {
           id: userId,
           role: 'MANAGER',
-        } as User
-      )
+        } as User,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -210,8 +210,8 @@ describe('UpdateBookingStatusService', () => {
         {
           id: userId,
           role: 'MANAGER',
-        } as User
-      )
+        } as User,
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(appLogger.warn).toHaveBeenCalled();
   });

@@ -43,7 +43,7 @@ test.describe('Authentication - core flows', () => {
     await login(page, invalidCredentials.email, invalidCredentials.password);
 
     await expect(page.getByRole('alert')).toContainText(
-      /invalid credentials|بيانات الاعتماد/i
+      /invalid credentials|بيانات الاعتماد/i,
     );
     await expect(page).toHaveURL(/\/login/);
   });
@@ -99,7 +99,7 @@ test.describe('Authentication - core flows', () => {
       sessionStorage.setItem('khana_refresh_token', 'stale-refresh-token');
       sessionStorage.setItem(
         'khana_tenant_id',
-        '11111111-1111-4111-8111-111111111111'
+        '11111111-1111-4111-8111-111111111111',
       );
     });
 
@@ -149,7 +149,10 @@ test.describe('Authentication - core flows', () => {
     await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.locator('.user-name')).toHaveText(freshUser.name);
 
-    await page.waitForTimeout(400);
+    await page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/v1/auth/me') && response.status() === 200,
+    );
 
     await expect(page.locator('.user-name')).toHaveText(freshUser.name);
     await expect
@@ -157,7 +160,7 @@ test.describe('Authentication - core flows', () => {
         page.evaluate(() => ({
           accessToken: sessionStorage.getItem('khana_access_token'),
           tenantId: sessionStorage.getItem('khana_tenant_id'),
-        }))
+        })),
       )
       .toEqual({
         accessToken: 'fresh-access-token',
