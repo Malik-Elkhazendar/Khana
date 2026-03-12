@@ -22,7 +22,7 @@ export class AuthUserDoc {
   @ApiProperty({ format: 'uuid' })
   tenantId!: string;
 
-  @ApiProperty({ example: 'owner@khana.sa' })
+  @ApiProperty({ example: 'owner@example.test' })
   email!: string;
 
   @ApiProperty({ example: 'Malek Elkhazendar' })

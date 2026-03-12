@@ -13,7 +13,7 @@ export class ResetPasswordDto {
   @ApiProperty({
     description: 'New password that will be saved for the account.',
     minLength: 8,
-    example: 'NewSecret123!',
+    example: 'example-new-password-not-real',
   })
   @IsString()
   @MinLength(8)

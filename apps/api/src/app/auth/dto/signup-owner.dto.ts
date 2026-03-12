@@ -49,7 +49,7 @@ export class SignupOwnerDto {
   @ApiProperty({
     description: 'Owner email used for login.',
     maxLength: 255,
-    example: 'owner@khana.sa',
+    example: 'owner@example.test',
   })
   @IsEmail()
   @MaxLength(255)
@@ -59,7 +59,7 @@ export class SignupOwnerDto {
     description: 'Initial password for the owner account.',
     minLength: 8,
     maxLength: 255,
-    example: 'Secret123!',
+    example: 'example-password-not-real',
   })
   @IsString()
   @MinLength(8)

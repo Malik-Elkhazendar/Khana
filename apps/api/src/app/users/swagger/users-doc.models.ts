@@ -8,7 +8,7 @@ export class UserDoc {
   @ApiProperty({ format: 'uuid' })
   tenantId!: string;
 
-  @ApiProperty({ example: 'manager@khana.sa' })
+  @ApiProperty({ example: 'manager@example.test' })
   email!: string;
 
   @ApiProperty({ example: 'Abeer Alotaibi' })

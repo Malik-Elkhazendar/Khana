@@ -93,7 +93,7 @@ export class AuthController {
   @ApiExampleOkResponse(
     AuthTenantContextDoc,
     'Tenant context resolved from request hints.',
-    SWAGGER_TENANT_CONTEXT_EXAMPLE
+    SWAGGER_TENANT_CONTEXT_EXAMPLE,
   )
   async getTenantContext(@TenantId() tenantId?: string) {
     return this.authService.getTenantContext(tenantId);
@@ -117,18 +117,18 @@ export class AuthController {
   @ApiExampleOkResponse(
     AuthTenantContextDoc,
     'Tenant context for the supplied public slug.',
-    SWAGGER_TENANT_CONTEXT_EXAMPLE
+    SWAGGER_TENANT_CONTEXT_EXAMPLE,
   )
   @ApiStandardErrorResponses(400, 429)
   async resolveTenantBySlug(
     @Query('slug') slug?: string,
     @Ip() ipAddress?: string,
-    @Headers('user-agent') userAgent?: string
+    @Headers('user-agent') userAgent?: string,
   ) {
     return this.authService.resolveTenantBySlug(
       slug || '',
       ipAddress,
-      userAgent
+      userAgent,
     );
   }
 
@@ -144,18 +144,18 @@ export class AuthController {
   @ApiExampleRequestBody(
     SignupOwnerDto,
     'Owner signup payload with the initial tenant context.',
-    SWAGGER_AUTH_SIGNUP_OWNER_REQUEST_EXAMPLE
+    SWAGGER_AUTH_SIGNUP_OWNER_REQUEST_EXAMPLE,
   )
   @ApiExampleCreatedResponse(
     AuthLoginResponseDoc,
     'Owner account created and initial auth tokens returned.',
-    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE
+    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE,
   )
   @ApiStandardErrorResponses(400, 409, 429)
   async signupOwner(
     @Body() dto: SignupOwnerDto,
     @Ip() ipAddress?: string,
-    @Headers('user-agent') userAgent?: string
+    @Headers('user-agent') userAgent?: string,
   ) {
     return this.authService.signupOwner(dto, ipAddress, userAgent);
   }
@@ -184,19 +184,19 @@ export class AuthController {
   @ApiExampleRequestBody(
     RegisterDto,
     'User registration payload for an existing tenant.',
-    SWAGGER_AUTH_REGISTER_REQUEST_EXAMPLE
+    SWAGGER_AUTH_REGISTER_REQUEST_EXAMPLE,
   )
   @ApiExampleCreatedResponse(
     AuthLoginResponseDoc,
     'User registered and auth tokens returned.',
-    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE
+    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE,
   )
   @ApiStandardErrorResponses(400, 409, 429)
   async register(
     @Body() dto: RegisterDto,
     @TenantId() tenantId?: string,
     @Ip() ipAddress?: string,
-    @Headers('user-agent') userAgent?: string
+    @Headers('user-agent') userAgent?: string,
   ) {
     return this.authService.register(dto, tenantId, ipAddress, userAgent);
   }
@@ -232,19 +232,19 @@ export class AuthController {
   @ApiExampleRequestBody(
     LoginDto,
     'Email/password login payload with an optional public tenant hint.',
-    SWAGGER_AUTH_LOGIN_REQUEST_EXAMPLE
+    SWAGGER_AUTH_LOGIN_REQUEST_EXAMPLE,
   )
   @ApiExampleOkResponse(
     AuthLoginResponseDoc,
     'Access token, refresh token, and current user context.',
-    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE
+    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE,
   )
   @ApiStandardErrorResponses(400, 401, 429)
   async login(
     @Body() dto: LoginDto,
     @TenantId() tenantId?: string,
     @Ip() ipAddress?: string,
-    @Headers('user-agent') userAgent?: string
+    @Headers('user-agent') userAgent?: string,
   ) {
     return this.authService.login(dto, tenantId, ipAddress, userAgent);
   }
@@ -278,23 +278,23 @@ export class AuthController {
   @ApiExampleRequestBody(
     RefreshTokenDto,
     'Refresh-token rotation payload.',
-    SWAGGER_AUTH_REFRESH_REQUEST_EXAMPLE
+    SWAGGER_AUTH_REFRESH_REQUEST_EXAMPLE,
   )
   @ApiExampleOkResponse(
     AuthRefreshResponseDoc,
     'New access token, rotated refresh token, and expiry metadata.',
-    SWAGGER_AUTH_REFRESH_RESPONSE_EXAMPLE
+    SWAGGER_AUTH_REFRESH_RESPONSE_EXAMPLE,
   )
   @ApiStandardErrorResponses(400, 401, 429)
   async refresh(
     @Body() dto: RefreshTokenDto,
     @Ip() ipAddress?: string,
-    @Headers('user-agent') userAgent?: string
+    @Headers('user-agent') userAgent?: string,
   ) {
     return this.authService.refreshToken(
       dto.refreshToken,
       ipAddress,
-      userAgent
+      userAgent,
     );
   }
 
@@ -323,14 +323,14 @@ export class AuthController {
     @Body() dto: LogoutDto,
     @Headers('x-refresh-token') headerRefreshToken?: string,
     @Ip() ipAddress?: string,
-    @Headers('user-agent') userAgent?: string
+    @Headers('user-agent') userAgent?: string,
   ): Promise<void> {
     await this.authService.logout(
       user.id,
       user.sid,
       dto?.refreshToken || headerRefreshToken,
       ipAddress,
-      userAgent
+      userAgent,
     );
   }
 
@@ -352,7 +352,7 @@ export class AuthController {
   @ApiStandardErrorResponses(400, 401, 404)
   async logoutDevice(
     @CurrentUser() user: User,
-    @Body() dto: LogoutDeviceDto
+    @Body() dto: LogoutDeviceDto,
   ): Promise<void> {
     await this.authService.logoutDevice(dto.sessionId, user.id);
   }
@@ -374,7 +374,7 @@ export class AuthController {
   })
   @ApiStandardErrorResponses(401)
   async logoutAllDevices(
-    @CurrentUser() user: User & { sid?: string }
+    @CurrentUser() user: User & { sid?: string },
   ): Promise<void> {
     await this.authService.logoutAllDevices(user.id, user.sid);
   }
@@ -398,7 +398,7 @@ export class AuthController {
   @ApiExampleOkResponse(
     AuthUserDoc,
     'Current authenticated user profile.',
-    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE.user
+    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE.user,
   )
   @ApiStandardErrorResponses(401)
   async getCurrentUser(@CurrentUser() user: User): Promise<UserDto> {
@@ -433,13 +433,13 @@ export class AuthController {
   @ApiStandardErrorResponses(400, 401)
   async changePassword(
     @CurrentUser() user: User & { sid?: string },
-    @Body() dto: ChangePasswordDto
+    @Body() dto: ChangePasswordDto,
   ): Promise<void> {
     await this.authService.changePassword(
       user.id,
       dto.currentPassword,
       dto.newPassword,
-      user.sid
+      user.sid,
     );
   }
 
@@ -463,25 +463,25 @@ export class AuthController {
   })
   @ApiOptionalTenantHeader()
   @ApiExampleRequestBody(ForgotPasswordDto, 'Password reset request payload.', {
-    email: 'owner@khana.sa',
+    email: 'owner@example.test',
   })
   @ApiExampleOkResponse(
     AuthMessageResponseDoc,
     'Always returns success semantics to avoid exposing whether the email exists.',
-    SWAGGER_AUTH_MESSAGE_RESPONSE_EXAMPLE
+    SWAGGER_AUTH_MESSAGE_RESPONSE_EXAMPLE,
   )
   @ApiStandardErrorResponses(400, 429)
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
     @TenantId() tenantId?: string,
     @Ip() ipAddress?: string,
-    @Headers('user-agent') userAgent?: string
+    @Headers('user-agent') userAgent?: string,
   ) {
     return this.authService.forgotPassword(
       dto.email,
       tenantId,
       ipAddress,
-      userAgent
+      userAgent,
     );
   }
 
@@ -509,27 +509,27 @@ export class AuthController {
     'Password reset confirmation payload.',
     {
       token: 'reset-token-from-email',
-      newPassword: 'Secret123!',
-    }
+      newPassword: 'example-new-password-not-real',
+    },
   )
   @ApiExampleOkResponse(
     AuthMessageResponseDoc,
     'Password reset completed successfully.',
     {
       message: 'Password reset completed successfully.',
-    }
+    },
   )
   @ApiStandardErrorResponses(400, 429)
   async resetPassword(
     @Body() dto: ResetPasswordDto,
     @Ip() ipAddress?: string,
-    @Headers('user-agent') userAgent?: string
+    @Headers('user-agent') userAgent?: string,
   ) {
     return this.authService.resetPassword(
       dto.token,
       dto.newPassword,
       ipAddress,
-      userAgent
+      userAgent,
     );
   }
 }

@@ -155,9 +155,9 @@
                   "workspaceName": "Khana Padel Club",
                   "workspaceSlug": "khana-padel-club",
                   "name": "Malek Elkhazendar",
-                  "email": "owner@khana.sa",
+                  "email": "owner@example.test",
                   "phone": "+966500000000",
-                  "password": "Secret123!"
+                  "password": "example-password-not-real"
                 }
               }
             }
@@ -181,7 +181,7 @@
                     "user": {
                       "id": "22222222-2222-4222-8222-222222222222",
                       "tenantId": "11111111-1111-4111-8111-111111111111",
-                      "email": "owner@khana.sa",
+                      "email": "owner@example.test",
                       "name": "Malek Elkhazendar",
                       "phone": "+966500000000",
                       "role": "OWNER",
@@ -293,8 +293,8 @@
                   }
                 ],
                 "example": {
-                  "email": "manager@khana.sa",
-                  "password": "Secret123!",
+                  "email": "manager@example.test",
+                  "password": "example-password-not-real",
                   "name": "Abeer Alotaibi",
                   "phone": "+966500000000"
                 }
@@ -320,7 +320,7 @@
                     "user": {
                       "id": "22222222-2222-4222-8222-222222222222",
                       "tenantId": "11111111-1111-4111-8111-111111111111",
-                      "email": "owner@khana.sa",
+                      "email": "owner@example.test",
                       "name": "Malek Elkhazendar",
                       "phone": "+966500000000",
                       "role": "OWNER",
@@ -432,8 +432,8 @@
                   }
                 ],
                 "example": {
-                  "email": "owner@khana.sa",
-                  "password": "Secret123!",
+                  "email": "owner@example.test",
+                  "password": "example-password-not-real",
                   "subdomain": "khana-padel-club"
                 }
               }
@@ -458,7 +458,7 @@
                     "user": {
                       "id": "22222222-2222-4222-8222-222222222222",
                       "tenantId": "11111111-1111-4111-8111-111111111111",
-                      "email": "owner@khana.sa",
+                      "email": "owner@example.test",
                       "name": "Malek Elkhazendar",
                       "phone": "+966500000000",
                       "role": "OWNER",
@@ -855,7 +855,7 @@
                   "example": {
                     "id": "22222222-2222-4222-8222-222222222222",
                     "tenantId": "11111111-1111-4111-8111-111111111111",
-                    "email": "owner@khana.sa",
+                    "email": "owner@example.test",
                     "name": "Malek Elkhazendar",
                     "phone": "+966500000000",
                     "role": "OWNER",
@@ -992,7 +992,7 @@
                   }
                 ],
                 "example": {
-                  "email": "owner@khana.sa"
+                  "email": "owner@example.test"
                 }
               }
             }
@@ -1082,7 +1082,7 @@
                 ],
                 "example": {
                   "token": "reset-token-from-email",
-                  "newPassword": "Secret123!"
+                  "newPassword": "example-new-password-not-real"
                 }
               }
             }
@@ -1601,7 +1601,7 @@
                         "facilityName": "Court 1",
                         "userId": "22222222-2222-4222-8222-222222222222",
                         "userName": "Malek Elkhazendar",
-                        "userEmail": "owner@khana.sa",
+                        "userEmail": "owner@example.test",
                         "desiredStartTime": "2030-06-15T18:00:00.000Z",
                         "desiredEndTime": "2030-06-15T19:00:00.000Z",
                         "status": "WAITING",
@@ -5931,7 +5931,7 @@
           },
           "email": {
             "type": "string",
-            "example": "owner@khana.sa"
+            "example": "owner@example.test"
           },
           "name": {
             "type": "string",
@@ -6035,14 +6035,14 @@
             "type": "string",
             "description": "Owner email used for login.",
             "maxLength": 255,
-            "example": "owner@khana.sa"
+            "example": "owner@example.test"
           },
           "password": {
             "type": "string",
             "description": "Initial password for the owner account.",
             "minLength": 8,
             "maxLength": 255,
-            "example": "Secret123!"
+            "example": "example-password-not-real"
           },
           "phone": {
             "type": "string",
@@ -6059,13 +6059,13 @@
           "email": {
             "type": "string",
             "description": "Email address for the new tenant user.",
-            "example": "manager@khana.sa"
+            "example": "manager@example.test"
           },
           "password": {
             "type": "string",
             "description": "Initial password for the new user.",
             "minLength": 8,
-            "example": "Secret123!"
+            "example": "example-password-not-real"
           },
           "name": {
             "type": "string",
@@ -6087,13 +6087,13 @@
           "email": {
             "type": "string",
             "description": "User email used for authentication.",
-            "example": "owner@khana.sa"
+            "example": "owner@example.test"
           },
           "password": {
             "type": "string",
             "description": "Plain-text password submitted for login.",
             "minLength": 8,
-            "example": "Secret123!"
+            "example": "example-password-not-real"
           },
           "subdomain": {
             "type": "string",
@@ -6161,13 +6161,13 @@
             "type": "string",
             "description": "Current password used to verify the account owner.",
             "minLength": 8,
-            "example": "OldSecret123!"
+            "example": "example-current-password-not-real"
           },
           "newPassword": {
             "type": "string",
             "description": "New password that will replace the current one.",
             "minLength": 8,
-            "example": "NewSecret123!"
+            "example": "example-new-password-not-real"
           }
         },
         "required": ["currentPassword", "newPassword"]
@@ -6188,7 +6188,7 @@
           "email": {
             "type": "string",
             "description": "Email address for the password reset request.",
-            "example": "owner@khana.sa"
+            "example": "owner@example.test"
           }
         },
         "required": ["email"]
@@ -6205,7 +6205,7 @@
             "type": "string",
             "description": "New password that will be saved for the account.",
             "minLength": 8,
-            "example": "NewSecret123!"
+            "example": "example-new-password-not-real"
           }
         },
         "required": ["token", "newPassword"]
@@ -6394,7 +6394,7 @@
           },
           "userEmail": {
             "type": "string",
-            "example": "owner@khana.sa"
+            "example": "owner@example.test"
           },
           "desiredStartTime": {
             "type": "string",
@@ -7377,7 +7377,7 @@
           },
           "email": {
             "type": "string",
-            "example": "manager@khana.sa"
+            "example": "manager@example.test"
           },
           "name": {
             "type": "string",

@@ -4,7 +4,7 @@ import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 export class RegisterDto {
   @ApiProperty({
     description: 'Email address for the new tenant user.',
-    example: 'manager@khana.sa',
+    example: 'manager@example.test',
   })
   @IsEmail()
   email!: string;
@@ -12,7 +12,7 @@ export class RegisterDto {
   @ApiProperty({
     description: 'Initial password for the new user.',
     minLength: 8,
-    example: 'Secret123!',
+    example: 'example-password-not-real',
   })
   @IsString()
   @MinLength(8)

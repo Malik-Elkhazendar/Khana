@@ -68,7 +68,7 @@ export class WaitlistEntryListItemDoc {
   @ApiProperty({ example: 'Malek Elkhazendar' })
   userName!: string;
 
-  @ApiProperty({ example: 'owner@khana.sa' })
+  @ApiProperty({ example: 'owner@example.test' })
   userEmail!: string;
 
   @ApiProperty({ type: String, format: 'date-time' })

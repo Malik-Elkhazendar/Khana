@@ -5,7 +5,7 @@ export class ChangePasswordDto {
   @ApiProperty({
     description: 'Current password used to verify the account owner.',
     minLength: 8,
-    example: 'OldSecret123!',
+    example: 'example-current-password-not-real',
   })
   @IsString()
   @MinLength(8)
@@ -14,7 +14,7 @@ export class ChangePasswordDto {
   @ApiProperty({
     description: 'New password that will replace the current one.',
     minLength: 8,
-    example: 'NewSecret123!',
+    example: 'example-new-password-not-real',
   })
   @IsString()
   @MinLength(8)

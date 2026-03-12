@@ -6,14 +6,14 @@ export const SWAGGER_TENANT_CONTEXT_EXAMPLE = {
 };
 
 export const SWAGGER_AUTH_LOGIN_REQUEST_EXAMPLE = {
-  email: 'owner@khana.sa',
-  password: 'Secret123!',
+  email: 'owner@example.test',
+  password: 'example-password-not-real',
   subdomain: 'khana-padel-club',
 };
 
 export const SWAGGER_AUTH_REGISTER_REQUEST_EXAMPLE = {
-  email: 'manager@khana.sa',
-  password: 'Secret123!',
+  email: 'manager@example.test',
+  password: 'example-password-not-real',
   name: 'Abeer Alotaibi',
   phone: '+966500000000',
 };
@@ -22,9 +22,9 @@ export const SWAGGER_AUTH_SIGNUP_OWNER_REQUEST_EXAMPLE = {
   workspaceName: 'Khana Padel Club',
   workspaceSlug: 'khana-padel-club',
   name: 'Malek Elkhazendar',
-  email: 'owner@khana.sa',
+  email: 'owner@example.test',
   phone: '+966500000000',
-  password: 'Secret123!',
+  password: 'example-password-not-real',
 };
 
 export const SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE = {
@@ -34,7 +34,7 @@ export const SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE = {
   user: {
     id: '22222222-2222-4222-8222-222222222222',
     tenantId: '11111111-1111-4111-8111-111111111111',
-    email: 'owner@khana.sa',
+    email: 'owner@example.test',
     name: 'Malek Elkhazendar',
     phone: '+966500000000',
     role: 'OWNER',
@@ -200,7 +200,7 @@ export const SWAGGER_WAITLIST_LIST_RESPONSE_EXAMPLE = {
       facilityName: 'Court 1',
       userId: '22222222-2222-4222-8222-222222222222',
       userName: 'Malek Elkhazendar',
-      userEmail: 'owner@khana.sa',
+      userEmail: 'owner@example.test',
       desiredStartTime: '2030-06-15T18:00:00.000Z',
       desiredEndTime: '2030-06-15T19:00:00.000Z',
       status: 'WAITING',
