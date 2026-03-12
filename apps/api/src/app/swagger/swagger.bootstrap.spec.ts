@@ -34,9 +34,13 @@ class SwaggerBookingsFeatureModule {}
 describe('Swagger bootstrap', () => {
   let app: INestApplication | null = null;
 
+  // The docs bootstrap test is lightweight on its own but can exceed Jest's
+  // default 5s budget when the full Nx test graph is running in parallel.
+  jest.setTimeout(30_000);
+
   async function createApp(
     nodeEnv: 'development' | 'production',
-    swaggerEnabled?: string
+    swaggerEnabled?: string,
   ): Promise<INestApplication> {
     const moduleRef = await Test.createTestingModule({
       imports: [
@@ -105,18 +109,18 @@ describe('Swagger bootstrap', () => {
     };
 
     expect(document.components?.securitySchemes).toHaveProperty(
-      SWAGGER_BEARER_AUTH_SCHEME
+      SWAGGER_BEARER_AUTH_SCHEME,
     );
     expect(document.components?.schemas).toHaveProperty('CreateBookingDto');
     expect(document.components?.schemas).toHaveProperty(
-      'BookingPreviewResponseDoc'
+      'BookingPreviewResponseDoc',
     );
     expect(document.paths).toHaveProperty('/api/v1/bookings');
     expect(document.paths?.['/api/v1/bookings']?.get?.operationId).toBe(
-      buildSwaggerOperationId('BookingsController', 'findAll')
+      buildSwaggerOperationId('BookingsController', 'findAll'),
     );
     expect(document.paths?.['/api/v1/bookings']?.post?.operationId).toBe(
-      buildSwaggerOperationId('BookingsController', 'createBooking')
+      buildSwaggerOperationId('BookingsController', 'createBooking'),
     );
     expect(document.paths?.['/api/v1/bookings/preview']?.post).toMatchObject({
       requestBody: {

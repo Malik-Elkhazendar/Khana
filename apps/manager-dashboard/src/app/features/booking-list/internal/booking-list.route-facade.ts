@@ -1,4 +1,4 @@
-import { Directive, effect } from '@angular/core';
+import { Directive, effect, OnDestroy, OnInit } from '@angular/core';
 import { BookingListRouteActionsBase } from './booking-list.route-actions';
 
 /**
@@ -6,7 +6,10 @@ import { BookingListRouteActionsBase } from './booking-list.route-actions';
  * class so the page keeps its template API while the route shell stays small.
  */
 @Directive()
-export class BookingListRouteFacade extends BookingListRouteActionsBase {
+export class BookingListRouteFacade
+  extends BookingListRouteActionsBase
+  implements OnInit, OnDestroy
+{
   constructor() {
     super();
 

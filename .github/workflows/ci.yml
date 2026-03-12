@@ -41,5 +41,7 @@ jobs:
       # - run: npx nx-cloud record -- echo Hello World
       - run: npm run audit:entrypoints:check
       - run: node ./node_modules/jest/bin/jest.js --config apps/api/jest.config.js --runInBand --runTestsByPath apps/api/src/app/swagger/swagger.bootstrap.spec.ts
-      - run: npx nx run-many -t lint test build --skipNxCache
+      - run: npx nx run-many -t lint --skipNxCache --outputStyle=static
+      - run: npx nx run-many -t test --skipNxCache --outputStyle=static --parallel=1 --runInBand
+      - run: npx nx run-many -t build --skipNxCache --outputStyle=static
       # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci

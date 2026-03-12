@@ -16,6 +16,16 @@ describe('BookingPreview', () => {
     return date;
   };
 
+  // Use a non-weekend future date when asserting exact pricing so the expected
+  // total does not drift based on the current day in MENA weekend time.
+  const futureWeekdayDate = (hour: number, minute = 0): Date => {
+    const date = futureDate(hour, minute);
+    while (date.getDay() === 4 || date.getDay() === 5) {
+      date.setDate(date.getDate() + 1);
+    }
+    return date;
+  };
+
   const baseFacilityConfig: FacilityConfig = {
     id: 'facility-1',
     name: 'Padel Court 1',
@@ -37,7 +47,7 @@ describe('BookingPreview', () => {
   const createOccupiedSlot = (
     startHour: number,
     endHour: number,
-    status: SlotStatus = SlotStatus.BOOKED
+    status: SlotStatus = SlotStatus.BOOKED,
   ): OccupiedSlot => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -106,7 +116,7 @@ describe('BookingPreview', () => {
 
       const errors = validateBookingInput(input, baseFacilityConfig);
       expect(errors.some((e) => e.includes('Minimum booking duration'))).toBe(
-        true
+        true,
       );
     });
 
@@ -141,8 +151,8 @@ describe('BookingPreview', () => {
     it('should calculate correct price for peak hours', () => {
       const input: BookingPreviewInput = {
         facilityId: 'facility-1',
-        startTime: futureDate(18), // Peak hour
-        endTime: futureDate(19),
+        startTime: futureWeekdayDate(18), // Peak hour
+        endTime: futureWeekdayDate(19),
       };
 
       const result = previewBooking(input, baseFacilityConfig, []);
@@ -227,7 +237,7 @@ describe('BookingPreview', () => {
         requestedEnd,
         occupiedSlots,
         baseFacilityConfig,
-        3
+        3,
       );
 
       expect(alternatives.length).toBeGreaterThan(0);
@@ -248,7 +258,7 @@ describe('BookingPreview', () => {
         requestedStart,
         requestedEnd,
         occupiedSlots,
-        baseFacilityConfig
+        baseFacilityConfig,
       );
 
       for (const alt of alternatives) {
@@ -266,7 +276,7 @@ describe('BookingPreview', () => {
         requestedStart,
         requestedEnd,
         occupiedSlots,
-        baseFacilityConfig
+        baseFacilityConfig,
       );
 
       const now = new Date();
@@ -284,7 +294,7 @@ describe('BookingPreview', () => {
         requestedStart,
         requestedEnd,
         occupiedSlots,
-        baseFacilityConfig
+        baseFacilityConfig,
       );
 
       for (const alt of alternatives) {

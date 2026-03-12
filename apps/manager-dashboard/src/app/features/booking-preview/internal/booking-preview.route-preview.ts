@@ -1,4 +1,4 @@
-import { Directive } from '@angular/core';
+import { Directive, OnInit } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, throwError, timeout } from 'rxjs';
 import { AlternativeSlotDto, FacilityListItemDto } from '@khana/shared-dtos';
@@ -31,7 +31,10 @@ import {
 import { BookingPreviewRouteResilienceBase } from './booking-preview.route-resilience';
 
 @Directive()
-export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRouteResilienceBase {
+export abstract class BookingPreviewRoutePreviewBase
+  extends BookingPreviewRouteResilienceBase
+  implements OnInit
+{
   protected buildCacheKey(start: Date, end: Date): string {
     return buildPreviewCacheKey(
       buildPreviewPayload({
@@ -40,7 +43,7 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
         startTime: start.toTimeString().slice(0, 5),
         endTime: end.toTimeString().slice(0, 5),
         promoCode: this.promoCode(),
-      })
+      }),
     );
   }
 
@@ -54,8 +57,8 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
     this.recurrenceEndDate.set(
       getDefaultRecurrenceEndDate(
         this.selectedDate(),
-        this.recurrenceWeeksCount()
-      )
+        this.recurrenceWeeksCount(),
+      ),
     );
     this.loadFacilities();
     this.destroyRef.onDestroy(() => this.cleanup());
@@ -81,9 +84,9 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
       .pipe(
         timeout(REQUEST_TIMEOUT_MS),
         catchError((err) =>
-          throwError(() => this.resolveError('facilities', err))
+          throwError(() => this.resolveError('facilities', err)),
         ),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (facilities) => {
@@ -156,8 +159,8 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
       this.recurrenceEndDate.set(
         getDefaultRecurrenceEndDate(
           this.selectedDate(),
-          this.recurrenceWeeksCount()
-        )
+          this.recurrenceWeeksCount(),
+        ),
       );
     }
   }
@@ -182,8 +185,8 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
       this.recurrenceEndDate.set(
         getDefaultRecurrenceEndDate(
           this.selectedDate(),
-          this.recurrenceWeeksCount()
-        )
+          this.recurrenceWeeksCount(),
+        ),
       );
     }
   }
@@ -234,7 +237,7 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
 
     const endDate = getDateAfterWeeks(
       this.selectedDate(),
-      Math.max(0, preset.weeks - 1)
+      Math.max(0, preset.weeks - 1),
     );
     this.recurrenceEndDate.set(endDate);
     this.syncWeeksCountFromEndDate(endDate);
@@ -321,7 +324,7 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
 
   protected executePreviewRequest(
     payload: PreviewRequestPayload,
-    options: { ignoreCache: boolean }
+    options: { ignoreCache: boolean },
   ): void {
     this.lastAction.set('preview');
     this.lastPreviewRequest.set(payload);
@@ -366,9 +369,9 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
       .pipe(
         timeout(REQUEST_TIMEOUT_MS),
         catchError((err) =>
-          throwError(() => this.resolveError('preview', err))
+          throwError(() => this.resolveError('preview', err)),
         ),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (result) => {
@@ -437,7 +440,7 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
   }
 
   protected resolveInitialFacilitySelection(
-    facilities: FacilityListItemDto[]
+    facilities: FacilityListItemDto[],
   ): string {
     const prefilledFacilityId = this.queryPrefillParams?.facilityId;
     if (
@@ -490,14 +493,14 @@ export abstract class BookingPreviewRoutePreviewBase extends BookingPreviewRoute
     this.recurrenceEndDate.set(
       getDefaultRecurrenceEndDate(
         this.selectedDate(),
-        this.recurrenceWeeksCount()
-      )
+        this.recurrenceWeeksCount(),
+      ),
     );
   }
 
   protected syncWeeksCountFromEndDate(endDateIso: string): void {
     this.recurrenceWeeksCount.set(
-      syncWeeksCountFromEndDate(this.selectedDate(), endDateIso)
+      syncWeeksCountFromEndDate(this.selectedDate(), endDateIso),
     );
   }
 }

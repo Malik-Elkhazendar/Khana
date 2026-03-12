@@ -1,4 +1,10 @@
-import { Directive, effect } from '@angular/core';
+import {
+  AfterViewInit,
+  Directive,
+  effect,
+  OnDestroy,
+  OnInit,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BookingCalendarRouteActionsBase } from './booking-calendar.route-actions';
 import {
@@ -14,7 +20,10 @@ import { extractCardTypographyMetrics } from './booking-calendar.presentation';
  * this class so the route shell stays thin while preserving the existing API.
  */
 @Directive()
-export class BookingCalendarRouteFacade extends BookingCalendarRouteActionsBase {
+export class BookingCalendarRouteFacade
+  extends BookingCalendarRouteActionsBase
+  implements OnInit, AfterViewInit, OnDestroy
+{
   constructor() {
     super();
 
@@ -149,7 +158,7 @@ export class BookingCalendarRouteFacade extends BookingCalendarRouteActionsBase 
 
     const delay = Math.min(
       AUTO_RETRY_BASE_DELAY_MS * 2 ** attempt,
-      AUTO_RETRY_MAX_DELAY_MS
+      AUTO_RETRY_MAX_DELAY_MS,
     );
 
     this.retryScheduledAt.set(Date.now() + delay);
@@ -233,7 +242,7 @@ export class BookingCalendarRouteFacade extends BookingCalendarRouteActionsBase 
 
     this.gridTypographyMetrics.set(extractCardTypographyMetrics(gridCard));
     this.timelineTypographyMetrics.set(
-      extractCardTypographyMetrics(timelineCard)
+      extractCardTypographyMetrics(timelineCard),
     );
   }
 
