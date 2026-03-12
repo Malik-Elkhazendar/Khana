@@ -1,14 +1,19 @@
-import { applyDecorators } from '@nestjs/common';
+import { Type, applyDecorators } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiExtraModels,
   ApiForbiddenResponse,
   ApiHeader,
   ApiNotFoundResponse,
+  ApiOkResponse,
   ApiParam,
   ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { SWAGGER_BEARER_AUTH_SCHEME } from './swagger.constants';
 import { SwaggerErrorResponse } from './swagger.models';
@@ -133,4 +138,72 @@ export function ApiStandardErrorResponses(...statuses: SwaggerErrorStatus[]) {
   });
 
   return applyDecorators(...decorators);
+}
+
+function buildExampleSchema(model: Type<unknown>, example: unknown) {
+  return {
+    allOf: [{ $ref: getSchemaPath(model) }],
+    example,
+  };
+}
+
+export function ApiExampleRequestBody(
+  model: Type<unknown>,
+  description: string,
+  example: unknown
+) {
+  return applyDecorators(
+    ApiExtraModels(model),
+    ApiBody({
+      description,
+      required: true,
+      schema: buildExampleSchema(model, example),
+    })
+  );
+}
+
+export function ApiExampleOkResponse(
+  model: Type<unknown>,
+  description: string,
+  example: unknown
+) {
+  return applyDecorators(
+    ApiExtraModels(model),
+    ApiOkResponse({
+      description,
+      schema: buildExampleSchema(model, example),
+    })
+  );
+}
+
+export function ApiExampleCreatedResponse(
+  model: Type<unknown>,
+  description: string,
+  example: unknown
+) {
+  return applyDecorators(
+    ApiExtraModels(model),
+    ApiCreatedResponse({
+      description,
+      schema: buildExampleSchema(model, example),
+    })
+  );
+}
+
+export function ApiExampleArrayOkResponse(
+  model: Type<unknown>,
+  description: string,
+  example: unknown[]
+) {
+  return applyDecorators(
+    ApiExtraModels(model),
+    ApiOkResponse({
+      description,
+      schema: {
+        type: 'array',
+        items: { $ref: getSchemaPath(model) },
+        example,
+      },
+    })
+  );
 }

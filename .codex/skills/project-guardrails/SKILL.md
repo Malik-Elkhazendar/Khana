@@ -241,8 +241,23 @@ Swagger and OpenAPI support belong in the Nest API app only.
 - Put runtime Swagger bootstrap, helper decorators, and doc-only models in `apps/api/src/app/swagger/` or the owning API module.
 - API-local request DTO classes may carry `@nestjs/swagger` decorators when a later Swagger phase needs them.
 - Keep `libs/shared-dtos` framework-agnostic. Shared interfaces and contracts must not import `@nestjs/swagger`.
+- Export and lint the committed spec at `apps/api/openapi/khana.v1.json` before using it for client generation.
 
 This keeps frontend-shared types portable and prevents Nest-specific documentation concerns from leaking into shared libraries.
+
+## 14. Generated OpenAPI Clients Stay App-Local
+
+Generated frontend API clients are transport artifacts, not shared domain
+contracts.
+
+- Generate the Angular OpenAPI client from `apps/api/openapi/khana.v1.json`
+  into `apps/manager-dashboard/src/app/shared/services/api/generated/`.
+- Do not place generated clients in `libs/shared-dtos` or other shared libs.
+- Keep handwritten frontend API services as the stable adapter layer unless a
+  specific rollout phase replaces them.
+- If generated requests use relative `/api/...` paths, resolve them through
+  app-level infrastructure such as a frontend interceptor instead of baking
+  environment-specific URLs into the generated files.
 
 ---
 

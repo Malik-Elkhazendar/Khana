@@ -11,12 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User } from '@khana/data-access';
 import {
   ExpireWaitlistEntryResponseDto,
@@ -39,10 +34,21 @@ import {
 } from './dto';
 import { WaitlistService } from './waitlist.service';
 import {
+  ApiExampleCreatedResponse,
+  ApiExampleOkResponse,
+  ApiExampleRequestBody,
   ApiJwtAuth,
   ApiStandardErrorResponses,
   ApiUuidParam,
 } from '../../swagger/swagger.decorators';
+import {
+  SWAGGER_NOTIFY_WAITLIST_REQUEST_EXAMPLE,
+  SWAGGER_NOTIFY_WAITLIST_RESPONSE_EXAMPLE,
+  SWAGGER_WAITLIST_JOIN_REQUEST_EXAMPLE,
+  SWAGGER_WAITLIST_JOIN_RESPONSE_EXAMPLE,
+  SWAGGER_WAITLIST_LIST_RESPONSE_EXAMPLE,
+  SWAGGER_WAITLIST_STATUS_RESPONSE_EXAMPLE,
+} from '../../swagger/swagger.examples';
 import {
   ExpireWaitlistEntryResponseDoc,
   JoinWaitlistResponseDoc,
@@ -67,10 +73,16 @@ export class WaitlistController {
   @ApiOperation({
     summary: 'Join the waitlist for a booking slot',
   })
-  @ApiCreatedResponse({
-    description: 'Waitlist entry created successfully.',
-    type: JoinWaitlistResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    JoinWaitlistDto,
+    'Waitlist request for a fully booked slot.',
+    SWAGGER_WAITLIST_JOIN_REQUEST_EXAMPLE
+  )
+  @ApiExampleCreatedResponse(
+    JoinWaitlistResponseDoc,
+    'Waitlist entry created successfully.',
+    SWAGGER_WAITLIST_JOIN_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403, 409)
   joinWaitlist(
     @Body() dto: JoinWaitlistDto,
@@ -85,11 +97,11 @@ export class WaitlistController {
   @ApiOperation({
     summary: 'Get waitlist status for a slot',
   })
-  @ApiOkResponse({
-    description:
-      'Waitlist status and current eligibility for the requested slot.',
-    type: WaitlistStatusResponseDoc,
-  })
+  @ApiExampleOkResponse(
+    WaitlistStatusResponseDoc,
+    'Waitlist status and current eligibility for the requested slot.',
+    SWAGGER_WAITLIST_STATUS_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403, 404)
   getWaitlistStatus(
     @Query() query: WaitlistStatusQueryDto,
@@ -104,10 +116,11 @@ export class WaitlistController {
   @ApiOperation({
     summary: 'List waitlist entries',
   })
-  @ApiOkResponse({
-    description: 'Waitlist entries visible to the current staff member.',
-    type: WaitlistListResponseDoc,
-  })
+  @ApiExampleOkResponse(
+    WaitlistListResponseDoc,
+    'Waitlist entries visible to the current staff member.',
+    SWAGGER_WAITLIST_LIST_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403)
   listWaitlistEntries(
     @Query() query: WaitlistListQueryDto,
@@ -123,10 +136,16 @@ export class WaitlistController {
   @ApiOperation({
     summary: 'Notify the next waitlist entry for a slot',
   })
-  @ApiOkResponse({
-    description: 'Next eligible waitlist entry was notified.',
-    type: NotifyNextWaitlistResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    NotifyNextWaitlistDto,
+    'Manual next-in-line notification payload for an open slot.',
+    SWAGGER_NOTIFY_WAITLIST_REQUEST_EXAMPLE
+  )
+  @ApiExampleOkResponse(
+    NotifyNextWaitlistResponseDoc,
+    'Next eligible waitlist entry was notified.',
+    SWAGGER_NOTIFY_WAITLIST_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403, 404, 409)
   notifyNext(
     @Body() dto: NotifyNextWaitlistDto,
@@ -143,10 +162,15 @@ export class WaitlistController {
     summary: 'Expire a waitlist entry',
   })
   @ApiUuidParam('entryId', 'Waitlist entry identifier to expire.')
-  @ApiOkResponse({
-    description: 'Waitlist entry expired successfully.',
-    type: ExpireWaitlistEntryResponseDoc,
-  })
+  @ApiExampleOkResponse(
+    ExpireWaitlistEntryResponseDoc,
+    'Waitlist entry expired successfully.',
+    {
+      entryId: '77777777-7777-4777-8777-777777777777',
+      status: 'EXPIRED',
+      expiredAt: '2030-06-15T17:00:00.000Z',
+    }
+  )
   @ApiStandardErrorResponses(401, 403, 404)
   expireEntry(
     @Param('entryId', new ParseUUIDPipe()) entryId: string,

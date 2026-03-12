@@ -39,6 +39,8 @@ Location: `apps/api/src/app`
 - Phase 3 adds `@ApiProperty`/`@ApiPropertyOptional` on API-local request DTO classes for the frontend-critical modules.
 - Interface-backed response contracts are documented with API-local Swagger model classes inside the owning API modules.
 - Phase 4 adds deterministic OpenAPI operation IDs and reusable standard error examples, and keeps the Swagger smoke test in CI.
+- Exported OpenAPI artifacts live under `apps/api/openapi/` and are the source input for later client-generation work.
+- Angular client generation is configured from the exported spec through `orval.config.cjs`, with output under `apps/manager-dashboard/src/app/shared/services/api/generated/`.
 - Shared DTO interfaces in `libs/shared-dtos` stay framework-agnostic and must not import `@nestjs/swagger`.
 
 ## Swagger Tag Mapping

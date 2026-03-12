@@ -10,6 +10,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { TranslateModule } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { appRoutes } from './app.routes';
+import { apiBaseUrlInterceptor } from './shared/interceptors/api-base-url.interceptor';
 import { authInterceptor } from './shared/interceptors/auth.interceptor';
 import { errorInterceptor } from './shared/interceptors/error.interceptor';
 import { GlobalErrorHandler } from './shared/errors/global-error-handler';
@@ -19,7 +20,13 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(appRoutes),
-    provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
+    provideHttpClient(
+      withInterceptors([
+        apiBaseUrlInterceptor,
+        authInterceptor,
+        errorInterceptor,
+      ])
+    ),
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     importProvidersFrom(
       TranslateModule.forRoot({

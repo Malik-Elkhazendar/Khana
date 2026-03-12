@@ -58,6 +58,7 @@ export class CustomersController {
   @ApiOkResponse({
     description: 'Customer summary for the provided phone number, or null.',
     schema: {
+      type: 'object',
       nullable: true,
       allOf: [{ $ref: getSchemaPath(CustomerSummaryDoc) }],
     },

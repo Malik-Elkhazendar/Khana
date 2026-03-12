@@ -12,8 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiCreatedResponse,
-  ApiOkResponse,
+  ApiExtraModels,
   ApiOperation,
   ApiQuery,
   ApiTags,
@@ -32,14 +31,29 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { TenantId } from '../auth/decorators/tenant-id.decorator';
 import { User } from '@khana/data-access';
 import {
+  ApiExampleArrayOkResponse,
+  ApiExampleCreatedResponse,
+  ApiExampleOkResponse,
+  ApiExampleRequestBody,
   ApiJwtAuth,
   ApiStandardErrorResponses,
   ApiUuidParam,
 } from '../swagger/swagger.decorators';
 import {
+  SWAGGER_BOOKING_FACILITY_EXAMPLE,
+  SWAGGER_BOOKING_ITEM_EXAMPLE,
+  SWAGGER_BOOKING_PREVIEW_REQUEST_EXAMPLE,
+  SWAGGER_BOOKING_PREVIEW_RESPONSE_EXAMPLE,
+  SWAGGER_CREATE_BOOKING_REQUEST_EXAMPLE,
+  SWAGGER_CREATE_RECURRING_BOOKING_REQUEST_EXAMPLE,
+  SWAGGER_CREATE_RECURRING_BOOKING_RESPONSE_EXAMPLE,
+  SWAGGER_UPDATE_BOOKING_STATUS_REQUEST_EXAMPLE,
+} from '../swagger/swagger.examples';
+import {
   BookingFacilityListItemDoc,
   BookingListItemDoc,
   BookingPreviewResponseDoc,
+  BookingRecurrenceRuleDoc,
   CreateRecurringBookingResponseDoc,
 } from './swagger/booking-doc.models';
 
@@ -56,6 +70,7 @@ import {
 })
 @ApiTags('Bookings')
 @ApiJwtAuth()
+@ApiExtraModels(BookingRecurrenceRuleDoc)
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
@@ -72,12 +87,13 @@ export class BookingsController {
     name: 'facilityId',
     required: false,
     description: 'Optional facility filter for the booking list.',
+    example: '33333333-3333-4333-8333-333333333333',
   })
-  @ApiOkResponse({
-    description: 'Bookings visible to the current user in the current tenant.',
-    type: BookingListItemDoc,
-    isArray: true,
-  })
+  @ApiExampleArrayOkResponse(
+    BookingListItemDoc,
+    'Bookings visible to the current user in the current tenant.',
+    [SWAGGER_BOOKING_ITEM_EXAMPLE]
+  )
   @ApiStandardErrorResponses(401, 403)
   findAll(
     @TenantId() tenantId: string,
@@ -98,10 +114,16 @@ export class BookingsController {
   @ApiOperation({
     summary: 'Create a single booking',
   })
-  @ApiCreatedResponse({
-    description: 'Booking created successfully.',
-    type: BookingListItemDoc,
-  })
+  @ApiExampleRequestBody(
+    CreateBookingDto,
+    'Single-booking payload with optional promo application.',
+    SWAGGER_CREATE_BOOKING_REQUEST_EXAMPLE
+  )
+  @ApiExampleCreatedResponse(
+    BookingListItemDoc,
+    'Booking created successfully.',
+    SWAGGER_BOOKING_ITEM_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403, 409)
   createBooking(
     @Body() dto: CreateBookingDto,
@@ -126,10 +148,16 @@ export class BookingsController {
   @ApiOperation({
     summary: 'Create a recurring booking series',
   })
-  @ApiCreatedResponse({
-    description: 'Recurring booking batch created successfully.',
-    type: CreateRecurringBookingResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    CreateRecurringBookingDto,
+    'Recurring booking payload with a weekly recurrence rule.',
+    SWAGGER_CREATE_RECURRING_BOOKING_REQUEST_EXAMPLE
+  )
+  @ApiExampleCreatedResponse(
+    CreateRecurringBookingResponseDoc,
+    'Recurring booking batch created successfully.',
+    SWAGGER_CREATE_RECURRING_BOOKING_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403, 409)
   createRecurringBooking(
     @Body() dto: CreateRecurringBookingDto,
@@ -154,10 +182,22 @@ export class BookingsController {
     summary: 'Update booking status',
   })
   @ApiUuidParam('id', 'Booking identifier to update.')
-  @ApiOkResponse({
-    description: 'Booking status updated successfully.',
-    type: BookingListItemDoc,
-  })
+  @ApiExampleRequestBody(
+    UpdateBookingStatusDto,
+    'Status transition payload for a booking or recurring booking instance.',
+    SWAGGER_UPDATE_BOOKING_STATUS_REQUEST_EXAMPLE
+  )
+  @ApiExampleOkResponse(
+    BookingListItemDoc,
+    'Booking status updated successfully.',
+    {
+      ...SWAGGER_BOOKING_ITEM_EXAMPLE,
+      status: 'CANCELLED',
+      paymentStatus: 'REFUNDED',
+      cancellationReason: 'Customer requested cancellation',
+      updatedAt: '2030-06-14T16:00:00.000Z',
+    }
+  )
   @ApiStandardErrorResponses(400, 401, 403, 404, 409)
   updateStatus(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -179,11 +219,16 @@ export class BookingsController {
   @ApiOperation({
     summary: 'Preview booking availability and pricing',
   })
-  @ApiOkResponse({
-    description:
-      'Preview payload with availability, pricing, and any booking conflicts.',
-    type: BookingPreviewResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    BookingPreviewRequestDto,
+    'Booking preview payload used before persisting a booking.',
+    SWAGGER_BOOKING_PREVIEW_REQUEST_EXAMPLE
+  )
+  @ApiExampleOkResponse(
+    BookingPreviewResponseDoc,
+    'Preview payload with availability, pricing, and any booking conflicts.',
+    SWAGGER_BOOKING_PREVIEW_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403, 409)
   previewBooking(
     @Body() dto: BookingPreviewRequestDto,
@@ -201,11 +246,21 @@ export class BookingsController {
   @ApiOperation({
     summary: 'List facilities available for booking',
   })
-  @ApiOkResponse({
-    description: 'Active facilities available to the current tenant.',
-    type: BookingFacilityListItemDoc,
-    isArray: true,
-  })
+  @ApiExampleArrayOkResponse(
+    BookingFacilityListItemDoc,
+    'Active facilities available to the current tenant.',
+    [
+      {
+        id: SWAGGER_BOOKING_FACILITY_EXAMPLE.id,
+        name: SWAGGER_BOOKING_FACILITY_EXAMPLE.name,
+        openTime: '08:00',
+        closeTime: '23:00',
+        slotDurationMinutes: 60,
+        basePrice: 180,
+        currency: 'SAR',
+      },
+    ]
+  )
   @ApiStandardErrorResponses(401, 403)
   getFacilities(@TenantId() tenantId: string) {
     return this.bookingsService.getFacilities(tenantId);
@@ -221,10 +276,11 @@ export class BookingsController {
     summary: 'Get a booking by id',
   })
   @ApiUuidParam('id', 'Booking identifier to fetch.')
-  @ApiOkResponse({
-    description: 'Single booking visible to the current user.',
-    type: BookingListItemDoc,
-  })
+  @ApiExampleOkResponse(
+    BookingListItemDoc,
+    'Single booking visible to the current user.',
+    SWAGGER_BOOKING_ITEM_EXAMPLE
+  )
   @ApiStandardErrorResponses(401, 403, 404)
   findOne(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,

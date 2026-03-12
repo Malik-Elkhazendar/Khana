@@ -1,4 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 
 export class NotificationChannelPreferenceDoc {
   @ApiProperty({ example: true })
@@ -70,7 +74,9 @@ export class TenantSettingsResponseDoc {
   timezone!: string;
 
   @ApiPropertyOptional({
-    type: () => NotificationPreferencesDoc,
+    type: 'object',
+    additionalProperties: false,
+    allOf: [{ $ref: getSchemaPath(NotificationPreferencesDoc) }],
     nullable: true,
   })
   notificationPreferences?: NotificationPreferencesDoc | null;

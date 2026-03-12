@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CompleteOnboardingResponseDoc {
-  @ApiProperty({ enum: [true], example: true })
-  onboardingCompleted!: true;
+  @ApiProperty({ type: Boolean, example: true })
+  onboardingCompleted!: boolean;
 
   @ApiProperty({ format: 'uuid' })
   tenantId!: string;

@@ -62,6 +62,7 @@ Swagger is mounted by the API app only.
 - Non-development environments: disabled unless `SWAGGER_ENABLED=true`
 - UI route: `/api/docs`
 - Raw document: `/api/docs-json`
+- Exported spec: `apps/api/openapi/khana.v1.json`
 
 Start the API and open Swagger:
 
@@ -80,6 +81,26 @@ node ./node_modules/nx/bin/nx.js test api --runInBand
 The direct Jest smoke command above is also the CI-safe Swagger check. It
 avoids local Nx project-graph noise while still validating docs exposure,
 security scheme wiring, and generated operation IDs.
+
+Export and lint the committed OpenAPI artifact:
+
+```bash
+npm run openapi:export
+npm run openapi:lint
+```
+
+`npm run openapi:check` runs both steps in sequence and is the canonical
+pre-client-generation validation path.
+
+Generate the Angular OpenAPI transport client from the committed spec:
+
+```bash
+npm run openapi:generate
+```
+
+Generated client code lives under
+`apps/manager-dashboard/src/app/shared/services/api/generated/`. This phase is
+additive: handwritten domain API services remain the public frontend adapters.
 
 ## WSL-First Validation
 

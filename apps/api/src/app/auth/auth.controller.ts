@@ -11,9 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import {
-  ApiCreatedResponse,
   ApiNoContentResponse,
-  ApiOkResponse,
   ApiOperation,
   ApiQuery,
   ApiTags,
@@ -38,10 +36,23 @@ import {
 } from './dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
+  ApiExampleCreatedResponse,
+  ApiExampleOkResponse,
+  ApiExampleRequestBody,
   ApiJwtAuth,
   ApiOptionalTenantHeader,
   ApiStandardErrorResponses,
 } from '../swagger/swagger.decorators';
+import {
+  SWAGGER_AUTH_LOGIN_REQUEST_EXAMPLE,
+  SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE,
+  SWAGGER_AUTH_MESSAGE_RESPONSE_EXAMPLE,
+  SWAGGER_AUTH_REFRESH_REQUEST_EXAMPLE,
+  SWAGGER_AUTH_REFRESH_RESPONSE_EXAMPLE,
+  SWAGGER_AUTH_REGISTER_REQUEST_EXAMPLE,
+  SWAGGER_AUTH_SIGNUP_OWNER_REQUEST_EXAMPLE,
+  SWAGGER_TENANT_CONTEXT_EXAMPLE,
+} from '../swagger/swagger.examples';
 import {
   AuthLoginResponseDoc,
   AuthMessageResponseDoc,
@@ -76,12 +87,14 @@ export class AuthController {
     summary: 'Resolve tenant context from the current request',
     description:
       'Returns public tenant context used by auth and onboarding flows before a JWT exists.',
+    security: [],
   })
   @ApiOptionalTenantHeader()
-  @ApiOkResponse({
-    description: 'Tenant context resolved from request hints.',
-    type: AuthTenantContextDoc,
-  })
+  @ApiExampleOkResponse(
+    AuthTenantContextDoc,
+    'Tenant context resolved from request hints.',
+    SWAGGER_TENANT_CONTEXT_EXAMPLE
+  )
   async getTenantContext(@TenantId() tenantId?: string) {
     return this.authService.getTenantContext(tenantId);
   }
@@ -93,16 +106,19 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({
     summary: 'Resolve a tenant by public slug',
+    security: [],
   })
   @ApiQuery({
     name: 'slug',
     required: true,
     description: 'Public tenant slug used to resolve auth context.',
+    example: 'khana-padel-club',
   })
-  @ApiOkResponse({
-    description: 'Tenant context for the supplied public slug.',
-    type: AuthTenantContextDoc,
-  })
+  @ApiExampleOkResponse(
+    AuthTenantContextDoc,
+    'Tenant context for the supplied public slug.',
+    SWAGGER_TENANT_CONTEXT_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 429)
   async resolveTenantBySlug(
     @Query('slug') slug?: string,
@@ -123,11 +139,18 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({
     summary: 'Create a new owner account and tenant',
+    security: [],
   })
-  @ApiCreatedResponse({
-    description: 'Owner account created and initial auth tokens returned.',
-    type: AuthLoginResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    SignupOwnerDto,
+    'Owner signup payload with the initial tenant context.',
+    SWAGGER_AUTH_SIGNUP_OWNER_REQUEST_EXAMPLE
+  )
+  @ApiExampleCreatedResponse(
+    AuthLoginResponseDoc,
+    'Owner account created and initial auth tokens returned.',
+    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 409, 429)
   async signupOwner(
     @Body() dto: SignupOwnerDto,
@@ -155,12 +178,19 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({
     summary: 'Register a user for an existing tenant',
+    security: [],
   })
   @ApiOptionalTenantHeader()
-  @ApiCreatedResponse({
-    description: 'User registered and auth tokens returned.',
-    type: AuthLoginResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    RegisterDto,
+    'User registration payload for an existing tenant.',
+    SWAGGER_AUTH_REGISTER_REQUEST_EXAMPLE
+  )
+  @ApiExampleCreatedResponse(
+    AuthLoginResponseDoc,
+    'User registered and auth tokens returned.',
+    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 409, 429)
   async register(
     @Body() dto: RegisterDto,
@@ -196,12 +226,19 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Authenticate with email and password',
+    security: [],
   })
   @ApiOptionalTenantHeader()
-  @ApiOkResponse({
-    description: 'Access token, refresh token, and current user context.',
-    type: AuthLoginResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    LoginDto,
+    'Email/password login payload with an optional public tenant hint.',
+    SWAGGER_AUTH_LOGIN_REQUEST_EXAMPLE
+  )
+  @ApiExampleOkResponse(
+    AuthLoginResponseDoc,
+    'Access token, refresh token, and current user context.',
+    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 429)
   async login(
     @Body() dto: LoginDto,
@@ -236,12 +273,18 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Rotate a refresh token and issue a new access token',
+    security: [],
   })
-  @ApiOkResponse({
-    description:
-      'New access token, rotated refresh token, and expiry metadata.',
-    type: AuthRefreshResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    RefreshTokenDto,
+    'Refresh-token rotation payload.',
+    SWAGGER_AUTH_REFRESH_REQUEST_EXAMPLE
+  )
+  @ApiExampleOkResponse(
+    AuthRefreshResponseDoc,
+    'New access token, rotated refresh token, and expiry metadata.',
+    SWAGGER_AUTH_REFRESH_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 429)
   async refresh(
     @Body() dto: RefreshTokenDto,
@@ -352,10 +395,11 @@ export class AuthController {
   @ApiOperation({
     summary: 'Get the current authenticated user',
   })
-  @ApiOkResponse({
-    description: 'Current authenticated user profile.',
-    type: AuthUserDoc,
-  })
+  @ApiExampleOkResponse(
+    AuthUserDoc,
+    'Current authenticated user profile.',
+    SWAGGER_AUTH_LOGIN_RESPONSE_EXAMPLE.user
+  )
   @ApiStandardErrorResponses(401)
   async getCurrentUser(@CurrentUser() user: User): Promise<UserDto> {
     return this.authService.getCurrentUser(user.id);
@@ -415,13 +459,17 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({
     summary: 'Request a password reset email',
+    security: [],
   })
   @ApiOptionalTenantHeader()
-  @ApiOkResponse({
-    description:
-      'Always returns success semantics to avoid exposing whether the email exists.',
-    type: AuthMessageResponseDoc,
+  @ApiExampleRequestBody(ForgotPasswordDto, 'Password reset request payload.', {
+    email: 'owner@khana.sa',
   })
+  @ApiExampleOkResponse(
+    AuthMessageResponseDoc,
+    'Always returns success semantics to avoid exposing whether the email exists.',
+    SWAGGER_AUTH_MESSAGE_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 429)
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
@@ -454,11 +502,23 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary: 'Reset password with a valid reset token',
+    security: [],
   })
-  @ApiOkResponse({
-    description: 'Password reset completed successfully.',
-    type: AuthMessageResponseDoc,
-  })
+  @ApiExampleRequestBody(
+    ResetPasswordDto,
+    'Password reset confirmation payload.',
+    {
+      token: 'reset-token-from-email',
+      newPassword: 'Secret123!',
+    }
+  )
+  @ApiExampleOkResponse(
+    AuthMessageResponseDoc,
+    'Password reset completed successfully.',
+    {
+      message: 'Password reset completed successfully.',
+    }
+  )
   @ApiStandardErrorResponses(400, 429)
   async resetPassword(
     @Body() dto: ResetPasswordDto,

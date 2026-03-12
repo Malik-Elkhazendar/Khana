@@ -67,6 +67,7 @@ export function buildSwaggerDocument(
       'Internal OpenAPI documentation for validating and testing Khana API endpoints before frontend integration.'
     )
     .setVersion('1.0')
+    .addServer('/', 'Relative server root for exported specs and local docs')
     .addBearerAuth(
       {
         type: 'http',
@@ -77,6 +78,7 @@ export function buildSwaggerDocument(
       },
       SWAGGER_BEARER_AUTH_SCHEME
     )
+    .addSecurityRequirements(SWAGGER_BEARER_AUTH_SCHEME)
     .build();
 
   return SwaggerModule.createDocument(app, config, {

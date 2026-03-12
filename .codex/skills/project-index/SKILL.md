@@ -21,6 +21,7 @@ Quick navigation for the Khana monorepo. For architecture rules, see
 | API modules (current)                        | `docs/current/api-modules.md`       |
 | Code commenting standard                     | `docs/current/code-commenting.md`   |
 | Frontend modules (current)                   | `docs/current/frontend-modules.md`  |
+| OpenAPI artifact                             | `apps/api/openapi/khana.v1.json`    |
 | Repo architecture and file placement         | `docs/current/repo-architecture.md` |
 | Monorepo layout                              | `docs/current/repository-map.md`    |
 | Dev/DB/i18n/CI commands                      | `docs/current/scripts.md`           |
@@ -103,6 +104,7 @@ Quick navigation for the Khana monorepo. For architecture rules, see
 | ------------------------ | --------------------------------------- |
 | API client facade        | `shared/services/api.service.ts`        |
 | Domain API clients       | `shared/services/api/`                  |
+| Generated API client     | `shared/services/api/generated/`        |
 | Auth/error interceptors  | `shared/interceptors/`                  |
 | Route guards             | `shared/guards/`                        |
 | i18n / locale formatting | `shared/services/`                      |

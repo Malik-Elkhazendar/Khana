@@ -1,10 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { User } from '@khana/data-access';
 import { TodaySnapshotDto, UserRole } from '@khana/shared-dtos';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -14,10 +9,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { DashboardService } from './dashboard.service';
 import {
+  ApiExampleOkResponse,
   ApiJwtAuth,
   ApiStandardErrorResponses,
 } from '../swagger/swagger.decorators';
 import { TodaySnapshotDoc } from './swagger/dashboard-doc.models';
+import { SWAGGER_DASHBOARD_SNAPSHOT_RESPONSE_EXAMPLE } from '../swagger/swagger.examples';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({
@@ -38,12 +35,13 @@ export class DashboardController {
     name: 'facilityId',
     required: false,
     description: 'Optional facility filter for the dashboard snapshot.',
+    example: '33333333-3333-4333-8333-333333333333',
   })
-  @ApiOkResponse({
-    description:
-      'Dashboard today snapshot for the tenant and optional facility.',
-    type: TodaySnapshotDoc,
-  })
+  @ApiExampleOkResponse(
+    TodaySnapshotDoc,
+    'Dashboard today snapshot for the tenant and optional facility.',
+    SWAGGER_DASHBOARD_SNAPSHOT_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(401, 403)
   getTodaySnapshot(
     @TenantId() tenantId: string,

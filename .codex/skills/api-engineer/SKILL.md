@@ -144,6 +144,9 @@ export class ResourceService {
 - Swagger-only response models also stay API-local; do not move Nest-specific doc classes into shared libs
 - Reuse the shared helpers in `apps/api/src/app/swagger/swagger.decorators.ts` for bearer auth, UUID params, tenant headers, and standard error responses
 - Keep operation IDs deterministic through the bootstrap `operationIdFactory`; do not hand-roll per-controller IDs
+- The committed OpenAPI artifact lives at `apps/api/openapi/khana.v1.json`; export and lint it before client-generation work
+- The Angular OpenAPI transport client is generated from that artifact via `orval.config.cjs` into `apps/manager-dashboard/src/app/shared/services/api/generated/`
+- Treat the generated client as transport-only. Keep handwritten frontend domain services as the stable adapter layer until a later rollout explicitly replaces them
 - The Nest Swagger CLI plugin remains deferred in this repo because the current Nx + webpack path and interface-heavy responses make explicit API-local docs safer
 
 ---

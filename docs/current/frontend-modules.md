@@ -35,7 +35,8 @@ Location: `apps/manager-dashboard/src/app`
 - `shared/guards`: auth, role, onboarding, and public route guards.
 - `shared/services`: auth, i18n, locale formatting, logging, and error reporting.
 - `shared/services/api.service.ts`: backwards-compatible API facade for existing callers.
-- `shared/services/api/`: domain API clients and request helpers.
+- `shared/services/api/`: domain API clients and request helpers. `dashboard`, `analytics`, and `facilities` now act as thin adapters over the generated OpenAPI transport client.
+- `shared/services/api/generated/`: Orval-generated Angular transport client from the committed OpenAPI spec.
 - `shared/styles`: shared styling partials and cross-feature visual primitives.
 - `shared/navigation`: dashboard and landing navigation models.
 

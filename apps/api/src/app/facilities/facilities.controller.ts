@@ -13,13 +13,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FacilityManagementItemDto, UserRole } from '@khana/shared-dtos';
 import { User } from '@khana/data-access';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -30,11 +24,20 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateFacilityDto, UpdateFacilityDto } from './dto';
 import { FacilitiesService } from './facilities.service';
 import {
+  ApiExampleArrayOkResponse,
+  ApiExampleCreatedResponse,
+  ApiExampleOkResponse,
+  ApiExampleRequestBody,
   ApiJwtAuth,
   ApiStandardErrorResponses,
   ApiUuidParam,
 } from '../swagger/swagger.decorators';
 import { FacilityManagementItemDoc } from './swagger/facility-doc.models';
+import {
+  SWAGGER_CREATE_FACILITY_REQUEST_EXAMPLE,
+  SWAGGER_FACILITY_ITEM_EXAMPLE,
+  SWAGGER_UPDATE_FACILITY_REQUEST_EXAMPLE,
+} from '../swagger/swagger.examples';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({
@@ -55,12 +58,13 @@ export class FacilitiesController {
     name: 'includeInactive',
     required: false,
     description: 'When true, include inactive facilities in the result.',
+    example: 'true',
   })
-  @ApiOkResponse({
-    description: 'Facility management list for the current tenant.',
-    type: FacilityManagementItemDoc,
-    isArray: true,
-  })
+  @ApiExampleArrayOkResponse(
+    FacilityManagementItemDoc,
+    'Facility management list for the current tenant.',
+    [SWAGGER_FACILITY_ITEM_EXAMPLE]
+  )
   @ApiStandardErrorResponses(401, 403)
   findAll(
     @TenantId() tenantId: string,
@@ -84,10 +88,11 @@ export class FacilitiesController {
     summary: 'Get a facility by id',
   })
   @ApiUuidParam('id', 'Facility identifier to fetch.')
-  @ApiOkResponse({
-    description: 'Single facility for the current tenant.',
-    type: FacilityManagementItemDoc,
-  })
+  @ApiExampleOkResponse(
+    FacilityManagementItemDoc,
+    'Single facility for the current tenant.',
+    SWAGGER_FACILITY_ITEM_EXAMPLE
+  )
   @ApiStandardErrorResponses(401, 403, 404)
   findOne(
     @Param('id') id: string,
@@ -103,10 +108,16 @@ export class FacilitiesController {
   @ApiOperation({
     summary: 'Create a facility',
   })
-  @ApiCreatedResponse({
-    description: 'Facility created successfully.',
-    type: FacilityManagementItemDoc,
-  })
+  @ApiExampleRequestBody(
+    CreateFacilityDto,
+    'Facility creation payload with pricing and operating hours.',
+    SWAGGER_CREATE_FACILITY_REQUEST_EXAMPLE
+  )
+  @ApiExampleCreatedResponse(
+    FacilityManagementItemDoc,
+    'Facility created successfully.',
+    SWAGGER_FACILITY_ITEM_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403, 409)
   create(
     @Body() dto: CreateFacilityDto,
@@ -131,10 +142,25 @@ export class FacilitiesController {
     summary: 'Update a facility',
   })
   @ApiUuidParam('id', 'Facility identifier to update.')
-  @ApiOkResponse({
-    description: 'Facility updated successfully.',
-    type: FacilityManagementItemDoc,
-  })
+  @ApiExampleRequestBody(
+    UpdateFacilityDto,
+    'Facility update payload with optional active-state changes.',
+    SWAGGER_UPDATE_FACILITY_REQUEST_EXAMPLE
+  )
+  @ApiExampleOkResponse(
+    FacilityManagementItemDoc,
+    'Facility updated successfully.',
+    {
+      ...SWAGGER_FACILITY_ITEM_EXAMPLE,
+      name: 'Court 1 - VIP',
+      config: {
+        pricePerHour: 200,
+        openTime: '09:00',
+        closeTime: '22:00',
+      },
+      updatedAt: '2030-06-12T09:30:00.000Z',
+    }
+  )
   @ApiStandardErrorResponses(400, 401, 403, 404, 409)
   update(
     @Param('id') id: string,
@@ -161,10 +187,15 @@ export class FacilitiesController {
     summary: 'Deactivate a facility',
   })
   @ApiUuidParam('id', 'Facility identifier to deactivate.')
-  @ApiOkResponse({
-    description: 'Facility deactivated successfully.',
-    type: FacilityManagementItemDoc,
-  })
+  @ApiExampleOkResponse(
+    FacilityManagementItemDoc,
+    'Facility deactivated successfully.',
+    {
+      ...SWAGGER_FACILITY_ITEM_EXAMPLE,
+      isActive: false,
+      updatedAt: '2030-06-12T09:45:00.000Z',
+    }
+  )
   @ApiStandardErrorResponses(401, 403, 404, 409)
   deactivate(
     @Param('id') id: string,

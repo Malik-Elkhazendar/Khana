@@ -4,9 +4,10 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApiService } from './api.service';
 import { environment } from '../../../environments/environment';
+import { apiBaseUrlInterceptor } from '../interceptors/api-base-url.interceptor';
 import { LoggerService } from './logger.service';
 import {
   BookingCancellationScope,
@@ -35,7 +36,7 @@ describe('ApiService', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withInterceptors([apiBaseUrlInterceptor])),
         provideHttpClientTesting(),
         ApiService,
         { provide: LoggerService, useValue: logger },

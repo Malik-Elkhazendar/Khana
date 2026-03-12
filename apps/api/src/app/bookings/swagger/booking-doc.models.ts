@@ -1,4 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import {
   BookingStatus,
   ConflictType,
@@ -267,7 +271,9 @@ export class BookingListItemDoc {
   recurrenceInstanceNumber?: number | null;
 
   @ApiPropertyOptional({
-    type: () => BookingRecurrenceRuleDoc,
+    type: 'object',
+    additionalProperties: false,
+    allOf: [{ $ref: getSchemaPath(BookingRecurrenceRuleDoc) }],
     nullable: true,
   })
   recurrenceRule?: BookingRecurrenceRuleDoc | null;

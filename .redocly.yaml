@@ -1,0 +1,11 @@
+apis:
+  khana@v1:
+    root: ./apps/api/openapi/khana.v1.json
+
+extends:
+  - recommended
+
+rules:
+  info-license: off
+  security-defined: off
+  nullable-type-sibling: off

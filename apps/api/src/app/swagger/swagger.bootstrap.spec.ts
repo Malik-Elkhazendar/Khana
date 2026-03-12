@@ -118,6 +118,33 @@ describe('Swagger bootstrap', () => {
     expect(document.paths?.['/api/v1/bookings']?.post?.operationId).toBe(
       buildSwaggerOperationId('BookingsController', 'createBooking')
     );
+    expect(document.paths?.['/api/v1/bookings/preview']?.post).toMatchObject({
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: {
+              example: expect.objectContaining({
+                facilityId: expect.any(String),
+                promoCode: 'SAVE10',
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          content: {
+            'application/json': {
+              schema: {
+                example: expect.objectContaining({
+                  canBook: true,
+                }),
+              },
+            },
+          },
+        },
+      },
+    });
     expect(document.paths).not.toHaveProperty('/api/v1/test-email');
   });
 

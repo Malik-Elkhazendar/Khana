@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AnalyticsOccupancyResponseDto,
   AnalyticsPeakHoursResponseDto,
@@ -14,6 +14,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto, RevenueQueryDto } from './dto';
 import {
+  ApiExampleOkResponse,
   ApiJwtAuth,
   ApiStandardErrorResponses,
 } from '../swagger/swagger.decorators';
@@ -23,6 +24,12 @@ import {
   AnalyticsRevenueResponseDoc,
   AnalyticsSummaryResponseDoc,
 } from './swagger/analytics-doc.models';
+import {
+  SWAGGER_ANALYTICS_OCCUPANCY_RESPONSE_EXAMPLE,
+  SWAGGER_ANALYTICS_PEAK_HOURS_RESPONSE_EXAMPLE,
+  SWAGGER_ANALYTICS_REVENUE_RESPONSE_EXAMPLE,
+  SWAGGER_ANALYTICS_SUMMARY_RESPONSE_EXAMPLE,
+} from '../swagger/swagger.examples';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({
@@ -39,11 +46,11 @@ export class AnalyticsController {
   @ApiOperation({
     summary: 'Get analytics summary metrics',
   })
-  @ApiOkResponse({
-    description:
-      'Summary analytics for the requested date range and facility scope.',
-    type: AnalyticsSummaryResponseDoc,
-  })
+  @ApiExampleOkResponse(
+    AnalyticsSummaryResponseDoc,
+    'Summary analytics for the requested date range and facility scope.',
+    SWAGGER_ANALYTICS_SUMMARY_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403)
   getSummary(
     @Query() query: AnalyticsQueryDto,
@@ -57,11 +64,11 @@ export class AnalyticsController {
   @ApiOperation({
     summary: 'Get occupancy analytics',
   })
-  @ApiOkResponse({
-    description:
-      'Occupancy analytics for the requested date range and facility scope.',
-    type: AnalyticsOccupancyResponseDoc,
-  })
+  @ApiExampleOkResponse(
+    AnalyticsOccupancyResponseDoc,
+    'Occupancy analytics for the requested date range and facility scope.',
+    SWAGGER_ANALYTICS_OCCUPANCY_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403)
   getOccupancy(
     @Query() query: AnalyticsQueryDto,
@@ -75,11 +82,11 @@ export class AnalyticsController {
   @ApiOperation({
     summary: 'Get revenue analytics',
   })
-  @ApiOkResponse({
-    description:
-      'Revenue analytics for the requested date range and facility scope.',
-    type: AnalyticsRevenueResponseDoc,
-  })
+  @ApiExampleOkResponse(
+    AnalyticsRevenueResponseDoc,
+    'Revenue analytics for the requested date range and facility scope.',
+    SWAGGER_ANALYTICS_REVENUE_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403)
   getRevenue(
     @Query() query: RevenueQueryDto,
@@ -93,11 +100,11 @@ export class AnalyticsController {
   @ApiOperation({
     summary: 'Get peak-hours analytics',
   })
-  @ApiOkResponse({
-    description:
-      'Peak-hour analytics for the requested date range and facility scope.',
-    type: AnalyticsPeakHoursResponseDoc,
-  })
+  @ApiExampleOkResponse(
+    AnalyticsPeakHoursResponseDoc,
+    'Peak-hour analytics for the requested date range and facility scope.',
+    SWAGGER_ANALYTICS_PEAK_HOURS_RESPONSE_EXAMPLE
+  )
   @ApiStandardErrorResponses(400, 401, 403)
   getPeakHours(
     @Query() query: AnalyticsQueryDto,
